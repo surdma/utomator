@@ -30,12 +30,15 @@ export class Runner {
     const logPath = resolve(logDir, `${summary.id}.jsonl`);
     this.active = { summary, controller };
     this.history.set(summary.id, summary);
-    if (this.history.size > 100) this.history.delete(this.history.keys().next().value!);
+    if (this.history.size > 100) {
+      const oldest = this.history.keys().next().value;
+      if (oldest) this.history.delete(oldest);
+    }
     const emit = (kind: StreamEvent['kind'], message: string, details?: unknown): void => {
       const event = this.events.publish({ runId: summary.id, kind, message, details });
       // Each run keeps its own human-readable event journal. No secrets or
       // session cookies are included in our event payloads.
-      try { appendFileSync(logPath, JSON.stringify(event) + '\n', { mode: 0o600 }); }
+      try { appendFileSync(logPath, `${JSON.stringify(event)}\n`, { mode: 0o600 }); }
       catch (error) { this.events.publish({ runId: summary.id, kind: 'error', message: `Log write failed: ${String(error)}` }); }
     };
     emit('status', 'Run queued for browser startup');
