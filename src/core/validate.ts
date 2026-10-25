@@ -5,7 +5,7 @@ import type { Platform } from './types.js';
 /** A handle is a user identifier, not a URL. Old profileUrl requests remain supported. */
 export function profileFromIdentity(platform: Platform, handle?: string, profileUrl?: string): URL {
   if (!handle && !profileUrl) throw new Error('Enter your LinkedIn username or X handle');
-  if (!handle) return validateExistingUrl(platform, profileUrl!);
+  if (!handle) return validateExistingUrl(platform, profileUrl ?? '');
   const clean = handle.trim().replace(/^@/, '');
   const allowed = platform === 'linkedin' ? /^[a-zA-Z0-9_-]{1,100}$/ : /^[a-zA-Z0-9_]{1,15}$/;
   if (!allowed.test(clean)) throw new Error(`Invalid ${platform === 'x' ? 'X handle' : 'LinkedIn username'}`);
