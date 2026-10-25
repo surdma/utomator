@@ -45,7 +45,7 @@
       <p class="footer">Single-user local app. Not a hosted multi-account service. Do not expose port 3101 to the internet. Credentials only travel to the local process and are not saved or included in logs.</p>
     </section>
     <section><div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><h2>Live activity</h2><span id="runId" class="small">No run</span></div>
-      <div id="approval" class="approval hide" aria-live="assertive"><strong>Approval required</strong><p id="approvalText"></p><div class="buttons"><button id="approve">Approve action</button><button class="danger" id="reject">Reject</button></div></div>
+      <div id="approval" class="approval hide" aria-live="assertive"><strong>Approval required</strong><p id="approvalText"></p><div class="buttons"><button id="approve" type="button">Approve action</button><button class="danger" id="reject" type="button">Reject</button></div></div>
       <div id="inputPrompt" class="approval hide" aria-live="assertive"><strong>Input requested</strong><p id="inputText"></p><label for="inputValue">Your response</label><input id="inputValue" maxlength="300"><div class="buttons"><button id="sendInput" type="button">Send response</button></div></div>
       <div class="log" id="log" role="log" aria-live="polite"></div>
       <p class="footer">Progress uses Server-Sent Events. Screenshots are stored under <code>utomator/.runtime/evidence/</code> and never uploaded by this app.</p>
