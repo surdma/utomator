@@ -1,0 +1,38 @@
+name: Utomator checks
+on:
+  pull_request:
+  push:
+    branches: [main, utomator]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm build
+      - name: Smoke test built local server without social credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          node dist/main.js > /tmp/utomator-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for i in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:3101/health > /tmp/utomator-health.json; then break; fi
+            sleep 1
+          done
+          node -e "const h=require('/tmp/utomator-health.json');if(h.status!=='ok')process.exit(1)"
+          curl --fail --silent http://127.0.0.1:3101/context/surdma | node -e "let a='';process.stdin.on('data',b=>a+=b).on('end',()=>{let p=JSON.parse(a);if(p.ownerHandle!=='surdma'||p.projects.length!==14)process.exit(1)})"

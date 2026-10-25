@@ -4,16 +4,16 @@ Local-first, repeatable Playwright automation for a LinkedIn or X account you co
 
 ## Start
 
-From the workspace root after migration:
+From this standalone `surdma/utomator` repository:
 
 ```bash
 corepack enable
 pnpm install
-pnpm --filter @devsurma/utomator exec playwright install chrome
-pnpm dev:utomator
+pnpm exec playwright install chrome
+pnpm dev
 ```
 
-Open http://127.0.0.1:3101. The default browser mode opens a dedicated persistent Chrome profile under `utomator/.runtime/chrome/{platform}`. Log in manually on the first run; the app never asks for your password. A browser challenge stops the flow and requests your intervention.
+Open http://127.0.0.1:3101. The default browser mode opens a dedicated persistent Chrome profile under `.runtime/chrome/{platform}`. Enter the LinkedIn username or X handle (for example, `surdma`, not the full URL). You can use a signed-in persistent Chrome session, or optionally enter account email/username and password to attempt login **only when a login page is detected**. The password is never written to files or event logs, is cleared from the run request after completion, and is cleared from the form after submission. The browser may still require manual CAPTCHA/2FA or an account-identity step, and those are never bypassed. Prefer manually authenticated Chrome sessions on shared devices.
 
 Alternatively start Chrome with a **separate** debugging profile, then set `CHROME_CDP_URL=http://127.0.0.1:9222` in `.env` (load environment variables using your shell). Don't expose the debugging port outside loopback. Chrome CDP must not use your everyday default profile.
 
@@ -33,7 +33,7 @@ Each run is serialized so two workflows cannot edit the same browser at the same
 | LinkedIn | Add Featured link | Add link, set title, verify Featured page |
 | X | Audit | Read username/bio/profile page and capture evidence |
 | X | Edit profile | Fill explicitly provided bio/location/website, verify, approve, reload |
-| X | Upload banner | Choose a local image under `utomator/assets`, approve crop and Save, verify changed banner |
+| X | Upload banner | Choose a local image under `assets`, approve crop and Save, verify changed banner |
 | X | Compose post | Confirm exact text, pause before publishing, verify appearance on profile |
 | X | Pin post | Open an exact post URL, require approval, verify pinned status |
 | X | Delete post | Open an exact post URL, require **two** approvals, verify disappearance |
@@ -44,6 +44,8 @@ No bulk deletion, retweet sweep, auto-following, invitations, DMs, engagement fa
 
 ```bash
 pnpm --filter @devsurma/utomator test
+pnpm --filter @devsurma/utomator exec playwright install chromium
+pnpm --filter @devsurma/utomator test:integration
 pnpm --filter @devsurma/utomator typecheck
 pnpm --filter @devsurma/utomator lint
 pnpm --filter @devsurma/utomator build
@@ -58,3 +60,17 @@ pnpm --filter @devsurma/utomator build
 - Account ownership is checked using account-specific edit affordances. Never assume a public profile URL implies edit permission.
 - All writes require operator approval, and success requires a fresh read. Unverified actions fail loudly. Take platform policies and human review seriously.
 - Screenshots and YAML-format ARIA accessibility snapshots are stored under `.runtime/evidence/<runId>/`, while SSE events are also saved as `.runtime/runs/<runId>.jsonl`. None have public HTTP routes.
+
+## Source-backed account context
+
+The dashboard begins with `surdma` as an example account and displays the source-backed portfolio context only when the handle is `surdma` (case-insensitive). `/context/surdma` returns the curated summary, roles, six résumé employment entries, education, technical taxonomy, and fourteen portfolio projects. Other handles do not inherit this identity.
+
+`src/profile/surdma.ts` references `surdma/devsurma-frontend` at commit `b865ded4bb0aa8d93d1ce6ec99b852466ae9a343` with paths for its portfolio, résumé, positioning and evidence. The data is **owner-authored** and may be incomplete; it is not a verified live social profile. In particular, do not invent a MilliHub start date, diploma issuer, academic dates, venture traction or commercial metrics. Do not expose private repositories or the portfolio's résumé telephone number in public profiles without explicit authorization. The automation does not automatically post context data.
+
+## Account credential boundaries
+
+- The credential fields are optional. Leave them blank to use a pre-authenticated persistent Chrome profile and manual login/checkpoints.
+- When provided, both identifier and password are required; they travel only to the local Fastify process, not to the SSE stream or `.runtime/runs`.
+- The app is bound to `127.0.0.1` and not designed for public hosting. Browser history, cookies and session state are sensitive and reside in the local browser profile. Keep the workstation private.
+- LinkedIn and X modify their sign-in forms and may restrict scripted sign-in. A changed selector, unusual-login prompt, rate limit, CAPTCHA, or 2FA should require manual completion, not evasion.
+- A profile page being visible is not proof of write authorization; owner-edit affordances and explicit per-action approvals are still required.
