@@ -3,6 +3,7 @@ import fastifyStatic from '@fastify/static';
 import { resolve } from 'node:path';
 import { Runner } from './core/runner.js';
 import type { RunRequest, StreamEvent } from './core/types.js';
+import { surdmaContext } from './profile/surdma.js';
 
 export function buildApp() {
   const app = Fastify({ logger: { redact: ['req.headers.authorization', 'req.headers.cookie', 'res.headers.set-cookie'] }, bodyLimit: 32 * 1024 });
@@ -25,11 +26,13 @@ export function buildApp() {
 
   const runBodySchema = {
     type: 'object', additionalProperties: false,
-    required: ['platform', 'action', 'profileUrl'],
+    required: ['platform', 'action'],
     properties: {
       platform: { enum: ['linkedin', 'x'] },
       action: { enum: ['audit', 'edit-profile', 'add-skill', 'compose-post', 'pin-post', 'delete-post', 'edit-experience', 'edit-website', 'edit-services', 'add-project', 'add-featured', 'upload-banner'] },
       profileUrl: { type: 'string', maxLength: 250 },
+      handle: { type: 'string', maxLength: 100 },
+      credentials: { type: 'object', additionalProperties: false, required: ['loginId', 'password'], properties: { loginId: { type: 'string', minLength: 1, maxLength: 254 }, password: { type: 'string', minLength: 1, maxLength: 512 } } },
       headline: { type: 'string', maxLength: 220 },
       about: { type: 'string', maxLength: 2600 },
       skill: { type: 'string', maxLength: 100 },
@@ -51,6 +54,7 @@ export function buildApp() {
     },
   } as const;
   app.get('/health', async () => ({ status: 'ok' }));
+  app.get('/context/surdma', async () => surdmaContext);
   app.get('/runs', async () => runner.list());
   app.get<{ Params: { id: string } }>('/runs/:id', async (request, reply) => {
     const run = runner.get(request.params.id);

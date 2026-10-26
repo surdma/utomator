@@ -8,6 +8,7 @@ import { EventJournal } from './events.js';
 import type { RunRequest, RunSummary, StreamEvent } from './types.js';
 import { validateRun } from './validate.js';
 import { execute } from '../workflows/execute.js';
+import { loginIfRequired } from '../auth/login.js';
 
 export class Runner {
   readonly events = new EventJournal();
@@ -29,12 +30,15 @@ export class Runner {
     const logPath = resolve(logDir, `${summary.id}.jsonl`);
     this.active = { summary, controller };
     this.history.set(summary.id, summary);
-    if (this.history.size > 100) this.history.delete(this.history.keys().next().value!);
+    if (this.history.size > 100) {
+      const oldest = this.history.keys().next().value;
+      if (oldest) this.history.delete(oldest);
+    }
     const emit = (kind: StreamEvent['kind'], message: string, details?: unknown): void => {
       const event = this.events.publish({ runId: summary.id, kind, message, details });
       // Each run keeps its own human-readable event journal. No secrets or
       // session cookies are included in our event payloads.
-      try { appendFileSync(logPath, JSON.stringify(event) + '\n', { mode: 0o600 }); }
+      try { appendFileSync(logPath, `${JSON.stringify(event)}\n`, { mode: 0o600 }); }
       catch (error) { this.events.publish({ runId: summary.id, kind: 'error', message: `Log write failed: ${String(error)}` }); }
     };
     emit('status', 'Run queued for browser startup');
@@ -42,6 +46,18 @@ export class Runner {
     void (async () => {
       try {
         const page = await browser.open(input.platform);
+        const approve = async (message: string): Promise<void> => {
+          summary.state = 'approval-needed';
+          const approved = await this.approvals.request(summary.id, (checkpointId) => {
+            summary.checkpoint = { id: checkpointId, message };
+            emit('approval', message, { checkpointId });
+          }, controller.signal);
+          summary.checkpoint = undefined;
+          if (!approved) throw new Error('Approval denied, cancelled, or timed out');
+          summary.state = 'running';
+          emit('status', 'Operator approved checkpoint');
+        };
+        await loginIfRequired(page, input, profile, approve, controller.signal);
         await execute({
           page, input, profile, runId: summary.id, signal: controller.signal, emit,
           ask: async (message) => {
@@ -56,29 +72,24 @@ export class Runner {
             emit('status', 'Operator supplied requested text');
             return response;
           },
-          approve: async (message) => {
-            summary.state = 'approval-needed';
-            const approved = await this.approvals.request(summary.id, (checkpointId) => {
-              summary.checkpoint = { id: checkpointId, message };
-              emit('approval', message, { checkpointId });
-            }, controller.signal);
-            summary.checkpoint = undefined;
-            if (!approved) throw new Error('Approval denied, cancelled, or timed out');
-            summary.state = 'running';
-            emit('status', 'Operator approved checkpoint');
-          },
+          approve,
         });
         if (controller.signal.aborted) throw new Error('Run cancelled');
         summary.state = 'completed';
         emit('status', 'Run finished with verified steps');
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
+        let message = error instanceof Error ? error.message : String(error);
+        for (const value of [input.credentials?.password, input.credentials?.loginId]) {
+          if (value) message = message.replaceAll(value, '[redacted]');
+        }
         summary.state = controller.signal.aborted ? 'cancelled' :
           /approval denied|not authenticated|not establish edit ownership/i.test(message) ? 'blocked' : 'failed';
         summary.error = message;
         emit('error', message);
         emit('status', `Run ended: ${summary.state}`);
       } finally {
+        // Credentials are not stored in run summaries, journals, or screenshots.
+        if (input.credentials) { input.credentials.password = ''; input.credentials.loginId = ''; }
         await browser.close().catch((e: unknown) => emit('error', `Browser cleanup failed: ${String(e)}`));
         if (this.active?.summary.id === summary.id) this.active = undefined;
       }

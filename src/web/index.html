@@ -29,17 +29,23 @@
   <header><div><div class="brand">Utomator</div><div class="small">Repeatable LinkedIn and X workflows. No AI required at runtime.</div></div><span id="status" class="status">Idle</span></header>
   <main>
     <section>
-      <h1>New workflow</h1><p class="muted">Connect to your signed-in Chrome session. Every profile edit, publication, or deletion pauses for your approval.</p>
+      <h1>New workflow</h1><p class="muted">Enter your username or handle. Use an existing signed-in Chrome session or optionally provide credentials for sign-in if required. Every write needs approval.</p>
       <form id="form">
         <div class="row"><div><label for="platform">Platform</label><select id="platform"><option value="linkedin">LinkedIn</option><option value="x">X</option></select></div><div><label for="action">Action</label><select id="action"></select></div></div>
-        <label for="profileUrl">Your profile URL</label><input id="profileUrl" type="url" value="https://www.linkedin.com/in/surdma/" required>
+        <label for="handle">LinkedIn username</label><input id="handle" type="text" value="surdma" autocomplete="username" autocapitalize="off" spellcheck="false" maxlength="100" required>
+        <details id="loginOptions"><summary>Sign-in details (optional)</summary>
+          <p class="muted">Only used when the selected account needs sign-in. Never saved by Utomator. Browser verification and 2FA remain manual.</p>
+          <label for="loginId">Account email / username</label><input id="loginId" type="text" autocomplete="username" maxlength="254">
+          <label for="loginPassword">Password</label><input id="loginPassword" type="password" autocomplete="current-password" maxlength="512">
+        </details>
         <div id="fields"></div>
         <div class="buttons"><button id="run" type="submit">Start workflow</button><button class="secondary" id="cancel" type="button" disabled>Cancel run</button></div>
       </form>
-      <p class="footer">Single-user local app. Not a hosted multi-account service. Do not expose port 3101 to the internet.</p>
+      <details id="portfolioContext"><summary>About surdma: portfolio and résumé context</summary><div id="contextDetails" class="muted">Loading source-backed profile context...</div></details>
+      <p class="footer">Single-user local app. Not a hosted multi-account service. Do not expose port 3101 to the internet. Credentials only travel to the local process and are not saved or included in logs.</p>
     </section>
     <section><div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><h2>Live activity</h2><span id="runId" class="small">No run</span></div>
-      <div id="approval" class="approval hide" aria-live="assertive"><strong>Approval required</strong><p id="approvalText"></p><div class="buttons"><button id="approve">Approve action</button><button class="danger" id="reject">Reject</button></div></div>
+      <div id="approval" class="approval hide" aria-live="assertive"><strong>Approval required</strong><p id="approvalText"></p><div class="buttons"><button id="approve" type="button">Approve action</button><button class="danger" id="reject" type="button">Reject</button></div></div>
       <div id="inputPrompt" class="approval hide" aria-live="assertive"><strong>Input requested</strong><p id="inputText"></p><label for="inputValue">Your response</label><input id="inputValue" maxlength="300"><div class="buttons"><button id="sendInput" type="button">Send response</button></div></div>
       <div class="log" id="log" role="log" aria-live="polite"></div>
       <p class="footer">Progress uses Server-Sent Events. Screenshots are stored under <code>utomator/.runtime/evidence/</code> and never uploaded by this app.</p>
@@ -64,7 +70,8 @@
   }
   function setActions(){
     $('action').replaceChildren(...actionLabels[$('platform').value].map(([value,title])=>{const opt=document.createElement('option');opt.value=value;opt.textContent=title;return opt}));
-    $('profileUrl').value=''; $('profileUrl').placeholder=$('platform').value==='linkedin'?'https://www.linkedin.com/in/your-handle/':'https://x.com/your-handle';
+    document.querySelector('label[for=handle]').textContent=$('platform').value==='linkedin'?'LinkedIn username':'X handle';
+    $('handle').maxLength=$('platform').value==='linkedin'?100:16; $('handle').placeholder=$('platform').value==='linkedin'?'e.g. surdma':'e.g. @surdma';
     updateFields();
   }
   $('platform').addEventListener('change',setActions);$('action').addEventListener('change',updateFields);setActions();
@@ -74,8 +81,11 @@
   function consume(evt){const event=JSON.parse(evt.data);log(event.message,event.kind,new Date(event.time).toLocaleTimeString());if(event.kind==='approval'){checkpoint=event.details?.checkpointId;$('approvalText').textContent=event.message;$('approval').classList.remove('hide')};if(event.kind==='input'){checkpoint=event.details?.checkpointId;$('inputText').textContent=event.message;$('inputPrompt').classList.remove('hide')};if(event.kind==='status'&&event.message.startsWith('Run ended:'))finish(event.message.replace('Run ended: ',''));if(event.kind==='status'&&event.message==='Run finished with verified steps')finish('completed');}
   function finish(state){setStatus(state);$('run').disabled=false;$('cancel').disabled=true;hideApproval();if(stream){stream.close();stream=null}}
   $('form').addEventListener('submit',async e=>{
-    e.preventDefault();const req={platform:$('platform').value,action:$('action').value,profileUrl:$('profileUrl').value};
+    e.preventDefault();const req={platform:$('platform').value,action:$('action').value,handle:$('handle').value.trim()};
+    const loginId=$('loginId').value.trim(),password=$('loginPassword').value;
+    if(loginId||password){if(!loginId||!password){log('Enter both account identifier and password, or leave both blank.','error');return;}req.credentials={loginId,password};}
     $('fields').querySelectorAll('input,textarea').forEach(el=>{if(el.value.trim()){const key=el.id.replace('field-','');req[key]=key==='websiteIndex'?Number(el.value):el.value.trim()}});
+    $('loginPassword').value='';
     try{hideApproval();$('run').disabled=true;$('log').replaceChildren();setStatus('Starting');const result=await post('/runs',req);currentRun=result.id;$('cancel').disabled=false;$('runId').textContent=currentRun.slice(0,8);setStatus('Running');
       stream=new EventSource('/events/'+encodeURIComponent(currentRun));for(const type of ['step','audit','approval','screenshot','result','status','error'])stream.addEventListener(type,consume);
       stream.onerror=()=>{log('Event stream interrupted. The run may continue; reconnect using run ID.','error')};
@@ -85,5 +95,20 @@
   $('sendInput').addEventListener('click',async()=>{if(!currentRun||!checkpoint)return;try{await post('/runs/'+currentRun+'/input',{checkpointId:checkpoint,value:$('inputValue').value});$('inputValue').value='';hideApproval();log('Requested input submitted')}catch(err){log(err.message,'error')}});
   $('approve').addEventListener('click',()=>decide(true));$('reject').addEventListener('click',()=>decide(false));
   $('cancel').addEventListener('click',async()=>{if(!currentRun)return;try{await post('/runs/'+currentRun+'/cancel');log('Cancellation requested')}catch(err){log(err.message,'error')}});
+  async function showContext(){
+    const container=$('contextDetails');container.replaceChildren();
+    if($('handle').value.trim().replace(/^@/,'').toLowerCase()!=='surdma'){
+      container.textContent='Source-backed context is available only for @surdma. Other accounts are not assigned this biography.';return;
+    }
+    try{
+      const response=await fetch('/context/surdma');if(!response.ok)throw new Error('Context unavailable');
+      const data=await response.json();const paragraph=document.createElement('p');paragraph.textContent=data.name+' · '+data.location+' · '+data.summary;container.append(paragraph);
+      for(const [label,values] of [['Experience',data.experience.map(v=>v.title+' at '+v.employer+' ('+v.period+')')],['Projects',data.projects.map(v=>v.title)],['Needs your confirmation',data.requiresOwnerConfirmation]]){
+        const heading=document.createElement('strong');heading.textContent=label;const list=document.createElement('ul');for(const value of values){const li=document.createElement('li');li.textContent=value;list.append(li);}container.append(heading,list);
+      }
+      const warning=document.createElement('p');warning.textContent='From portfolio and résumé source files; not a verified live profile. Review every fact before publishing.';container.append(warning);
+    }catch{container.textContent='Could not load profile context.'}
+  }
+  $('handle').addEventListener('change',showContext);showContext();
 </script>
 </body></html>

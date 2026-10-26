@@ -4,7 +4,9 @@ export type RunState = 'running' | 'input-needed' | 'approval-needed' | 'complet
 export interface RunRequest {
   platform: Platform;
   action: Action;
-  profileUrl: string;
+  profileUrl?: string;
+  handle?: string;
+  credentials?: { loginId: string; password: string };
   headline?: string;
   about?: string;
   skill?: string;

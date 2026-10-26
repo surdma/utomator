@@ -1,4 +1,31 @@
 import type { RunRequest } from './types.js';
+import type { Platform } from './types.js';
+
+
+/** A handle is a user identifier, not a URL. Old profileUrl requests remain supported. */
+export function profileFromIdentity(platform: Platform, handle?: string, profileUrl?: string): URL {
+  if (!handle && !profileUrl) throw new Error('Enter your LinkedIn username or X handle');
+  if (!handle) return validateExistingUrl(platform, profileUrl ?? '');
+  const clean = handle.trim().replace(/^@/, '');
+  const allowed = platform === 'linkedin' ? /^[a-zA-Z0-9_-]{1,100}$/ : /^[a-zA-Z0-9_]{1,15}$/;
+  if (!allowed.test(clean)) throw new Error(`Invalid ${platform === 'x' ? 'X handle' : 'LinkedIn username'}`);
+  const url = new URL(platform === 'linkedin' ? `https://www.linkedin.com/in/${clean}/` : `https://x.com/${clean}`);
+  if (profileUrl && validateExistingUrl(platform, profileUrl).pathname.replace(/\/$/, '').toLowerCase() !== url.pathname.replace(/\/$/, '').toLowerCase()) {
+    throw new Error('Username and profile URL must refer to the same account');
+  }
+  return url;
+}
+
+function validateExistingUrl(platform: Platform, input: string): URL {
+  const url = new URL(input);
+  const hosts = platform === 'linkedin' ? ['www.linkedin.com', 'linkedin.com'] : ['x.com', 'www.x.com'];
+  if (url.protocol !== 'https:' || !hosts.includes(url.hostname) || url.username || url.password || url.port || url.search || url.hash) {
+    throw new Error('Only direct official HTTPS profile URLs are allowed');
+  }
+  const pattern = platform === 'linkedin' ? /^\/in\/[a-zA-Z0-9_-]+\/?$/ : /^\/[a-zA-Z0-9_]{1,15}\/?$/;
+  if (!pattern.test(url.pathname)) throw new Error('Enter your profile URL or username');
+  return url;
+}
 
 export function validateProfileUrl(platform: 'linkedin' | 'x', input: string): URL {
   const url = new URL(input);
@@ -24,7 +51,11 @@ export function validatePostUrl(profileUrl: URL, postUrl: string): URL {
 }
 
 export function validateRun(input: RunRequest): URL {
-  const profile = validateProfileUrl(input.platform, input.profileUrl);
+  const profile = profileFromIdentity(input.platform, input.handle, input.profileUrl);
+  if (input.credentials) {
+    if (!input.credentials.loginId?.trim() || !input.credentials.password) throw new Error('Both sign-in identifier and password are required');
+    if (input.credentials.loginId.length > 254 || input.credentials.password.length > 512) throw new Error('Sign-in fields are too long');
+  }
   if (input.platform === 'linkedin' && !['audit', 'edit-profile', 'add-skill', 'edit-experience', 'edit-website', 'edit-services', 'add-project', 'add-featured'].includes(input.action)) {
     throw new Error('This workflow is not supported on LinkedIn');
   }

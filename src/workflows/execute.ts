@@ -105,6 +105,7 @@ async function ensureXOwner(ctx: WorkflowContext): Promise<void> {
 async function audit(ctx: WorkflowContext): Promise<void> {
   await navigate(ctx, ctx.profile.href);
   const data = await ctx.page.evaluate((platform) => {
+    // biome-ignore lint/performance/useDomNodeTextContent: An audit must read visible rendered text.
     const read = (selector: string) => (document.querySelector(selector) as HTMLElement | null)?.innerText?.trim() ?? null;
     const main = document.querySelector('main') || document.body;
     return {
@@ -113,6 +114,7 @@ async function audit(ctx: WorkflowContext): Promise<void> {
       headline: platform === 'linkedin' ? read('.text-body-medium-breakwords') : null,
       bio: platform === 'x' ? read('[data-testid="UserDescription"]') : null,
       xName: platform === 'x' ? read('[data-testid="UserName"]') : null,
+      // biome-ignore lint/performance/useDomNodeTextContent: Hidden nodes must not enter visible audit excerpts.
       excerpt: ((main as HTMLElement).innerText || '').replace(/\s+/g, ' ').slice(0, 1800),
     };
   }, ctx.input.platform);

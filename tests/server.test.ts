@@ -12,6 +12,9 @@ test('Fastify serves the local dashboard and health status', async () => {
     const health = await app.inject('/health');
     assert.equal(health.statusCode, 200);
     assert.equal(health.json().status, 'ok');
+    const context = await app.inject('/context/surdma');
+    assert.equal(context.statusCode, 200);
+    assert.equal(context.json().projects.length, 14);
     const home = await app.inject('/');
     assert.equal(home.statusCode, 200);
     assert.match(home.body, /Utomator/);
@@ -41,5 +44,17 @@ test('cross-origin state changes are rejected', async () => {
       platform: 'x', action: 'audit', profileUrl: 'https://x.com/surdma',
     } });
     assert.equal(response.statusCode, 403);
+  } finally { await app.close(); }
+});
+
+
+test('Fastify accepts handle-only requests and rejects incomplete credential pairs', async () => {
+  const app = buildApp();
+  try {
+    await app.ready();
+    const wrong = await app.inject({ method: 'POST', url: '/runs', payload: { platform: 'linkedin', action: 'audit', handle: 'surdma', credentials: { loginId: 'account@example.test' } } });
+    assert.equal(wrong.statusCode, 400);
+    const invalid = await app.inject({ method: 'POST', url: '/runs', payload: { platform: 'x', action: 'audit', handle: 'wrong/account' } });
+    assert.equal(invalid.statusCode, 400);
   } finally { await app.close(); }
 });
