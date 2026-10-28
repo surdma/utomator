@@ -7,6 +7,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 
 process.env.NODE_ENV = 'test';
+process.env.UTOMATOR_TEST_DATABASE = 'true';
 const {buildApp}=await import('../src/main.js');
 
 /**
@@ -120,7 +121,7 @@ test('Next.js workspace rejects unverified account runs without executing writes
 test('Next.js workspace exposes connection and tracking dialogs without a login', async () => exercise('audit-race'));
 
 
-test('Agent skills library connects canvas, MDX, export and operator chat', { timeout: 100000 }, async () => {
+test('Crafts library connects canvas, MDX, export and operator chat', { timeout: 100000 }, async () => {
   const app = buildApp();
   const browser = await chromium.launch({ headless: true });
   try {
@@ -129,19 +130,19 @@ test('Agent skills library connects canvas, MDX, export and operator chat', { ti
     await page.goto('http://127.0.0.1:3100/dashboard', { waitUntil: 'domcontentloaded' });
     await page.getByTestId('workflow-artboard').waitFor();
     assert.equal(await page.locator('.react-flow__minimap').count(), 0, 'the workflow artboard must not have an obscuring minimap');
-    await clickUntilVisible(page, page.getByRole('button', { name: 'Library', exact: true }),
-      page.getByTestId('skills-library'));
-    await page.getByRole('button', { name: 'New skill' }).click();
-    const creation = page.getByRole('dialog', { name: 'Create skill project' });
+    await clickUntilVisible(page, page.getByRole('button', { name: 'Crafts', exact: true }),
+      page.getByTestId('crafts-library'));
+    await page.getByRole('button', { name: 'New craft' }).click();
+    const creation = page.getByRole('dialog', { name: 'Create craft' });
     await creation.waitFor({ state: 'visible' });
     await creation.getByRole('button', { name: 'Cancel' }).click();
     await creation.waitFor({ state: 'hidden' });
-    assert.equal(await page.getByTestId('skills-artboard').count(), 0,
+    assert.equal(await page.getByTestId('crafts-artboard').count(), 0,
       'the catalogue route should not render any editor');
-    const candidate = page.getByTestId('skill-card-content-series-planning');
+    const candidate = page.getByTestId('craft-card-content-series-planning');
     await candidate.waitFor();
     await candidate.click();
-    await page.getByTestId('skills-artboard').waitFor();
+    await page.getByTestId('crafts-artboard').waitFor();
     const beforeWidth = await page.getByTestId('automation-main-scroll').evaluate(e=>e.getBoundingClientRect().width);
     await page.getByRole('button', { name: 'Minimize Mator' }).click();
     assert.equal(await page.getByTestId('automation-right-sidebar').isVisible(), false);
@@ -154,10 +155,10 @@ test('Agent skills library connects canvas, MDX, export and operator chat', { ti
       'tracking must be independent of the hidden chat panel');
     await page.getByRole('button', { name: 'Open Mator' }).click();
     await page.getByTestId('automation-right-sidebar').waitFor({ state:'visible' });
-    assert.equal(await page.locator('.react-flow__minimap').count(), 0, 'the skill editor must not have an obscuring minimap');
-    assert.match(page.url(), /\/library\/[^/]+$/, 'opening a project must have its own URL');
-    assert.equal(await page.getByTestId('skill-card-content-series-planning').count(), 0,
-      'skill catalogue must not remain mounted under the editor');
+    assert.equal(await page.locator('.react-flow__minimap').count(), 0, 'the craft editor must not have an obscuring minimap');
+    assert.match(page.url(), /\/crafts\/[^/]+$/, 'opening a project must have its own URL');
+    assert.equal(await page.getByTestId('craft-card-content-series-planning').count(), 0,
+      'craft catalogue must not remain mounted under the editor');
     await page.setViewportSize({ width: 1480, height: 640 });
     const positions = await page.evaluate(() => {
       const main = document.querySelector('[data-testid="automation-main-scroll"]') as HTMLElement;
@@ -185,17 +186,21 @@ test('Agent skills library connects canvas, MDX, export and operator chat', { ti
     assert(positions.documentHeight <= positions.viewportHeight + 1, 'desktop document must not scroll');
     assert(positions.composerVisible, 'chat input stays mounted while the center scrolls');
     await page.setViewportSize({ width: 1480, height: 970 });
-    await page.getByRole('button', { name: 'All skill projects' }).click();
+    await page.getByRole('button', { name: 'All crafts' }).click();
     await candidate.waitFor();
-    assert.match(page.url(), /\/library$/);
+    assert.match(page.url(), /\/crafts$/);
     await page.goBack();
-    await page.getByTestId('skills-artboard').waitFor();
-    await page.getByTestId('skill-node-goal').click();
+    await page.getByTestId('crafts-artboard').waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Save', exact: true }).isDisabled(),true,
+      'the shared predefined craft is not editable');
+    await page.getByRole('button', { name: 'Clone to my crafts' }).click();
+    await page.getByText('Created your private craft variation.').waitFor();
+    await page.getByTestId('craft-node-goal').click();
     await page.getByLabel('Step title').fill('Define the social-content goal');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await page.getByText('Saved and synchronized with MDX source.').waitFor();
     await page.getByRole('tab', { name: 'MDX source' }).click();
-    const editor = page.getByTestId('skill-mdx-editor');
+    const editor = page.getByTestId('craft-mdx-editor');
     const initial = await editor.inputValue();
     await editor.fill(initial + '\nUnapplied source draft');
     await page.getByRole('tab', { name: 'Visual craft' }).click();
@@ -206,12 +211,12 @@ test('Agent skills library connects canvas, MDX, export and operator chat', { ti
     assert.match(initial, /\*\*Next:\*\* \[evidence\]/);
     await editor.fill(initial.replace('**Next:** [evidence](#step-evidence)', '**Next:** [craft](#step-craft)'));
     await page.getByText('Unapplied MDX changes.').waitFor();
-    assert.match(page.url(), /\/library\/[^/]+\/source$/, 'MDX has a direct source route');
+    assert.match(page.url(), /\/crafts\/[^/]+\/source$/, 'MDX has a direct source route');
     await page.getByRole('button', { name: 'Apply MDX to graph' }).click();
     await page.getByText('Unapplied MDX changes.').waitFor({ state:'hidden' });
     await page.getByText('Saved and synchronized with MDX source.').waitFor();
-    const all = (await app.inject('/skills')).json();
-    const item = all.find((skill: {slug:string}) => skill.slug === 'content-series-planning');
+    const all = (await app.inject('/crafts')).json();
+    const item = all.find((skill: {slug:string}) => skill.slug === 'content-series-planning-copy');
     assert(item);
     assert(item.links.some((edge: {source:string;target:string})=> edge.source==='goal'&&edge.target==='craft'),
       'edited MDX changed the canonical graph');
@@ -222,18 +227,20 @@ test('Agent skills library connects canvas, MDX, export and operator chat', { ti
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: '.skill' }).click();
     const downloaded = await downloadPromise;
-    assert.equal(downloaded.suggestedFilename(), 'content-series-planning.skill');
-    await page.getByRole('textbox', { name: 'Structured command', exact: true }).fill('/skill unlink goal -> craft');
+    assert.equal(downloaded.suggestedFilename(), 'content-series-planning-copy.skill');
+    await page.getByRole('textbox', { name: 'Structured command', exact: true }).fill('/craft unlink goal -> craft');
     await page.getByRole('button', { name: 'Send structured command' }).click();
     await page.getByText(/Updated Content series planning/).waitFor({ timeout: 12000 });
-    const final = (await app.inject('/skills')).json().find((skill: {slug:string})=>skill.slug==='content-series-planning');
+    const final = (await app.inject('/crafts')).json().find((skill: {slug:string})=>skill.slug==='content-series-planning-copy');
     assert(!final.links.some((link: {source:string;target:string})=>link.source==='goal'&&link.target==='craft'),
-      'chat modification changed the same persisted skill graph');
-    const finalMdx = await app.inject('/skills/'+final.id+'/mdx');
+      'chat modification changed only this owner\'s persisted craft graph');
+    const original=(await app.inject('/crafts/default-content-series-planning')).json();
+    assert.equal(original.steps[0].title,'Define the objective','the shared default remains unchanged');
+    const finalMdx = await app.inject('/crafts/'+final.id+'/mdx');
     assert.match(finalMdx.body, /\*\*Next:\*\* End/);
     const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
-    await mobile.goto('http://127.0.0.1:3100/library', { waitUntil:'domcontentloaded' });
-    await mobile.getByTestId('skills-library').waitFor();
+    await mobile.goto('http://127.0.0.1:3100/crafts', { waitUntil:'domcontentloaded' });
+    await mobile.getByTestId('crafts-library').waitFor();
     const metrics = await mobile.evaluate(() => ({
       viewport: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth,
     }));

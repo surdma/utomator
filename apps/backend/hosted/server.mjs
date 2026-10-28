@@ -119,7 +119,7 @@ export function createHostedGateway({auth,workers,nextOrigin,baseUrl}){
     // Reject legacy route names instead of exposing old automation endpoints.
     if(/^\/_automate(?:\/|$)/i.test(path))
       return reject(res,404,'Legacy automation route removed');
-    const privatePage=/^\/(?:dashboard|editorial|growth|research|history|library|profile|resumes|observer|memory|settings)(?:\/|$)/i.test(path);
+    const privatePage=/^\/(?:dashboard|editorial|growth|research|history|crafts|profile|resumes|observer|memory|settings)(?:\/|$)/i.test(path);
     const apiPath=/^\/api(?:\/|$)/i.test(path);
     const privatePath=privatePage || apiPath;
     const session=auth.session(req.headers.cookie);

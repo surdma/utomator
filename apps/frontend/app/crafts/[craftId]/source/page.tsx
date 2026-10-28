@@ -4,12 +4,12 @@ import type { Metadata } from "next";
 import AutomateWorkspace from "@/components/automate/automate-workspace";
 
 export const metadata: Metadata = {
-  title: "Skill Library | Utomator",
+  title: "Craft source | Utomator",
   robots: { index: false, follow: false },
 };
 
-export default async function SkillsLibraryPage() {
+export default async function CraftSourcePage() {
   const host = (await headers()).get("host") || "";
   if (!/^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host)) notFound();
-  return <AutomateWorkspace initialPane="library" />;
+  return <AutomateWorkspace initialPane="crafts" />;
 }

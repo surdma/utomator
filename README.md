@@ -22,8 +22,9 @@ Open `http://127.0.0.1:3000` for the landing page and `http://127.0.0.1:3000/das
 ## Routes
 - `/`: Utomator product homepage.
 - `/dashboard`: automation workspace.
-- `/editorial`, `/growth`, `/research`, `/history`, `/library`, `/profile`, `/resumes`, `/observer`, `/memory`, `/settings`: operator pages with nested routes where supported.
+- `/editorial`, `/growth`, `/research`, `/history`, `/crafts`, `/profile`, `/resumes`, `/observer`, `/memory`, `/settings`: operator pages with nested routes where supported.
 - `/api/*`: loopback API proxy, including the configured LinkedIn OAuth callback.
+- `/crafts`: MDX-backed craft catalog with protected defaults and owner-private variations.
 
 The operator pages deliberately remain localhost-only, consistent with the source branch's security model. Do not expose the Fastify server or Chrome CDP publicly. Live changes require the platform-specific approvals; integration tests use local fixtures.
 
@@ -39,3 +40,6 @@ pnpm --filter @utomator/backend test:integration
 Keep the separate portfolio in `surdma/devsurma-frontend`; this repository does not ship portfolio About, Articles, Projects or personal Resume pages. The backend's owner context files are internal seed/evidence data, not a public portfolio or a dependency on the old frontend.
 
 See `apps/backend/README.md` for runtime and connector details.
+
+## Crafts and ownership
+Six predefined crafts are stored as MDX source templates in `apps/backend/crafts/default/` and persisted in the existing owner-scoped database documents table. Everyone sees the same immutable defaults. A user can clone a default or create/import a new craft: the copy is private to their authenticated owner and can be updated or deleted without touching any other account. MDX is the authoritative persisted format; the editable flow graph is derived from it. A one-time, local-only importer transfers pre-existing `.runtime/skills/library.json` entries into personal crafts without overwriting defaults. Portable `.skill` exports remain compatible with agent skill bundles.

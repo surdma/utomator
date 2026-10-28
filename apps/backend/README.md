@@ -191,7 +191,7 @@ Start both processes with `pnpm dev:automate` at the workspace root. The fronten
 
 The chat is a **deterministic command interpreter, not an AI model**. It stages audit/headline/skill/post drafts and never publishes a change from chat input alone. The source-backed playbook reads the reviewed LinkedIn guide and inventories root YAML/PNG/Playwright captures as **historical evidence**, not live state. Coverage indicators mean a handler exists, not that external providers have been dogfooded.
 
-The portfolio page is deliberately disabled for non-loopback hosts. Never expose the Next development server or Fastify remotely with the automation API enabled. Use a local browser only. If a real profile selector changed, the workflow stops rather than guessing.
+The operator frontend is deliberately disabled for non-loopback hosts. Never expose the Next development server or Fastify remotely with the automation API enabled. Use a local browser only. If a real profile selector changed, the workflow stops rather than guessing.
 
 ### Login redirect and browser lifetime
 
@@ -206,3 +206,6 @@ A review offers **Inspect this exact page** and **Configure a supported action**
 The Profile page exposes source-backed identity from the portfolio plus owner-written memory notes and a timeline of actual browser audit observations extracted from `.runtime/runs/*.jsonl`. Observed titles, headlines and bios are not treated as verified résumé claims. Notes and visual reviews persist as local JSON and binary evidence in `.runtime` and are deliberately not committed to Git. This is a **single-owner local storage design**, not a multi-user production database, embedding model, or autonomous long-term memory engine. Local files must be protected/backed up by the owner, and cannot be inferred from the network after deletion or when the application is hosted remotely.
 
 API surface: `GET/POST /visual-reviews`, `GET /visual-reviews/:id/image`, `GET/POST /identity-memory`, `GET /identity-timeline`, and `POST /runs` with `action=audit-page` plus a validated `pageUrl`. The portfolio proxies only these allowlisted paths from loopback. One-time credentials are never accepted into review or memory records by the UI.
+
+## Craft persistence
+The operator craft studio is available at `/crafts`; its Fastify API uses `/crafts` and persists each MDX craft via the tenant-scoped Drizzle document store (`crafts` namespace). The six predefined MDX templates live under `crafts/default/` and are seeded as read-only defaults into every owner database, including hosted isolated workers. Create, clone, edit and delete calls never accept a caller-supplied owner ID. Cloning always writes a new personal craft with a separate identifier and revision. The legacy single-user `.runtime/skills/library.json` is imported once in local mode only; it is never treated as a shared hosted-user source. The `.skill` ZIP export uses portable `SKILL.md` alongside MDX and graph data.

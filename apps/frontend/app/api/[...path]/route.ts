@@ -21,10 +21,10 @@ function permitted(path: string, method: string): boolean {
     if (/^linkedin\/oauth\/(status|callback)$/.test(path)) return true;
     if (path === "linkedin/research" || /^linkedin\/research\/[0-9a-fA-F-]{36}(?:\/yaml)?$/.test(path) ||
       path === "linkedin/drafts" || /^linkedin\/drafts\/[0-9a-fA-F-]{36}(?:\/yaml)?$/.test(path)) return true;
-    return ["health", "account", "connectors", "intelligence", "runs", "owner-context", "playbook", "visual-reviews", "identity-memory", "identity-timeline", "career", "skills", "workflows", "step-definitions", "step-forms"].includes(path) ||
+    return ["health", "account", "connectors", "intelligence", "runs", "owner-context", "playbook", "visual-reviews", "identity-memory", "identity-timeline", "career", "crafts", "workflows", "step-definitions", "step-forms"].includes(path) ||
       /^career\/resumes\/[0-9a-fA-F-]{36}$/.test(path) ||
       new RegExp("^profile-plans/" + id + "$").test(path) ||
-      /^skills\/[a-zA-Z0-9-]{1,75}(?:\/(?:export|mdx))?$/.test(path) ||
+      /^crafts\/[a-zA-Z0-9-]{1,75}(?:\/(?:export|mdx))?$/.test(path) ||
       new RegExp("^(runs|events)/" + id + "$").test(path) ||
       new RegExp("^runs/" + id + "/(assessment|logs)$").test(path) ||
       new RegExp("^runs/" + id + "/steps/[a-zA-Z][a-zA-Z0-9_-]{0,63}/output$").test(path) ||
@@ -40,18 +40,19 @@ function permitted(path: string, method: string): boolean {
     if (["linkedin/oauth/start","linkedin/oauth/disconnect"].includes(path) || /^linkedin\/drafts\/[0-9a-fA-F-]{36}\/publish$/.test(path)) return true;
     if (path === "linkedin/research" || path === "linkedin/drafts" ||
       /^linkedin\/drafts\/[0-9a-fA-F-]{36}\/transition$/.test(path)) return true;
+    if (/^crafts\/[a-zA-Z0-9-]{1,75}\/clone$/.test(path)) return true;
     if (path === "account/social" || path === "intelligence/chat" || /^connectors\/[0-9a-fA-F-]{36}\/(connect|sync|disconnect)$/.test(path)) return true;
-    return ["runs", "visual-reviews", "identity-memory", "career/resumes", "skills", "skills/from-mdx", "workflows", "step-definitions", "profile-plans"].includes(path) ||
+    return ["runs", "visual-reviews", "identity-memory", "career/resumes", "crafts", "crafts/from-mdx", "workflows", "step-definitions", "profile-plans"].includes(path) ||
       new RegExp("^profile-plans/" + id + "/(decision|select)$").test(path) || new RegExp("^runs/" + id + "/(decision|input|cancel|pause|resume)$").test(path);
   }
   if (method === "PUT" && /^linkedin\/drafts\/[0-9a-fA-F-]{36}$/.test(path)) return true;
   if (method === "PUT" && (path === "account/profile" || /^account\/social\/[0-9a-fA-F-]{36}$/.test(path))) return true;
   if (method === "PUT" && (path === "career/profile" || /^career\/resumes\/[0-9a-fA-F-]{36}$/.test(path))) return true;
-  if (method === "PUT") return /^workflows\/[0-9a-fA-F-]{36}$/.test(path) || /^skills\/[a-zA-Z0-9-]{1,75}$/.test(path) ||
+  if (method === "PUT") return /^workflows\/[0-9a-fA-F-]{36}$/.test(path) || /^crafts\/[a-zA-Z0-9-]{1,75}$/.test(path) ||
     /^workflow-plans\/(linkedin|x)\/(audit|audit-page|edit-profile|add-skill|compose-post|pin-post|delete-post|edit-experience|edit-website|edit-services|add-project|add-featured|upload-banner)$/.test(path);
   if (method === "DELETE" && /^account\/social\/[0-9a-fA-F-]{36}$/.test(path)) return true;
   if (method === "DELETE" && /^career\/resumes\/[0-9a-fA-F-]{36}$/.test(path)) return true;
-  if (method === "DELETE") return /^skills\/[a-zA-Z0-9-]{1,75}$/.test(path);
+  if (method === "DELETE") return /^crafts\/[a-zA-Z0-9-]{1,75}$/.test(path);
   return false;
 }
 async function forward(req: NextRequest, params: Promise<{ path: string[] }>) {
@@ -87,7 +88,7 @@ async function forward(req: NextRequest, params: Promise<{ path: string[] }>) {
   }
   try {
     const body = ["POST", "PUT", "DELETE"].includes(req.method) ? await req.text() : undefined;
-    const maxBytes = target === "visual-reviews" ? 3 * 1024 * 1024 : target === "linkedin/research" ? 128 * 1024 : target.startsWith("career/") ? 128 * 1024 : (target.startsWith("skills") || target.startsWith("workflow-plans/") || target.startsWith("workflows")) ? 128 * 1024 : 32768;
+    const maxBytes = target === "visual-reviews" ? 3 * 1024 * 1024 : target === "linkedin/research" ? 128 * 1024 : target.startsWith("career/") ? 128 * 1024 : (target.startsWith("crafts") || target.startsWith("workflow-plans/") || target.startsWith("workflows")) ? 128 * 1024 : 32768;
     if (body && new TextEncoder().encode(body).byteLength > maxBytes) return Response.json({ error: "Request too large" }, { status: 413 });
     const upstream = await fetch("http://127.0.0.1:" + port + "/" + target + new URL(req.url).search, {
       method: req.method,

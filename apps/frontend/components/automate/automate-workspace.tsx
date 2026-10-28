@@ -11,7 +11,7 @@ import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/automate-card";
 import StudioDialog from "@/components/ui/studio-dialog";
 import WorkflowPlanEditor, {type WorkflowPlan} from "@/components/automate/workflow-plan-editor";
-import SkillsLibrary, { type Skill as AgentSkill } from "@/components/automate/skills-library";
+import CraftsLibrary, { type Craft as AgentCraft } from "@/components/automate/crafts-library";
 import VisualReviewPanel, { type ImageSource, type VisualReviewDraft, type Region, type VisualAnnotation } from "@/components/automate/visual-review-panel";
 import { AutomationSettingsPage } from "@/components/automate/owner-pages";
 import CareerStudio from "@/components/automate/career-studio";
@@ -89,7 +89,7 @@ function explainCommand(value: string): { action: string; fields: Record<string,
   return null;
 }
 
-export default function AutomateWorkspace({ initialPane = "workspace" }: { initialPane?: "workspace" | "history" | "profile" | "resumes" | "observer" | "memory" | "research" | "editorial" | "growth" | "settings" | "library" }) {
+export default function AutomateWorkspace({ initialPane = "workspace" }: { initialPane?: "workspace" | "history" | "profile" | "resumes" | "observer" | "memory" | "research" | "editorial" | "growth" | "settings" | "crafts" }) {
   const [platform, setPlatform] = useState<Platform>("linkedin");
   const [action, setAction] = useState("audit");
   const [handle, setHandle] = useState("");
@@ -97,7 +97,7 @@ export default function AutomateWorkspace({ initialPane = "workspace" }: { initi
   const [activeConnector,setActiveConnector]=useState<Connector|null>(null);
   const [connectorRequest,setConnectorRequest]=useState<string|null>(null);
   const [connectorOpenSignal,setConnectorOpenSignal]=useState(0);
-  const [pane, setPane] = useState<"workspace" | "history" | "library" | "profile" | "resumes" | "observer" | "memory" | "research" | "editorial" | "growth" | "settings">(initialPane);
+  const [pane, setPane] = useState<"workspace" | "history" | "crafts" | "profile" | "resumes" | "observer" | "memory" | "research" | "editorial" | "growth" | "settings">(initialPane);
   const pathname=usePathname();
   const [trackingOpen, setTrackingOpen] = useState(false);
   const [chatVisible, setChatVisible] = useState(true);
@@ -125,9 +125,9 @@ export default function AutomateWorkspace({ initialPane = "workspace" }: { initi
   const [planDirty,setPlanDirty]=useState(false);
   const [planSaving,setPlanSaving]=useState(false);
   const [mobileChatOpen,setMobileChatOpen]=useState(false);
-  const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
-  const [selectedSkillSlug, setSelectedSkillSlug] = useState<string | null>(null);
-  const [skillsRevision, setSkillsRevision] = useState(0);
+  const [selectedCraftId, setSelectedCraftId] = useState<string | null>(null);
+  const [selectedCraftSlug, setSelectedCraftSlug] = useState<string | null>(null);
+  const [craftsRevision, setCraftsRevision] = useState(0);
   const [selectedNode, setSelectedNode] = useState("inspect");
   const [scopeSection, setScopeSection] = useState("profile");
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -152,13 +152,13 @@ export default function AutomateWorkspace({ initialPane = "workspace" }: { initi
   const streamRef = useRef<EventSource | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const currentRunRef = useRef<string | null>(null);
-  const libraryView=pathname.endsWith("/source")?"source":pathname.startsWith("/library/")?"visual":"catalog";
+  const libraryView=pathname.endsWith("/source")?"source":pathname.startsWith("/crafts/")?"visual":"catalog";
   useEffect(()=>{
-    if(pathname.startsWith("/library/")){
+    if(pathname.startsWith("/crafts/")){
       const id=pathname.split("/")[2];
-      setPane("library");
-      setSelectedSkillId(id||null);
-    }else if(pathname==="/library")setPane("library");
+      setPane("crafts");
+      setSelectedCraftId(id||null);
+    }else if(pathname==="/crafts")setPane("crafts");
     else if(pathname==="/history")setPane("history");
     else if(pathname.startsWith("/profile"))setPane("profile");
     else if(pathname.startsWith("/resumes"))setPane("resumes");
@@ -173,7 +173,7 @@ export default function AutomateWorkspace({ initialPane = "workspace" }: { initi
   function navigate(path:string){
     if(typeof window!=="undefined"&&window.location.pathname!==path)window.history.pushState(null,"",path);
   }
-  function navigatePane(next:"workspace"|"history"|"library"|"profile"|"resumes"|"observer"|"memory"|"research"|"editorial"|"growth"|"settings"){
+  function navigatePane(next:"workspace"|"history"|"crafts"|"profile"|"resumes"|"observer"|"memory"|"research"|"editorial"|"growth"|"settings"){
     if(next!==pane && typeof document!=="undefined" && document.querySelector('[data-career-dirty="true"]') && !window.confirm("Discard unsaved career edits?"))return;
     setPane(next);
     navigate(next==="workspace"?"/dashboard":"/"+next);
@@ -188,16 +188,16 @@ export default function AutomateWorkspace({ initialPane = "workspace" }: { initi
     setConnectorOpenSignal(value=>value+1);
     setMobileMenu(false);
   }
-  function navigateSkill(id:string|null,slug?:string){
-    setPane("library");setSelectedSkillId(id);
-    if(id&&slug)setSelectedSkillSlug(slug);
-    if(!id)setSelectedSkillSlug(null);
-    const target=id?"/library/"+encodeURIComponent(id):"/library";
+  function navigateCraft(id:string|null,slug?:string){
+    setPane("crafts");setSelectedCraftId(id);
+    if(id&&slug)setSelectedCraftSlug(slug);
+    if(!id)setSelectedCraftSlug(null);
+    const target=id?"/crafts/"+encodeURIComponent(id):"/crafts";
     navigate(id&&pathname===target+"/source"?pathname:target);
   }
-  function navigateSkillView(next:"visual"|"source"){
-    if(!selectedSkillId)return;
-    navigate("/library/"+encodeURIComponent(selectedSkillId)+(next==="source"?"/source":""));
+  function navigateCraftView(next:"visual"|"source"){
+    if(!selectedCraftId)return;
+    navigate("/crafts/"+encodeURIComponent(selectedCraftId)+(next==="source"?"/source":""));
   }
 
   const selected = workflows[platform].find((workflow) => workflow.id === action) || workflows[platform][0];
@@ -476,28 +476,29 @@ export default function AutomateWorkspace({ initialPane = "workspace" }: { initi
   function chatNotice(text: string) {
     setConversation(previous => [...previous, { id: Date.now() + Math.random(), sender: "assistant", text }]);
   }
-  async function handleSkillCommand(text: string) {
-    const command = text.trim().replace(/^\/?skill\s*/i, "").trim();
+  async function handleCraftCommand(text: string) {
+    const command = text.trim().replace(/^\/?craft\s*/i, "").trim();
     
     try {
-      const response = await fetch(getApi("skills"), { cache: "no-store" });
-      if (!response.ok) throw Error("Skill library is unavailable; start the local API");
-      const library = await response.json() as AgentSkill[];
-      if (/^(?:skills|library|list|help)?$/i.test(command)) {
-        navigatePane("library");
-        chatNotice("Skill Library opened. Commands: /skill open <slug>; /skill add <title> | <instructions>; /skill link <from> -> <to>; /skill unlink <from> -> <to>; /skill rename <name>; /skill enable; /skill disable. You can also edit visually or in MDX.");
+      const response = await fetch(getApi("crafts"), { cache: "no-store" });
+      if (!response.ok) throw Error("Craft library is unavailable; start the local API");
+      const library = await response.json() as AgentCraft[];
+      if (/^(?:crafts|list|help)?$/i.test(command)) {
+        navigatePane("crafts");
+        chatNotice("Crafts opened. Commands: /craft open <slug>; /craft add <title> | <instructions>; /craft link <from> -> <to>; /craft unlink <from> -> <to>; /craft rename <name>; /craft enable; /craft disable. You can also edit visually or in MDX.");
         return;
       }
       const opening = command.match(/^open\s+([a-z0-9-]+)$/i);
       if (opening) {
         const wanted = library.find(item => item.slug === opening[1]);
-        if (!wanted) throw Error("No skill matches the slug " + opening[1]);
-        navigateSkill(wanted.id,wanted.slug);
-        chatNotice("Opened " + wanted.name + " in the skill craft. Select nodes or drag handles to rewire, then save.");
+        if (!wanted) throw Error("No craft matches the slug " + opening[1]);
+        navigateCraft(wanted.id,wanted.slug);
+        chatNotice("Opened " + wanted.name + " in the craft editor. Select nodes or drag handles to rewire, then save.");
         return;
       }
-      const chosen = library.find(item => item.id === selectedSkillId);
-      if (!chosen) throw Error("Select a skill project in Library first.");
+      const chosen = library.find(item => item.id === selectedCraftId);
+      if (!chosen) throw Error("Select a craft in Crafts first.");
+      if(chosen.scope==="default")throw Error("This shared craft is read-only. Clone it to create your own editable version.");
       const draft = {
         slug:chosen.slug,name:chosen.name,description:chosen.description,
         category:chosen.category,enabled:chosen.enabled,
@@ -517,7 +518,7 @@ export default function AutomateWorkspace({ initialPane = "workspace" }: { initi
       } else if (link) {
         const source=link[2]!,target=link[3]!,id=source+"-to-"+target;
         if (!draft.steps.some(item=>item.id===source) || !draft.steps.some(item=>item.id===target))
-          throw Error("Both step IDs must exist in the selected skill.");
+          throw Error("Both step IDs must exist in the selected craft.");
         if (link[1]!.toLowerCase()==="link") {
           if (draft.links.some(item=>item.id===id)) throw Error("These steps are already connected.");
           draft.links.push({id,source,target});
@@ -531,17 +532,17 @@ export default function AutomateWorkspace({ initialPane = "workspace" }: { initi
         draft.description=description[1]!.trim().slice(0,1023);
       } else if (/^(enable|disable)$/i.test(command)) {
         draft.enabled=command.toLowerCase()==="enable";
-      } else throw Error("Unknown command. Try /skill help to see supported edits.");
-      const responseSave=await fetch(getApi("skills/"+chosen.id), {
+      } else throw Error("Unknown command. Try /craft help to see supported edits.");
+      const responseSave=await fetch(getApi("crafts/"+chosen.id), {
         method:"PUT",headers:{"content-type":"application/json"},
-        body:JSON.stringify({expectedVersion:chosen.version,skill:draft}),
+        body:JSON.stringify({expectedVersion:chosen.version,craft:draft}),
       });
-      const saved=await responseSave.json() as AgentSkill & {error?:string};
-      if (!responseSave.ok) throw Error(saved.error||"Skill edit was rejected");
-      setSkillsRevision(v=>v+1);navigateSkill(saved.id,saved.slug);
+      const saved=await responseSave.json() as AgentCraft & {error?:string};
+      if (!responseSave.ok) throw Error(saved.error||"Craft edit was rejected");
+      setCraftsRevision(v=>v+1);navigateCraft(saved.id,saved.slug);
       chatNotice("Updated "+saved.name+" · v"+saved.version+". The graph and MDX source now share this revision.");
     } catch(error) {
-      chatNotice(error instanceof Error ? error.message : "Unable to edit skill");
+      chatNotice(error instanceof Error ? error.message : "Unable to edit craft");
     }
   }
   function sendMessage(event: FormEvent<HTMLFormElement>) {
@@ -552,8 +553,8 @@ export default function AutomateWorkspace({ initialPane = "workspace" }: { initi
     setConversation((prev) => [...prev, { id: Date.now(), sender: "user", text: request }]);
     void apiPost("intelligence/chat",{text:request,platform,...(activeConnector?.id?{accountId:activeConnector.id}:{})})
       .catch(error=>chatNotice("This message was not stored in memory: "+(error instanceof Error?error.message:"Storage unavailable")));
-    if (/^(?:\/?skill(?:\s|$)|skills$|library$)/i.test(request)) {
-      void handleSkillCommand(request === "skills" || request === "library" ? "/skill help" : request);
+    if (/^(?:\/?craft(?:\s|$)|crafts$)/i.test(request)) {
+      void handleCraftCommand(request === "crafts" ? "/craft help" : request);
       return;
     }
     const parsed = explainCommand(request);
@@ -680,7 +681,7 @@ export default function AutomateWorkspace({ initialPane = "workspace" }: { initi
           <div className="h-full rounded-2xl bg-[#111a25] p-4 text-white shadow-xl shadow-slate-900/10 lg:overflow-hidden">
             <button type="button" aria-label="Close navigation" onClick={()=>setMobileMenu(false)} className="mb-3 flex min-h-10 w-full items-center justify-end gap-2 rounded-lg px-2 text-xs font-semibold text-slate-200 hover:bg-slate-800 lg:hidden"><X className="size-4" />Close</button>
         
-            {([{ id: "workspace", label: "Workspace", icon: Activity }, { id: "history", label: "Run history", icon: History }, { id: "library", label: "Library", icon: BookOpen }] as const).map((item) =>
+            {([{ id: "workspace", label: "Workspace", icon: Activity }, { id: "history", label: "Run history", icon: History }, { id: "crafts", label: "Crafts", icon: BookOpen }] as const).map((item) =>
               <button key={item.id} type="button" onClick={() => { navigatePane(item.id); setMobileMenu(false); }} className={"flex min-h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-xs font-semibold transition " + (pane === item.id ? "bg-teal-500/15 text-teal-200" : "text-slate-300 hover:bg-slate-800")}><item.icon className="size-4" />{item.label}</button>
             )}
             {([{ id: "profile", label: "Profile", icon: UserRound },
@@ -779,12 +780,12 @@ export default function AutomateWorkspace({ initialPane = "workspace" }: { initi
             </button>
           </div>}
           {pane === "history" && <Card><CardHeader><CardTitle>Recent executions</CardTitle><CardDescription>Stored in memory during the current engine session. Select a run to inspect streamed events.</CardDescription></CardHeader><CardContent><div className="divide-y divide-slate-100">{runs.length === 0 && <p className="py-10 text-center text-sm text-slate-500">No runs yet. Start an audit to capture the first trace.</p>}{runs.map((run) => <button key={run.id} type="button" className="flex min-h-16 w-full items-center justify-between gap-3 py-3 text-left hover:bg-slate-50" onClick={() => { currentRunRef.current = run.id; setActive(run); setEvents([]); connect(run.id); navigatePane("workspace"); }}><span><span className="block text-sm font-semibold capitalize">{run.platform} / {run.action.replaceAll("-", " ")}</span><span className="text-xs text-slate-500">{short(run.id)} · {new Date(run.createdAt).toLocaleString()}</span></span><span className="text-xs font-semibold capitalize text-slate-500">{stateLabel(run.state)} <ArrowRight className="ml-1 inline size-3" /></span></button>)}</div></CardContent></Card>}
-          {pane === "library" && <SkillsLibrary
-            selectedId={selectedSkillId} onSelected={navigateSkill}
-            view={libraryView} onView={navigateSkillView} onBack={()=>navigatePane("library")}
-            onChat={(text) => { if (text.startsWith("/skill")) { void handleSkillCommand(text); }
+          {pane === "crafts" && <CraftsLibrary
+            selectedId={selectedCraftId} onSelected={navigateCraft}
+            view={libraryView} onView={navigateCraftView} onBack={()=>navigatePane("crafts")}
+            onChat={(text) => { if (text.startsWith("/craft")) { void handleCraftCommand(text); }
               else chatNotice(text); }}
-            revision={skillsRevision}
+            revision={craftsRevision}
           />}
           {pane === "profile" && <AccountStudio view={pathname.endsWith("/details")?"details":pathname.endsWith("/connections")?"connections":"overview"} onNavigate={navigateSubpage} onSelectAccount={selectSocialAccount} />}
           {pane === "resumes" && <CareerStudio mode={pathname==="/resumes/profile"?"profile":"resumes"} onNavigate={navigateSubpage} />}
@@ -812,10 +813,10 @@ export default function AutomateWorkspace({ initialPane = "workspace" }: { initi
               
               </CardHeader>
               <CardContent className="flex min-h-0 flex-1 flex-col pt-3">
-                {pane === "library" && selectedSkillSlug && <div data-testid="active-skill-context" className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-teal-200 bg-teal-50 p-3">
-                  <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-teal-800">Active skill project</p>
-                    <p className="mt-0.5 truncate font-mono text-[11px] text-teal-950">{selectedSkillSlug}</p></div>
-                  <button type="button" onClick={() => setMessage("/skill help")} className="rounded-lg bg-white px-2.5 py-2 text-[11px] font-semibold text-teal-800 hover:bg-teal-100">Commands</button>
+                {pane === "crafts" && selectedCraftSlug && <div data-testid="active-craft-context" className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-teal-200 bg-teal-50 p-3">
+                  <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-teal-800">Active craft</p>
+                    <p className="mt-0.5 truncate font-mono text-[11px] text-teal-950">{selectedCraftSlug}</p></div>
+                  <button type="button" onClick={() => setMessage("/craft help")} className="rounded-lg bg-white px-2.5 py-2 text-[11px] font-semibold text-teal-800 hover:bg-teal-100">Commands</button>
                 </div>}
                 <div className="min-h-[260px] flex-1 space-y-3 overflow-y-auto pr-1 lg:min-h-0" ref={logRef} role="log" aria-live="polite">
                   {conversation.map((item) => <Message key={item.id} align={item.sender === "user" ? "end" : "start"}>
