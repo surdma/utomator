@@ -17,6 +17,12 @@ function allowedHost(request: NextRequest) {
 }
 const id = "[0-9a-fA-F-]{36}";
 function permitted(path: string, method: string): boolean {
+  const growthRun = /^growth\/workflows\/profile\/runs\/[0-9a-fA-F-]{36}$/;
+  if (method === "GET" && (path === "growth/workflows/profile" ||
+    path === "growth/workflows/profile/yaml" || path === "growth/workflows/profile/runs" ||
+    growthRun.test(path))) return true;
+  if (method === "POST" && (path === "growth/workflows/profile/runs" ||
+    /^growth\/workflows\/profile\/runs\/[0-9a-fA-F-]{36}\/(advance|evidence)$/.test(path))) return true;
   if (method === "GET") {
     if (/^linkedin\/oauth\/(status|callback)$/.test(path)) return true;
     if (path === "linkedin/research" || /^linkedin\/research\/[0-9a-fA-F-]{36}(?:\/yaml)?$/.test(path) ||

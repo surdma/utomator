@@ -33,7 +33,7 @@ export function compileGrowthProfileYaml(yaml: string) {
   const parsed = parseRestrictedYaml(yaml);
   fields(parsed, ['apiVersion', 'kind', 'metadata', 'spec'], 'root');
   fields(parsed.metadata, ['id', 'version', 'title'], 'metadata');
-  fields(parsed.spec, ['platform', 'objective', 'requirements', 'coverage', 'pipelines'], 'spec');
+  fields(parsed.spec, ['platform', 'objective', 'requirements', 'coverage', 'pipelines', 'stages'], 'spec');
   const metadata = parsed.metadata, spec = parsed.spec;
   if (parsed.apiVersion !== 'utomator.dev/v1' ||
       parsed.kind !== 'GrowthProfileWorkflow' || metadata.id !== 'linkedin-profile' ||
@@ -44,6 +44,52 @@ export function compileGrowthProfileYaml(yaml: string) {
   const requirements = entries(spec.requirements, 'requirement', 9, 'requirements');
   const coverage = entries(spec.coverage, '', 20, 'coverage');
   const pipelines = entries(spec.pipelines, '', 9, 'pipelines');
+  const rawStages = spec.stages;
+  if (!plain(rawStages) || Object.keys(rawStages).length !== 6)
+    throw Error('Growth profile requires exactly six ordered pipeline stages');
+  const seenSections = new Set<string>();
+  const stageKeys = Object.keys(rawStages);
+  const registeredSections = new Set(coverage.map(([id]) => id));
+  const stages = stageKeys.map((id, index) => {
+    if (!/^[a-z][a-zA-Z0-9]*$/.test(id)) throw Error('Invalid Growth pipeline stage ID');
+    const raw = rawStages[id];
+    fields(raw, ['title', 'action', 'page', 'sections', 'dependsOn'], 'stage');
+    if (typeof raw.title !== 'string' || !raw.title.trim() || raw.title.length > 120 ||
+        !['audit', 'audit-page'].includes(String(raw.action)) ||
+        !['profile', 'experience', 'skills', 'projects', 'featured'].includes(String(raw.page)) ||
+        (raw.action === 'audit-page' && raw.page === 'profile') ||
+        (raw.action === 'audit' && raw.page !== 'profile') ||
+        raw.dependsOn !== (index === 0 ? 'none' : stageKeys[index - 1]) ||
+        typeof raw.sections !== 'string')
+      throw Error('Invalid or unsafe Growth pipeline stage configuration');
+    const sectionIds = raw.sections === '*' ? coverage.map(([section]) => section) :
+      raw.sections.split(',').map(section => section.trim());
+    if (!sectionIds.length || new Set(sectionIds).size !== sectionIds.length ||
+        sectionIds.some(section => !registeredSections.has(section)))
+      throw Error('Invalid Growth stage section assignment');
+    if (index < stageKeys.length - 1) {
+      for (const section of sectionIds) {
+        if (seenSections.has(section)) throw Error('Growth profile coverage assigned twice');
+        seenSections.add(section);
+      }
+    } else if (raw.sections !== '*' || sectionIds.length !== 20) {
+      throw Error('Final review must include all 20 evidence targets');
+    }
+    // This is an executable Runner workflow; the section assignments are
+    // independent evidence requirements, not invented browser extractors.
+    const action = raw.action as 'audit' | 'audit-page';
+    const compiled = compileWorkflow(linkedinPipeline(action));
+    return {
+      id, title: raw.title, action, page: raw.page as
+        'profile' | 'experience' | 'skills' | 'projects' | 'featured',
+      dependsOn: raw.dependsOn as string, sectionIds,
+      stepCount: compiled.steps.length,
+      execution: 'existing-runner' as const,
+      evidenceMode: 'independent-unverified-until-sourced' as const,
+    };
+  });
+  if (seenSections.size !== registeredSections.size)
+    throw Error('Every profile section must be assigned to one assessment stage');
   const expected = new Set<string>(linkedInProfileActions);
   if (new Set(coverage.map(([, label]) => label)).size !== 20 ||
       new Set(pipelines.map(([, action]) => action)).size !== linkedInProfileActions.length ||
@@ -64,8 +110,9 @@ export function compileGrowthProfileYaml(yaml: string) {
       id, label, status: 'requires-independent-evidence' as const,
     })),
     pipelines: resolved,
-    execution: 'select-registered-pipeline' as const,
-    limitation: 'These nine registered workflows run independently. There is no multi-pipeline scheduler or verified field extractor for all 20 sections yet.',
+    stages,
+    execution: 'six-dependent-runner-pipelines' as const,
+    limitation: 'Six dependent read-only Runner workflows coordinate stage evidence and approvals. Individual profile-section extractors, in-composition edits, and independently verified field rubrics are not available yet.',
   };
 }
 export async function readGrowthProfileWorkflow() {

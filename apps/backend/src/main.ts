@@ -11,6 +11,7 @@ import { LinkedInPublishingProvider,LinkedInProviderError } from './core/linkedi
 import { ProfilePlanner } from './core/profile-planner.js';
 import { WorkflowPlanStore } from './core/workflow-store.js';
 import { readGrowthProfileWorkflow } from './engine/growth-profile.js';
+import { ProfileGrowthCoordinator } from './engine/profile-growth-coordinator.js';
 import { WorkflowRegistry } from './core/workflow-registry.js';
 import { StepDefinitionStore } from './core/step-definitions.js';
 import {loadStepForms} from './core/step-forms.js';
@@ -54,6 +55,7 @@ export function buildApp(options:{socialWorkspaceRoot?:string;linkedInFetch?:typ
   const workflowRegistry = new WorkflowRegistry();
   const linkedInPublisher = new LinkedInPublishingProvider(accountStore,linkedInEditorial,process.env,options.linkedInFetch);
   const authoredSteps = new StepDefinitionStore();
+  const growthProfileRuns = new ProfileGrowthCoordinator(runner);
   const craftLibrary = new CraftLibrary();
   const visual = new VisualReviewStore((runId, fileName, platform) => {
     const run = runner.get(runId);
@@ -69,6 +71,7 @@ export function buildApp(options:{socialWorkspaceRoot?:string;linkedInFetch?:typ
     connectors.setDocuments(database);
     workflowPlans.setDocuments(database);
     workflowRegistry.setDocuments(database);
+    growthProfileRuns.setDocuments(database);
     linkedInResearch.setDocuments(database);
     linkedInEditorial.setDocuments(database);
     linkedInPublisher.setDocuments(database);
@@ -638,6 +641,51 @@ export function buildApp(options:{socialWorkspaceRoot?:string;linkedInFetch?:typ
       return reply.code(500).send({error: 'Growth profile definition unavailable'});
     }
   });
+  // A six-stage Growth composition; existing Runner executes every browser step.
+  app.get('/growth/workflows/profile/runs', async () => growthProfileRuns.list());
+  app.get<{Params:{id:string}}>('/growth/workflows/profile/runs/:id', async(request,reply)=>{
+    const run=await growthProfileRuns.get(request.params.id);
+    return run??reply.code(404).send({error:'Growth run not found'});
+  });
+  app.post<{Body:{accountId:string}}>('/growth/workflows/profile/runs',{
+    schema:{body:{type:'object',additionalProperties:false,required:['accountId'],
+      properties:{accountId:{type:'string',pattern:'^[0-9a-fA-F-]{36}$'}}}},
+  },async(request,reply)=>{
+    try{
+      const account=await connectors.requireConnected(request.body.accountId,'linkedin');
+      return reply.code(202).send(await growthProfileRuns.start(account.id,account.profileUrl));
+    }catch(error){
+      const message=error instanceof Error?error.message:'Growth run could not start';
+      return reply.code(message.startsWith('BUSY:')?409:400).send({error:message});
+    }
+  });
+  app.post<{Params:{id:string};Body:{sectionId:string;text:string}}>(
+    '/growth/workflows/profile/runs/:id/evidence',{
+      schema:{body:{type:'object',additionalProperties:false,required:['sectionId','text'],
+        properties:{sectionId:{type:'string',pattern:'^[a-z][a-zA-Z0-9]*$'},
+          text:{type:'string',minLength:10,maxLength:1500}}}},
+    },async(request,reply)=>{
+      try{
+        const current=await growthProfileRuns.get(request.params.id);
+        if(!current)return reply.code(404).send({error:'Growth run not found'});
+        await connectors.requireConnected(current.accountId,'linkedin',current.profileUrl);
+        return await growthProfileRuns.supplyEvidence(request.params.id,request.body);
+      }catch(error){
+        return reply.code(409).send({error:error instanceof Error?error.message:'Evidence rejected'});
+      }
+    });
+  app.post<{Params:{id:string}}>('/growth/workflows/profile/runs/:id/advance',
+    async(request,reply)=>{
+      try{
+        const current=await growthProfileRuns.get(request.params.id);
+        if(!current)return reply.code(404).send({error:'Growth run not found'});
+        await connectors.requireConnected(current.accountId,'linkedin',current.profileUrl);
+        return await growthProfileRuns.advance(request.params.id);
+      }catch(error){
+        return reply.code(409).send({error:error instanceof Error?error.message:'Cannot advance Growth workflow'});
+      }
+    });
+
   app.get('/runs', async () => runner.list());
   app.get<{ Params: { id: string; file: string } }>('/runs/:id/evidence/:file', async (request, reply) => {
     const { id, file } = request.params;

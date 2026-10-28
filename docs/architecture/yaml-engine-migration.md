@@ -54,3 +54,7 @@ flowchart TB
 7. Backend, frontend, integration and security checks pass, and a real profile audit-to-approval-to-result workflow is independently demonstrated.
 
 The current implementation is useful as a compatibility bridge and acceptance baseline, not as proof that the full engine is already built.
+
+## Six-pipeline composition baseline
+
+The [profile sample](./growth-profile-composition.md) groups twenty section requirements under six dependent YAML stages which invoke the existing Runner. It exercises read-only evidence and approvals without claiming to have performed all individual field-level audits or edits.

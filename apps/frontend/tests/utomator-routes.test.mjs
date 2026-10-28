@@ -15,7 +15,8 @@ test("operator pages live under dashboard, not at the app root", () => {
   for (const route of routes) assert.ok(existsSync(resolve(app, "dashboard", route, "page.tsx")), route);
   assert.ok(existsSync(resolve(app, "api", "[...path]", "route.ts")));
   assert.ok(!existsSync(resolve(app, "%5Fautomate")));
-  for(const route of routes)assert.ok(!existsSync(resolve(app,route)));
+  for(const route of routes.filter(item=>item!=="growth"))assert.ok(!existsSync(resolve(app,route)));
+  assert.ok(existsSync(resolve(app,"growth","default-growth-profile","page.tsx")));
   assert.ok(!existsSync(resolve(app, "_automate")));
 });
 
@@ -33,6 +34,7 @@ test("the proxy still rejects unsupported endpoints and non-local access", () =>
   assert.match(proxy, /Unsupported endpoint/);
   assert.ok(proxy.includes('headers: body?.length ?'), 'bodyless clone POST does not advertise JSON');
   assert.match(proxy, /same-origin|Same-origin/);
+  assert.ok(proxy.includes('growth\\/workflows\\/profile'));
 });
 
 test("landing page and pipeline identity are Utomator, not the portfolio", () => {
@@ -48,7 +50,8 @@ test("unified Growth editor reads the ID from nested Growth and legacy Craft URL
   assert.match(pipeline, /const id=pathname\.split\("\/"\)\[3\]/);
   assert.ok(!pipeline.includes('const id=pathname.split("/")[2]'));
   assert.match(pipeline, /pathname.startsWith\("\/dashboard\/growth\/"\)/);
-  assert.match(pipeline, /pane === "growth" && <CraftsLibrary/);
+  assert.match(pipeline, /pane === "growth" && selectedCraftId!=="default-growth-profile" && <CraftsLibrary/);
+  assert.match(pipeline, /pane === "growth" && selectedCraftId==="default-growth-profile"/);
   assert.match(pipeline, /"\/dashboard\/growth\/"\+encodeURIComponent/);
   assert.ok(!pipeline.includes('<LinkedInGrowthHub'));
   for(const route of ["app/dashboard/growth/[craftId]/page.tsx",

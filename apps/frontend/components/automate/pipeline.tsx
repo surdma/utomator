@@ -153,9 +153,11 @@ export default function AutomationPipeline({ initialPane = "pipeline" }: { initi
   const streamRef = useRef<EventSource | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const currentRunRef = useRef<string | null>(null);
-  const libraryView=pathname.endsWith("/source")?"source":(pathname.startsWith("/dashboard/growth/")||pathname.startsWith("/dashboard/crafts/"))?"visual":"catalog";
+  const libraryView=pathname.endsWith("/source")?"source":((pathname.startsWith("/growth/")||pathname.startsWith("/dashboard/growth/"))||pathname.startsWith("/dashboard/crafts/"))?"visual":"catalog";
   useEffect(()=>{
-    if(pathname.startsWith("/dashboard/growth/")||pathname.startsWith("/dashboard/crafts/")){
+    if(pathname==="/growth/default-growth-profile"){
+      setPane("growth");setSelectedCraftId("default-growth-profile");
+    }else if(pathname.startsWith("/dashboard/growth/")||pathname.startsWith("/dashboard/crafts/")){
       const id=pathname.split("/")[3];
       setPane("growth");
       setSelectedCraftId(id||null);
@@ -708,7 +710,8 @@ export default function AutomationPipeline({ initialPane = "pipeline" }: { initi
             onManageProfile={()=>navigateSubpage("/dashboard/profile/connections")}
             hideTrigger openSignal={connectorOpenSignal} />
           {pane === "pipeline" && <>
-            <GrowthProfilePipelines platform={platform} selectedAction={action} busy={busy} onSelectAction={chooseAction} />
+            <GrowthProfilePipelines platform={platform} selectedAction={action} busy={busy}
+              accountId={connectorReady?activeConnector?.id:undefined} onSelectAction={chooseAction} />
             <WorkflowPlanEditor
               plan={workflowPlan}
               templates={templatePlans}
@@ -782,7 +785,11 @@ export default function AutomationPipeline({ initialPane = "pipeline" }: { initi
             </button>
           </div>}
           {pane === "history" && <Card><CardHeader><CardTitle>Recent executions</CardTitle><CardDescription>Stored in memory during the current engine session. Select a run to inspect streamed events.</CardDescription></CardHeader><CardContent><div className="divide-y divide-slate-100">{runs.length === 0 && <p className="py-10 text-center text-sm text-slate-500">No runs yet. Start an audit to capture the first trace.</p>}{runs.map((run) => <button key={run.id} type="button" className="flex min-h-16 w-full items-center justify-between gap-3 py-3 text-left hover:bg-slate-50" onClick={() => { currentRunRef.current = run.id; setActive(run); setEvents([]); connect(run.id); navigatePane("pipeline"); }}><span><span className="block text-sm font-semibold capitalize">{run.platform} / {run.action.replaceAll("-", " ")}</span><span className="text-xs text-slate-500">{short(run.id)} · {new Date(run.createdAt).toLocaleString()}</span></span><span className="text-xs font-semibold capitalize text-slate-500">{stateLabel(run.state)} <ArrowRight className="ml-1 inline size-3" /></span></button>)}</div></CardContent></Card>}
-          {pane === "growth" && <CraftsLibrary
+          {pane === "growth" && selectedCraftId==="default-growth-profile" &&
+            <GrowthProfilePipelines platform={platform} selectedAction={action} busy={busy}
+              accountId={connectorReady?activeConnector?.id:undefined}
+              onSelectAction={next=>{chooseAction(next);navigatePane("pipeline");}} />}
+          {pane === "growth" && selectedCraftId!=="default-growth-profile" && <CraftsLibrary
             selectedId={selectedCraftId} onSelected={navigateCraft}
             view={libraryView} onView={navigateCraftView} onBack={()=>navigatePane("growth")}
             onChat={(text) => { if (text.startsWith("/craft")) { void handleCraftCommand(text); }

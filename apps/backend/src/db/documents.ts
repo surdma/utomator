@@ -36,7 +36,7 @@ const formatKey=(value:string)=>{
   return value;
 };
 const validated=(namespace:string,key:string)=>{
-  if(!['account','career','connectors','workflow-plans','workflows','workflow-revisions','linkedin-research','linkedin-drafts','linkedin-oauth-grants','linkedin-oauth-pending','crafts','craft-migrations'].includes(namespace))
+  if(!['account','career','connectors','workflow-plans','workflows','workflow-revisions','linkedin-research','linkedin-drafts','linkedin-oauth-grants','linkedin-oauth-pending','crafts','craft-migrations','growth-runs'].includes(namespace))
     throw Error('Unknown database document namespace');
   return [namespace,formatKey(key)] as const;
 };

@@ -43,3 +43,97 @@ test('Read-only YAML and compiled program endpoints do not create a run', async 
     await app.close();
   }
 });
+
+import type { Runner } from '../src/core/runner.js';
+import type { RunRequest, RunSummary } from '../src/core/types.js';
+import { randomUUID } from 'node:crypto';
+import { validateRun } from '../src/core/validate.js';
+import { compileWorkflow } from '../src/core/workflow-yaml.js';
+import { ProfileGrowthCoordinator } from '../src/engine/profile-growth-coordinator.js';
+
+test('six dependent pipelines reuse validated Runner WorkflowPlans and record independent missing coverage',async()=>{
+  const runs=new Map<string,{summary:RunSummary;input:RunRequest}>();
+  const actions:string[]=[];
+  const stub={
+    start(input:RunRequest){
+      validateRun(input);
+      assert(input.workflow,'each stage must use the existing WorkflowPlan compiler');
+      compileWorkflow(input.workflow);
+      actions.push(input.action);
+      const summary:RunSummary={id:randomUUID(),platform:input.platform,action:input.action,
+        state:'completed',createdAt:new Date().toISOString()};
+      runs.set(summary.id,{summary,input});
+      return summary;
+    },
+    get(id:string){return runs.get(id)?.summary;},
+    stepOutput(id:string,stageId:string){
+      const run=runs.get(id);
+      if(!run)return null;
+      assert.equal(stageId,run.input.action==='audit-page'?'sectionEvidence':'baseline');
+      return {schema:'evidence/v1',url:run.input.pageUrl??run.input.profileUrl,
+        digest:'a'.repeat(64)};
+    },
+    cancel(){return true;},
+  } as unknown as Runner;
+  const coordinator=new ProfileGrowthCoordinator(stub);
+  const accountId='c63e8078-644d-4a2a-80bd-7cba9eaa0e1b';
+  const profile='https://www.linkedin.com/in/verified-owner/';
+  const started=await coordinator.start(accountId,profile);
+  assert.equal(started.stages.length,6);
+  assert.equal(started.coverage.length,20);
+  assert.equal(started.counts.missing,20);
+  assert.equal(started.canAdvance,true);
+  await assert.rejects(coordinator.supplyEvidence(started.id,{sectionId:'headline',text:'Not in the active identity stage'}),/current stage/);
+  const afterEvidence=await coordinator.supplyEvidence(started.id,{sectionId:'profilePhoto',
+    text:'Owner reports a current professional photograph.'});
+  assert.equal(afterEvidence.counts.ownerSupplied,1);
+  assert.equal(afterEvidence.coverage.find(item=>item.id==='profilePhoto')?.status,
+    'owner-supplied-unverified');
+  let stage=afterEvidence;
+  for(let step=0;step<6;step++){
+    stage=await coordinator.advance(started.id);
+    if(step<5)assert.equal(stage.activeIndex,step+1);
+  }
+  assert.deepEqual(actions,['audit','audit','audit-page','audit-page','audit','audit']);
+  assert.equal(runs.size,6);
+  assert.equal([...runs.values()].filter(r=>r.input.pageUrl).length,2);
+  assert.equal(stage.status,'completed-with-gaps');
+  assert.equal(stage.counts.missing,19);
+  assert.equal(stage.counts.independentlyProviderVerified,0);
+  await assert.rejects(coordinator.advance(started.id),/finalized/);
+});
+
+test('unverified Growth run cannot advance, and no valid account means no browser launch',async()=>{
+  let starts=0;
+  const runner={
+    start(input:RunRequest){
+      starts++;
+      return {id:randomUUID(),platform:'linkedin',action:input.action,
+        createdAt:new Date().toISOString(),state:'running'} as RunSummary;
+    },
+    get(){return {state:'running'};},
+    stepOutput(){return null;},
+    cancel(){return true;},
+  } as unknown as Runner;
+  const coordinator=new ProfileGrowthCoordinator(runner);
+  await assert.rejects(coordinator.start('bad-identity','https://www.linkedin.com/in/owner/'),/Verified LinkedIn account ID/);
+  assert.equal(starts,0);
+  const result=await coordinator.start('c63e8078-644d-4a2a-80bd-7cba9eaa0e1b',
+    'https://www.linkedin.com/in/verified-owner/');
+  await assert.rejects(coordinator.advance(result.id),/not completed/);
+  assert.equal(starts,1);
+});
+
+test('Growth composite API requires a genuine linked account, not arbitrary profile input',async()=>{
+  const app=buildApp();
+  try{
+    await app.ready();
+    const initial=await app.inject({method:'GET',url:'/growth/workflows/profile/runs'});
+    assert.equal(initial.statusCode,200,initial.body);
+    const start=await app.inject({method:'POST',url:'/growth/workflows/profile/runs',
+      payload:{accountId:'c63e8078-644d-4a2a-80bd-7cba9eaa0e1b'}});
+    assert.equal(start.statusCode,400,start.body);
+    assert.equal((await app.inject('/growth/workflows/profile/runs')).json().length,0);
+    assert.equal((await app.inject('/growth/workflows/profile/runs/'+randomUUID())).statusCode,404);
+  }finally{await app.close();}
+});

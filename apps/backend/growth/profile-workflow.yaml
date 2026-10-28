@@ -48,3 +48,40 @@ spec:
     services: "edit-services"
     projects: "add-project"
     featured: "add-featured"
+  stages:
+    identity:
+      title: "Identity and visual presentation"
+      action: "audit"
+      page: "profile"
+      sections: "profilePhoto,banner,fullName,verification"
+      dependsOn: "none"
+    positioning:
+      title: "Headline and professional positioning"
+      action: "audit"
+      page: "profile"
+      sections: "headline,about,customUrl"
+      dependsOn: "identity"
+    career:
+      title: "Career history and qualifications"
+      action: "audit-page"
+      page: "experience"
+      sections: "experience,education,skills,certifications"
+      dependsOn: "positioning"
+    proof:
+      title: "Projects and professional credibility"
+      action: "audit-page"
+      page: "projects"
+      sections: "featured,projects,publications,honors,volunteering"
+      dependsOn: "career"
+    opportunity:
+      title: "Services and opportunity readiness"
+      action: "audit"
+      page: "profile"
+      sections: "recommendations,services,contact,careerPreferences"
+      dependsOn: "proof"
+    review:
+      title: "Consolidate evidence and reassess"
+      action: "audit"
+      page: "profile"
+      sections: "*"
+      dependsOn: "opportunity"

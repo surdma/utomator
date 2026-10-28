@@ -9,3 +9,4 @@ All **existing versus proposed** functionality boundaries are explicit. Mermaid 
 
 **Concept map:** Growth = why; Craft = how; Workflow/Graph = what and dependencies; Pipeline = validated account-specific release; Engine = authorized dispatch and checkpoints; Outcomes = verifiable results.
 - [YAML engine migration: profile-first execution](./architecture/yaml-engine-migration.md): first working bridge and outstanding full-engine acceptance gates.
+- [Six-pipeline Growth profile composition](./architecture/growth-profile-composition.md): one Growth, six dependent Runner pipelines, twenty evidence statuses, and remaining optimization work.
