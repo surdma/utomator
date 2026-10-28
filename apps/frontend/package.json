@@ -1,0 +1,40 @@
+{
+  "name": "@utomator/frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "node --test tests/routes.test.mjs"
+  },
+  "dependencies": {
+    "@react-pdf/renderer": "4.9.0",
+    "@xyflow/react": "12.12.0",
+    "clsx": "2.1.1",
+    "flowbite": "^4.0.1",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "1.61.0",
+    "next": "16.2.2",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwind-merge": "3.7.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.5",
+    "@playwright/test": "^1.64.1",
+    "@tailwindcss/postcss": "^4.2.2",
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "autoprefixer": "^10.4.27",
+    "eslint": "^10.1.0",
+    "eslint-config-next": "16.2.2",
+    "playwright": "^1.55.0",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^6.0.2"
+  }
+}

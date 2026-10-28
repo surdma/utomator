@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sample social network - test fixture</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: grid; place-items: center;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    background: #101828; color: #eaf1f7;
+  }
+  main {
+    width: min(420px, 92vw);
+    background: #17223b; border: 1px solid #2c3b5f; border-radius: 18px;
+    padding: 28px; text-align: center;
+  }
+  .logo {
+    width: 44px; height: 44px; margin: 0 auto 12px; border-radius: 12px;
+    display: grid; place-items: center; font-weight: 800;
+    background: #2f6feb; color: #fff;
+  }
+  h1 { font-size: 18px; margin: 4px 0 6px; }
+  p { font-size: 13px; line-height: 1.55; color: #aebcd4; margin: 6px 0 14px; }
+  .steps {
+    display: inline-flex; gap: 6px; align-items: center; font-size: 11px;
+    color: #7f92b5; margin-bottom: 10px;
+  }
+  .steps span { border: 1px solid #2c3b5f; border-radius: 999px; padding: 2px 10px; }
+  .steps .current { background: #2f6feb; border-color: #2f6feb; color: #fff; }
+  form { display: grid; gap: 10px; margin-top: 6px; }
+  label { font-size: 12px; color: #c7d3e6; text-align: left; display: grid; gap: 4px; }
+  input {
+    height: 42px; border-radius: 10px; border: 1px solid #35486f;
+    background: #0f1628; color: #eaf1f7; padding: 0 12px; font-size: 14px;
+  }
+  button {
+    height: 42px; border-radius: 10px; border: 0; cursor: pointer;
+    font-weight: 700; font-size: 14px; background: #2f6feb; color: #fff;
+  }
+  button.ghost { background: transparent; border: 1px solid #35486f; color: #c7d3e6; font-weight: 600; }
+  button.link { height: auto; background: none; border: 0; color: #8fb0f0; font-size: 12px; text-decoration: underline; }
+  a { color: #8fb0f0; font-size: 14px; font-weight: 700; }
+  .warning {
+    font-size: 11px; color: #f0c36c; border: 1px dashed #5b4c22;
+    border-radius: 10px; padding: 8px 10px; margin-top: 14px; text-align: left;
+  }
+  .ok { color: #6dd59c; }
+  .bad { color: #f08d8d; }
+  [data-hidden="true"] { display: none; }
+</style>
+</head>
+<body>
+  <main data-testid="mock-provider-stage">
+    <div class="logo">SN</div>
+
+    <div class="steps" aria-label="Mock flow progress">
+      <span data-step="signin">1 Sign-in</span>
+      <span data-step="mfa">2 MFA</span>
+      <span data-step="consent">3 Consent</span>
+    </div>
+
+    <!-- Stage 1: credentials (fixture only - never enter real credentials) -->
+    <section data-stage="signin">
+      <h1>Sign in to Sample Social Network</h1>
+      <p>Fake provider page for rehearsal. The values are never sent anywhere.</p>
+      <form id="signinForm">
+        <label>Email
+          <input name="email" type="email" autocomplete="off" value="demo@example.test" required />
+        </label>
+        <label>Password
+          <input name="password" type="password" autocomplete="off" value="not-a-real-password" required />
+        </label>
+        <button type="submit" data-testid="mock-continue">Continue</button>
+        <button type="button" class="link" data-testid="mock-signin-fail">Simulate rejected credentials</button>
+      </form>
+    </section>
+
+    <!-- Stage 2: two-factor challenge (correct code: 246810) -->
+    <section data-stage="mfa">
+      <h1>Two-step verification</h1>
+      <p>Enter the 6-digit code from your authenticator app. Fixture code: <strong>246810</strong>.</p>
+      <form id="mfaForm">
+        <label>Authentication code
+          <input name="code" inputmode="numeric" autocomplete="off" required />
+        </label>
+        <button type="submit" data-testid="mock-mfa-verify">Verify code</button>
+        <button type="button" class="link" data-testid="mock-mfa-fail">Simulate failed verification</button>
+      </form>
+    </section>
+
+    <!-- Stage 3: consent screen -->
+    <section data-stage="consent">
+      <h1>Allow access?</h1>
+      <p><strong>Sample Studio</strong> wants read-only access to your profile so it can verify
+         this connection. You can revoke this at any time.</p>
+      <form id="consentForm">
+        <button type="button" data-testid="mock-consent-allow">Allow</button>
+        <button type="button" class="ghost" data-testid="mock-consent-deny">Deny</button>
+      </form>
+    </section>
+
+    <!-- Terminal states -->
+    <section data-stage="success">
+      <h1 class="ok">Signed in successfully</h1>
+      <p>The isolated browser window is now authenticated. Verification in the automation
+         engine looks for an owner-only control like the one below.</p>
+      <a href="#owner-only" data-testid="mock-owner-only-control">Edit profile</a>
+      <p class="warning">Verification recipe: this owner-only <em>Edit profile</em> control is
+         what the engine checks. It is never reachable for unauthenticated visitors.</p>
+    </section>
+
+    <section data-stage="failure">
+      <h1 class="bad">Sign-in not completed</h1>
+      <p>No session was created. The connection cannot be verified.</p>
+      <button type="button" class="ghost" data-testid="mock-retry">Retry sign-in</button>
+    </section>
+
+    <p class="warning">
+      Test fixture only - do <strong>not</strong> type real credentials or real MFA codes here.
+      Live provider sign-ins happen only in the isolated Chrome window described in
+      <em>docs/social-connector-authentication-runbook.md</em>.
+    </p>
+  </main>
+
+<script>
+  (function () {
+    var params = new URLSearchParams(location.search);
+    var stage = params.get("stage") || "signin";
+    var stepOf = { signin: 1, mfa: 2, consent: 3, success: 3, failure: 3 };
+    var main = document.querySelector('[data-testid="mock-provider-stage"]');
+    main.setAttribute("data-stage", stage);
+    main.setAttribute("data-step-index", String(stepOf[stage] || 1));
+    document.title = "Sample social network - " + stage;
+
+    var sections = document.querySelectorAll("section[data-stage]");
+    for (var i = 0; i < sections.length; i++) {
+      sections[i].setAttribute("data-hidden", sections[i].getAttribute("data-stage") === stage ? "false" : "true");
+    }
+    var steps = document.querySelectorAll(".steps [data-step]");
+    for (var j = 0; j < steps.length; j++) {
+      steps[j].classList.toggle("current", stepOf[stage] === j + 1);
+    }
+
+    function go(next) {
+      var search = new URLSearchParams(location.search);
+      search.set("stage", next);
+      location.search = search.toString();
+    }
+
+    var signin = document.getElementById("signinForm");
+    if (signin) signin.addEventListener("submit", function (event) {
+      event.preventDefault();
+      go("mfa");
+    });
+    var signinFail = document.querySelector('[data-testid="mock-signin-fail"]');
+    if (signinFail) signinFail.addEventListener("click", function () { go("failure"); });
+
+    var mfa = document.getElementById("mfaForm");
+    if (mfa) mfa.addEventListener("submit", function (event) {
+      event.preventDefault();
+      var code = mfa.querySelector('[name="code"]').value;
+      go(code === "246810" ? "consent" : "failure");
+    });
+    var mfaFail = document.querySelector('[data-testid="mock-mfa-fail"]');
+    if (mfaFail) mfaFail.addEventListener("click", function () { go("failure"); });
+
+    var allow = document.querySelector('[data-testid="mock-consent-allow"]');
+    if (allow) allow.addEventListener("click", function () { go("success"); });
+    var deny = document.querySelector('[data-testid="mock-consent-deny"]');
+    if (deny) deny.addEventListener("click", function () { go("failure"); });
+
+    var retry = document.querySelector('[data-testid="mock-retry"]');
+    if (retry) retry.addEventListener("click", function () { go("signin"); });
+  })();
+</script>
+</body>
+</html>

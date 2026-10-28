@@ -1,0 +1,43 @@
+{
+  "name": "@utomator/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "start:hosted": "node hosted/server.mjs",
+    "test:hosted": "node --test tests/hosted-auth.test.mjs tests/hosted-gateway.test.mjs tests/hosted-worker.test.mjs",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "biome lint --max-diagnostics=200 .",
+    "lint:fix": "biome check --write .",
+    "test": "node --import tsx --test tests/core.test.mjs tests/server.test.ts tests/profile-context.test.ts tests/skills.test.ts tests/workflow-plan.test.ts tests/profile-planner.test.ts tests/career-store.test.ts tests/account-store.test.ts tests/connector-session.test.ts tests/activity-memory.test.ts tests/linkedin-creator-research.test.ts tests/linkedin-editorial.test.ts tests/linkedin-publishing.test.ts tests/linkedin-growth-capabilities.test.ts tests/connected-expiry.test.ts tests/database-documents.test.ts tests/tenant-isolation.test.ts",
+    "test:core": "node --experimental-strip-types --test tests/*.test.mjs",
+    "test:integration": "node --import tsx --test tests/*.integration.test.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:migrate": "drizzle-kit migrate",
+    "db:check": "drizzle-kit check",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.18.0",
+    "dotenv": "^18.0.9",
+    "drizzle-orm": "1.0.0-rc.5",
+    "fastify": "^5.0.0",
+    "playwright": "^1.55.0",
+    "typescript": "^5.8.3",
+    "postgres": "3.4.7"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.3",
+    "@types/node": "^22.0.0",
+    "add": "^2.0.9",
+    "drizzle-kit": "1.0.0-rc.5",
+    "tsx": "^4.23.15"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
