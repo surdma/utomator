@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {growthCapabilities,growthJourneys,growthGuardrails,profileSections} from
-  '../../portfolio/components/automate/linkedin-growth-capabilities.js';
+  '../../frontend/components/automate/linkedin-growth-capabilities.js';
 
 test('LinkedIn scope registry preserves all product modules without pretending full delivery',()=>{
   assert.equal(growthCapabilities.length,15);
