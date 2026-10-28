@@ -22,7 +22,7 @@ async function main() {
 
   try {
     console.log("\nTest 1: Connector onboarding dialog");
-    await page.goto(BASE + "/workspace", { waitUntil: "domcontentloaded" });
+    await page.goto(BASE + "/dashboard/pipeline", { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(3000);
 
     const floatBtn = page.locator("[data-testid='floating-connector-button']");
@@ -82,7 +82,7 @@ async function main() {
     await page.keyboard.press("Escape");
 
     console.log("\nTest 3: Server-managed session survives reload");
-    await page.goto(BASE + "/profile/connections", {
+    await page.goto(BASE + "/dashboard/profile/connections", {
       waitUntil: "domcontentloaded",
     });
     await page.waitForTimeout(2000);

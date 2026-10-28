@@ -6,15 +6,16 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..");
 const app = resolve(root, "app");
 const routes = [
-  "workspace", "growth", "editorial", "research", "history",
-  "library", "memory", "observer", "profile", "resumes", "settings",
+  "pipeline", "growth", "editorial", "research", "history",
+  "crafts", "memory", "observer", "profile", "resumes", "settings",
 ];
 
-test("the operator pages live at the app root, not under an automation prefix", () => {
+test("operator pages live under dashboard, not at the app root", () => {
   assert.ok(existsSync(resolve(app, "page.tsx")));
-  for (const route of routes) assert.ok(existsSync(resolve(app, route, "page.tsx")), route);
+  for (const route of routes) assert.ok(existsSync(resolve(app, "dashboard", route, "page.tsx")), route);
   assert.ok(existsSync(resolve(app, "api", "[...path]", "route.ts")));
   assert.ok(!existsSync(resolve(app, "%5Fautomate")));
+  for(const route of routes)assert.ok(!existsSync(resolve(app,route)));
   assert.ok(!existsSync(resolve(app, "_automate")));
 });
 
@@ -33,7 +34,7 @@ test("the proxy still rejects unsupported endpoints and non-local access", () =>
   assert.match(proxy, /same-origin|Same-origin/);
 });
 
-test("landing page and workspace identity are Utomator, not the portfolio", () => {
+test("landing page and pipeline identity are Utomator, not the portfolio", () => {
   const home = readFileSync(resolve(app, "page.tsx"), "utf8");
   const hero = readFileSync(resolve(root, "components", "home", "hero-text.tsx"), "utf8");
   assert.ok(!home.includes("ProfileAvatar"));
@@ -41,8 +42,8 @@ test("landing page and workspace identity are Utomator, not the portfolio", () =
   assert.match(home, /automation workflow preview/);
 });
 
-test("skill editor reads the ID from the top-level /library/:id route", () => {
-  const workspace = readFileSync(resolve(root, "components", "automate", "automate-workspace.tsx"), "utf8");
-  assert.match(workspace, /const id=pathname\.split\("\/"\)\[2\]/);
-  assert.ok(!workspace.includes('const id=pathname.split("/")[3]'));
+test("craft editor reads the ID from /dashboard/crafts/:id", () => {
+  const pipeline = readFileSync(resolve(root, "components", "automate", "pipeline.tsx"), "utf8");
+  assert.match(pipeline, /const id=pathname\.split\("\/"\)\[3\]/);
+  assert.ok(!pipeline.includes('const id=pathname.split("/")[2]'));
 });

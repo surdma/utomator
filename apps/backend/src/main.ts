@@ -26,7 +26,7 @@ import { loadIdentityTimeline } from './profile/timeline.js';
 import { VisualReviewStore, type VisualRegion, type VisualAnnotation, type AnnotationEditEvent } from './core/visual-review.js';
 import type { Platform } from './core/types.js';
 import type { RunRequest, StreamEvent } from './core/types.js';
-import { SkillLibrary, parseMdx, toMdx, skillArchive, type SkillInput } from './skills/library.js';
+import { CraftLibrary, parseMdx, toMdx, craftArchive, type CraftInput } from './crafts/library.js';
 
 export function buildApp(options:{socialWorkspaceRoot?:string;linkedInFetch?:typeof fetch}={}) {
   const app = Fastify({ logger: { redact: ['req.headers.authorization', 'req.headers.cookie', 'res.headers.set-cookie'] }, bodyLimit: 32 * 1024 });
@@ -53,7 +53,7 @@ export function buildApp(options:{socialWorkspaceRoot?:string;linkedInFetch?:typ
   const workflowRegistry = new WorkflowRegistry();
   const linkedInPublisher = new LinkedInPublishingProvider(accountStore,linkedInEditorial,process.env,options.linkedInFetch);
   const authoredSteps = new StepDefinitionStore();
-  const skillLibrary = new SkillLibrary();
+  const craftLibrary = new CraftLibrary();
   const visual = new VisualReviewStore((runId, fileName, platform) => {
     const run = runner.get(runId);
     return run?.platform === platform && runner.events.getSince(0, runId).some(event =>
@@ -71,6 +71,8 @@ export function buildApp(options:{socialWorkspaceRoot?:string;linkedInFetch?:typ
     linkedInResearch.setDocuments(database);
     linkedInEditorial.setDocuments(database);
     linkedInPublisher.setDocuments(database);
+    craftLibrary.setDocuments(database);
+    await craftLibrary.initialize();
   });
   app.addHook('onClose',async()=>{await database?.close();});
 
@@ -184,7 +186,7 @@ export function buildApp(options:{socialWorkspaceRoot?:string;linkedInFetch?:typ
         return reply.header('Cache-Control','no-store')
           .header('Content-Security-Policy',"default-src 'none'")
           .type('text/html; charset=utf-8')
-          .send('<!doctype html><title>LinkedIn authorized</title><p>LinkedIn publishing authorization saved.</p><p><a href="/editorial">Return to Utomator editorial</a></p>');
+          .send('<!doctype html><title>LinkedIn authorized</title><p>LinkedIn publishing authorization saved.</p><p><a href="/dashboard/editorial">Return to Utomator editorial</a></p>');
       }
       catch(error){const e=error as LinkedInProviderError;
         return reply.code(e.httpStatus||400).send({error:e.message});}
@@ -389,61 +391,71 @@ export function buildApp(options:{socialWorkspaceRoot?:string;linkedInFetch?:typ
       }
     });
 
-  app.get('/skills', async () => skillLibrary.list());
-  app.get<{ Params: { id: string } }>('/skills/:id', async (request, reply) => {
-    const skill = await skillLibrary.get(request.params.id);
-    return skill || reply.code(404).send({ error: 'Skill not found' });
-  });
-  app.get<{ Params: { id: string } }>('/skills/:id/mdx', async (request, reply) => {
-    const skill = await skillLibrary.get(request.params.id);
-    if (!skill) return reply.code(404).send({ error: 'Skill not found' });
-    return reply.type('text/plain; charset=utf-8').send(toMdx(skill));
-  });
-  app.get<{ Params: { id: string }; Querystring: { format?: string } }>('/skills/:id/export', async (request, reply) => {
-    const skill = await skillLibrary.get(request.params.id);
-    if (!skill) return reply.code(404).send({ error: 'Skill not found' });
-    const extension = request.query.format === 'zip' ? 'zip' : request.query.format === 'skill' || !request.query.format ? 'skill' : null;
-    if (!extension) return reply.code(400).send({ error: 'Format must be skill or zip' });
-    return reply.header('Content-Disposition', 'attachment; filename="' + skill.slug + '.' + extension + '"')
-      .header('Cache-Control', 'private, no-store').type('application/zip').send(skillArchive(skill));
-  });
-  app.post<{ Body: SkillInput }>('/skills', { bodyLimit: 128 * 1024 }, async (request, reply) => {
-    try { return reply.code(201).send(await skillLibrary.create(request.body)); }
-    catch (error) { return reply.code(400).send({ error: error instanceof Error ? error.message : 'Invalid skill' }); }
-  });
-  app.post<{ Body: { mdx: string } }>('/skills/from-mdx', { bodyLimit: 128 * 1024 }, async (request, reply) => {
-    try { return reply.code(201).send(await skillLibrary.create(parseMdx(request.body?.mdx))); }
-    catch (error) { return reply.code(400).send({ error: error instanceof Error ? error.message : 'Invalid MDX' }); }
-  });
-  app.put<{ Params: { id: string }; Body: { expectedVersion: number; skill?: SkillInput; mdx?: string } }>(
-    '/skills/:id', { bodyLimit: 128 * 1024 }, async (request, reply) => {
-      try {
-        const original = await skillLibrary.get(request.params.id);
-        if (!original) return reply.code(404).send({ error: 'Skill not found' });
-        const { expectedVersion, skill, mdx } = request.body || {};
-        if (!Number.isInteger(expectedVersion) || expectedVersion < 1 || (typeof mdx === 'string') === Boolean(skill))
-          return reply.code(400).send({ error: 'Expected version and exactly one MDX or graph payload' });
-        const input = typeof mdx === 'string' ? parseMdx(mdx, original) : skill!;
-        return await skillLibrary.update(request.params.id, input, expectedVersion);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Could not update skill';
-        return reply.code(message.startsWith('Version conflict') ? 409 : 400).send({ error: message });
-      }
-    },
-  );
-  app.delete<{ Params: { id: string }; Body: { expectedVersion: number } }>(
-    '/skills/:id', async (request, reply) => {
-      try {
-        const version = request.body?.expectedVersion;
-        if (!Number.isInteger(version) || version < 1) return reply.code(400).send({ error: 'Expected version required' });
-        return await skillLibrary.remove(request.params.id, version);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Could not delete skill';
-        return reply.code(message.startsWith('Version conflict') ? 409 : 404).send({ error: message });
-      }
-    },
-  );
 
+  // Crafts are MDX-backed database documents. Defaults are immutable and
+  // personal variations are isolated by the authenticated database owner.
+  const craftError=(error:unknown)=>{
+    const message=error instanceof Error?error.message:'Craft operation failed';
+    const status=/read-only/.test(message)?403:
+      /not found/i.test(message)?404:
+      /Version conflict|changed\. Reload|slug already exists/i.test(message)?409:
+      /database is unavailable/i.test(message)?503:400;
+    return {status,message};
+  };
+  app.get('/crafts',async()=>craftLibrary.list());
+  app.get<{Params:{id:string}}>('/crafts/:id',async(request,reply)=>{
+    const craft=await craftLibrary.get(request.params.id);
+    return craft||reply.code(404).send({error:'Craft not found'});
+  });
+  app.get<{Params:{id:string}}>('/crafts/:id/mdx',async(request,reply)=>{
+    const craft=await craftLibrary.get(request.params.id);
+    if(!craft)return reply.code(404).send({error:'Craft not found'});
+    return reply.type('text/plain; charset=utf-8').send(toMdx(craft));
+  });
+  app.get<{Params:{id:string};Querystring:{format?:string}}>('/crafts/:id/export',async(request,reply)=>{
+    const craft=await craftLibrary.get(request.params.id);
+    if(!craft)return reply.code(404).send({error:'Craft not found'});
+    const extension=request.query.format==='zip'?'zip':
+      request.query.format==='skill'||!request.query.format?'skill':null;
+    if(!extension)return reply.code(400).send({error:'Format must be skill or zip'});
+    return reply.header('Content-Disposition','attachment; filename="'+craft.slug+'.'+extension+'"')
+      .header('Cache-Control','private, no-store').type('application/zip').send(craftArchive(craft));
+  });
+  app.post<{Body:CraftInput}>('/crafts',{bodyLimit:128*1024},async(request,reply)=>{
+    try{return reply.code(201).send(await craftLibrary.create(request.body));}
+    catch(error){const issue=craftError(error);return reply.code(issue.status).send({error:issue.message});}
+  });
+  app.post<{Body:{mdx:string}}>('/crafts/from-mdx',{bodyLimit:128*1024},async(request,reply)=>{
+    try{return reply.code(201).send(await craftLibrary.create(parseMdx(request.body?.mdx)));}
+    catch(error){const issue=craftError(error);return reply.code(issue.status).send({error:issue.message});}
+  });
+  app.post<{Params:{id:string}}>('/crafts/:id/clone',async(request,reply)=>{
+    try{return reply.code(201).send(await craftLibrary.clone(request.params.id));}
+    catch(error){const issue=craftError(error);return reply.code(issue.status).send({error:issue.message});}
+  });
+  app.put<{Params:{id:string};Body:{expectedVersion:number;craft?:CraftInput;mdx?:string}}>(
+    '/crafts/:id',{bodyLimit:128*1024},async(request,reply)=>{
+      try{
+        const original=await craftLibrary.get(request.params.id);
+        if(!original)return reply.code(404).send({error:'Craft not found'});
+        const {expectedVersion,craft,mdx}=request.body||{};
+        if(!Number.isInteger(expectedVersion)||expectedVersion<1||(typeof mdx==='string')===Boolean(craft))
+          return reply.code(400).send({error:'Expected version and exactly one MDX or graph payload'});
+        const input=typeof mdx==='string'?parseMdx(mdx,original):craft!;
+        return await craftLibrary.update(request.params.id,input,expectedVersion);
+      }catch(error){const issue=craftError(error);return reply.code(issue.status).send({error:issue.message});}
+    },
+  );
+  app.delete<{Params:{id:string};Body:{expectedVersion:number}}>(
+    '/crafts/:id',async(request,reply)=>{
+      try{
+        const version=request.body?.expectedVersion;
+        if(!Number.isInteger(version)||version<1)
+          return reply.code(400).send({error:'Expected version required'});
+        return await craftLibrary.remove(request.params.id,version);
+      }catch(error){const issue=craftError(error);return reply.code(issue.status).send({error:issue.message});}
+    },
+  );
 
   // Visual reviews store only bounded image bytes and explicit operator
   // annotations; image pixels are never translated into unapproved clicks.

@@ -133,7 +133,7 @@ export default function CareerStudio({mode,onNavigate}:{mode:"profile"|"resumes"
  const pathname=usePathname();
  const sourceView=mode==="profile";
  const galleryView=!sourceView&&pathname.endsWith("/templates");
- const detailId=!sourceView&&!galleryView&&pathname!=="/resumes"?pathname.split("/")[2]||null:null;
+ const detailId=!sourceView&&!galleryView&&pathname!=="/dashboard/resumes"?pathname.split("/")[3]||null:null;
  const [state,setState]=useState<CareerState|null>(null),[draft,setDraft]=useState<CareerDocument|Resume|null>(null);
  const [dirty,setDirty]=useState(false),[saving,setSaving]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const [search,setSearch]=useState(""),[tab,setTab]=useState<"sections"|"preview">("sections");
@@ -152,7 +152,7 @@ export default function CareerStudio({mode,onNavigate}:{mode:"profile"|"resumes"
  }
  async function save(){
   if(!state||!draft)return false;setSaving(true);setError("");setNotice("");
-  try{await request(sourceView?"/profile":"/resumes/"+encodeURIComponent(detailId||""),"PUT",{expectedRevision:state.revision,document:draft});setDirty(false);setNotice("Saved to your local career workspace.");return true}
+  try{await request(sourceView?"/profile":"/resumes/"+encodeURIComponent(detailId||""),"PUT",{expectedRevision:state.revision,document:draft});setDirty(false);setNotice("Saved to your personal career library.");return true}
   catch(e){setError(e instanceof Error?e.message:"Cannot save résumé");return false}
   finally{setSaving(false)}
  }
@@ -160,13 +160,13 @@ export default function CareerStudio({mode,onNavigate}:{mode:"profile"|"resumes"
   if(!state||saving)return;if(dirty&&!window.confirm("Discard unsaved changes?"))return;
   setSaving(true);setError("");
   try{const next=await request("/resumes","POST",{expectedRevision:state.revision,fromId});
-   const added=next.resumes.find(r=>!state.resumes.some(old=>old.id===r.id));if(added)onNavigate("/resumes/"+added.id)}
+   const added=next.resumes.find(r=>!state.resumes.some(old=>old.id===r.id));if(added)onNavigate("/dashboard/resumes/"+added.id)}
   catch(e){setError(e instanceof Error?e.message:"Could not create résumé")}finally{setSaving(false)}
  }
  async function remove(){
   if(!state||!detailId||saving||!window.confirm("Delete this résumé? This cannot be undone."))return;
   setSaving(true);setError("");
-  try{await request("/resumes/"+encodeURIComponent(detailId),"DELETE",{expectedRevision:state.revision});onNavigate("/resumes")}
+  try{await request("/resumes/"+encodeURIComponent(detailId),"DELETE",{expectedRevision:state.revision});onNavigate("/dashboard/resumes")}
   catch(e){setError(e instanceof Error?e.message:"Could not delete résumé")}finally{setSaving(false)}
  }
  function addCustom(){
@@ -191,7 +191,7 @@ export default function CareerStudio({mode,onNavigate}:{mode:"profile"|"resumes"
   <header className="flex flex-col gap-2"><p className="text-xs font-bold uppercase tracking-widest text-teal-700">Résumé studio</p><h1 className="font-serif text-3xl tracking-tight text-slate-900">{sourceView?"Career source":galleryView?"Document templates":detail?"Edit your résumé":"Your résumé library"}</h1><p className="max-w-2xl text-sm leading-6 text-slate-600">{sourceView?"Career information you enter and review is used to start new résumés.":galleryView?"Compare document styles for different job applications.":detail?"Edit individual sections without a crowded form.":"Manage separate résumé versions for different roles and companies."}</p></header>
 
   <nav aria-label="Résumé studio navigation" className="flex flex-wrap gap-2 border-b border-slate-200 pb-4">
-    {[["Library","/resumes"],["Career source","/resumes/profile"],["Templates","/resumes/templates"]].map(([name,path])=><button key={path} type="button" onClick={()=>go(path)} className={"rounded-xl px-4 py-3 text-sm font-semibold "+(pathname===path?"bg-teal-700 text-white":"bg-white text-slate-700 hover:bg-slate-100")}>{name}</button>)}
+    {[["Library","/dashboard/resumes"],["Career source","/dashboard/resumes/profile"],["Templates","/dashboard/resumes/templates"]].map(([name,path])=><button key={path} type="button" onClick={()=>go(path)} className={"rounded-xl px-4 py-3 text-sm font-semibold "+(pathname===path?"bg-teal-700 text-white":"bg-white text-slate-700 hover:bg-slate-100")}>{name}</button>)}
     {detail&&<span className="self-center px-3 text-xs text-slate-500">/ {detail.label}</span>}
   </nav>
   {error&&<p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error} {error.includes("changed")&&<button type="button" className="ml-2 underline" onClick={()=>window.location.reload()}>Reload</button>}</p>}
@@ -200,7 +200,7 @@ export default function CareerStudio({mode,onNavigate}:{mode:"profile"|"resumes"
   {!sourceView&&!galleryView&&!detailId&&<section className="flex flex-col gap-6">
     <div className="flex flex-wrap items-center justify-between gap-4"><div><h2 className="font-serif text-2xl">Saved versions</h2><p className="mt-2 text-sm text-slate-500">{state.resumes.length} saved résumé(s), each independent.</p></div><button className={classButton+" bg-teal-700 text-white hover:bg-teal-800"} disabled={saving||!state.profile.name.trim()||!state.profile.headline.trim()} onClick={()=>void create()}><Plus className="size-4"/>New résumé</button></div>
     <label className="block"><span className="sr-only">Search résumés</span><span className="relative block"><Search className="absolute left-4 top-3.5 size-4 text-slate-400"/><input className={classInput+" pl-11"} value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by role, company or version"/></span></label>
-    <div className="grid gap-5 md:grid-cols-2">{versions.map(r=><button type="button" key={r.id} onClick={()=>go("/resumes/"+r.id)} className="group rounded-3xl border border-slate-200 bg-white p-7 text-left shadow-sm transition hover:border-teal-300 hover:shadow-lg"><div className="flex items-start justify-between gap-4"><FileText className="size-6 text-teal-700"/><ArrowRight className="size-4 text-slate-400 group-hover:text-teal-700"/></div><h3 className="mt-6 font-serif text-xl text-slate-900">{r.label}</h3><p className="mt-2 text-sm text-slate-600">{r.targetRole||"General résumé"}{r.targetCompany?" · "+r.targetCompany:""}</p><div className="mt-6 flex flex-wrap gap-2 text-xs text-slate-500"><span className="rounded-full bg-slate-100 px-3 py-1">{r.template} template</span><span>Updated {new Date(r.updatedAt).toLocaleDateString()}</span></div></button>)}</div>
+    <div className="grid gap-5 md:grid-cols-2">{versions.map(r=><button type="button" key={r.id} onClick={()=>go("/dashboard/resumes/"+r.id)} className="group rounded-3xl border border-slate-200 bg-white p-7 text-left shadow-sm transition hover:border-teal-300 hover:shadow-lg"><div className="flex items-start justify-between gap-4"><FileText className="size-6 text-teal-700"/><ArrowRight className="size-4 text-slate-400 group-hover:text-teal-700"/></div><h3 className="mt-6 font-serif text-xl text-slate-900">{r.label}</h3><p className="mt-2 text-sm text-slate-600">{r.targetRole||"General résumé"}{r.targetCompany?" · "+r.targetCompany:""}</p><div className="mt-6 flex flex-wrap gap-2 text-xs text-slate-500"><span className="rounded-full bg-slate-100 px-3 py-1">{r.template} template</span><span>Updated {new Date(r.updatedAt).toLocaleDateString()}</span></div></button>)}</div>
     {versions.length===0&&<p className="rounded-2xl bg-white p-10 text-center text-sm text-slate-600">{state.resumes.length===0
       ? "No résumés yet. Add your name and professional headline in Career source, then create a résumé."
       : "No matching résumés. Try another search or create a new version."}</p>}
@@ -217,7 +217,7 @@ export default function CareerStudio({mode,onNavigate}:{mode:"profile"|"resumes"
     {sourceView&&<p className="rounded-2xl bg-white p-5 text-sm leading-6 text-slate-600"><ShieldCheck className="mr-2 inline size-4 text-teal-700"/>Editing the career source does not modify an existing tailored résumé or your Utomator owner profile.</p>}
     {!sourceView&&tab==="sections"&&<div className="career-print-standby"><ResumePaper value={draft} template={currentTemplate}/></div>}
   </section>}
-  {!sourceView&&detailId&&!detail&&<div className="rounded-2xl border border-amber-200 bg-white p-8"><p role="alert">This résumé does not exist in the local library.</p><button className={classButton+" mt-4"} onClick={()=>go("/resumes")}>Back to library</button></div>}
+  {!sourceView&&detailId&&!detail&&<div className="rounded-2xl border border-amber-200 bg-white p-8"><p role="alert">This résumé does not exist in the local library.</p><button className={classButton+" mt-4"} onClick={()=>go("/dashboard/resumes")}>Back to library</button></div>}
   </>}
   <StudioDialog open={Boolean(section)} title={section==="target"?"Tailor this application":section?.startsWith("custom:")?"Edit custom section":"Edit "+(sections.find(s=>s.key===section)?.title||"section")} description="Only this section is editable. Save to persist your changes locally." size="wide" testId="career-section-dialog" onDismiss={()=>!saving&&setSection(null)}>
     {draft&&section&&<div className="flex flex-col gap-5"><SectionEditor section={section} value={draft} onChange={update} onMeta={meta}/>{error&&<p role="alert" className="text-sm text-rose-700">{error}</p>}<div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4"><button className={classButton} disabled={saving} onClick={()=>setSection(null)}>Close</button><button className={classButton+" bg-teal-700 text-white hover:bg-teal-800"} disabled={saving} onClick={()=>{void save().then(ok=>{if(ok)setSection(null)})}}><Save className="size-4"/>{saving?"Saving…":"Save section"}</button></div></div>}

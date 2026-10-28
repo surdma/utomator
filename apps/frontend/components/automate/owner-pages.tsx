@@ -62,7 +62,7 @@ export function AutomationSettingsPage({ available, platform, selectedAccount }:
           <p className="break-all text-xs text-slate-600">{selected.profileUrl}</p>
           <p className="text-xs text-slate-500">{selected.verifiedAt ? "Last verified: " + new Date(selected.verifiedAt).toLocaleString() : "Not verified yet"}</p>
         </> : <p className="text-sm text-slate-500">No social account selected. Add a profile and verify its session before running connected workflows.</p>}
-        <a href="/profile/connections" className="inline-flex items-center gap-2 text-xs font-bold text-teal-700 hover:underline">Manage social accounts <ArrowRight className="size-3.5" /></a>
+        <a href="/dashboard/profile/connections" className="inline-flex items-center gap-2 text-xs font-bold text-teal-700 hover:underline">Manage social accounts <ArrowRight className="size-3.5" /></a>
       </CardContent>
     </Card>
   </div>;

@@ -78,12 +78,11 @@ test('authenticated hosted gateway authorizes UI, API, SSE, mutations and select
     const publicPage=await request(origin,'/');
     assert.equal(publicPage.status,200);
     assert.match(publicPage.body,/Utomator/);
-    const privatePage=await request(origin,'/workspace');
-    const privateGrowth=await request(origin,'/growth');
-    assert.equal(privateGrowth.status,303);
-    assert.equal(privateGrowth.headers.location,'/auth/login');
-    assert.equal(privatePage.status,303);
-    assert.equal(privatePage.headers.location,'/auth/login');
+    for(const page of ['/dashboard','/dashboard/pipeline','/dashboard/editorial','/dashboard/growth','/dashboard/research','/dashboard/history','/dashboard/crafts','/dashboard/crafts/abc','/dashboard/profile','/dashboard/resumes','/dashboard/observer','/dashboard/memory','/dashboard/settings']){
+      const privatePage=await request(origin,page);
+      assert.equal(privatePage.status,303,page+' should require authentication');
+      assert.equal(privatePage.headers.location,'/auth/login');
+    }
     const anonymous=await request(origin,'/api/runs');
     assert.equal(anonymous.status,401);
     assert.deepEqual(starts,[]);
@@ -115,8 +114,8 @@ test('authenticated hosted gateway authorizes UI, API, SSE, mutations and select
     assert.equal(stream.headers['content-type'],'text/event-stream');
     assert.match(stream.body,/event: status/);
     assert.match(stream.body,/"owner":"alice"/);
-    const escaped=await request(origin,'/%61pi/runs');
-    assert.equal(escaped.status,401);
+    const escaped=await request(origin,'/%5fautomate/api/runs');
+    assert.equal(escaped.status,404);
     const login=await request(origin,'/auth/login');
     assert.equal(login.status,303);
     assert.equal(login.headers.location,'https://identity.example.test/authorize');
