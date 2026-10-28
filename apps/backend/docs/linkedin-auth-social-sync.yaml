@@ -1,0 +1,106 @@
+apiVersion: utomator.dev/v1
+kind: SocialAuthSpec
+metadata:
+  id: linkedin-auth-social-sync
+  version: 2
+  platform: linkedin
+  status: pending-live-provider-verification
+
+verifiedRepositoryPaths:
+  frontend: apps/frontend/components/automate/connector-onboarding.tsx
+  editor: apps/frontend/components/automate/workflow-plan-editor.tsx
+  proxy: apps/frontend/app/%5Fautomate/api/[...path]/route.ts
+  backend: apps/backend/src/core/connectors.ts
+  browser: apps/backend/src/browser/session.ts
+  database: apps/backend/src/db/documents.ts
+  runner: apps/backend/src/main.ts
+
+architecture:
+  owner: local-owner
+  target: "http://127.0.0.1:3101"
+  storage:
+    sourceOfTruth: "Drizzle owner-scoped connectors/sessions document"
+    sqlite: "DB_FILE_NAME=file:local.db"
+    postgres: "DATABASE_URL=postgresql://..."
+    legacy: "One-time JSON read/import; no JSON mirror with SQL configured"
+    browserCookies: ".runtime/chrome/accounts/{accountId}"
+  security:
+    - "Only the account owner enters credentials and completes MFA in Chrome."
+    - "Never put credentials, MFA tokens, or browser cookies into SQL or YAML."
+    - "Keep Chrome and Fastify local to loopback; do not expose CDP publicly."
+    - "Never use a public LinkedIn profile URL as proof of authentication."
+    - "Confirm the profile path and the owner-only Edit intro control."
+
+states:
+  disconnected:
+    onConnect: sign-in-open
+  sign-in-open:
+    onVerified: connected
+    onNotAuthenticated: sign-in-open
+    onNetworkUnavailable: sign-in-open
+    onDisconnect: disconnected
+  connected:
+    onVerified: connected
+    onExpired: disconnected
+    onNetworkUnavailable: connected
+    onDisconnect: disconnected
+
+api:
+  list: "GET /api/connectors"
+  begin: "POST /api/connectors/:id/connect"
+  verify: "POST /api/connectors/:id/sync"
+  disconnect: "POST /api/connectors/:id/disconnect"
+  stepForms: "GET /api/step-forms"
+  note: "A step-forms failure is an independent engine/proxy failure, not a social login result."
+
+reproductionAndAcceptance:
+  - id: open
+    action: "Start pnpm dev:automate locally and open /workspace."
+    expect: "Health, account, connectors, and step-forms requests succeed."
+  - id: begin
+    action: "Choose LinkedIn in Social profiles and open the isolated Chrome sign-in window."
+    expect: "Sign-in-open is shown. Network timeouts preserve the window and show a warning."
+  - id: login
+    action: "Account owner signs in directly on linkedin.com and completes MFA."
+    expect: "Chrome displays the owner's full profile, not login, authwall, or checkpoint."
+  - id: verify
+    action: "Choose Sync in the dashboard."
+    expect: "Ownership control is awaited; the server returns connected without page reload."
+  - id: persist
+    action: "Restart the engine and reload the app."
+    expect: "The verifiedAt record is read from SQLite or PostgreSQL, not a JSON mirror."
+  - id: workflow
+    action: "Run the read-only LinkedIn audit using the connected account ID."
+    expect: "Account-bound validation succeeds and real evidence is recorded."
+  - id: expired
+    action: "Expire the browser login and attempt a connected workflow."
+    expect: "A reconnect instruction is shown; no secret is requested in the workflow."
+  - id: recover
+    action: "Disconnect and sign in again using the owner-controlled browser."
+    expect: "New verification is persisted and workflow access is restored."
+  - id: forms
+    action: "Stop the engine, open a step editor, restart the engine and select Retry loading fields."
+    expect: "The specific transport error is shown first; editable step fields reappear after retry."
+
+evidence:
+  unitAndFixtureTests:
+    - apps/backend/tests/connector-session.test.ts
+    - apps/backend/tests/database-documents.test.ts
+    - apps/backend/tests/auth-session.integration.test.ts
+  realLinkedInAuthenticationTested: false
+  requirementsBeforeComplete:
+    - "Owner-controlled live LinkedIn login/MFA and profile verification."
+    - "Fresh-session reconnect and subsequent authenticated read-only audit."
+    - "SQLite or PostgreSQL restart/readback and frontend browser dogfood."
+    - "Typecheck, unit/integration tests, build, independent review, and CI."
+
+selectedAccountPolicy:
+  defaults: "Fresh workspaces do not inherit the portfolio owner's social identity."
+  profileTarget: "Verified connector ID resolves its persisted URL for workflow execution."
+  audit: "Never compare a selected account against a portfolio-specific draft."
+  planning: "Read-only proposals use the explicitly verified LinkedIn account URL and the saved local career source, never checked-in portfolio facts."
+  career: "Fresh career workspaces start blank. The owner must enter name and headline before creating a résumé or planning LinkedIn improvements."
+  evidenceIntegrity: "Proposals bind source revision, selected account ID, profile URL and approval digest."
+  scope: "The career source is shared within a single local workspace; account-level career isolation for simultaneous users requires a separate tenancy model."
+  existingData: "Stored social profiles remain untouched until the owner edits or removes them."
+  tenancy: "Single local workspace, not multi-tenant SaaS authentication."
