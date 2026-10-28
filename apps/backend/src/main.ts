@@ -10,6 +10,7 @@ import { LinkedInEditorialStore, editorialYaml } from './core/linkedin-editorial
 import { LinkedInPublishingProvider,LinkedInProviderError } from './core/linkedin-publisher.js';
 import { ProfilePlanner } from './core/profile-planner.js';
 import { WorkflowPlanStore } from './core/workflow-store.js';
+import { readGrowthProfileWorkflow } from './engine/growth-profile.js';
 import { WorkflowRegistry } from './core/workflow-registry.js';
 import { StepDefinitionStore } from './core/step-definitions.js';
 import {loadStepForms} from './core/step-forms.js';
@@ -615,6 +616,28 @@ export function buildApp(options:{socialWorkspaceRoot?:string;linkedInFetch?:typ
     });
   app.get('/owner-context', async () => accountStore.get());
   app.get('/playbook', async () => loadAutomationPlaybook());
+
+  // YAML-authored Growth program: existing Runner remains the only executor.
+  app.get('/growth/workflows/profile', async (_request, reply) => {
+    try {
+      const { program } = await readGrowthProfileWorkflow();
+      return reply.header('Cache-Control', 'private, no-store').send(program);
+    } catch (error) {
+      app.log.error({error}, 'Growth profile YAML failed validation');
+      return reply.code(500).send({error: 'Growth profile definition unavailable'});
+    }
+  });
+  app.get('/growth/workflows/profile/yaml', async (_request, reply) => {
+    try {
+      const { yaml } = await readGrowthProfileWorkflow();
+      return reply.header('Cache-Control', 'private, no-store')
+        .header('X-Content-Type-Options', 'nosniff')
+        .type('text/yaml; charset=utf-8').send(yaml);
+    } catch (error) {
+      app.log.error({error}, 'Growth profile YAML failed validation');
+      return reply.code(500).send({error: 'Growth profile definition unavailable'});
+    }
+  });
   app.get('/runs', async () => runner.list());
   app.get<{ Params: { id: string; file: string } }>('/runs/:id/evidence/:file', async (request, reply) => {
     const { id, file } = request.params;

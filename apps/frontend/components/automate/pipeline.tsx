@@ -11,6 +11,7 @@ import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/automate-card";
 import StudioDialog from "@/components/ui/studio-dialog";
 import WorkflowPlanEditor, {type WorkflowPlan} from "@/components/automate/workflow-plan-editor";
+import GrowthProfilePipelines from "@/components/automate/growth-profile-pipelines";
 import CraftsLibrary, { type Craft as AgentCraft } from "@/components/automate/crafts-library";
 import VisualReviewPanel, { type ImageSource, type VisualReviewDraft, type Region, type VisualAnnotation } from "@/components/automate/visual-review-panel";
 import { AutomationSettingsPage } from "@/components/automate/owner-pages";
@@ -707,6 +708,7 @@ export default function AutomationPipeline({ initialPane = "pipeline" }: { initi
             onManageProfile={()=>navigateSubpage("/dashboard/profile/connections")}
             hideTrigger openSignal={connectorOpenSignal} />
           {pane === "pipeline" && <>
+            <GrowthProfilePipelines platform={platform} selectedAction={action} busy={busy} onSelectAction={chooseAction} />
             <WorkflowPlanEditor
               plan={workflowPlan}
               templates={templatePlans}
