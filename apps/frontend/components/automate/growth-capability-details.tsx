@@ -28,6 +28,7 @@ export default function GrowthCapabilityDetails({ slug }: { slug: string }) {
           <h3 className="flex items-center gap-2 text-sm font-semibold"><CheckCircle2 className="size-4 text-teal-700" />Available today</h3>
           <p className="mt-2 text-sm leading-6 text-slate-700">{capability.availableNow}</p>
           {capability.route && <a href={capability.route} className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-teal-800 underline underline-offset-4">Open existing supported workflow <ArrowUpRight className="size-4" /></a>}
+          {capability.id === "profile" && <a href="/dashboard/pipeline" className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-teal-800 underline underline-offset-4">Open profile Growth pipelines <ArrowUpRight className="size-4" /></a>}
         </div>
         <div className="rounded-xl border border-slate-200 p-4">
           <h3 className="flex items-center gap-2 text-sm font-semibold"><LockKeyhole className="size-4" />Required before full delivery</h3>

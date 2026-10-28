@@ -8,3 +8,4 @@ All **existing versus proposed** functionality boundaries are explicit. Mermaid 
 - [Growth workspace product specification](./plans/growth-unification-spec.md) and [implementation plan](./plans/growth-unification-implementation-plan.md): PR #6 scope and validation.
 
 **Concept map:** Growth = why; Craft = how; Workflow/Graph = what and dependencies; Pipeline = validated account-specific release; Engine = authorized dispatch and checkpoints; Outcomes = verifiable results.
+- [YAML engine migration: profile-first execution](./architecture/yaml-engine-migration.md): first working bridge and outstanding full-engine acceptance gates.
