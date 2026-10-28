@@ -95,8 +95,9 @@ async function forward(req: NextRequest, params: Promise<{ path: string[] }>) {
     if (body && new TextEncoder().encode(body).byteLength > maxBytes) return Response.json({ error: "Request too large" }, { status: 413 });
     const upstream = await fetch("http://127.0.0.1:" + port + "/" + target + new URL(req.url).search, {
       method: req.method,
-      headers: body === undefined ? {} : { "content-type": "application/json" },
-      body, cache: "no-store", signal: req.signal,
+      // Craft cloning can legitimately send an empty POST. Fastify rejects empty JSON bodies.
+      headers: body?.length ? { "content-type": "application/json" } : {},
+      body: body?.length ? body : undefined, cache: "no-store", signal: req.signal,
     });
     const headers = new Headers({
       "content-type": upstream.headers.get("content-type") || "application/json",

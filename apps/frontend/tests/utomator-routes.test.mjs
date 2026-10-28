@@ -31,6 +31,7 @@ test("the proxy still rejects unsupported endpoints and non-local access", () =>
   assert.match(proxy, /function permitted/);
   assert.match(proxy, /Local automation only/);
   assert.match(proxy, /Unsupported endpoint/);
+  assert.ok(proxy.includes('headers: body?.length ?'), 'bodyless clone POST does not advertise JSON');
   assert.match(proxy, /same-origin|Same-origin/);
 });
 
@@ -46,4 +47,13 @@ test("craft editor reads the ID from /dashboard/crafts/:id", () => {
   const pipeline = readFileSync(resolve(root, "components", "automate", "pipeline.tsx"), "utf8");
   assert.match(pipeline, /const id=pathname\.split\("\/"\)\[3\]/);
   assert.ok(!pipeline.includes('const id=pathname.split("/")[2]'));
+});
+
+test("dashboard navigation is distinct from account and career API paths", () => {
+  const account=readFileSync(resolve(root,"components","automate","account-studio.tsx"),"utf8");
+  const career=readFileSync(resolve(root,"components","automate","career-studio.tsx"),"utf8");
+  assert.ok(account.includes('save("/profile","PUT",profile)'), "account settings use /api/account/profile");
+  assert.ok(career.includes('request(sourceView?"/profile":"/resumes/"'), "career editor uses /api/career/profile or /api/career/resumes");
+  assert.ok(career.includes('request("/resumes","POST"'), "creating a résumé uses the backend API");
+  assert.ok(account.includes('"/dashboard/profile/connections"'), "navigation still lives inside dashboard");
 });
