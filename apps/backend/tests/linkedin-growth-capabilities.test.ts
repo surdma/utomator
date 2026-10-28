@@ -23,7 +23,7 @@ test('Working scope links only to actual local profile, research or editorial su
   assert.deepEqual(partial.map(x=>x.id),['profile','competitors','content','branding']);
   for(const module of partial){
     assert.ok(module.route?.startsWith('/'),module.id);
-    assert.ok(['/profile','/research','/editorial'].includes(module.route));
+    assert.ok(['/dashboard/profile','/dashboard/research','/dashboard/editorial'].includes(module.route));
   }
   assert.equal(growthCapabilities.find(x=>x.id==='jobs')?.status,'planned');
   assert.equal(growthCapabilities.find(x=>x.id==='company')?.status,'planned');
