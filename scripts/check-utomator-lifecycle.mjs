@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 
-const cwd = resolve('apps', 'utomator');
+const cwd = resolve('apps', 'backend');
 const child = spawn(process.execPath, ['dist/server.js'], {
   cwd, stdio: ['ignore', 'pipe', 'pipe'],
   env: { ...process.env, UTOMATOR_PORT: '3197', NODE_ENV: 'test' },

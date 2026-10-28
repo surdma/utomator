@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 // Read the same package-level .env file as Drizzle and the Fastify service.
 // Without this preflight, a PostgreSQL DATABASE_URL defined only in .env
 // is invisible here and can trigger an unintended db:push against PostgreSQL.
-const backendEnv = resolve('apps', 'utomator', '.env');
+const backendEnv = resolve('apps', 'backend', '.env');
 if (existsSync(backendEnv)) process.loadEnvFile(backendEnv);
 
 // Local-only schema synchronization. Shared PostgreSQL migrations are deliberate.
