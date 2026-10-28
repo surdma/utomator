@@ -1,0 +1,63 @@
+apiVersion: "utomator.dev/v1"
+kind: "StepForms"
+forms:
+  start:
+    title: "Run entry"
+    summary: "Begin an authenticated, revision-pinned execution."
+  session:
+    title: "Authenticated browser"
+    summary: "Reuse the verified LinkedIn account session."
+  inspect:
+    title: "Inspect browser page"
+    summary: "Read live DOM evidence from the selected page."
+  action:
+    title: "Approved provider action"
+    summary: "Run the selected allowlisted Playwright handler with human approval."
+  verify:
+    title: "Verify observed result"
+    summary: "Collect the browser's resulting page content."
+  note:
+    title: "Record a journal event"
+    summary: "Write a bounded event in the run journal."
+    fields:
+      message:
+        label: "Journal message"
+        control: "textarea"
+        max: 600
+  delay:
+    title: "Wait before continuing"
+    summary: "A cancellable delay at this step boundary."
+    fields:
+      delayMs:
+        label: "Duration in milliseconds"
+        control: "number"
+        min: 0
+        max: 30000
+  evidence:
+    title: "Capture provenance"
+    summary: "Bind an earlier observation to a verifiable digest."
+  approve:
+    title: "Request operator approval"
+    summary: "Pause for explicit approval of prior evidence."
+  assess:
+    title: "Assess live observation"
+    summary: "Compare bound page text against a reviewed expectation."
+    fields:
+      expectedText:
+        label: "Expected observed text"
+        control: "text"
+        max: 120
+  pause:
+    title: "Pause at boundary"
+    summary: "Wait for the operator to resume this run."
+  stop:
+    title: "Stop execution"
+    summary: "End the run before remaining stages."
+    fields:
+      message:
+        label: "Reason for stopping"
+        control: "textarea"
+        max: 600
+  finish:
+    title: "Completed output"
+    summary: "Close the run and archive step evidence."

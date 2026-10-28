@@ -1,32 +1,29 @@
 {
-  "name": "@devsurma/utomator",
-  "version": "0.1.0",
+  "name": "utomator-workspace",
   "private": true,
-  "type": "module",
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.0.0",
+  "workspaces": [
+    "apps/frontend",
+    "apps/backend"
+  ],
   "scripts": {
-    "dev": "tsx watch src/main.ts",
-    "start": "node dist/main.js",
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
-    "lint": "biome lint .",
-    "format:check": "biome format .",
-    "lint:fix": "biome lint --write .",
-    "format": "biome format --write .",
-    "test": "node --import tsx --test tests/*.test.mjs tests/*.test.ts",
-    "test:core": "node --experimental-strip-types --test tests/*.test.mjs"
-  },
-  "dependencies": {
-    "@fastify/static": "^8.0.0",
-    "fastify": "^5.0.0",
-    "playwright": "^1.55.0"
+    "dev": "node scripts/dev-workspace.mjs",
+    "dev:frontend": "pnpm --filter @utomator/frontend dev",
+    "dev:backend": "pnpm --filter @utomator/backend dev",
+    "build": "pnpm -r build",
+    "test": "pnpm --filter @utomator/backend test",
+    "test:frontend": "pnpm --filter @utomator/frontend test",
+    "test:integration": "pnpm --filter @utomator/backend test:integration",
+    "lint": "pnpm --filter @utomator/backend lint",
+    "typecheck": "pnpm --filter @utomator/backend typecheck && pnpm --filter @utomator/frontend typecheck",
+    "build:all": "turbo run build",
+    "lint:all": "turbo run lint",
+    "typecheck:all": "turbo run typecheck",
+    "test:all": "turbo run test",
+    "turbo": "turbo"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.2.0",
-    "@types/node": "^22.0.0",
-    "tsx": "^4.20.0",
-    "typescript": "^5.8.3"
-  },
-  "engines": {
-    "node": ">=22"
+    "turbo": "^2.11.10"
   }
 }

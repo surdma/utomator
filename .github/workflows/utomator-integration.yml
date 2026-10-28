@@ -1,0 +1,83 @@
+name: Utomator integration
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/backend/**'
+      - 'apps/frontend/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/utomator-integration.yml'
+  push:
+    branches: [tomato]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: utomator-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify React Flow stylesheet is installed
+        run: |
+          pnpm --filter @utomator/frontend exec node -e "const path = require('path'); const fs = require('fs'); const pkg = require.resolve('@xyflow/react/package.json'); if (!fs.existsSync(path.join(path.dirname(pkg),'dist','style.css'))) process.exit(1); console.log('React Flow stylesheet resolved');"
+      - name: Frontend route and security contract tests
+        run: pnpm --filter @utomator/frontend test
+      - name: Unit and Fastify route tests
+        run: pnpm --filter @utomator/backend test
+      - name: TypeScript and Biome
+        run: |
+          pnpm --filter @utomator/backend typecheck
+          pnpm --filter @utomator/backend lint
+      - name: Compile Utomator
+        run: pnpm --filter @utomator/backend build
+      - name: Frontend production build
+        run: pnpm --filter @utomator/frontend build
+      - name: Frontend typecheck
+        run: pnpm --filter @utomator/frontend typecheck
+      - name: Install test Chromium
+        run: pnpm --filter @utomator/backend exec playwright install --with-deps chromium
+      - name: Initialize local SQLite schema
+        run: pnpm --filter @utomator/backend db:push
+      - name: Verify hosted OIDC, gateway security and isolated Fastify workers
+        run: pnpm --filter @utomator/backend test:hosted
+      - name: Confirm automation server stays alive after startup
+        run: node scripts/check-utomator-lifecycle.mjs
+      - name: Start frontend for automation workspace tests
+        run: |
+          pnpm --filter @utomator/frontend exec next start -p 3100 > /tmp/utomator-frontend.log 2>&1 &
+          echo $! > /tmp/utomator-frontend.pid
+          for i in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:3100/ > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/utomator-frontend.log
+          exit 1
+      - name: Real browser + local fixture integration tests
+        run: pnpm --filter @utomator/backend test:integration
+        env:
+          NODE_ENV: test
+          HEADLESS: 'true'
+      - name: Upload local mock-browser evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: utomator-mock-evidence
+          path: apps/backend/.runtime/evidence/
+          retention-days: 3
+          if-no-files-found: ignore
