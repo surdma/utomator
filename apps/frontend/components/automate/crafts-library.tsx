@@ -137,6 +137,7 @@ function Inner({selectedId,onSelected,onChat,revision,view,onView,onBack}:Props)
   // An explicit refresh signal is shared with the chat command dispatcher.
   useEffect(()=>{void load();},[revision]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(()=>{
+    if(view==="catalog")return;
     const picked=catalog.find(s=>s.id===selectedId);
     if(picked&&picked.id!==baseline?.id){
       onSelected(picked.id,picked.slug);
@@ -145,7 +146,7 @@ function Inner({selectedId,onSelected,onChat,revision,view,onView,onBack}:Props)
         category:picked.category,enabled:picked.enabled,steps:picked.steps,links:picked.links});
       setMdx(renderMdx(picked));setMdxDirty(false);setSelection(picked.steps[0]?.id||null);
     }
-  },[selectedId,catalog,baseline?.id]);
+  },[selectedId,catalog,baseline?.id,view]);
   const update=(fn:(skill:Draft)=>Draft)=>{
     if(readOnly)return;
     setDraft(prev=>prev?fn(prev):null);
