@@ -510,7 +510,7 @@ test('Growth YAML templates load into the existing workflow artboard with nested
     const before=(await app.inject('/runs')).json().length;
     const modal=page.getByRole('dialog',{name:'Workflow template library'});
     await clickUntilVisible(page,page.getByRole('button',{name:'Choose workflow template'}),modal);
-    await modal.getByRole('textbox',{name:'Search workflow templates'}).fill('Profile auditing & section optimization');
+    await modal.getByRole('searchbox',{name:'Search workflow templates'}).fill('Profile auditing & section optimization');
     await modal.getByRole('option',{name:/Profile auditing & section optimization/}).click();
     await modal.getByText(/6 connected pipelines/).waitFor();
     await modal.getByRole('button',{name:'Load Growth workflow'}).click();
