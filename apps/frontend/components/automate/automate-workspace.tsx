@@ -155,7 +155,7 @@ export default function AutomateWorkspace({ initialPane = "workspace" }: { initi
   const libraryView=pathname.endsWith("/source")?"source":pathname.startsWith("/library/")?"visual":"catalog";
   useEffect(()=>{
     if(pathname.startsWith("/library/")){
-      const id=pathname.split("/")[3];
+      const id=pathname.split("/")[2];
       setPane("library");
       setSelectedSkillId(id||null);
     }else if(pathname==="/library")setPane("library");
@@ -670,7 +670,7 @@ export default function AutomateWorkspace({ initialPane = "workspace" }: { initi
             
             <Button variant="ghost" size="sm" type="button" aria-label="Open run tracking" onClick={()=>setTrackingOpen(true)}><Activity className="size-4" /><span className="hidden sm:inline">Tracking</span></Button>
             <Button variant="ghost" size="sm" onClick={() => void refresh()}><RotateCcw className="size-4" /> <span className="hidden sm:inline">Refresh</span></Button>
-            <a href="/" className="inline-flex min-h-10 items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-950">Portfolio <ExternalLink className="size-3.5" /></a>
+            <a href="/" className="inline-flex min-h-10 items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-950">Utomator <ExternalLink className="size-3.5" /></a>
           </div>
         </div>
       </div>

@@ -40,3 +40,9 @@ test("landing page and workspace identity are Utomator, not the portfolio", () =
   assert.match(hero, /Utomator/);
   assert.match(home, /automation workflow preview/);
 });
+
+test("skill editor reads the ID from the top-level /library/:id route", () => {
+  const workspace = readFileSync(resolve(root, "components", "automate", "automate-workspace.tsx"), "utf8");
+  assert.match(workspace, /const id=pathname\.split\("\/"\)\[2\]/);
+  assert.ok(!workspace.includes('const id=pathname.split("/")[3]'));
+});
