@@ -242,7 +242,7 @@ function Inner({selectedId,onSelected,onChat,revision,view,onView,onBack}:Props)
       const result=await res.json() as Craft & {error?:string};
       if(!res.ok)throw Error(result.error||"Unable to create craft");
       setNewName("");setNewOutcome("");setNewAudience("");setCreating(false);
-      await load(result.id);onView("visual");
+      await load(result.id);
       onChat("Created craft "+result.slug+".");
     } catch(e) {setError(e instanceof Error?e.message:"Unable to create craft");}
     finally {setBusy(false);}

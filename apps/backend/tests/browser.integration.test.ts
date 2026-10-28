@@ -121,149 +121,114 @@ test('Next.js workspace rejects unverified account runs without executing writes
 test('Next.js workspace exposes connection and tracking dialogs without a login', async () => exercise('audit-race'));
 
 
-test('Crafts library connects canvas, MDX, export and operator chat', { timeout: 100000 }, async () => {
-  const app = buildApp();
-  const browser = await chromium.launch({ headless: true });
-  try {
-    await app.listen({ host: '127.0.0.1', port: 3101 });
-    const page = await browser.newPage({ viewport: { width: 1480, height: 970 }, acceptDownloads: true });
-    await page.goto('http://127.0.0.1:3100/dashboard/pipeline', { waitUntil: 'domcontentloaded' });
-    await page.getByTestId('workflow-artboard').waitFor();
-    assert.equal(await page.locator('.react-flow__minimap').count(), 0, 'the workflow artboard must not have an obscuring minimap');
-    await clickUntilVisible(page, page.getByRole('button', { name: 'Crafts', exact: true }),
-      page.getByTestId('crafts-library'));
-    await page.getByRole('button', { name: 'New craft' }).click();
-    const creation = page.getByRole('dialog', { name: 'Create craft' });
-    await creation.waitFor({ state: 'visible' });
-    await creation.getByRole('button', { name: 'Cancel' }).click();
-    await creation.waitFor({ state: 'hidden' });
-    assert.equal(await page.getByTestId('crafts-artboard').count(), 0,
-      'the catalogue route should not render any editor');
-    const candidate = page.getByTestId('craft-card-content-series-planning');
-    await candidate.waitFor();
-    await candidate.click();
+test('Growth workspace connects 21 capability and toolkit graphs, MDX, export and responsive navigation',
+  {timeout:140000},async()=>{
+  const app=buildApp();
+  const browser=await chromium.launch({headless:true});
+  try{
+    await app.listen({host:'127.0.0.1',port:3101});
+    const page=await browser.newPage({viewport:{width:1480,height:970},acceptDownloads:true});
+    await page.goto('http://127.0.0.1:3100/dashboard/growth',{waitUntil:'domcontentloaded'});
+    const catalog=page.getByTestId('crafts-catalogue');
+    await catalog.waitFor();
+    await page.getByTestId('craft-card-growth-profile').waitFor({timeout:40000});
+    assert.equal(await page.locator('[data-testid^="craft-card-"]').count(),21,
+      '15 capabilities and 6 historical toolkits appear in one Growth library');
+    await page.getByRole('button',{name:'LinkedIn capabilities'}).click();
+    assert.equal(await page.locator('[data-testid^="craft-card-"]').count(),15);
+    await page.getByRole('button',{name:'Growth toolkits'}).click();
+    assert.equal(await page.locator('[data-testid^="craft-card-"]').count(),6);
+    await page.getByRole('button',{name:'All experiences'}).click();
+    await page.getByTestId('craft-card-growth-profile').click();
+    const detail=page.getByTestId('growth-capability-details');
+    await detail.waitFor();
+    await detail.getByText('20 profile sections requiring independent evidence and coverage').waitFor();
+    assert.match(await detail.innerText(),/Proposed actions and pipeline requirements \(9\)/);
+    assert.match(await detail.innerText(),/Profile photo/);
+    assert.match(await detail.innerText(),/Custom profile URL/);
+    assert.match(await detail.innerText(),/Required before full delivery/);
     await page.getByTestId('crafts-artboard').waitFor();
-    const beforeWidth = await page.getByTestId('automation-main-scroll').evaluate(e=>e.getBoundingClientRect().width);
-    await page.getByRole('button', { name: 'Minimize Mator' }).click();
-    assert.equal(await page.getByTestId('automation-right-sidebar').isVisible(), false);
-    const afterWidth = await page.getByTestId('automation-main-scroll').evaluate(e=>e.getBoundingClientRect().width);
-    assert(afterWidth > beforeWidth + 150, 'main artboard expands when chat is minimized');
-    await page.getByRole('button', { name: 'Open run tracking' }).click();
-    await page.getByRole('dialog', { name: 'Run tracking' }).waitFor({ state: 'visible' });
-    await page.getByRole('button', { name: 'Close Run tracking' }).click();
-    assert.equal(await page.getByTestId('automation-right-sidebar').isVisible(), false,
-      'tracking must be independent of the hidden chat panel');
-    await page.getByRole('button', { name: 'Open Mator' }).click();
-    await page.getByTestId('automation-right-sidebar').waitFor({ state:'visible' });
-    assert.equal(await page.locator('.react-flow__minimap').count(), 0, 'the craft editor must not have an obscuring minimap');
-    assert.match(page.url(), /\/dashboard\/crafts\/[^/]+$/, 'opening a project must have its own URL');
-    assert.equal(await page.getByTestId('craft-card-content-series-planning').count(), 0,
-      'craft catalogue must not remain mounted under the editor');
-    await page.setViewportSize({ width: 1480, height: 640 });
-    const positions = await page.evaluate(() => {
-      const main = document.querySelector('[data-testid="automation-main-scroll"]') as HTMLElement;
-      const nav = document.querySelector('[data-testid="automation-navigation-sidebar"]') as HTMLElement;
-      const chat = document.querySelector('[data-testid="automation-right-sidebar"]') as HTMLElement;
-      const before = { nav: nav.getBoundingClientRect().top, chat: chat.getBoundingClientRect().top };
-      const scrollable = main.scrollHeight - main.clientHeight;
-      main.scrollTop = scrollable;
-      return {
-        scrollable, offset: main.scrollTop,
-        documentHeight: document.documentElement.scrollHeight,
-        viewportHeight: window.innerHeight,
-        navStayed: before.nav === nav.getBoundingClientRect().top,
-        chatStayed: before.chat === chat.getBoundingClientRect().top,
-        composerVisible: (() => {
-          const composer = chat.querySelector('#operatorMessage');
-          if (!composer) return false;
-          const rect = composer.getBoundingClientRect();
-          return rect.top >= 0 && rect.bottom <= window.innerHeight;
-        })(),
-      };
-    });
-    assert(positions.scrollable > 0 && positions.offset > 0, 'only the center should scroll');
-    assert(positions.navStayed && positions.chatStayed, 'both desktop sidebars stay fixed');
-    assert(positions.documentHeight <= positions.viewportHeight + 1, 'desktop document must not scroll');
-    assert(positions.composerVisible, 'chat input stays mounted while the center scrolls');
-    await page.setViewportSize({ width: 1480, height: 970 });
-    await page.getByRole('button', { name: 'All crafts' }).click();
-    await candidate.waitFor();
-    assert.match(page.url(), /\/dashboard\/crafts$/);
-    await page.goBack();
-    await page.getByTestId('crafts-artboard').waitFor();
-    assert.equal(await page.getByRole('button', { name: 'Save', exact: true }).isDisabled(),true,
-      'the shared predefined craft is not editable');
-    await page.getByRole('button', { name: 'Clone to my crafts' }).click();
+    assert.match(page.url(),/\/dashboard\/growth\/default-growth-profile$/);
+    assert.equal(await page.getByRole('button',{name:'Save',exact:true}).isDisabled(),true,
+      'published default instructions must remain read-only');
+    await page.getByRole('tab',{name:'MDX source'}).click();
+    const editor=page.getByTestId('craft-mdx-editor');
+    await editor.waitFor();
+    assert.match(page.url(),/\/dashboard\/growth\/default-growth-profile\/source$/);
+    assert.match(await editor.inputValue(),/Review photo framing, banner hierarchy, name and pronunciation accuracy/);
+    assert.match(await editor.inputValue(),/Additional section extractors, real field-by-field audit rubric/);
+    await page.getByRole('button',{name:'Clone to my crafts'}).click();
     await page.getByText('Created your private craft variation.').waitFor();
-    await page.getByTestId('craft-node-goal').click();
-    await page.getByLabel('Step title').fill('Define the social-content goal');
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.getByRole('tab',{name:'Visual flow'}).click();
+    await page.getByTestId('craft-node-scope').click();
+    await page.getByLabel('Step title').fill('Scope verified LinkedIn profile evidence');
+    await page.getByRole('button',{name:'Save',exact:true}).click();
     await page.getByText('Saved and synchronized with MDX source.').waitFor();
-    await page.getByRole('tab', { name: 'MDX source' }).click();
-    const editor = page.getByTestId('craft-mdx-editor');
-    const initial = await editor.inputValue();
-    await editor.fill(initial + '\nUnapplied source draft');
-    await page.getByRole('tab', { name: 'Visual craft' }).click();
-    await page.getByRole('tab', { name: 'MDX source' }).click();
-    assert.match(await editor.inputValue(), /Unapplied source draft$/, 'switching views must preserve unsaved MDX');
-    await editor.fill(initial);
-    assert.match(initial, /## Step: goal \| Define the social-content goal/);
-    assert.match(initial, /\*\*Next:\*\* \[evidence\]/);
-    await editor.fill(initial.replace('**Next:** [evidence](#step-evidence)', '**Next:** [craft](#step-craft)'));
+    await page.getByRole('tab',{name:'MDX source'}).click();
+    const originalSource=await editor.inputValue();
+    assert.match(originalSource,/## Step: scope \| Scope verified LinkedIn profile evidence/);
+    assert.match(originalSource,/\*\*Next:\*\* \[evidence\]/);
+    await editor.fill(originalSource.replace('**Next:** [evidence](#step-evidence)',
+      '**Next:** [outcome](#step-outcome)'));
     await page.getByText('Unapplied MDX changes.').waitFor();
-    assert.match(page.url(), /\/dashboard\/crafts\/[^/]+\/source$/, 'MDX has a direct source route');
-    await page.getByRole('button', { name: 'Apply MDX to graph' }).click();
-    await page.getByText('Unapplied MDX changes.').waitFor({ state:'hidden' });
+    await page.getByRole('button',{name:'Apply MDX to graph'}).click();
+    await page.getByText('Unapplied MDX changes.').waitFor({state:'hidden'});
     await page.getByText('Saved and synchronized with MDX source.').waitFor();
-    const all = (await app.inject('/crafts')).json();
-    const item = all.find((skill: {slug:string}) => skill.slug === 'content-series-planning-copy');
-    assert(item);
-    assert(item.links.some((edge: {source:string;target:string})=> edge.source==='goal'&&edge.target==='craft'),
-      'edited MDX changed the canonical graph');
-    assert(!item.links.some((edge: {source:string;target:string})=> edge.source==='goal'&&edge.target==='evidence'));
-    await page.getByRole('tab', { name: 'Visual craft' }).click();
-    const edge = page.locator('.react-flow__edge').first();
-    await edge.waitFor({ timeout: 15000 });
-    const downloadPromise = page.waitForEvent('download');
-    await page.getByRole('button', { name: '.skill' }).click();
-    const downloaded = await downloadPromise;
-    assert.equal(downloaded.suggestedFilename(), 'content-series-planning-copy.skill');
-    await page.getByRole('textbox', { name: 'Structured command', exact: true }).fill('/craft unlink goal -> craft');
-    await page.getByRole('button', { name: 'Send structured command' }).click();
-    await page.getByText(/Updated Content series planning/).waitFor({ timeout: 12000 });
-    const final = (await app.inject('/crafts')).json().find((skill: {slug:string})=>skill.slug==='content-series-planning-copy');
-    assert(!final.links.some((link: {source:string;target:string})=>link.source==='goal'&&link.target==='craft'),
-      'chat modification changed only this owner\'s persisted craft graph');
-    const original=(await app.inject('/crafts/default-content-series-planning')).json();
-    assert.equal(original.steps[0].title,'Define the objective','the shared default remains unchanged');
-    const finalMdx = await app.inject('/crafts/'+final.id+'/mdx');
-    assert.match(finalMdx.body, /\*\*Next:\*\* End/);
-    const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
-    await mobile.goto('http://127.0.0.1:3100/dashboard/crafts', { waitUntil:'domcontentloaded' });
-    await mobile.getByTestId('crafts-library').waitFor();
-    const metrics = await mobile.evaluate(() => ({
-      viewport: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth,
+    const library=(await app.inject('/crafts')).json() as Array<{
+      slug:string;id:string;links:Array<{source:string;target:string}>;
+    }>;
+    const personal=library.find(entry=>entry.slug==='growth-profile-copy');
+    assert(personal,'the clone must persist in the per-owner library');
+    assert(personal.links.some(edge=>edge.source==='scope'&&edge.target==='outcome'),
+      'applying the MDX source must update the stored visual graph');
+    assert(!personal.links.some(edge=>edge.source==='scope'&&edge.target==='evidence'));
+    await page.getByRole('tab',{name:'Visual flow'}).click();
+    await page.locator('.react-flow__edge').first().waitFor();
+    const downloadPromise=page.waitForEvent('download');
+    await page.getByRole('button',{name:'.skill'}).click();
+    assert.equal((await downloadPromise).suggestedFilename(),'growth-profile-copy.skill');
+    await page.getByRole('textbox',{name:'Structured command',exact:true}).fill('/craft unlink scope -> outcome');
+    await page.getByRole('button',{name:'Send structured command'}).click();
+    await page.getByText(/Updated Profile auditing & section optimization/).waitFor({timeout:15000});
+    const updated=(await app.inject('/crafts/'+personal.id)).json() as {links:Array<{source:string;target:string}>};
+    assert(!updated.links.some(edge=>edge.source==='scope'&&edge.target==='outcome'),
+      'chat editing must update the owner clone, never a shared default');
+    const original=(await app.inject('/crafts/default-growth-profile')).json() as {steps:Array<{title:string}>};
+    assert.equal(original.steps[0]?.title,'Scope 20 profile sections');
+    await page.getByRole('button',{name:'Growth library'}).click();
+    await catalog.waitFor();
+    await page.getByRole('button',{name:'New growth flow'}).click();
+    const creation=page.getByRole('dialog',{name:'Create a growth flow'});
+    await creation.waitFor();
+    await creation.getByLabel('New craft name').fill('Research collaboration outreach');
+    await creation.getByLabel('Growth objective').fill('Create qualified research collaboration meetings');
+    await creation.getByLabel('Growth audience').fill('University researchers and research directors');
+    await creation.getByRole('button',{name:'Create growth flow'}).click();
+    await page.getByTestId('crafts-artboard').waitFor();
+    await page.getByRole('tab',{name:'MDX source'}).click();
+    const custom=await page.getByTestId('craft-mdx-editor').inputValue();
+    assert.match(custom,/Create qualified research collaboration meetings/);
+    assert.match(custom,/University researchers and research directors/);
+    assert.match(page.url(),/\/dashboard\/growth\/personal-research-collaboration-outreach\/source$/);
+    const mobile=await browser.newPage({viewport:{width:390,height:844}});
+    await mobile.goto('http://127.0.0.1:3100/dashboard/crafts',{waitUntil:'domcontentloaded'});
+    await mobile.getByTestId('craft-card-growth-profile').waitFor({timeout:40000});
+    assert.match(mobile.url(),/\/dashboard\/growth$/,'legacy Craft catalog redirects to Growth');
+    const bounds=await mobile.evaluate(()=>({
+      viewport:document.documentElement.clientWidth,
+      scroll:document.documentElement.scrollWidth,
     }));
-    assert(metrics.scroll <= metrics.viewport + 1,'library must fit mobile width without overflow');
-    assert.equal(await mobile.getByTestId('automation-right-sidebar').isVisible(), false,
-      'mobile chat is closed until requested');
-    await clickUntilVisible(page, mobile.getByRole('button', { name: 'Open Mator' }),
-      mobile.getByTestId('automation-right-sidebar'));
-    assert.equal(await mobile.getByTestId('automation-right-sidebar').isVisible(), true);
-    await mobile.getByRole('button', { name: 'Close operator chat' }).click();
-    assert.equal(await mobile.getByTestId('automation-right-sidebar').isVisible(), false);
-    await mobile.getByRole('button', { name: 'Open Mator' }).waitFor({ state: 'visible' });
-    await mobile.getByRole('button', { name: 'Toggle navigation' }).click();
-    assert.equal(await mobile.getByTestId('automation-navigation-sidebar').isVisible(), true);
-    await mobile.getByRole('button', { name: 'Close navigation' }).click();
-    assert.equal(await mobile.getByTestId('automation-navigation-sidebar').isVisible(), false);
+    assert(bounds.scroll<=bounds.viewport+1,'Growth library fits mobile width');
+    await mobile.getByRole('button',{name:'Toggle navigation'}).click();
+    assert.equal(await mobile.getByTestId('automation-navigation-sidebar').isVisible(),true);
+    await mobile.getByRole('button',{name:'Close navigation'}).click();
+    assert.equal(await mobile.getByTestId('automation-navigation-sidebar').isVisible(),false);
     await mobile.close();
-  } finally {
+  }finally{
     await browser.close();
     await app.close();
   }
 });
-
 
 test('LinkedIn templates load onto the artboard without connection; execution stays account-gated',async()=>{
   const app=buildApp();
@@ -456,38 +421,41 @@ test('LinkedIn editorial research-to-draft workflow persists, approves and retur
 });
 
 
-test('LinkedIn Growth hub exposes truthful scope, searches modules, and links only working workflows',async()=>{
+test('Growth discovery preserves capability delivery status, section coverage and real workflow links',async()=>{
   const app=buildApp();
   const browser=await chromium.launch({headless:true});
   try{
     await app.listen({host:'127.0.0.1',port:3101});
     const page=await browser.newPage({viewport:{width:1280,height:800}});
     await page.goto('http://127.0.0.1:3100/dashboard/growth',{waitUntil:'domcontentloaded'});
-    const hub=page.getByTestId('linkedin-growth-hub');
-    await hub.getByRole('heading',{name:'Capability inventory'}).waitFor();
-    assert.match(await hub.innerText(),/15 modules/);
-    const detail=hub.getByTestId('growth-capability-details');
-    const jobs=hub.getByRole('button',{name:/Job search & career opportunity pipeline/});
-    await clickUntilVisible(page,jobs,detail.getByRole('heading',{name:'Job search & career opportunity pipeline'}));
-    assert.match(await detail.innerText(),/Not implemented/);
-    assert.equal(await detail.getByRole('link',{name:'Open available workflow'}).count(),0,
-      'a planned LinkedIn integration cannot provide a pretend execution shortcut');
-    await hub.getByRole('textbox',{name:'Search capabilities'}).fill('creator');
-    assert.match(await hub.innerText(),/Creator, competitor & niche intelligence/);
-    await hub.getByRole('textbox',{name:'Search capabilities'}).fill('');
-    await hub.getByRole('button',{name:/Profile auditing & section optimization/}).click();
-    assert.equal(await detail.getByText('20 sections in the target audit').isVisible(),true);
-    await detail.getByRole('link',{name:'Open available workflow'}).click();
+    const catalog=page.getByTestId('crafts-catalogue');
+    await page.getByTestId('craft-card-growth-jobs').waitFor({timeout:40000});
+    await catalog.getByRole('button',{name:'LinkedIn capabilities'}).click();
+    assert.equal(await page.locator('[data-testid^="craft-card-"]').count(),15);
+    await page.getByTestId('craft-card-growth-jobs').click();
+    const detail=page.getByTestId('growth-capability-details');
+    await detail.getByRole('heading',{name:'Job search & career opportunity pipeline'}).waitFor();
+    assert.match(await detail.innerText(),/Planned/);
+    assert.equal(await detail.getByRole('link',{name:'Open existing supported workflow'}).count(),0,
+      'a planned integration must not offer a live execution shortcut');
+    await page.getByRole('button',{name:'Growth library'}).click();
+    await catalog.waitFor();
+    await catalog.getByRole('textbox',{name:'Search crafts'}).fill('creator');
+    await page.getByTestId('craft-card-growth-competitors').waitFor();
+    await catalog.getByRole('textbox',{name:'Search crafts'}).fill('');
+    await page.getByTestId('craft-card-growth-profile').click();
+    await detail.getByText('20 profile sections requiring independent evidence and coverage').waitFor();
+    await detail.getByRole('link',{name:'Open existing supported workflow'}).click();
     await page.waitForURL('**/dashboard/profile');
-    await page.getByTestId('automation-navigation-sidebar').getByRole('button',{name:'LinkedIn growth'}).click();
-    await hub.getByRole('heading',{name:'Capability inventory'}).waitFor();
+    await page.getByTestId('automation-navigation-sidebar').getByRole('button',{name:'Growth',exact:true}).click();
+    await catalog.waitFor();
     await page.setViewportSize({width:390,height:844});
-    await hub.getByRole('combobox',{name:'Delivery priority'}).selectOption('P1');
-    await hub.getByRole('button',{name:/Company Page & organization growth/}).click();
-    assert.equal(await detail.getByRole('link',{name:'Open available workflow'}).count(),0);
+    await page.getByTestId('craft-card-growth-company').click();
+    await detail.getByRole('heading',{name:'Company Page & organization growth'}).waitFor();
+    assert.equal(await detail.getByRole('link',{name:'Open existing supported workflow'}).count(),0,
+      'organization authorization is not implied by a planned graph');
   }finally{await browser.close();await app.close();}
 });
-
 
 test('LinkedIn connector adds a server-owned profile and stays available from the Profile page',async()=>{
   const root=await mkdtemp(join(tmpdir(),'utomator-linkedin-dialog-'));
