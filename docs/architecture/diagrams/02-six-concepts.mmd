@@ -1,0 +1,13 @@
+flowchart LR
+    G(["GROWTH<br/>Why: measurable objective"]) --> C[["CRAFT<br/>How: reusable process"]]
+    C --> W{{"CANONICAL GRAPH<br/>What: typed operations"}}
+    W --> P[/"PIPELINE RELEASE<br/>Validate: frozen version"/]
+    P --> E(["ONE ENGINE<br/>Execute with permission"])
+    E --> O[("RESULTS<br/>Measure real outcomes")]
+    O -.->|"Feedback"| G
+    classDef dark fill:#0f172a,color:#ffffff,stroke:#0f172a,stroke-width:2px
+    classDef blue fill:#dbeafe,color:#1e40af,stroke:#2563eb,stroke-width:2px
+    classDef green fill:#d1fae5,color:#065f46,stroke:#10b981
+    class G,E dark
+    class C,W,P blue
+    class O green

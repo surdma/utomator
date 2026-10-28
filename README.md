@@ -54,3 +54,7 @@ pnpm --filter @utomator/backend test:integration
 ```
 
 The fixture-driven browser tests do not change real LinkedIn or X accounts. Live social publishing and browser actions require explicit owner authorization, connector verification and confirmation checkpoints. See `apps/backend/.env.example` and `apps/backend/README.md` for service setup and limitations.
+
+## Architecture and product knowledge
+
+The [documentation index](./docs/README.md) connects the [unified execution-engine proposal](./docs/architecture/unified-growth-workflow-engine.md), [expert-methodology knowledge](./docs/knowledge/growth-craft-methodology.md) and [Mermaid/SVG visual library](./docs/architecture/diagrams/README.md). These are proposed designs, not claims that Craft MDX already compiles directly into the Runner.

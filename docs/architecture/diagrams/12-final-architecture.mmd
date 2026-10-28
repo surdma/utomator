@@ -1,0 +1,15 @@
+flowchart TB
+    G(["GROWTH<br/>Why · Goals and KPIs"])
+    C[["CRAFT<br/>How · Specialized reusable procedures"]]
+    W{{"CANONICAL GRAPH<br/>What · Typed tasks and dependencies"}}
+    P[/"PIPELINE<br/>Validated immutable release"/]
+    E(["ONE EXECUTION ENGINE<br/>Policy · Dispatch · Approval"])
+    R[("VERIFIED RESULTS<br/>Measured outcomes and next iteration")]
+    G --> C --> W --> P --> E --> R
+    R -.->|"Evidence-backed feedback"| G
+    classDef dark fill:#0f172a,color:#fff,stroke:#0f172a,stroke-width:2px
+    classDef blue fill:#dbeafe,color:#1e40af,stroke:#2563eb,stroke-width:1.7px
+    classDef green fill:#d1fae5,color:#065f46,stroke:#10b981
+    class G,E dark
+    class C,W,P blue
+    class R green

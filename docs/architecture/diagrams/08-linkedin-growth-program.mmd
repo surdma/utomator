@@ -1,0 +1,37 @@
+flowchart TB
+    GOAL(["GROWTH OBJECTIVE<br/>Professional visibility and qualified opportunities"])
+    subgraph RESEARCH["INTELLIGENCE WORKSTREAMS"]
+        direction LR
+        P["Profile audit<br/>Sections and evidence"]
+        N["Niche intelligence<br/>Career positioning"]
+        R["Relationships<br/>Authentic owner-led engagement"]
+    end
+    CONTENT["CONTENT DEVELOPMENT<br/>Research → Draft → Review"]
+    APPROVAL{"Human approval?"}
+    AVAIL{"Provider action<br/>available and authorized?"}
+    EXEC["Permitted operation"]
+    HANDOFF["Owner handoff"]
+    EVD[("Verified receipts<br/>or honest handoff status")]
+    OUT[("OPPORTUNITY MEASUREMENT<br/>Conversations · Interviews · Leads")]
+    NEXT(["NEXT GROWTH ITERATION"])
+    GOAL --> P
+    GOAL --> N
+    GOAL --> R
+    P -->|"Evidence"| CONTENT
+    N -->|"Findings"| CONTENT
+    R --> OUT
+    CONTENT --> APPROVAL
+    APPROVAL -->|"Revise"| CONTENT
+    APPROVAL -->|"Approved"| AVAIL
+    AVAIL -->|"Yes"| EXEC --> EVD
+    AVAIL -->|"No"| HANDOFF --> EVD
+    EVD --> OUT --> NEXT
+    NEXT -.-> GOAL
+    classDef dark fill:#0f172a,color:#fff,stroke:#0f172a
+    classDef blue fill:#dbeafe,color:#1e40af,stroke:#2563eb
+    classDef amber fill:#fef3c7,color:#92400e,stroke:#d97706
+    classDef green fill:#d1fae5,color:#065f46,stroke:#10b981
+    class GOAL,NEXT dark
+    class P,N,R,CONTENT,EXEC,HANDOFF blue
+    class APPROVAL,AVAIL amber
+    class EVD,OUT green

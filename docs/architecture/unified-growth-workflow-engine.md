@@ -658,3 +658,11 @@ Make the unified workflow engine Utomator's core product architecture and Growth
 - `docs/plans/growth-unification-spec.md` and `docs/plans/growth-unification-implementation-plan.md` — existing PR #6 scope and release criteria.
 
 **Current status: INVESTIGATED / ARCHITECTURE PROPOSED.** This document makes no claim that the canonical IR, central dispatcher, shared run lifecycle, scheduling, or outcome tracking are implemented.
+
+## Documentation and reusable diagram assets
+
+- [Expert-methodology knowledge reference](../knowledge/growth-craft-methodology.md) explains sourcing, context-fit, account-specific inputs, honest approvals, evidence and outcome measurement.
+- [Mermaid and SVG diagram library](./diagrams/README.md) preserves all twelve diagrams above as standalone editable Mermaid files alongside two new method/journey diagrams and five portable SVG companions.
+- [Documentation index](../README.md) links the product decisions, implementation plans, knowledge and vector assets.
+
+Mermaid fences in this document are GitHub-rendered vector visuals. Separate SVGs are simplified portable illustrations; consult the Mermaid source for complete graph semantics.
