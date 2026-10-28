@@ -13,6 +13,7 @@ import {
 import { Card, CardContent, CardHeader, Button } from "@/components/ui/automate-card";
 import CraftCatalog, { craftCategoryTitles as titles } from "./craft-catalog";
 import StudioDialog from "@/components/ui/studio-dialog";
+import GrowthCapabilityDetails, { capabilityForSlug } from "./growth-capability-details";
 
 export type Category = "presence" | "portfolio" | "job-hunt" | "applications" | "content" | "engagement";
 export type Kind = "brief" | "research" | "draft" | "review" | "publish" | "measure";
@@ -89,6 +90,8 @@ function Inner({selectedId,onSelected,onChat,revision,view,onView,onBack}:Props)
   const [notice,setNotice]=useState("");
   const [newName,setNewName]=useState("");
   const [newCategory,setNewCategory]=useState<Category>("content");
+  const [newOutcome,setNewOutcome]=useState("");
+  const [newAudience,setNewAudience]=useState("");
   const [creating,setCreating]=useState(false);
   const [deleteOpen,setDeleteOpen]=useState(false);
   const [leaveOpen,setLeaveOpen]=useState(false);
@@ -209,24 +212,36 @@ function Inner({selectedId,onSelected,onChat,revision,view,onView,onBack}:Props)
     finally {setBusy(false);}
   };
   const create=async()=>{
-    const name=newName.trim();
-    if(!name)return;setBusy(true);setError("");
+    const name=newName.trim().replace(/[<>\r\n]/g," ");
+    const objective=newOutcome.trim().replace(/[<>\r\n]/g," ").slice(0,230);
+    const audience=newAudience.trim().replace(/[<>\r\n]/g," ").slice(0,140);
+    if(!name||!objective||!audience)return;setBusy(true);setError("");
     try {
       const slug=idFor(name);
       const res=await fetch(api(""),{method:"POST",headers:{"content-type":"application/json"},
         body:JSON.stringify({
           slug,name,category:newCategory,enabled:true,
-          description:"Guides "+name.toLowerCase()+". Use when preparing a verified "+titles[newCategory].toLowerCase()+" workflow.",
-          steps:[{id:"brief",kind:"brief",title:"Define the goal",
-            body:"Identify the audience, source-backed goal and expected deliverable.",position:{x:80,y:150}},
-            {id:"review",kind:"review",title:"Review the outcome",
-              body:"Check originality and factual accuracy. Obtain explicit approval before any posting.",position:{x:400,y:150}}],
-          links:[{id:"brief-to-review",source:"brief",target:"review"}],
+          description:("Use when "+name+" is needed to achieve "+objective+" for "+audience+".").slice(0,1023),
+          steps:[
+            {id:"scope",kind:"brief",title:"Define "+name.slice(0,64),
+              body:"Professional outcome: "+objective+". Target audience: "+audience+". Identify the relevant account, constraints and success measure.",position:{x:70,y:140}},
+            {id:"evidence",kind:"research",title:"Gather relevant evidence",
+              body:"For "+audience+", gather actual sources and examples connected to "+objective+". Flag missing proof, permissions and provider limitations.",position:{x:380,y:140}},
+            {id:"develop",kind:"draft",title:"Prepare targeted deliverables",
+              body:"Produce the specific outcome of "+name+" for "+audience+". Explain how this advances "+objective+" and which steps require human effort.",position:{x:690,y:140}},
+            {id:"approval",kind:"review",title:"Verify facts and approve",
+              body:"Review factual claims, platform restrictions and the relation to "+objective+". Require owner approval for external changes.",position:{x:1000,y:140}},
+            {id:"outcome",kind:"measure",title:"Measure actual progress",
+              body:"Compare sourced outcomes against "+objective+". Record the date, denominator and missing data; never generate synthetic engagement.",position:{x:1310,y:140}}],
+          links:[{id:"scope-to-evidence",source:"scope",target:"evidence"},
+            {id:"evidence-to-develop",source:"evidence",target:"develop"},
+            {id:"develop-to-approval",source:"develop",target:"approval"},
+            {id:"approval-to-outcome",source:"approval",target:"outcome"}],
         }),
       });
       const result=await res.json() as Craft & {error?:string};
       if(!res.ok)throw Error(result.error||"Unable to create craft");
-      setNewName("");setCreating(false);
+      setNewName("");setNewOutcome("");setNewAudience("");setCreating(false);
       await load(result.id);onView("visual");
       onChat("Created craft "+result.slug+".");
     } catch(e) {setError(e instanceof Error?e.message:"Unable to create craft");}
@@ -299,12 +314,14 @@ function Inner({selectedId,onSelected,onChat,revision,view,onView,onBack}:Props)
     finally{setBusy(false);}
   };
   const match=catalog.filter(s=>(filter==="all"||s.category===filter)&&
-    (s.name.toLowerCase().includes(search.toLowerCase())||s.description.toLowerCase().includes(search.toLowerCase())));
+    (s.name.toLowerCase().includes(search.toLowerCase())||s.description.toLowerCase().includes(search.toLowerCase())||
+      s.steps.some(step=>step.body.toLowerCase().includes(search.toLowerCase()))));
   return <section data-testid="crafts-library" className="flex min-w-0 flex-col gap-5">
     {view==="catalog"&&<CraftCatalog
       crafts={match} filter={filter} onFilter={setFilter} search={search} onSearch={setSearch}
       creating={creating} onToggleCreate={()=>setCreating(current=>!current)}
       newName={newName} onNameChange={setNewName} newCategory={newCategory} onCategoryChange={setNewCategory}
+      newOutcome={newOutcome} onOutcomeChange={setNewOutcome} newAudience={newAudience} onAudienceChange={setNewAudience}
       busy={busy} error={error} onCreate={()=>{void create();}} onImport={(event)=>{void importFile(event);}}
       onOpen={(id,slug)=>onSelected(id,slug)}
     />}
@@ -312,13 +329,14 @@ function Inner({selectedId,onSelected,onChat,revision,view,onView,onBack}:Props)
       if(changed||mdxDirty){setLeaveOpen(true);return;}
       onBack();
     }} className="inline-flex min-h-10 w-fit items-center gap-2 rounded-lg px-2 text-xs font-semibold text-teal-800 hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-teal-600">
-      <ArrowLeft className="size-4" />All crafts
+      <ArrowLeft className="size-4" />Growth library
     </button>}
+    {view!=="catalog"&&chosen&&draft&&<GrowthCapabilityDetails slug={capabilityForSlug(chosen.slug) ? chosen.slug : (chosen.sourceCraftId?.startsWith("default-growth-") ? chosen.sourceCraftId.slice("default-".length) : chosen.slug)} />}
     {view!=="catalog"&&chosen&&draft&&<Card>
       <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 border-b border-slate-100">
         <div className="min-w-0 flex-1"><input aria-label="Craft title" className="w-full max-w-lg bg-transparent text-lg font-extrabold text-slate-900 outline-teal-600"
             value={draft.name} readOnly={readOnly} onChange={e=>update(prev=>({...prev,name:e.target.value}))} />
-          <p className="mt-1 text-xs text-slate-500">Craft · {draft.slug} · {readOnly?"Shared default · read only":"My craft"} · v{chosen.version} · {draft.steps.length} steps · {totalLinks} connections</p>
+          <p className="mt-1 text-xs text-slate-500">Growth flow · {draft.slug} · {readOnly?"Shared default · read only":"My craft"} · v{chosen.version} · {draft.steps.length} steps · {totalLinks} connections</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-semibold"
@@ -343,13 +361,13 @@ function Inner({selectedId,onSelected,onChat,revision,view,onView,onBack}:Props)
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
           <div role="tablist" aria-label="Craft editor view" className="flex rounded-lg bg-slate-100 p-1">
             <button role="tab" aria-selected={mode==="visual"} className={"rounded-md px-3 py-2 text-xs font-bold "+(mode==="visual"?"bg-white shadow-sm":"text-slate-500")}
-              onClick={()=>onView("visual")}>Visual craft</button>
+              onClick={()=>onView("visual")}>Visual flow</button>
             <button role="tab" aria-selected={mode==="mdx"} className={"rounded-md px-3 py-2 text-xs font-bold "+(mode==="mdx"?"bg-white shadow-sm":"text-slate-500")}
               onClick={()=>{if(!mdxDirty)setMdx(renderMdx(draft));onView("source");}}>MDX source</button>
           </div>
           <div className="flex flex-wrap gap-1.5">
             <Button size="sm" disabled={readOnly} onClick={newStep}><Plus className="size-4" />Step</Button>
-            <Button size="sm" onClick={()=>void duplicate()}><Copy className="size-4" />{readOnly?"Clone to my crafts":"Clone craft"}</Button>
+            <Button size="sm" onClick={()=>void duplicate()}><Copy className="size-4" />{readOnly?"Clone to my crafts":"Clone flow"}</Button>
             <Button size="sm" onClick={()=>void download("skill")}><ArrowDownToLine className="size-4" />.skill</Button>
             <Button size="sm" onClick={()=>void download("zip")}><Archive className="size-4" />.zip</Button>
           </div>

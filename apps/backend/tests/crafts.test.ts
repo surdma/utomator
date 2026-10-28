@@ -7,6 +7,7 @@ import {join,resolve} from 'node:path';
 import {createClient} from '@libsql/client';
 import {createDocumentStore} from '../src/db/documents.js';
 import {CraftLibrary,parseMdx,toMdx,craftArchive,type Craft} from '../src/crafts/library.js';
+import {growthCapabilities,profileSections} from '../../frontend/components/automate/linkedin-growth-capabilities.js';
 
 const root=await mkdtemp(join(tmpdir(),'utomator-crafts-'));
 const databaseFile='file:'+join(root,'crafts.db');
@@ -55,7 +56,34 @@ test('predefined crafts are database-backed and immutable; clones and MDX edits 
     assert.equal(initial.statusCode,200,initial.body);
     const catalog=initial.json() as Craft[];
     const defaults=catalog.filter(c=>c.scope==='default');
-    assert.equal(defaults.length,6);
+    assert.equal(defaults.length,21);
+    const expectedIds=new Set(growthCapabilities.map(capability=>'default-growth-'+capability.id));
+    assert.equal(expectedIds.size,15);
+    for(const capability of growthCapabilities){
+      const flow=defaults.find(candidate=>candidate.id==='default-growth-'+capability.id);
+      assert.ok(flow,'Missing growth flow for '+capability.id);
+      assert.equal(flow.steps.length,5,capability.id);
+      assert.equal(flow.links.length,4,capability.id);
+      const source=toMdx(flow);
+      for(const action of capability.actions)assert.ok(source.includes(action),'Action omitted: '+capability.id+' / '+action);
+      assert.ok(source.includes(capability.availableNow),'Availability omitted: '+capability.id);
+      assert.ok(source.includes(capability.requires),'Prerequisites omitted: '+capability.id);
+      assert.deepEqual(parseMdx(source,flow).steps,flow.steps);
+      assert.deepEqual(parseMdx(source,flow).links,flow.links);
+      const response=await app.inject('/crafts/'+flow.id+'/mdx');
+      assert.equal(response.statusCode,200,capability.id);
+      assert.equal(response.body,source,capability.id);
+      if(capability.id==='profile')for(const section of profileSections)
+        assert.ok(source.includes(section),'Profile section missing: '+section);
+    }
+    const originalDefaults=['personal-brand-positioning','portfolio-proofing','job-search-research',
+      'application-tailoring','content-series-planning','thoughtful-social-engagement'];
+    for(const slug of originalDefaults){
+      const flow=defaults.find(candidate=>candidate.id==='default-'+slug);
+      assert.ok(flow,'Original toolkit lost: '+slug);
+      assert.equal(flow.steps.length,5,slug);
+      assert.deepEqual(parseMdx(toMdx(flow),flow).links,flow.links);
+    }
     const predefined=defaults.find(c=>c.slug==='content-series-planning')!;
     assert.equal(predefined.id,'default-content-series-planning');
     const originalMdx=toMdx(predefined);
@@ -130,7 +158,7 @@ test('tenant identities isolate personal crafts but expose the same read-only de
     assert.equal((await one.get(first.id))?.name,request.name);
     assert.equal(await two.get(first.id),undefined);
     const copies=await two.list();
-    assert.equal(copies.filter(c=>c.scope==='default').length,6);
+    assert.equal(copies.filter(c=>c.scope==='default').length,21);
     assert.equal(copies.filter(c=>c.scope==='personal').length,0);
     const baseA=await one.get('default-personal-brand-positioning');
     const baseB=await two.get('default-personal-brand-positioning');
@@ -166,7 +194,8 @@ test('legacy JSON migrates once as private crafts without replacing predefined c
 
 test('releasing a new default MDX revision does not alter personal clones',async()=>{
   const originals=['personal-brand-positioning','portfolio-proofing','job-search-research',
-    'application-tailoring','content-series-planning','thoughtful-social-engagement'];
+    'application-tailoring','content-series-planning','thoughtful-social-engagement',
+    ...growthCapabilities.map(capability=>'growth-'+capability.id)];
   const dir=join(root,'default-update');
   await mkdir(dir,{recursive:true});
   for(const slug of originals) {
@@ -182,7 +211,8 @@ test('releasing a new default MDX revision does not alter personal clones',async
     const clone=await library.clone(before!.id);
     const userVersion=toMdx(clone);
     const updatedDefault=(await readFile(join(dir,'content-series-planning.mdx'),'utf8'))
-      .replace('Plans social content series with factual review gates.','Plans reviewed content series with factual review gates.');
+      .replace('Use when building a source-backed LinkedIn series',
+        'Use when planning a source-backed LinkedIn series');
     await writeFile(join(dir,'content-series-planning.mdx'),updatedDefault);
     await library.initialize();
     const after=await library.get(before!.id);

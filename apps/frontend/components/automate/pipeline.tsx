@@ -19,7 +19,7 @@ import AccountStudio, { type SocialAccount } from "@/components/automate/account
 import ActivityIntelligence from "@/components/automate/activity-intelligence";
 import LinkedInResearchStudio from "@/components/automate/linkedin-research-studio";
 import LinkedInEditorialStudio from "@/components/automate/linkedin-editorial-studio";
-import LinkedInGrowthHub from "@/components/automate/linkedin-growth-hub";
+
 import ConnectorOnboarding, { type Connector } from "@/components/automate/connector-onboarding";
 import { LinkedInIcon, TwitterIcon } from "@/components/svgs";
 
@@ -152,13 +152,13 @@ export default function AutomationPipeline({ initialPane = "pipeline" }: { initi
   const streamRef = useRef<EventSource | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const currentRunRef = useRef<string | null>(null);
-  const libraryView=pathname.endsWith("/source")?"source":pathname.startsWith("/dashboard/crafts/")?"visual":"catalog";
+  const libraryView=pathname.endsWith("/source")?"source":(pathname.startsWith("/dashboard/growth/")||pathname.startsWith("/dashboard/crafts/"))?"visual":"catalog";
   useEffect(()=>{
-    if(pathname.startsWith("/dashboard/crafts/")){
+    if(pathname.startsWith("/dashboard/growth/")||pathname.startsWith("/dashboard/crafts/")){
       const id=pathname.split("/")[3];
-      setPane("crafts");
+      setPane("growth");
       setSelectedCraftId(id||null);
-    }else if(pathname==="/dashboard/crafts")setPane("crafts");
+    }else if(pathname==="/dashboard/crafts")setPane("growth");
     else if(pathname==="/dashboard/history")setPane("history");
     else if(pathname.startsWith("/dashboard/profile"))setPane("profile");
     else if(pathname.startsWith("/dashboard/resumes"))setPane("resumes");
@@ -189,15 +189,15 @@ export default function AutomationPipeline({ initialPane = "pipeline" }: { initi
     setMobileMenu(false);
   }
   function navigateCraft(id:string|null,slug?:string){
-    setPane("crafts");setSelectedCraftId(id);
+    setPane("growth");setSelectedCraftId(id);
     if(id&&slug)setSelectedCraftSlug(slug);
     if(!id)setSelectedCraftSlug(null);
-    const target=id?"/dashboard/crafts/"+encodeURIComponent(id):"/dashboard/crafts";
+    const target=id?"/dashboard/growth/"+encodeURIComponent(id):"/dashboard/growth";
     navigate(id&&pathname===target+"/source"?pathname:target);
   }
   function navigateCraftView(next:"visual"|"source"){
     if(!selectedCraftId)return;
-    navigate("/dashboard/crafts/"+encodeURIComponent(selectedCraftId)+(next==="source"?"/source":""));
+    navigate("/dashboard/growth/"+encodeURIComponent(selectedCraftId)+(next==="source"?"/source":""));
   }
 
   const selected = workflows[platform].find((workflow) => workflow.id === action) || workflows[platform][0];
@@ -484,7 +484,7 @@ export default function AutomationPipeline({ initialPane = "pipeline" }: { initi
       if (!response.ok) throw Error("Craft library is unavailable; start the local API");
       const library = await response.json() as AgentCraft[];
       if (/^(?:crafts|list|help)?$/i.test(command)) {
-        navigatePane("crafts");
+        navigatePane("growth");
         chatNotice("Crafts opened. Commands: /craft open <slug>; /craft add <title> | <instructions>; /craft link <from> -> <to>; /craft unlink <from> -> <to>; /craft rename <name>; /craft enable; /craft disable. You can also edit visually or in MDX.");
         return;
       }
@@ -656,7 +656,7 @@ export default function AutomationPipeline({ initialPane = "pipeline" }: { initi
   const checkpointNeeded = checkpoint?.kind === "approval";
   const coverage = playbook?.coverage || [];
   const coverageCount = coverage.filter((item) => item.status === "implemented").length;
-  const showChat = chatVisible && pane !== "profile" && pane !== "resumes" && pane !== "growth";
+  const showChat = chatVisible && pane !== "profile" && pane !== "resumes" && (pane !== "growth" || libraryView !== "catalog");
   return (
     <div data-automate className="flex min-h-dvh flex-col bg-[#f5f7f8] font-sans text-slate-900 lg:fixed lg:inset-0 lg:z-40 lg:h-dvh lg:overflow-hidden">
       <div className="shrink-0 border-b border-slate-200 bg-white">
@@ -681,7 +681,7 @@ export default function AutomationPipeline({ initialPane = "pipeline" }: { initi
           <div className="h-full rounded-2xl bg-[#111a25] p-4 text-white shadow-xl shadow-slate-900/10 lg:overflow-hidden">
             <button type="button" aria-label="Close navigation" onClick={()=>setMobileMenu(false)} className="mb-3 flex min-h-10 w-full items-center justify-end gap-2 rounded-lg px-2 text-xs font-semibold text-slate-200 hover:bg-slate-800 lg:hidden"><X className="size-4" />Close</button>
         
-            {([{ id: "pipeline", label: "Pipeline", icon: Activity }, { id: "history", label: "Run history", icon: History }, { id: "crafts", label: "Crafts", icon: BookOpen }] as const).map((item) =>
+            {([{ id: "pipeline", label: "Pipeline", icon: Activity }, { id: "history", label: "Run history", icon: History }] as const).map((item) =>
               <button key={item.id} type="button" onClick={() => { navigatePane(item.id); setMobileMenu(false); }} className={"flex min-h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-xs font-semibold transition " + (pane === item.id ? "bg-teal-500/15 text-teal-200" : "text-slate-300 hover:bg-slate-800")}><item.icon className="size-4" />{item.label}</button>
             )}
             {([{ id: "profile", label: "Profile", icon: UserRound },
@@ -689,7 +689,7 @@ export default function AutomationPipeline({ initialPane = "pipeline" }: { initi
               { id: "memory", label: "Intelligence", icon: NotebookPen },
               { id: "research", label: "Creator research", icon: Crosshair },
               { id: "editorial", label: "Editorial drafts", icon: FileText },
-              { id: "growth", label: "LinkedIn growth", icon: Compass }] as const).map(item =>
+              { id: "growth", label: "Growth", icon: Compass }] as const).map(item =>
               <button key={item.id} type="button" onClick={() => { navigatePane(item.id); setMobileMenu(false); }}
                 aria-current={pane === item.id ? "page" : undefined}
                 className={"flex min-h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-xs font-semibold transition " + (pane === item.id ? "bg-teal-500/15 text-teal-200" : "text-slate-300 hover:bg-slate-800")}>
@@ -780,9 +780,9 @@ export default function AutomationPipeline({ initialPane = "pipeline" }: { initi
             </button>
           </div>}
           {pane === "history" && <Card><CardHeader><CardTitle>Recent executions</CardTitle><CardDescription>Stored in memory during the current engine session. Select a run to inspect streamed events.</CardDescription></CardHeader><CardContent><div className="divide-y divide-slate-100">{runs.length === 0 && <p className="py-10 text-center text-sm text-slate-500">No runs yet. Start an audit to capture the first trace.</p>}{runs.map((run) => <button key={run.id} type="button" className="flex min-h-16 w-full items-center justify-between gap-3 py-3 text-left hover:bg-slate-50" onClick={() => { currentRunRef.current = run.id; setActive(run); setEvents([]); connect(run.id); navigatePane("pipeline"); }}><span><span className="block text-sm font-semibold capitalize">{run.platform} / {run.action.replaceAll("-", " ")}</span><span className="text-xs text-slate-500">{short(run.id)} · {new Date(run.createdAt).toLocaleString()}</span></span><span className="text-xs font-semibold capitalize text-slate-500">{stateLabel(run.state)} <ArrowRight className="ml-1 inline size-3" /></span></button>)}</div></CardContent></Card>}
-          {pane === "crafts" && <CraftsLibrary
+          {pane === "growth" && <CraftsLibrary
             selectedId={selectedCraftId} onSelected={navigateCraft}
-            view={libraryView} onView={navigateCraftView} onBack={()=>navigatePane("crafts")}
+            view={libraryView} onView={navigateCraftView} onBack={()=>navigatePane("growth")}
             onChat={(text) => { if (text.startsWith("/craft")) { void handleCraftCommand(text); }
               else chatNotice(text); }}
             revision={craftsRevision}
@@ -792,7 +792,7 @@ export default function AutomationPipeline({ initialPane = "pipeline" }: { initi
           {(pane === "memory" || pane === "observer") && <ActivityIntelligence initialView={pane} onNavigate={path=>{navigate(path);setPane(path.endsWith("/dashboard/observer")?"observer":"memory")}} />}
           {pane === "research" && <LinkedInResearchStudio />}
           {pane === "editorial" && <LinkedInEditorialStudio />}
-          {pane === "growth" && <LinkedInGrowthHub />}
+
           {pane === "settings" && <AutomationSettingsPage available={available} platform={platform} selectedAccount={activeConnector} />}
         </main>
         <aside data-testid="automation-right-sidebar" className={(mobileChatOpen?"fixed inset-y-0 right-0 z-50 flex w-[min(92vw,390px)] bg-[#f5f7f8] p-3 shadow-2xl":"hidden") + (showChat?" lg:static lg:flex lg:h-full lg:w-auto lg:min-h-0 lg:overflow-hidden lg:bg-transparent lg:p-0 lg:shadow-none":" lg:hidden") + " min-w-0 flex-col"}>
@@ -813,7 +813,7 @@ export default function AutomationPipeline({ initialPane = "pipeline" }: { initi
               
               </CardHeader>
               <CardContent className="flex min-h-0 flex-1 flex-col pt-3">
-                {pane === "crafts" && selectedCraftSlug && <div data-testid="active-craft-context" className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-teal-200 bg-teal-50 p-3">
+                {pane === "growth" && selectedCraftSlug && <div data-testid="active-craft-context" className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-teal-200 bg-teal-50 p-3">
                   <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-teal-800">Active craft</p>
                     <p className="mt-0.5 truncate font-mono text-[11px] text-teal-950">{selectedCraftSlug}</p></div>
                   <button type="button" onClick={() => setMessage("/craft help")} className="rounded-lg bg-white px-2.5 py-2 text-[11px] font-semibold text-teal-800 hover:bg-teal-100">Commands</button>

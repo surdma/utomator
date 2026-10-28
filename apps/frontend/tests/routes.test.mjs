@@ -13,6 +13,8 @@ test("the marketing root is separate and every operator page is nested under das
   for (const route of ["workspace","library","crafts","editorial","growth","history","memory","observer","profile","research","resumes","settings","_automate","%5Fautomate"])
     assert.ok(!existsSync(new URL("app/" + route,root)),route);
   assert.ok(existsSync(new URL("app/dashboard/crafts/[craftId]/source/page.tsx",root)));
+  assert.ok(existsSync(new URL("app/dashboard/growth/[craftId]/page.tsx",root)));
+  assert.ok(existsSync(new URL("app/dashboard/growth/[craftId]/source/page.tsx",root)));
   assert.ok(existsSync(new URL("app/dashboard/resumes/[resumeId]/page.tsx",root)));
   assert.match(await read("app/dashboard/page.tsx"),/redirect\("\/dashboard\/pipeline"\)/);
   assert.match(await read("components/automate/pipeline.tsx"),/Pipeline/);

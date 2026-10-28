@@ -186,6 +186,21 @@ const defaults: Array<{slug:string;category:CraftCategory}> = [
   {slug:'application-tailoring',category:'applications'},
   {slug:'content-series-planning',category:'content'},
   {slug:'thoughtful-social-engagement',category:'engagement'},
+  {slug:'growth-profile',category:'presence'},
+  {slug:'growth-competitors',category:'content'},
+  {slug:'growth-content',category:'content'},
+  {slug:'growth-engagement',category:'engagement'},
+  {slug:'growth-network',category:'engagement'},
+  {slug:'growth-company',category:'presence'},
+  {slug:'growth-branding',category:'presence'},
+  {slug:'growth-jobs',category:'job-hunt'},
+  {slug:'growth-outreach',category:'engagement'},
+  {slug:'growth-leads',category:'engagement'},
+  {slug:'growth-longform',category:'content'},
+  {slug:'growth-analytics',category:'content'},
+  {slug:'growth-reputation',category:'presence'},
+  {slug:'growth-experiments',category:'content'},
+  {slug:'growth-reporting',category:'presence'},
 ];
 const defaultKey=(slug:string)=>'default-'+slug;
 const personalKey=(slug:string)=>'personal-'+slug;

@@ -43,10 +43,20 @@ test("landing page and pipeline identity are Utomator, not the portfolio", () =>
   assert.match(home, /automation workflow preview/);
 });
 
-test("craft editor reads the ID from /dashboard/crafts/:id", () => {
+test("unified Growth editor reads the ID from nested Growth and legacy Craft URLs", () => {
   const pipeline = readFileSync(resolve(root, "components", "automate", "pipeline.tsx"), "utf8");
   assert.match(pipeline, /const id=pathname\.split\("\/"\)\[3\]/);
   assert.ok(!pipeline.includes('const id=pathname.split("/")[2]'));
+  assert.match(pipeline, /pathname.startsWith\("\/dashboard\/growth\/"\)/);
+  assert.match(pipeline, /pane === "growth" && <CraftsLibrary/);
+  assert.match(pipeline, /"\/dashboard\/growth\/"\+encodeURIComponent/);
+  assert.ok(!pipeline.includes('<LinkedInGrowthHub'));
+  for(const route of ["app/dashboard/growth/[craftId]/page.tsx",
+    "app/dashboard/growth/[craftId]/source/page.tsx"])
+    assert.ok(existsSync(resolve(root,route)),route);
+  for(const route of ["app/dashboard/crafts/page.tsx","app/dashboard/crafts/[craftId]/page.tsx",
+    "app/dashboard/crafts/[craftId]/source/page.tsx"])
+    assert.match(readFileSync(resolve(root,route),"utf8"),/redirect\("\/dashboard\/growth/);
 });
 
 test("dashboard navigation is distinct from account and career API paths", () => {
@@ -56,4 +66,23 @@ test("dashboard navigation is distinct from account and career API paths", () =>
   assert.ok(career.includes('request(sourceView?"/profile":"/resumes/"'), "career editor uses /api/career/profile or /api/career/resumes");
   assert.ok(career.includes('request("/resumes","POST"'), "creating a résumé uses the backend API");
   assert.ok(account.includes('"/dashboard/profile/connections"'), "navigation still lives inside dashboard");
+});
+
+test("unified Growth UI retains coverage, pipeline boundaries and the MDX editor",()=>{
+  const catalog=readFileSync(resolve(root,"components/automate/craft-catalog.tsx"),"utf8");
+  const details=readFileSync(resolve(root,"components/automate/growth-capability-details.tsx"),"utf8");
+  const editor=readFileSync(resolve(root,"components/automate/crafts-library.tsx"),"utf8");
+  assert.match(catalog,/growthJourneys\.map/);
+  assert.match(catalog,/capabilityForSlug/);
+  assert.match(catalog,/newOutcome/);
+  assert.match(catalog,/newAudience/);
+  assert.match(details,/capability\.actions\.map/);
+  assert.match(details,/profileSections\.map/);
+  assert.match(details,/capability\.requires/);
+  assert.match(details,/capability\.availableNow/);
+  assert.match(editor,/GrowthCapabilityDetails/);
+  assert.match(editor,/ReactFlow/);
+  assert.match(editor,/craft-mdx-editor/);
+  assert.match(editor,/Clone flow/);
+  assert.match(editor,/\.skill/);
 });

@@ -1,6 +1,8 @@
 # LinkedIn growth: canonical capability map and delivery boundaries
 
-Status: **Product scope implemented as a navigable catalog; downstream capability implementations remain separately gated.**
+Status: **15 capability requirements are preserved in a unified Growth workspace of 21 default MDX/visual designs; downstream provider actions remain separately gated.**
+
+The unified UI is now `/dashboard/growth`, with `/dashboard/growth/[craftId]` for its visual graph and `/dashboard/growth/[craftId]/source` for MDX. The six existing Craft IDs and personal variants remain accessible through backwards-compatible routes and the existing backend library. See `docs/plans/growth-unification-spec.md`.
 
 This document translates the owner's comprehensive LinkedIn growth brainstorm into a traceable repository contract. It is not a statement that all actions are available via LinkedIn APIs. The interactive catalog is \`apps/frontend/components/automate/linkedin-growth-capabilities.ts\` and its UI is \`/growth\`. The deeper design-only step vocabulary remains in [linkedin-workflow-implementation-plan.md](./linkedin-workflow-implementation-plan.md).
 
