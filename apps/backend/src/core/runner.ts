@@ -155,12 +155,14 @@ export class Runner {
         emit('status', 'Run finished with verified steps');
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        summary.state = controller.signal.aborted ? 'cancelled' :
+        const terminalState = controller.signal.aborted ? 'cancelled' :
           /approval denied|not authenticated|not establish edit ownership/i.test(message) ? 'blocked' : 'failed';
         summary.error = message;
+        // Invalidate the expired connector before exposing a blocked run to clients.
         if (input.accountId && /not authenticated|sign.in required|cannot establish edit ownership/i.test(message)) {
           await this.onSessionInvalid?.(input.accountId).catch(() => {});
         }
+        summary.state = terminalState;
         emit('error', message);
         emit('status', `Run ended: ${summary.state}`);
       } finally {

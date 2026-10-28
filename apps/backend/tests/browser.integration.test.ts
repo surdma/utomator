@@ -521,7 +521,7 @@ test('LinkedIn connector adds a server-owned profile and stays available from th
     await page.getByTestId('owner-profile-page').getByText('@compact-test-owner').waitFor();
     const status=page.getByTestId('profile-connection-status-'+saved.id);
     await status.getByText('Not connected').waitFor();
-    await page.getByRole('button',{name:'Connect LinkedIn',exact:true}).click();
+    await status.locator('xpath=..').getByRole('button',{name:'Connect LinkedIn',exact:true}).click();
     await dialog.waitFor({state:'visible'});
     assert.equal(await dialog.getByText('@compact-test-owner',{exact:true}).count(),1);
   }finally{await browser.close();await app.close();await rm(root,{recursive:true,force:true});}
