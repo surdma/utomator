@@ -50,7 +50,7 @@ test("unified Growth editor reads the ID from nested Growth and legacy Craft URL
   assert.match(pipeline, /const id=pathname\.split\("\/"\)\[3\]/);
   assert.ok(!pipeline.includes('const id=pathname.split("/")[2]'));
   assert.match(pipeline, /pathname.startsWith\("\/dashboard\/growth\/"\)/);
-  assert.match(pipeline, /pane === "growth" && selectedCraftId!=="default-growth-profile" && <CraftsLibrary/);
+  assert.match(pipeline, /pane === "growth" && pathname!=="\/growth\/default-growth-profile" && <CraftsLibrary/);
   assert.match(pipeline, /pane === "growth" && selectedCraftId==="default-growth-profile"/);
   assert.match(pipeline, /"\/dashboard\/growth\/"\+encodeURIComponent/);
   assert.ok(!pipeline.includes('<LinkedInGrowthHub'));

@@ -789,7 +789,7 @@ export default function AutomationPipeline({ initialPane = "pipeline" }: { initi
             <GrowthProfilePipelines platform={platform} selectedAction={action} busy={busy}
               accountId={connectorReady?activeConnector?.id:undefined}
               onSelectAction={next=>{chooseAction(next);navigatePane("pipeline");}} />}
-          {pane === "growth" && selectedCraftId!=="default-growth-profile" && <CraftsLibrary
+          {pane === "growth" && pathname!=="/growth/default-growth-profile" && <CraftsLibrary
             selectedId={selectedCraftId} onSelected={navigateCraft}
             view={libraryView} onView={navigateCraftView} onBack={()=>navigatePane("growth")}
             onChat={(text) => { if (text.startsWith("/craft")) { void handleCraftCommand(text); }
