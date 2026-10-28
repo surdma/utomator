@@ -136,7 +136,7 @@ export default function GrowthProfilePipelines({platform,selectedAction,busy,acc
         {run.canAdvance&&<button type="button" disabled={working||busy}
           className="mt-3 min-h-11 rounded-xl bg-teal-800 px-4 text-sm font-semibold text-white disabled:opacity-50"
           onClick={()=>void mutate(()=>request(endpoint+"/runs/"+run.id+"/advance","POST"))}>
-          {run.activeIndex===program?.stages.length-1?"Finalize evidence report":"Advance to the next dependent pipeline"}
+          {run.activeIndex+1===program?.stages.length?"Finalize evidence report":"Advance to the next dependent pipeline"}
         </button>}
         <p className="mt-3 text-xs leading-5 text-slate-500">{run.outcomeNotice}</p>
       </div>
