@@ -210,9 +210,11 @@ test('releasing a new default MDX revision does not alter personal clones',async
     const before=await library.get('default-content-series-planning');
     const clone=await library.clone(before!.id);
     const userVersion=toMdx(clone);
-    const updatedDefault=(await readFile(join(dir,'content-series-planning.mdx'),'utf8'))
-      .replace('Use when building a source-backed LinkedIn series',
-        'Use when planning a source-backed LinkedIn series');
+    const existingDefault=await readFile(join(dir,'content-series-planning.mdx'),'utf8');
+    const updatedDefault=existingDefault.replace(
+      'Use when designing a source-backed series of professional LinkedIn posts',
+      'Use when planning a source-backed series of professional LinkedIn posts');
+    assert.notEqual(updatedDefault,existingDefault,'Revision fixture must actually change default MDX');
     await writeFile(join(dir,'content-series-planning.mdx'),updatedDefault);
     await library.initialize();
     const after=await library.get(before!.id);
