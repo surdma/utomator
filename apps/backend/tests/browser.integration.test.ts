@@ -331,7 +331,7 @@ test('LinkedIn templates load onto the artboard without connection; execution st
       }])});
     });
     await page.getByTestId('automation-navigation-sidebar').getByRole('button',{name:'Run history'}).click();
-    await page.getByTestId('automation-navigation-sidebar').getByRole('button',{name:'Workspace'}).click();
+    await page.getByTestId('automation-navigation-sidebar').getByRole('button',{name:'Pipeline'}).click();
     const reloadedBoard=page.getByTestId('workflow-artboard');
     await reloadedBoard.getByTestId('workflow-run-readiness').getByText(/Execution target: Test verified account/).waitFor();
     assert.match(await reloadedBoard.innerText(),/Headline and About revision/,
@@ -508,7 +508,7 @@ test('LinkedIn connector adds a server-owned profile and stays available from th
     await dialog.getByRole('textbox',{name:'LinkedIn profile address'})
       .fill('https://www.linkedin.com/in/compact-test-owner/');
     await dialog.getByRole('button',{name:'Add account',exact:true}).click();
-    await dialog.getByText('@compact-test-owner').waitFor();
+    await dialog.getByText('@compact-test-owner',{exact:true}).waitFor();
     const state=(await app.inject('/account')).json() as
       {socialAccounts:Array<{id:string;platform:string;handle:string}>};
     const saved=state.socialAccounts.find(row=>row.handle==='compact-test-owner');
@@ -523,6 +523,6 @@ test('LinkedIn connector adds a server-owned profile and stays available from th
     await status.getByText('Not connected').waitFor();
     await page.getByRole('button',{name:'Connect LinkedIn',exact:true}).click();
     await dialog.waitFor({state:'visible'});
-    assert.equal(await dialog.getByText('@compact-test-owner').count(),1);
+    assert.equal(await dialog.getByText('@compact-test-owner',{exact:true}).count(),1);
   }finally{await browser.close();await app.close();await rm(root,{recursive:true,force:true});}
 });

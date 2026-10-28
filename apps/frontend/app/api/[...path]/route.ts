@@ -87,7 +87,10 @@ async function forward(req: NextRequest, params: Promise<{ path: string[] }>) {
     return Response.json({ error: "Invalid local automation port" }, { status: 503 });
   }
   try {
-    const body = ["POST", "PUT", "DELETE"].includes(req.method) ? await req.text() : undefined;
+    const incomingBody = ["POST", "PUT", "DELETE"].includes(req.method) ? await req.text() : undefined;
+    // Fastify rejects an empty body advertised as JSON. Clone and other bodyless
+    // POST endpoints must reach their handlers without a JSON content type.
+    const body = incomingBody?.length ? incomingBody : undefined;
     const maxBytes = target === "visual-reviews" ? 3 * 1024 * 1024 : target === "linkedin/research" ? 128 * 1024 : target.startsWith("career/") ? 128 * 1024 : (target.startsWith("crafts") || target.startsWith("workflow-plans/") || target.startsWith("workflows")) ? 128 * 1024 : 32768;
     if (body && new TextEncoder().encode(body).byteLength > maxBytes) return Response.json({ error: "Request too large" }, { status: 413 });
     const upstream = await fetch("http://127.0.0.1:" + port + "/" + target + new URL(req.url).search, {

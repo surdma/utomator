@@ -14,8 +14,19 @@ test('CDP reuse shares login cookies without closing existing Chrome tabs', { ti
     chrome = await chromium.launchPersistentContext(directory, {
       headless: true, args: ['--remote-debugging-port=0'],
     });
-    const portFile = await readFile(join(directory, 'DevToolsActivePort'), 'utf8');
-    const port = Number(portFile.split(/\r?\n/)[0]);
+    // The DevTools port may appear after Playwright reports a ready context.
+    // Avoid a filesystem race without weakening the connection assertions.
+    let port = 0;
+    for (let attempt = 0; attempt < 60; attempt++) {
+      try {
+        const portFile = await readFile(join(directory, 'DevToolsActivePort'), 'utf8');
+        port = Number(portFile.split(/\r?\n/)[0]);
+        if (Number.isInteger(port) && port > 0) break;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      }
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
     assert(Number.isInteger(port) && port > 0, 'Chrome must expose its debugging port');
 
     const originalTab = chrome.pages()[0] ?? await chrome.newPage();
