@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildApp } from '../src/main.js';
+// Set the test environment before loading the Fastify app, matching other route tests.
+process.env.NODE_ENV = 'test';
+const { buildApp } = await import('../src/main.js');
 import { compileGrowthProfileYaml, readGrowthProfileWorkflow } from '../src/engine/growth-profile.js';
 
 test('Profile YAML retains nine requirements, twenty evidence targets and compiled registered actions', async () => {
