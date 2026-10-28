@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ArrowRight, FileCode2, ShieldCheck } from "lucide-react";
+import GrowthWorkflowArtboard from "./growth-workflow-artboard";
+import type {WorkflowPlan} from "./workflow-plan-editor";
 
 type Stage = {id:string;title:string;action:"audit"|"audit-page";page:string;dependsOn:string;
-  sectionIds:string[];stepCount:number};
+  sectionIds:string[];stepCount:number;plan:WorkflowPlan};
 type Program = {id:string;title:string;objective:string;limitation:string;
   stages:Stage[];requirements:Array<{id:string;text:string}>;
   coverage:Array<{id:string;label:string;status:string}>;
@@ -12,14 +14,14 @@ type Program = {id:string;title:string;objective:string;limitation:string;
 type Child = {id:string;state:string;checkpoint?:{id:string;message:string};error?:string};
 type Evidence = {source:"owner-supplied";excerpt:string;digest:string;capturedAt:string};
 type Run = {id:string;accountId:string;status:string;state:string;activeIndex:number;
-  currentChild:Child|null;currentStage:Stage&{childRunId:string|null};
+  currentChild:Child|null;currentStage:Omit<Stage,"plan"|"stepCount">&{childRunId:string|null};
+  pipelineRuns:Array<{id:string;childRunId:string|null;state:string;currentStepId:string|null;error:string|null}>;
   currentPageEvidence:{url:string;digest:string}|null;canAdvance:boolean;
   coverage:Array<{id:string;stageId:string;status:"missing"|"owner-supplied-unverified";evidence:Evidence|null}>;
   counts:{total:number;missing:number;ownerSupplied:number;independentlyProviderVerified:number};
   outcomeNotice:string};
 type Props = {platform:"linkedin"|"x";selectedAction:string;busy:boolean;
-  accountId?:string;onSelectAction:(action:string)=>void};
-const endpoint="/api/growth/workflows/profile";
+  accountId?:string;onSelectAction:(action:string)=>void;templateId?:string;onExit?:()=>void};
 async function request<T>(url:string,method="GET",body?:unknown):Promise<T>{
   const response=await fetch(url,{method,cache:"no-store",
     ...(body===undefined?{}:{headers:{"content-type":"application/json"},body:JSON.stringify(body)})});
@@ -28,7 +30,8 @@ async function request<T>(url:string,method="GET",body?:unknown):Promise<T>{
   return data;
 }
 
-export default function GrowthProfilePipelines({platform,selectedAction,busy,accountId,onSelectAction}:Props){
+export default function GrowthProfilePipelines({platform,selectedAction,busy,accountId,onSelectAction,templateId="linkedin-profile",onExit}:Props){
+  const endpoint="/api/growth/templates/"+encodeURIComponent(templateId);
   const [program,setProgram]=useState<Program|null>(null);
   const [run,setRun]=useState<Run|null>(null);
   const [error,setError]=useState("");
@@ -43,7 +46,7 @@ export default function GrowthProfilePipelines({platform,selectedAction,busy,acc
     const runs=await request<Run[]>(endpoint+"/runs");
     const mine=runs.find(item=>item.accountId===accountId);
     setRun(mine??null);
-  },[platform,accountId]);
+  },[platform,accountId,endpoint]);
   useEffect(()=>{
     let live=true;
     void refresh().catch(e=>{if(live)setError(e instanceof Error?e.message:"Growth unavailable");});
@@ -70,41 +73,28 @@ export default function GrowthProfilePipelines({platform,selectedAction,busy,acc
         <h2 className="mt-2 text-xl font-semibold text-slate-950">{program?.title??"Profile auditing & section optimization"}</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">{program?.objective??"Loading the profile Growth workflow…"}</p>
       </div>
-      <a href={endpoint+"/yaml"} target="_blank" rel="noopener noreferrer"
-        className="inline-flex min-h-10 items-center gap-2 text-xs font-semibold text-teal-800 underline">
-        <FileCode2 className="size-4"/>View YAML
-      </a>
+      <div className="flex items-center gap-3">
+        {onExit&&<button type="button" onClick={onExit} className="min-h-10 rounded-xl border border-slate-200 px-3 text-xs font-semibold">Back to action workflows</button>}
+        <a href={endpoint+"/yaml"} target="_blank" rel="noopener noreferrer"
+          className="inline-flex min-h-10 items-center gap-2 text-xs font-semibold text-teal-800 underline">
+          <FileCode2 className="size-4"/>View source YAML
+        </a>
+      </div>
     </header>
     <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
-      <ShieldCheck className="mr-2 inline size-4"/>Six dependent Runner audits, not six engines.
+      <ShieldCheck className="mr-2 inline size-4"/>Connected Runner pipelines, not separate engines.
       Section coverage stays missing until independent evidence is supplied. No automatic profile edit or growth outcome is implied.
     </p>
     {error&&<p role="alert" className="text-sm text-rose-700">{error}</p>}
+    {program&&<GrowthWorkflowArtboard program={program} run={run}/> }
     {!accountId&&<p className="rounded-xl border border-slate-200 p-3 text-sm text-slate-600">
-      Connect and verify the owner’s LinkedIn account to start the six-stage workflow.
+      Connect and verify the owner’s LinkedIn account to start this YAML Growth workflow.
     </p>}
     {accountId&&(!run||run.status!=="active"||["failed","blocked","cancelled","unavailable"].includes(run.state))&&<button type="button" disabled={working||busy||!program}
       onClick={()=>void mutate(async()=>{setRun(await request<Run>(endpoint+"/runs","POST",{accountId}));})}
       className="min-h-11 rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white disabled:opacity-50">
-      Start profile Growth workflow
+      Start Growth workflow
     </button>}
-    {program&&<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      {program.stages.map((stage,index)=><div key={stage.id}
-        className={"rounded-xl border p-4 "+(run?.activeIndex===index?"border-teal-600 bg-teal-50/40":"border-slate-200")}>
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-semibold text-slate-500">Pipeline {index+1} of {program.stages.length}</span>
-          <span className="text-xs text-slate-500">{stage.sectionIds.length} coverage nodes</span>
-        </div>
-        <h3 className="mt-2 text-sm font-semibold text-slate-950">{stage.title}</h3>
-        <p className="mt-1 text-xs leading-5 text-slate-600">Runner: {stage.action} · {stage.stepCount} compiled steps</p>
-        <p className="mt-2 text-xs leading-5 text-slate-500">
-          {stage.sectionIds.map(id=>program.coverage.find(section=>section.id===id)?.label??id).join(" · ")}
-        </p>
-        {run&&<span className="mt-2 block text-xs font-semibold text-teal-800">
-          {index<run.activeIndex?"Approved Runner pipeline completed":index===run.activeIndex?run.state:"Waiting for dependency"}
-        </span>}
-      </div>)}
-    </div>}
     {run&&<>
       <div className="rounded-xl border border-slate-200 p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -146,7 +136,7 @@ export default function GrowthProfilePipelines({platform,selectedAction,busy,acc
         {run.canAdvance&&<button type="button" disabled={working||busy}
           className="mt-3 min-h-11 rounded-xl bg-teal-800 px-4 text-sm font-semibold text-white disabled:opacity-50"
           onClick={()=>void mutate(()=>request(endpoint+"/runs/"+run.id+"/advance","POST"))}>
-          {run.activeIndex===5?"Finalize evidence report":"Advance to the next dependent pipeline"}
+          {run.activeIndex===program?.stages.length-1?"Finalize evidence report":"Advance to the next dependent pipeline"}
         </button>}
         <p className="mt-3 text-xs leading-5 text-slate-500">{run.outcomeNotice}</p>
       </div>
@@ -181,7 +171,7 @@ export default function GrowthProfilePipelines({platform,selectedAction,busy,acc
         </button>
       </form>}
       <details className="rounded-xl border border-slate-200 p-4">
-        <summary className="cursor-pointer text-sm font-semibold">All 20 independent coverage records</summary>
+        <summary className="cursor-pointer text-sm font-semibold">All {run.counts.total} independent coverage records</summary>
         <ul className="mt-3 grid gap-2 sm:grid-cols-2">{run.coverage.map(item=>
           <li key={item.id} className="flex justify-between gap-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-700">
             <span>{program?.coverage.find(c=>c.id===item.id)?.label??item.id}</span>
@@ -190,7 +180,7 @@ export default function GrowthProfilePipelines({platform,selectedAction,busy,acc
       </details>
     </>}
     {program&&<details className="rounded-xl border border-slate-200 p-4">
-      <summary className="cursor-pointer text-sm font-semibold">Nine Growth requirements and registered editing actions</summary>
+      <summary className="cursor-pointer text-sm font-semibold">{program.requirements.length} Growth requirements and registered editing actions</summary>
       <ol className="mt-3 list-decimal space-y-2 pl-5 text-xs leading-5 text-slate-600">{program.requirements.map(item=><li key={item.id}>{item.text}</li>)}</ol>
       <p className="mt-4 text-xs text-slate-500">Editing actions use the existing guarded Pipeline editor separately; the composed sample performs six read-only evidence workflows.</p>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">{program.pipelines.map(item=>

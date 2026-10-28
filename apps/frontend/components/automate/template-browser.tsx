@@ -2,17 +2,31 @@
 
 import {useEffect,useMemo,useState} from "react";
 import {CalendarClock,Check,ChevronRight,Clock3,Layers3,Search,ShieldCheck,Sparkles,Workflow} from "lucide-react";
-import {templateCatalog,templateCategories,type TemplateCategory,type TemplatePlatform} from "./template-catalog";
+import {templateCatalog,templateCategories,type CatalogTemplate,type TemplateCategory,type TemplatePlatform} from "./template-catalog";
+import {growthCapabilities} from "./linkedin-growth-capabilities";
 import type {WorkflowPlan} from "./workflow-plan-editor";
 import TemplateGraphPreview from "./template-graph-preview";
+export type GrowthTemplateSummary={id:string;title:string;objective:string;platform:"linkedin";pipelineCount:number;coverageCount:number;executable:boolean};
+type GrowthOption=CatalogTemplate&{growthId?:string};
 type Props={
   activePlatform:"linkedin"|"x";
   templates:WorkflowPlan[];
   onApply:(plan:WorkflowPlan,templateId:string)=>Promise<void>;
   onApplied:()=>void;
   connected:boolean;
+  onGrowthApply?:(templateId:string)=>Promise<void>;
 };
-export default function TemplateBrowser({activePlatform,templates,onApply,onApplied,connected}:Props){
+export default function TemplateBrowser({activePlatform,templates,onApply,onApplied,connected,onGrowthApply}:Props){
+  const [growthTemplates,setGrowthTemplates]=useState<GrowthTemplateSummary[]>([]);
+  const [growthError,setGrowthError]=useState("");
+  useEffect(()=>{const controller=new AbortController();
+    void fetch("/api/growth/templates",{cache:"no-store",signal:controller.signal})
+      .then(async response=>{if(!response.ok)throw Error("Growth catalogue unavailable");
+        return response.json() as Promise<GrowthTemplateSummary[]>;})
+      .then(value=>{if(!controller.signal.aborted)setGrowthTemplates(value);})
+      .catch(error=>{if(!controller.signal.aborted)setGrowthError(error instanceof Error?error.message:"Growth catalogue unavailable");});
+    return()=>controller.abort();
+  },[]);
   const [platform,setPlatform]=useState<TemplatePlatform>(activePlatform);
   useEffect(()=>{setPlatform(activePlatform);setPicked(null);},[activePlatform]);
   const [category,setCategory]=useState<TemplateCategory|"All">("All");
@@ -20,22 +34,48 @@ export default function TemplateBrowser({activePlatform,templates,onApply,onAppl
   const [picked,setPicked]=useState<string|null>(null);
   const [applying,setApplying]=useState(false);
   const [error,setError]=useState("");
-  const options=useMemo(()=>templateCatalog.filter(item=>item.platform===platform&&
+  const allOptions=useMemo<GrowthOption[]>(()=>[
+    ...templateCatalog,
+    ...(onGrowthApply?growthCapabilities.map(cap=>{
+      const id="linkedin-"+cap.id;
+      const available=growthTemplates.some(template=>template.id===id&&template.executable);
+      return {id:"growth-"+id,growthId:id,platform:"linkedin" as const,category:"Profile" as const,
+        title:cap.title,description:cap.summary,capabilities:[...cap.actions],
+        automation:available?"supported" as const:"planned" as const,schedule:"manual" as const};
+    }):[]),
+    ...(onGrowthApply?growthTemplates.filter(template=>
+      !growthCapabilities.some(cap=>"linkedin-"+cap.id===template.id)).map(template=>({
+      id:"growth-"+template.id,growthId:template.id,platform:"linkedin" as const,
+      category:"Profile" as const,title:template.title,description:template.objective,
+      capabilities:[template.pipelineCount+" pipelines",template.coverageCount+" coverage requirements"],
+      automation:template.executable?"supported" as const:"planned" as const,
+      schedule:"manual" as const,
+    })):[]),
+  ],[growthTemplates,onGrowthApply]);
+  const options=useMemo(()=>allOptions.filter(item=>item.platform===platform&&
     (category==="All"||item.category===category)&&
     (item.title+" "+item.description+" "+item.capabilities.join(" ")).toLowerCase().includes(query.toLowerCase().trim())),
-    [platform,category,query]);
+    [platform,category,query,allOptions]);
   const selected=options.find(item=>item.id===picked)??options[0];
   const selectedPlan=selected?.action?templates.find(plan=>plan.platform===platform&&plan.action===selected.action):undefined;
-  const count=templateCatalog.filter(item=>item.platform===platform).length;
-  const executable=Boolean(selected?.automation==="supported" && selected.action &&
-    templates.some(plan=>plan.platform===platform&&plan.action===selected.action));
+  const selectedGrowth=selected?.growthId?growthTemplates.find(template=>template.id===selected.growthId):undefined;
+  const count=allOptions.filter(item=>item.platform===platform).length;
+  const executable=Boolean(selected?.automation==="supported" &&
+    (selected.growthId || selected.action &&
+    templates.some(plan=>plan.platform===platform&&plan.action===selected.action)));
   // Loading a validated template is local authoring, never a LinkedIn action.
   // Account verification is checked again when the operator starts a run.
   const loadable=executable&&platform==="linkedin"&&activePlatform==="linkedin";
   async function useTemplate(){
     if(!selected||!loadable)return;
-    if(!selected.action)return;
+    if(!selected.action&&!selected.growthId)return;
     setApplying(true);setError("");
+    if(selected.growthId){
+      try{await onGrowthApply?.(selected.growthId);onApplied();}
+      catch(e){setError(e instanceof Error?e.message:"Could not load Growth workflow");}
+      finally{setApplying(false);}
+      return;
+    }
     const plan=templates.find(t=>t.platform===platform&&t.action===selected.action);
     if(!plan){setError("This template has no registered executable definition.");setApplying(false);return;}
     const configured=selected.id.endsWith("-quit")?(()=>{
@@ -102,6 +142,10 @@ export default function TemplateBrowser({activePlatform,templates,onApply,onAppl
       <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/80 p-3 sm:p-4" data-testid="template-preview">
         {selected?<><div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1"><div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-teal-700"><ShieldCheck className="size-4"/>Template details</div>
           <h3 className="text-lg font-extrabold leading-tight text-slate-950">{selected.title}</h3>
+          {selectedGrowth&&<div className="rounded-xl border border-teal-200 bg-teal-50 p-3 text-xs leading-6 text-teal-950">
+            <p className="font-bold">YAML Growth workflow · {selectedGrowth.pipelineCount} connected pipelines</p>
+            <p>{selectedGrowth.coverageCount} separate coverage requirements · Load to inspect pipeline task nodes in the artboard.</p>
+          </div>}
           {selectedPlan?<section className="space-y-2" aria-label="Visual workflow preview">
             <p className="text-[11px] font-extrabold text-slate-900">Pipeline preview · {selectedPlan.steps.length} connected stages</p>
             <TemplateGraphPreview key={selected.id} plan={selectedPlan}/>
@@ -119,10 +163,11 @@ export default function TemplateBrowser({activePlatform,templates,onApply,onAppl
             {loadable&&!connected&&<p className="mt-2">You can load and edit this template now. Running it requires selecting, connecting, and syncing your LinkedIn account.</p>}
             {loadable&&connected&&<p className="mt-2">This template can be loaded. Execution uses the currently selected verified LinkedIn account after your review.</p>}
           </div>
+          {growthError&&<p role="alert" className="mt-3 text-xs text-amber-800">{growthError}</p>}
           {error&&<p role="alert" className="mt-3 rounded-lg bg-rose-50 p-2 text-xs text-rose-800">{error}</p>}
           </div><div className="shrink-0 border-t border-slate-200 pt-3"><button type="button" disabled={!loadable||applying} onClick={()=>{void useTemplate();}}
-            aria-label="Load selected pipeline" className="flex w-full min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600">
-            {applying?"Loading pipeline…":!loadable?"Not available yet":"Load pipeline"}
+            aria-label={selected?.growthId?"Load Growth workflow":"Load selected pipeline"} className="flex w-full min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600">
+            {applying?"Loading template…":!loadable?"Not available yet":selected?.growthId?"Load Growth workflow":"Load pipeline"}
           </button>
           <p className="mt-2 text-center text-[10px] text-slate-500">{loadable?"Loads an editable copy on the dashboard; it does not start a LinkedIn action.":"Planned templates require a supported integration before they can be loaded or run."}</p></div>
         </>:<p className="text-xs text-slate-500">Select a workflow template to review its capabilities.</p>}

@@ -18,6 +18,11 @@ function allowedHost(request: NextRequest) {
 const id = "[0-9a-fA-F-]{36}";
 function permitted(path: string, method: string): boolean {
   const growthRun = /^growth\/workflows\/profile\/runs\/[0-9a-fA-F-]{36}$/;
+  if (method === "GET" && /^growth\/templates\/[a-z][a-z0-9-]{2,70}\/runs(?:\/[0-9a-fA-F-]{36})?$/.test(path)) return true;
+  if (method === "POST" && /^growth\/templates\/[a-z][a-z0-9-]{2,70}\/runs(?:\/[0-9a-fA-F-]{36}\/(advance|evidence))?$/.test(path)) return true;
+  if (method === "GET" && /^growth\/templates\/[a-z][a-z0-9-]{2,70}\/yaml$/.test(path)) return true;
+  if (method === "GET" && (path === "growth/templates" ||
+    /^growth\/templates\/[a-z][a-z0-9-]{2,70}$/.test(path))) return true;
   if (method === "GET" && (path === "growth/workflows/profile" ||
     path === "growth/workflows/profile/yaml" || path === "growth/workflows/profile/runs" ||
     growthRun.test(path))) return true;

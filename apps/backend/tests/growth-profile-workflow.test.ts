@@ -137,3 +137,59 @@ test('Growth composite API requires a genuine linked account, not arbitrary prof
     assert.equal((await app.inject('/growth/workflows/profile/runs/'+randomUUID())).statusCode,404);
   }finally{await app.close();}
 });
+
+
+import { readGrowthTemplateCatalog, readGrowthTemplate } from '../src/engine/growth-profile.js';
+
+test('all YAML Growth templates share the same discoverable manifest contract',async()=>{
+  const catalog=await readGrowthTemplateCatalog();
+  assert(catalog.length>=1);
+  assert.equal(catalog.find(item=>item.program.id==='linkedin-profile')?.program.stages.length,6);
+  assert.equal((await readGrowthTemplate('linkedin-profile'))?.program.id,'linkedin-profile');
+  assert.equal(await readGrowthTemplate('missing-template'),null);
+  const {yaml}=await readGrowthProfileWorkflow();
+  const another=compileGrowthProfileYaml(yaml.replace('id: "linkedin-profile"','id: "linkedin-competitors"')
+    .replace('    skills: "add-skill"\n',''));
+  assert.equal(another.id,'linkedin-competitors');
+  assert.equal(another.pipelines.length,8);
+  assert(another.stages.every(stage=>stage.plan.steps[0]?.kind==='start'&&
+    stage.plan.steps[1]?.kind==='session'&&stage.plan.links.length>0));
+});
+
+test('YAML Growth template API exposes the entire task graph and rejects unsupported runs',async()=>{
+  const app=buildApp();
+  try{
+    await app.ready();
+    const catalog=await app.inject('/growth/templates');
+    assert.equal(catalog.statusCode,200,catalog.body);
+    assert(catalog.json().some((item:{id:string})=>item.id==='linkedin-profile'));
+    const detail=await app.inject('/growth/templates/linkedin-profile');
+    assert.equal(detail.statusCode,200,detail.body);
+    assert.equal(detail.json().stages.length,6);
+    assert(detail.json().stages.every((item:{plan:{steps:unknown[]}})=>item.plan.steps.length>=4));
+    assert.equal((await app.inject('/growth/templates/linkedin-profile/yaml')).statusCode,200);
+    assert.equal((await app.inject('/growth/templates/no-such-workflow')).statusCode,404);
+    const rejected=await app.inject({method:'POST',url:'/growth/templates/linkedin-profile/runs',
+      payload:{accountId:'c63e8078-644d-4a2a-80bd-7cba9eaa0e1b'}});
+    assert.equal(rejected.statusCode,400,rejected.body);
+    assert.deepEqual((await app.inject('/growth/templates/linkedin-profile/runs')).json(),[]);
+  }finally{await app.close();}
+});
+
+test('composite runner reports failed pipelines and the exact failed child task',async()=>{
+  const id='c63e8078-644d-4a2a-80bd-7cba9eaa0e1b';
+  const runner={
+    start(input:RunRequest){return {id,platform:input.platform,action:input.action,
+      state:'failed',createdAt:new Date().toISOString(),currentStepId:'inspect',error:'Scoped profile inspection failed'} as RunSummary;},
+    get(){return {id,platform:'linkedin',action:'audit',state:'failed',
+      createdAt:new Date().toISOString(),currentStepId:'inspect',error:'Scoped profile inspection failed'} as RunSummary;},
+    stepOutput(){return null;},cancel(){return true;},
+  } as unknown as Runner;
+  const coordinator=new ProfileGrowthCoordinator(runner);
+  const run=await coordinator.start(id,'https://www.linkedin.com/in/verified-owner/');
+  assert.equal(run.pipelineRuns[0]?.state,'failed');
+  assert.equal(run.pipelineRuns[0]?.currentStepId,'inspect');
+  assert.match(run.pipelineRuns[0]?.error??'',/inspection failed/);
+  await assert.rejects(coordinator.advance(run.id),/not completed/);
+  assert.equal(run.pipelineRuns[1]?.state,'waiting');
+});

@@ -497,3 +497,36 @@ test('LinkedIn connector adds a server-owned profile and stays available from th
     assert.equal(await dialog.getByText('@compact-test-owner',{exact:true}).count(),1);
   }finally{await browser.close();await app.close();await rm(root,{recursive:true,force:true});}
 });
+
+
+test('Growth YAML templates load into the existing workflow artboard with nested pipeline task nodes',
+  {timeout:90000},async()=>{
+  const app=buildApp();
+  const browser=await chromium.launch({headless:true});
+  try{
+    await app.listen({host:'127.0.0.1',port:3101});
+    const page=await browser.newPage({viewport:{width:1320,height:900}});
+    await page.goto('http://127.0.0.1:3100/dashboard/pipeline',{waitUntil:'domcontentloaded'});
+    const before=(await app.inject('/runs')).json().length;
+    const modal=page.getByRole('dialog',{name:'Workflow template library'});
+    await clickUntilVisible(page,page.getByRole('button',{name:'Choose workflow template'}),modal);
+    await modal.getByRole('textbox',{name:'Search workflow templates'}).fill('Profile auditing & section optimization');
+    await modal.getByRole('option',{name:/Profile auditing & section optimization/}).click();
+    await modal.getByText(/6 connected pipelines/).waitFor();
+    await modal.getByRole('button',{name:'Load Growth workflow'}).click();
+    await modal.waitFor({state:'hidden'});
+    const board=page.getByTestId('workflow-artboard');
+    const graph=board.getByTestId('growth-nested-artboard');
+    await graph.waitFor();
+    assert.equal(await graph.locator('[data-testid^="growth-pipeline-node-"]').count(),6);
+    assert.equal(await graph.locator('.react-flow__edge').count(),5);
+    await graph.getByTestId('growth-pipeline-node-identity').click();
+    await graph.getByTestId('growth-task-node-start').waitFor();
+    await graph.getByTestId('growth-task-node-session').waitFor();
+    assert((await graph.locator('[data-testid^="growth-task-node-"]').count())>=4);
+    await graph.getByRole('button',{name:'Back to pipelines'}).click();
+    await graph.getByTestId('growth-pipeline-node-identity').waitFor();
+    assert.equal((await app.inject('/runs')).json().length,before,
+      'selecting a Growth template must not execute a browser action');
+  }finally{await browser.close();await app.close();}
+});

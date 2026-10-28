@@ -10,6 +10,7 @@ import {Activity,Check,ChevronRight,FileText,Lock,Pause,Play,Plus,
   Save,Settings2,ShieldCheck,Square,Timer,Trash2,Workflow,Zap,ArrowUp,ArrowDown} from "lucide-react";
 import StudioDialog from "@/components/ui/studio-dialog";
 import TemplateBrowser from "./template-browser";
+import GrowthProfilePipelines from "./growth-profile-pipelines";
 
 export type StepKind="start"|"session"|"inspect"|"action"|"verify"|"note"|"delay"|"assess"|"evidence"|"approve"|"pause"|"stop"|"finish";
 export type WorkflowStep={id:string;kind:StepKind;title:string;message?:string;delayMs?:number;expectedText?:string;
@@ -38,6 +39,11 @@ type Props={
   onEvidenceOpen?:(runId:string,fileName:string)=>void;
   connected:boolean;
   accountLabel?:string;
+  growthTemplateId?:string|null;
+  growthAccountId?:string;
+  onGrowthTemplateApply?:(id:string)=>Promise<void>;
+  onClearGrowth?:()=>void;
+  onGrowthActionSelect?:(action:string)=>void;
 };
 type StepFormField={key:"message"|"delayMs"|"expectedText";label:string;control:"text"|"textarea"|"number";min?:number;max?:number};
 type StepForm={kind:StepKind;title:string;summary:string;fields:StepFormField[]};
@@ -84,7 +90,8 @@ function editorLabel(action:string){
 }
 function EditorBody(props:Props){
   const {plan,templates,events,state,runId,busy,dirty,saving,savedWorkflows,workflowId,onWorkflowSelect,onPlanChange,onTemplateApply,onSave,
-    onStop,runError,configRequest=0,children,evidenceRoot,onEvidenceOpen,connected,accountLabel}=props;
+    onStop,runError,configRequest=0,children,evidenceRoot,onEvidenceOpen,connected,accountLabel,
+    growthTemplateId,growthAccountId,onGrowthTemplateApply,onClearGrowth,onGrowthActionSelect}=props;
   const [configOpen,setConfigOpen]=useState(false);
   useEffect(()=>{if(configRequest>0)setConfigOpen(true);},[configRequest]);
   const [templateOpen,setTemplateOpen]=useState(false);
@@ -186,7 +193,7 @@ function EditorBody(props:Props){
   return <section data-testid="workflow-artboard" className="flex h-full min-h-[630px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:min-h-[calc(100dvh-7rem)]">
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-3 sm:p-4">
       <div><h2 className="text-sm font-extrabold">Workflow artboard</h2>
-        <p className="mt-1 text-[11px] text-slate-500">{plan.name} · {plan.steps.length} workflow steps</p>
+        <p className="mt-1 text-[11px] text-slate-500">{growthTemplateId?"Growth · connected pipelines with nested executable tasks":plan.name+" · "+plan.steps.length+" pipeline tasks"}</p>
         <p role="status" data-testid="workflow-run-readiness" className={"mt-1 text-[11px] "+(connected?"text-teal-800":"text-amber-800")}>
           {plan.platform==="linkedin"
             ?connected?"Execution target: "+(accountLabel||"Selected LinkedIn account")+". The server verifies this account when you run."
@@ -194,28 +201,33 @@ function EditorBody(props:Props){
             :"A supported, verified account connection is required to run this workflow."}
         </p></div>
       <div className="flex flex-wrap gap-2">
-        <select aria-label="Saved workflow" value={workflowId??""} disabled={busy||saving||dirty}
+        {!growthTemplateId&&<select aria-label="Saved workflow" value={workflowId??""} disabled={busy||saving||dirty}
           onChange={event=>onWorkflowSelect(event.target.value||null)}
           className="min-h-10 max-w-[220px] rounded-xl border border-slate-200 bg-white px-2 text-xs font-bold disabled:opacity-40">
           <option value="">Action default (unsaved)</option>
           {savedWorkflows.filter(item=>item.plan.platform===plan.platform).map(item=>
             <option key={item.id} value={item.id}>{item.plan.name} · r{item.revision}</option>)}
-        </select>
+        </select>}
         <button type="button" aria-label="Choose workflow template" disabled={busy} onClick={()=>setTemplateOpen(true)}
           className="min-h-10 rounded-xl border border-slate-200 px-3 text-xs font-bold disabled:opacity-40">Templates</button>
-        <button type="button" aria-label="Add workflow step" disabled={busy} onClick={()=>setAddOpen(true)}
-          className="flex min-h-10 items-center gap-1 rounded-xl border border-slate-200 px-3 text-xs font-bold disabled:opacity-40"><Plus className="size-4"/>Add step</button>
-        <button type="button" aria-label="Save workflow" disabled={busy||saving||!dirty} onClick={()=>{void onSave().catch(error=>setEditorError(error instanceof Error?error.message:"Could not save workflow"));}}
-          className="flex min-h-10 items-center gap-1 rounded-xl border border-slate-200 px-3 text-xs font-bold disabled:opacity-40"><Save className="size-4"/>{saving?"Saving…":dirty?"Save changes":"Saved"}</button>
-        <button type="button" aria-label="Configure action" onClick={()=>setConfigOpen(true)}
-          className="flex min-h-10 items-center gap-1 rounded-xl border border-slate-200 px-3 text-xs font-bold"><Settings2 className="size-4"/>Config</button>
-        <button type="button" aria-label="Stop workflow" disabled={!busy} onClick={onStop}
-          className="flex min-h-10 items-center gap-2 rounded-xl border border-rose-200 px-3 text-xs font-semibold text-rose-700 disabled:opacity-30"><Square className="size-3.5"/>Stop</button>
+        {growthTemplateId&&<button type="button" onClick={onClearGrowth} className="min-h-10 rounded-xl border border-slate-200 px-3 text-xs font-bold">Action workflows</button>}
+        {!growthTemplateId&&<button type="button" aria-label="Add workflow step" disabled={busy} onClick={()=>setAddOpen(true)}
+          className="flex min-h-10 items-center gap-1 rounded-xl border border-slate-200 px-3 text-xs font-bold disabled:opacity-40"><Plus className="size-4"/>Add step</button>}
+        {!growthTemplateId&&<button type="button" aria-label="Save workflow" disabled={busy||saving||!dirty} onClick={()=>{void onSave().catch(error=>setEditorError(error instanceof Error?error.message:"Could not save workflow"));}}
+          className="flex min-h-10 items-center gap-1 rounded-xl border border-slate-200 px-3 text-xs font-bold disabled:opacity-40"><Save className="size-4"/>{saving?"Saving…":dirty?"Save changes":"Saved"}</button>}
+        {!growthTemplateId&&<button type="button" aria-label="Configure action" onClick={()=>setConfigOpen(true)}
+          className="flex min-h-10 items-center gap-1 rounded-xl border border-slate-200 px-3 text-xs font-bold"><Settings2 className="size-4"/>Config</button>}
+        {!growthTemplateId&&<button type="button" aria-label="Stop workflow" disabled={!busy} onClick={onStop}
+          className="flex min-h-10 items-center gap-2 rounded-xl border border-rose-200 px-3 text-xs font-semibold text-rose-700 disabled:opacity-30"><Square className="size-3.5"/>Stop</button>}
       </div>
     </div>
     {(runError||editorError)&&<p role="alert" className="border-b border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-800">{runError||editorError}</p>}
     <div data-workflow-canvas className="relative min-h-[440px] flex-1 bg-[#f5f8f9]">
-      <ReactFlow nodes={nodes} edges={data.edges} nodeTypes={nodeTypes}
+      {growthTemplateId?<div className="h-full max-h-[calc(100dvh-9rem)] overflow-y-auto p-3">
+        <GrowthProfilePipelines templateId={growthTemplateId} platform={plan.platform}
+          selectedAction={plan.action} busy={busy} accountId={growthAccountId}
+          onExit={onClearGrowth} onSelectAction={onGrowthActionSelect??(()=>undefined)}/>
+      </div>:<ReactFlow nodes={nodes} edges={data.edges} nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         nodesConnectable={canEdit} edgesReconnectable={false} deleteKeyCode={null}
         onConnect={(link:Connection)=>reorder(link.source,link.target)}
@@ -230,15 +242,15 @@ function EditorBody(props:Props){
         minZoom={0.15} maxZoom={1.8} proOptions={{hideAttribution:false}}>
         <Background variant={BackgroundVariant.Dots} color="#bdd0d3" gap={20}/>
         <Controls showInteractive={false} className="!rounded-xl !bg-white"/>
-      </ReactFlow>
-      <div className="pointer-events-none absolute left-3 top-3 rounded-lg bg-white/90 px-2.5 py-1.5 text-[11px] text-slate-600 shadow">
-        Drag nodes to arrange · Drag connector to insert/reorder optional steps · Click to edit
-      </div>
+      </ReactFlow>}
+      {!growthTemplateId&&<div className="pointer-events-none absolute left-3 top-3 rounded-lg bg-white/90 px-2.5 py-1.5 text-[11px] text-slate-600 shadow">
+        Drag nodes to arrange · Drag connector to insert/reorder optional tasks · Click to edit
+      </div>}
     </div>
-    <div className="flex flex-wrap justify-between gap-2 border-t border-slate-200 px-4 py-3 text-xs text-slate-600">
+    {!growthTemplateId&&<div className="flex flex-wrap justify-between gap-2 border-t border-slate-200 px-4 py-3 text-xs text-slate-600">
       <span>Live status: <strong className="capitalize">{state??"idle"}</strong>{runId?" · "+runId.slice(0,8):""}</span>
       <button type="button" onClick={()=>setOutputOpen(true)} className="font-bold text-teal-800">View recorded output <ChevronRight className="inline size-4"/></button>
-    </div>
+    </div>}
     <StudioDialog open={configOpen} onDismiss={()=>setConfigOpen(false)} title="Configure workflow action"
       description="Set the account, page scope and supported action fields. Use the main Start button when ready." size="wide" testId="workflow-configuration-dialog">
       {children}
@@ -251,7 +263,7 @@ function EditorBody(props:Props){
     <StudioDialog open={templateOpen} onDismiss={()=>setTemplateOpen(false)} title="Workflow template library"
       description="Preview a pipeline and load it onto the dashboard. Connecting your account is required only when running it." size="wide" scrollMode="contained" testId="workflow-template-dialog">
       <TemplateBrowser activePlatform={plan.platform} templates={templates} connected={connected}
-        onApply={onTemplateApply} onApplied={()=>setTemplateOpen(false)} />
+        onGrowthApply={onGrowthTemplateApply} onApply={onTemplateApply} onApplied={()=>setTemplateOpen(false)} />
     </StudioDialog>
     <StudioDialog open={addOpen} onDismiss={()=>setAddOpen(false)} title="Add executable step"
       description="Each new node is inserted before the action. Reconnect or reorder it as needed." size="wide" testId="workflow-add-step-dialog">

@@ -50,36 +50,72 @@ spec:
     featured: "add-featured"
   stages:
     identity:
+      tasks:
+        start: "Begin identity and visual review"
+        session: "Verify the selected LinkedIn owner session"
+        prepare: "Compare photo, banner, display name and verification against user goals"
+        action: "Inspect live profile identity without changing account"
+        verify: "Observe identity fields again and record differences"
       title: "Identity and visual presentation"
       action: "audit"
       page: "profile"
       sections: "profilePhoto,banner,fullName,verification"
       dependsOn: "none"
     positioning:
+      tasks:
+        start: "Begin profile positioning review"
+        session: "Verify the selected LinkedIn owner session"
+        prepare: "Review genuine headline and About claims and intended audience"
+        action: "Inspect headline, About and custom URL without changing account"
+        verify: "Re-observe professional positioning evidence"
       title: "Headline and professional positioning"
       action: "audit"
       page: "profile"
       sections: "headline,about,customUrl"
       dependsOn: "identity"
     career:
+      tasks:
+        start: "Begin career qualifications review"
+        session: "Verify the selected LinkedIn owner session"
+        prepare: "Review experience, education, skills and certificates from owner evidence"
+        action: "Inspect the scoped Experience detail page"
+        verify: "Observe the scoped Experience page for provenance"
       title: "Career history and qualifications"
       action: "audit-page"
       page: "experience"
       sections: "experience,education,skills,certifications"
       dependsOn: "positioning"
     proof:
+      tasks:
+        start: "Begin professional credibility review"
+        session: "Verify the selected LinkedIn owner session"
+        prepare: "Check projects, Featured, honors and publications without inventing claims"
+        action: "Inspect the scoped Projects detail page"
+        verify: "Capture Projects page evidence for owner review"
       title: "Projects and professional credibility"
       action: "audit-page"
       page: "projects"
       sections: "featured,projects,publications,honors,volunteering"
       dependsOn: "career"
     opportunity:
+      tasks:
+        start: "Begin opportunity readiness review"
+        session: "Verify the selected LinkedIn owner session"
+        prepare: "Review service offering, recommendations, contact and career preferences"
+        action: "Inspect opportunity-relevant profile sections without editing"
+        verify: "Re-observe services and contact evidence"
       title: "Services and opportunity readiness"
       action: "audit"
       page: "profile"
       sections: "recommendations,services,contact,careerPreferences"
       dependsOn: "proof"
     review:
+      tasks:
+        start: "Begin consolidated evidence review"
+        session: "Verify the selected LinkedIn owner session"
+        prepare: "Reassess all available section evidence and identify gaps"
+        action: "Perform final read-only profile observation"
+        verify: "Capture post-review observation for the final report"
       title: "Consolidate evidence and reassess"
       action: "audit"
       page: "profile"

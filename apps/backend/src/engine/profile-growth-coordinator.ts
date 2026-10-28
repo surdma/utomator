@@ -1,22 +1,22 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { Runner } from '../core/runner.js';
 import { validateProfileUrl } from '../core/validate.js';
-import { linkedinPipeline } from '../core/workflow-plan.js';
 import type { RunSummary } from '../core/types.js';
 import type { DocumentStore } from '../db/documents.js';
-import { readGrowthProfileWorkflow } from './growth-profile.js';
+import { readGrowthTemplate } from './growth-profile.js';
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-type ProfileStage = Awaited<ReturnType<typeof readGrowthProfileWorkflow>>['program']['stages'][number];
+type ProfileStage = NonNullable<Awaited<ReturnType<typeof readGrowthTemplate>>>['program']['stages'][number];
 type CoverageInput = { sectionId: string; text: string };
 type StoredStage = {
   id: string; title: string; action: 'audit' | 'audit-page';
   page: ProfileStage['page']; sectionIds: string[]; dependsOn: string;
   childRunId: string | null; pageEvidence: { url: string; digest: string } | null;
+  plan: ProfileStage['plan'];
 };
 type OwnerEvidence = { source: 'owner-supplied'; excerpt: string; digest: string; capturedAt: string };
 export type ProfileGrowthRun = {
-  id: string; programId: 'default-growth-profile'; programVersion: number;
+  id: string; programId: string; programVersion: number;
   sourceDigest: string; accountId: string; profileUrl: string;
   createdAt: string; finishedAt: string | null; status: 'active' | 'completed-with-gaps' | 'completed-with-owner-evidence';
   activeIndex: number; stages: StoredStage[]; ownerEvidence: Record<string, OwnerEvidence>;
@@ -61,19 +61,20 @@ export class ProfileGrowthCoordinator {
   private openStage(run: ProfileGrowthRun, stageIndex: number): RunSummary {
     const stage = run.stages[stageIndex];
     if (!stage) throw Error('Growth stage not found');
+    if (!stage.plan) throw Error('Legacy Growth run has no pinned YAML task plan. Start a new Growth run.');
     const base = run.profileUrl.replace(/\/$/, '');
     const pageUrl = stage.action === 'audit-page'
       ? base + '/details/' + stage.page + '/' : undefined;
     return this.runner.start({
       platform: 'linkedin', action: stage.action, accountId: run.accountId,
       profileUrl: run.profileUrl, ...(pageUrl ? {pageUrl} : {}),
-      workflow: linkedinPipeline(stage.action),
+      workflow: stage.plan,
     });
   }
   private summarize(value: ProfileGrowthRun) {
     const stage = value.stages[value.activeIndex];
     const child = stage?.childRunId ? this.runner.get(stage.childRunId) ?? null : null;
-    const sectionIds = value.stages.slice(0, 5).flatMap(item => item.sectionIds);
+    const sectionIds = [...new Set(value.stages.flatMap(item => item.sectionIds))];
     const coverage = sectionIds.map(id => ({
       id, stageId: value.stages.find(item => item.sectionIds.includes(id))!.id,
       status: value.ownerEvidence[id] ? 'owner-supplied-unverified' as const : 'missing' as const,
@@ -84,11 +85,15 @@ export class ProfileGrowthCoordinator {
           stage.action === 'audit-page' ? 'sectionEvidence' : 'baseline') : null;
     const pageEvidence = output?.schema === 'evidence/v1'
       ? {url: output.url, digest: output.digest} : null;
-    const counts = {total: 20, ownerSupplied: coverage.filter(c => c.evidence).length,
+    const counts = {total: sectionIds.length, ownerSupplied: coverage.filter(c => c.evidence).length,
       missing: coverage.filter(c => !c.evidence).length, independentlyProviderVerified: 0};
     const childState = child?.state ?? (value.status === 'active' ? 'unavailable' : null);
     return {
       ...value, currentChild: child, currentStage: stage,
+      pipelineRuns: value.stages.map(item => ({id: item.id, childRunId: item.childRunId,
+        state: item.childRunId ? this.runner.get(item.childRunId)?.state ?? 'unavailable' : 'waiting',
+        currentStepId: item.childRunId ? this.runner.get(item.childRunId)?.currentStepId ?? null : null,
+        error: item.childRunId ? this.runner.get(item.childRunId)?.error ?? null : null})),
       currentPageEvidence: pageEvidence, coverage, counts,
       state: value.status === 'active' ? childState : value.status,
       canAdvance: value.status === 'active' && childState === 'completed' &&
@@ -97,20 +102,22 @@ export class ProfileGrowthCoordinator {
     };
   }
 
-  async start(accountId: string, profileUrl: string) {
+  async start(accountId: string, profileUrl: string, templateId = 'linkedin-profile') {
     return this.serial(async () => {
       if (!allowed(accountId)) throw Error('Verified LinkedIn account ID required');
       const normalized = validateProfileUrl('linkedin', profileUrl).href;
-      const {program, yaml} = await readGrowthProfileWorkflow();
+      const template = await readGrowthTemplate(templateId);
+      if (!template) throw Error('Growth YAML template not found');
+      const {program, yaml} = template;
       const run: ProfileGrowthRun = {
-        id: randomUUID(), programId: 'default-growth-profile',
+        id: randomUUID(), programId: program.id,
         programVersion: program.version, sourceDigest: digest(yaml),
         accountId, profileUrl: normalized, createdAt: new Date().toISOString(),
         finishedAt: null, status: 'active', activeIndex: 0,
         stages: program.stages.map(stage => ({
           id: stage.id, title: stage.title, action: stage.action, page: stage.page,
           sectionIds: [...stage.sectionIds], dependsOn: stage.dependsOn,
-          childRunId: null, pageEvidence: null,
+          plan: stage.plan, childRunId: null, pageEvidence: null,
         })),
         ownerEvidence: {},
       };
@@ -173,7 +180,8 @@ export class ProfileGrowthCoordinator {
       stage.pageEvidence = {url: proof.url, digest: proof.digest};
       if (run.activeIndex === run.stages.length - 1) {
         run.finishedAt = new Date().toISOString();
-        run.status = Object.keys(run.ownerEvidence).length < 20
+        run.status = Object.keys(run.ownerEvidence).length <
+          new Set(run.stages.flatMap(item=>item.sectionIds)).size
           ? 'completed-with-gaps' : 'completed-with-owner-evidence';
         await this.write(run, stored.version);
         return this.summarize(run);

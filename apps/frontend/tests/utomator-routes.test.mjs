@@ -50,8 +50,9 @@ test("unified Growth editor reads the ID from nested Growth and legacy Craft URL
   assert.match(pipeline, /const id=pathname\.split\("\/"\)\[3\]/);
   assert.ok(!pipeline.includes('const id=pathname.split("/")[2]'));
   assert.match(pipeline, /pathname.startsWith\("\/dashboard\/growth\/"\)/);
-  assert.match(pipeline, /pane === "growth" && pathname!=="\/growth\/default-growth-profile" && <CraftsLibrary/);
-  assert.match(pipeline, /pane === "growth" && selectedCraftId==="default-growth-profile"/);
+  assert.match(pipeline, /pane === "growth" && <CraftsLibrary/);
+  assert.match(pipeline, /onGrowthTemplateApply=\{applyGrowthTemplate\}/);
+  assert.match(pipeline, /growthTemplateId=\{selectedGrowthTemplateId\}/);
   assert.match(pipeline, /"\/dashboard\/growth\/"\+encodeURIComponent/);
   assert.ok(!pipeline.includes('<LinkedInGrowthHub'));
   for(const route of ["app/dashboard/growth/[craftId]/page.tsx",
@@ -88,4 +89,23 @@ test("unified Growth UI retains coverage, pipeline boundaries and the MDX editor
   assert.match(editor,/craft-mdx-editor/);
   assert.match(editor,/Clone flow/);
   assert.match(editor,/\.skill/);
+});
+
+test("Growth YAML loads through the existing Templates modal and nested artboard",()=>{
+  const modal=readFileSync(resolve(root,"components/automate/template-browser.tsx"),"utf8");
+  const editor=readFileSync(resolve(root,"components/automate/workflow-plan-editor.tsx"),"utf8");
+  const graph=readFileSync(resolve(root,"components/automate/growth-workflow-artboard.tsx"),"utf8");
+  const proxy=readFileSync(resolve(root,"app/api/[...path]/route.ts"),"utf8");
+  assert.match(modal,/growthCapabilities\.map/);
+  assert.match(modal,/\/api\/growth\/templates/);
+  assert.match(modal,/onGrowthApply/);
+  assert.match(editor,/onGrowthTemplateApply/);
+  assert.match(editor,/GrowthProfilePipelines templateId=\{growthTemplateId\}/);
+  assert.match(graph,/growth-pipeline-node-/);
+  assert.match(graph,/growth-task-node-/);
+  assert.match(graph,/details\?\.stepId/);
+  assert.match(graph,/failed/);
+  assert.match(proxy,/growth\\\/templates/);
+  const legacy=readFileSync(resolve(root,"app/growth/default-growth-profile/page.tsx"),"utf8");
+  assert.match(legacy,/redirect\("\/dashboard\/pipeline"\)/);
 });

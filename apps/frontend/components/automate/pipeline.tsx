@@ -11,7 +11,6 @@ import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/automate-card";
 import StudioDialog from "@/components/ui/studio-dialog";
 import WorkflowPlanEditor, {type WorkflowPlan} from "@/components/automate/workflow-plan-editor";
-import GrowthProfilePipelines from "@/components/automate/growth-profile-pipelines";
 import CraftsLibrary, { type Craft as AgentCraft } from "@/components/automate/crafts-library";
 import VisualReviewPanel, { type ImageSource, type VisualReviewDraft, type Region, type VisualAnnotation } from "@/components/automate/visual-review-panel";
 import { AutomationSettingsPage } from "@/components/automate/owner-pages";
@@ -118,6 +117,7 @@ export default function AutomationPipeline({ initialPane = "pipeline" }: { initi
       {source:"verify",target:"finish"}],
   }));
   const [templatePlans,setTemplatePlans]=useState<WorkflowPlan[]>([]);
+  const [selectedGrowthTemplateId,setSelectedGrowthTemplateId]=useState<string|null>(null);
   const [savedWorkflows,setSavedWorkflows]=useState<WorkflowRecord[]>([]);
   const [activeWorkflow,setActiveWorkflow]=useState<WorkflowRecord|null>(null);
   const [loadingWorkflow,setLoadingWorkflow]=useState(false);
@@ -283,7 +283,17 @@ export default function AutomationPipeline({ initialPane = "pipeline" }: { initi
       throw Error(message);
     }finally{setPlanSaving(false);}
   }
+  async function applyGrowthTemplate(id:string):Promise<void>{
+    if(busy)throw Error("Stop the current Runner workflow before loading a Growth template");
+    if(platform!=="linkedin")throw Error("Growth template requires LinkedIn");
+    const response=await fetch(getApi("growth/templates/"+encodeURIComponent(id)),{cache:"no-store"});
+    const program=await response.json() as {id?:string;stages?:unknown[];error?:string};
+    if(!response.ok||program.id!==id||!Array.isArray(program.stages)||program.stages.length===0)
+      throw Error(program.error||"Growth YAML did not compile into a connected pipeline graph");
+    setSelectedGrowthTemplateId(id);
+  }
   async function applyTemplate(plan:WorkflowPlan,templateId:string):Promise<void>{
+    setSelectedGrowthTemplateId(null);
     if(busy)throw Error("Stop or finish the active workflow before changing templates");
     if(plan.platform!==platform)throw Error("Select the matching studio account before applying this template");
     if(planSaving)throw Error("A workflow save is already running");
@@ -306,6 +316,7 @@ export default function AutomationPipeline({ initialPane = "pipeline" }: { initi
     }finally{setPlanSaving(false);}
   }
   function selectSavedWorkflow(id:string|null){
+    setSelectedGrowthTemplateId(null);
     workflowSelectionEpoch.current++;
     if(id===null){
       setActiveWorkflow(null);setPlanDirty(false);setRunFormError("");
@@ -383,7 +394,7 @@ export default function AutomationPipeline({ initialPane = "pipeline" }: { initi
     setActiveConnector(null);
     setHandle("");
   }
-  function chooseAction(next: string) { workflowSelectionEpoch.current++;setActiveWorkflow(null);setAction(next); setForm({}); setRunFormError(""); navigatePane("pipeline"); setMobileMenu(false); }
+  function chooseAction(next: string) { setSelectedGrowthTemplateId(null);workflowSelectionEpoch.current++;setActiveWorkflow(null);setAction(next); setForm({}); setRunFormError(""); navigatePane("pipeline"); setMobileMenu(false); }
   async function apiPost(path: string, data: Record<string, unknown> = {}) {
     const response = await fetch(getApi(path), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(data) });
     const body = await response.json() as { error?: string; id?: string };
@@ -710,11 +721,14 @@ export default function AutomationPipeline({ initialPane = "pipeline" }: { initi
             onManageProfile={()=>navigateSubpage("/dashboard/profile/connections")}
             hideTrigger openSignal={connectorOpenSignal} />
           {pane === "pipeline" && <>
-            <GrowthProfilePipelines platform={platform} selectedAction={action} busy={busy}
-              accountId={connectorReady?activeConnector?.id:undefined} onSelectAction={chooseAction} />
             <WorkflowPlanEditor
               plan={workflowPlan}
               templates={templatePlans}
+              growthTemplateId={selectedGrowthTemplateId}
+              growthAccountId={connectorReady?activeConnector?.id:undefined}
+              onGrowthTemplateApply={applyGrowthTemplate}
+              onClearGrowth={()=>setSelectedGrowthTemplateId(null)}
+              onGrowthActionSelect={chooseAction}
               connected={activeConnector?.platform==="linkedin"&&activeConnector?.status==="connected"}
               accountLabel={activeConnector?.platform===platform?activeConnector.label:undefined}
               events={active?.platform===platform&&active.action===action?events:[]}
@@ -762,14 +776,14 @@ export default function AutomationPipeline({ initialPane = "pipeline" }: { initi
             </WorkflowPlanEditor>
           </>}
           {pane==="pipeline"&&<div className="pointer-events-none fixed bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/30 bg-[#111e2b] p-1.5 shadow-2xl" data-testid="floating-workflow-controls">
-            <button type="button"
+            {!selectedGrowthTemplateId&&<button type="button"
               aria-label={active?.state==="paused"?"Resume workflow":active?.state==="running"?"Pause workflow":"Start workflow"}
               disabled={active?.state==="paused"?false:active?.state==="running"?false:busy||available!=="ready"||!connectorReady||loadingWorkflow||workflowPlan.platform!==platform||workflowPlan.action!==action||(Boolean(activeWorkflow)&&(planDirty||formDirty))}
               onClick={()=>{if(active?.state==="paused")void resumeRun();else if(active?.state==="running")void pauseRun();else void launchRun();}}
               className="pointer-events-auto inline-flex min-h-12 items-center justify-center gap-3 rounded-full bg-white px-6 text-sm font-bold text-slate-950 transition hover:bg-teal-50 disabled:opacity-50">
               {active?.state==="running"?<Pause className="size-5"/>:<Play className="size-5"/>}
               {active?.state==="paused"?"Resume":active?.state==="running"?"Pause":"Run workflow"}
-            </button>
+            </button>}
             <button type="button" onClick={()=>setConnectorOpenSignal(value=>value+1)}
               aria-label={(connectorReady?"Manage ":"Connect ")+platformLabel+" account"}
               aria-haspopup="dialog"
@@ -785,11 +799,7 @@ export default function AutomationPipeline({ initialPane = "pipeline" }: { initi
             </button>
           </div>}
           {pane === "history" && <Card><CardHeader><CardTitle>Recent executions</CardTitle><CardDescription>Stored in memory during the current engine session. Select a run to inspect streamed events.</CardDescription></CardHeader><CardContent><div className="divide-y divide-slate-100">{runs.length === 0 && <p className="py-10 text-center text-sm text-slate-500">No runs yet. Start an audit to capture the first trace.</p>}{runs.map((run) => <button key={run.id} type="button" className="flex min-h-16 w-full items-center justify-between gap-3 py-3 text-left hover:bg-slate-50" onClick={() => { currentRunRef.current = run.id; setActive(run); setEvents([]); connect(run.id); navigatePane("pipeline"); }}><span><span className="block text-sm font-semibold capitalize">{run.platform} / {run.action.replaceAll("-", " ")}</span><span className="text-xs text-slate-500">{short(run.id)} · {new Date(run.createdAt).toLocaleString()}</span></span><span className="text-xs font-semibold capitalize text-slate-500">{stateLabel(run.state)} <ArrowRight className="ml-1 inline size-3" /></span></button>)}</div></CardContent></Card>}
-          {pane === "growth" && selectedCraftId==="default-growth-profile" &&
-            <GrowthProfilePipelines platform={platform} selectedAction={action} busy={busy}
-              accountId={connectorReady?activeConnector?.id:undefined}
-              onSelectAction={next=>{chooseAction(next);navigatePane("pipeline");}} />}
-          {pane === "growth" && pathname!=="/growth/default-growth-profile" && <CraftsLibrary
+          {pane === "growth" && <CraftsLibrary
             selectedId={selectedCraftId} onSelected={navigateCraft}
             view={libraryView} onView={navigateCraftView} onBack={()=>navigatePane("growth")}
             onChat={(text) => { if (text.startsWith("/craft")) { void handleCraftCommand(text); }

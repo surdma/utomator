@@ -1,40 +1,38 @@
-# Six-pipeline Growth profile sample
+# Growth templates in the existing Pipeline artboard
 
-> The existing Runner remains the only browser-workflow executor. This is a staged read-only orchestration sample, not a new engine or an automatic twenty-field profile optimizer.
+## Correct hierarchy
 
-## Entry point and YAML contract
+A **Growth** is a goal, coverage requirements, and a versioned YAML workflow definition. It is not a separate dashboard route or another browser execution engine.
 
-The local-only UI at /growth/default-growth-profile presents the same sample in /dashboard/pipeline. Its source is apps/backend/growth/profile-workflow.yaml.
+- **Growth template**: selected from the existing **Pipeline → Templates** modal, alongside supported single-action workflow templates.
+- **Pipeline nodes**: top-level connected nodes in the existing workflow artboard. Dependencies come from YAML stage \`dependsOn\` relationships. A pipeline groups one or more coverage requirements.
+- **Task nodes**: selecting a pipeline opens a connected inner graph built from its actual, validated \`WorkflowPlan\` and typed Runner task bindings. Each pipeline includes owner session validation, observations, evidence and approvals as prescribed by the reviewed plan.
+- **Runner**: the only browser execution engine. The coordinator uses existing \`Runner.start\`, \`get\`, \`stepOutput\`, \`decide\`, \`resume\`, and \`cancel\`. No code path invents a second browser engine.
+- **Evidence and outcomes**: page evidence and manually supplied section evidence remain distinct; owner claims never become independently verified field scores.
 
-One Growth describes nine proposed capability requirements and twenty independent coverage targets. Six sequential YAML pipeline stages coordinate the process. A coverage target is a requirement assigned to a pipeline, not an executable operation in itself.
+## Template discovery: no new page per Growth
 
-| YAML stage | Owned coverage | Existing Runner workflow |
-| --- | --- | --- |
-| 1. Identity and visual presentation | Photo, banner, name/pronunciation, verification | Read-only authenticated profile audit |
-| 2. Headline and positioning | Headline, About, custom URL | Read-only authenticated profile audit |
-| 3. Career history | Experience, education, skills, certifications | Authorized experience detail-page inspection |
-| 4. Professional proof | Featured, projects, publications, honors, volunteering | Authorized project detail-page inspection |
-| 5. Opportunity readiness | Recommendations, Services, contact, career preferences | Read-only authenticated profile audit |
-| 6. Consolidated review | All twenty targets | Final read-only profile audit and outcome report |
+\`GET /growth/templates\` discovers restricted, schema-validated YAML files from \`apps/backend/growth/*-workflow.yaml\`. \`GET /growth/templates/:id\` returns the compiled template including top-level stage connections and each embedded executable Runner task graph. \`GET /growth/templates/:id/yaml\` returns the exact authoring source.
 
-Each stage compiles a reviewed WorkflowPlan, executes through the preexisting Runner, and waits for its real evidence and approval gate before the next stage may be launched. The coordinator only tracks dependencies, source versions, owner-supplied evidence and completed child runs. No new browser executor, new generic authorization bypass or simulated profile mutation is introduced.
+The Templates modal displays every known LinkedIn Growth capability, marking those without a validated YAML definition **not available yet**. Any additional valid YAML definition is dynamically discovered even when the frontend capability inventory does not yet include its ID. There is no need to add a Next.js page, a React component, or a bespoke backend controller for each new Growth.
 
-## Evidence and truthful outcomes
+The existing older URL \`/growth/default-growth-profile\` only redirects to \`/dashboard/pipeline\`. The old MDX Growth library is preserved for compatibility until it has a validated migration.
 
-Every section begins in a **missing** state. Owners can attach a concrete textual observation with a digest and timestamp; the record remains **owner-supplied and unverified**. A whole-page Runner observation establishes that an authorized profile page was inspected, but it cannot demonstrate that a particular field received an independent rubric-based audit. The run therefore preserves twenty distinct evidence statuses and never promotes whole-page observation into field verification.
+## YAML structure and execution
 
-The final composite result distinguishes actual Runner receipts from owner claims. Missing sections remain missing. A completed six-stage read-only run does not assert that the LinkedIn profile was edited, improved, or that new opportunities occurred.
+The initial \`linkedin-profile\` manifest is a concrete example: six connected pipelines, twenty independently tracked coverage requirements, and task-specific YAML titles. Every stage has \`title\`, \`action\`, \`page\`, \`sections\`, \`dependsOn\`, and a mapping of reviewed \`tasks\`. The task names must match actual Runner step IDs; they may refine titles only, not replace execution operations or bypass security.
 
-## API execution path
+The compiler validates the restricted YAML syntax, metadata, coverage uniqueness, exact dependencies, registered actions and task IDs, and then creates real \`WorkflowPlan\` steps and links via the existing \`compileWorkflow\`. The coordinator snapshots the compiled plans and source digest before starting; each child invokes the pinned plan rather than recreating a different plan from a title.
 
-1. POST /growth/workflows/profile/runs verifies a linked account and starts stage one through Runner.start.
-2. GET /growth/workflows/profile/runs/:id shows the current child, checkpoint, source evidence and twenty section states.
-3. Existing /runs/:id/decision and /runs/:id/resume manage real Runner checkpoints and pause states.
-4. POST /growth/workflows/profile/runs/:id/evidence saves a source-labelled owner observation for a current-stage section.
-5. POST /growth/workflows/profile/runs/:id/advance requires a completed Runner child with a real archived evidence artifact, then launches the next dependent compiled stage.
+Runtime progression:
+1. Account ownership is verified before starting; the first child Runner opens an authenticated browser session.
+2. The active pipeline executes its actual task nodes. The Runner requires its existing owner approval and evidence checkpoints.
+3. The task that raises an error is recorded as a failed step in the existing Runner event journal. The outer pipeline receives a **red border** for failed/blocked runs; drilling into the pipeline highlights the **specific failed task** (from the run journal and \`currentStepId\`). The error and linked Runner run ID remain inspectable.
+4. A subsequent pipeline may be launched only after the previous child completes with a genuine evidence artifact. The advancement remains explicitly operator controlled.
+5. At the end, every coverage item retains its own missing/owner-supplied status. A successful read-only run does **not** imply that all profile sections were independently assessed or updated.
 
-Production data is tenant-scoped in the existing DocumentStore under the growth-runs namespace, including the source digest and per-run stage snapshot. The no-database test mode uses in-memory records.
+## Honest current limitations
 
-## Scope that remains
+The general catalogue and artboard support additional YAML-backed Growth definitions without custom UI pages. **Currently only the profile sample is authored and validated.** The current allowlisted Growth child operations remain read-only \`audit\` and \`audit-page\`. Composing arbitrary editing/publishing tasks, accepting stage-specific provider-write parameters, proper fan-out/fan-in DAG scheduling, field-level scoring, and complete outcome measurement still require separately reviewed backend work.
 
-The six child runs currently inspect only supported pages. Independent extractors and rubrics for all twenty sections, a typed fan-out/join engine, provider-authorized editing inside the composed sequence, personal profile-photo/banner mutations, and real growth-outcome measurement remain future implementation work. The nine reviewed editing operations remain accessible through the existing guarded Pipeline controls. MDX, Research and Editorial cannot be retired without verified migration.
+The existing single-action templates, saved workflow revisions, Growth MDX library, Creator Research and Editorial remain available until their replacement paths are verified. No live LinkedIn credentials or production profile edits are used to validate this sample.
