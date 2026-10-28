@@ -115,16 +115,18 @@ export function createHostedGateway({auth,workers,nextOrigin,baseUrl}){
     catch{return reject(res,400,'Invalid URL');}
     const raw=new URL(req.url||'/',externalOrigin);
     const path=url.pathname;
-    const publicPath = path === '/' || path === '/icon.svg' || path === '/favicon.ico' ||
-      path === '/manifest.webmanifest' || path === '/robots.txt' || path === '/sitemap.xml' ||
-      path.startsWith('/_next/');
-    const privatePath = !publicPath;
+    // The product homepage is public. Every operator route and API call is private.
+    // Reject legacy route names instead of exposing old automation endpoints.
+    if(/^\/(?:_automate|workspace|library|crafts|editorial|growth|research|history|profile|resumes|observer|memory|settings)(?:\/|$)/i.test(path))
+      return reject(res,404,'Legacy automation route removed');
+    const privatePage=/^\/dashboard(?:\/|$)/i.test(path);
     const apiPath=/^\/api(?:\/|$)/i.test(path);
+    const privatePath=privatePage || apiPath;
     const session=auth.session(req.headers.cookie);
     if(req.method==='GET' && path==='/health')
       return json(res,200,{status:'ok'});
     if(path==='/auth/login' && req.method==='GET'){
-      if(session)return redirect(res,'/workspace');
+      if(session)return redirect(res,'/dashboard/pipeline');
       if(Date.now()>resetAt){resetAt=Date.now()+60000;attempts=0;}
       if(++attempts>50)return reject(res,429,'Login rate limit reached');
       const begin=await auth.begin();
@@ -137,7 +139,7 @@ export function createHostedGateway({auth,workers,nextOrigin,baseUrl}){
         const result=await auth.callback({
           state:raw.searchParams.get('state'),code:raw.searchParams.get('code'),
         },req.headers.cookie);
-        return redirect(res,'/workspace',result.cookies);
+        return redirect(res,'/dashboard/pipeline',result.cookies);
       }catch{return reject(res,401,'Sign-in verification failed');}
     }
     if(path==='/auth/logout' && req.method==='POST'){
@@ -165,7 +167,7 @@ export function createHostedGateway({auth,workers,nextOrigin,baseUrl}){
       // Only the authenticated user's worker receives private API and SSE traffic.
       return proxy(req,res,url,true,session.ownerId);
     }
-    // Only product landing assets remain public. All operator pages were gated above.
+    // The product homepage and shared static assets remain public. Operator pages are gated above.
     return proxy(req,res,url,false,session?.ownerId);
   };
   return http.createServer((req,res)=>{

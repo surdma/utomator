@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import Logo from "@/components/logo";
-const links = [{ title:"Workspace", href:"/workspace" },{ title:"Growth", href:"/growth" },{ title:"Skills", href:"/library" }];
+const links = [{ title:"Pipeline", href:"/dashboard/pipeline" },{ title:"Growth", href:"/dashboard/growth" },{ title:"Crafts", href:"/dashboard/crafts" }];
 export default function Navbar() {
   const pathname=usePathname();
   const [open,setOpen]=useState(false);

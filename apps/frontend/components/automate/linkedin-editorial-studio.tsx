@@ -146,7 +146,7 @@ export default function LinkedInEditorialStudio(){
     {loading&&<p role="status" className="text-sm text-slate-600">Loading editorial records…</p>}
     {error&&<p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
     {feedback&&<p role="status" className="rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-900">{feedback}</p>}
-    {!loading&&accounts.length===0&&<p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm">Add your LinkedIn profile in <a className="font-bold underline" href="/profile/connections">Profile / Connections</a> to associate drafts with the correct account. No LinkedIn login is required for private draft preparation.</p>}
+    {!loading&&accounts.length===0&&<p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm">Add your LinkedIn profile in <a className="font-bold underline" href="/dashboard/profile/connections">Profile / Connections</a> to associate drafts with the correct account. No LinkedIn login is required for private draft preparation.</p>}
     {accountId&&<section data-testid="linkedin-publishing-connection" className="rounded-2xl border border-slate-200 bg-white p-4">
       <h2 className="text-sm font-bold">LinkedIn API publishing authorization</h2>
       <p className="mt-1 text-xs leading-5 text-slate-600">An authorized OAuth grant is required in addition to a saved profile. Review which LinkedIn member is signed in before publishing.</p>

@@ -7,6 +7,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 
 process.env.NODE_ENV = 'test';
+process.env.UTOMATOR_TEST_DATABASE = 'true';
 const {buildApp}=await import('../src/main.js');
 
 /**
@@ -31,7 +32,7 @@ async function exercise(mode:'audit'|'audit-race'|'reject'){
   try{
     await app.listen({host:'127.0.0.1',port:3101});
     const page=await browser.newPage();
-    await page.goto('http://127.0.0.1:3100/workspace',{waitUntil:'domcontentloaded'});
+    await page.goto('http://127.0.0.1:3100/dashboard/pipeline',{waitUntil:'domcontentloaded'});
     // The toolbar is the current connection entry point; the old header
     // launcher is deliberately hidden in the workspace.
     const launcher=page.getByTestId('floating-connector-button');
@@ -120,28 +121,28 @@ test('Next.js workspace rejects unverified account runs without executing writes
 test('Next.js workspace exposes connection and tracking dialogs without a login', async () => exercise('audit-race'));
 
 
-test('Agent skills library connects canvas, MDX, export and operator chat', { timeout: 100000 }, async () => {
+test('Crafts library connects canvas, MDX, export and operator chat', { timeout: 100000 }, async () => {
   const app = buildApp();
   const browser = await chromium.launch({ headless: true });
   try {
     await app.listen({ host: '127.0.0.1', port: 3101 });
     const page = await browser.newPage({ viewport: { width: 1480, height: 970 }, acceptDownloads: true });
-    await page.goto('http://127.0.0.1:3100/workspace', { waitUntil: 'domcontentloaded' });
+    await page.goto('http://127.0.0.1:3100/dashboard/pipeline', { waitUntil: 'domcontentloaded' });
     await page.getByTestId('workflow-artboard').waitFor();
     assert.equal(await page.locator('.react-flow__minimap').count(), 0, 'the workflow artboard must not have an obscuring minimap');
-    await clickUntilVisible(page, page.getByRole('button', { name: 'Library', exact: true }),
-      page.getByTestId('skills-library'));
-    await page.getByRole('button', { name: 'New skill' }).click();
-    const creation = page.getByRole('dialog', { name: 'Create skill project' });
+    await clickUntilVisible(page, page.getByRole('button', { name: 'Crafts', exact: true }),
+      page.getByTestId('crafts-library'));
+    await page.getByRole('button', { name: 'New craft' }).click();
+    const creation = page.getByRole('dialog', { name: 'Create craft' });
     await creation.waitFor({ state: 'visible' });
     await creation.getByRole('button', { name: 'Cancel' }).click();
     await creation.waitFor({ state: 'hidden' });
-    assert.equal(await page.getByTestId('skills-artboard').count(), 0,
+    assert.equal(await page.getByTestId('crafts-artboard').count(), 0,
       'the catalogue route should not render any editor');
-    const candidate = page.getByTestId('skill-card-content-series-planning');
+    const candidate = page.getByTestId('craft-card-content-series-planning');
     await candidate.waitFor();
     await candidate.click();
-    await page.getByTestId('skills-artboard').waitFor();
+    await page.getByTestId('crafts-artboard').waitFor();
     const beforeWidth = await page.getByTestId('automation-main-scroll').evaluate(e=>e.getBoundingClientRect().width);
     await page.getByRole('button', { name: 'Minimize Mator' }).click();
     assert.equal(await page.getByTestId('automation-right-sidebar').isVisible(), false);
@@ -154,10 +155,10 @@ test('Agent skills library connects canvas, MDX, export and operator chat', { ti
       'tracking must be independent of the hidden chat panel');
     await page.getByRole('button', { name: 'Open Mator' }).click();
     await page.getByTestId('automation-right-sidebar').waitFor({ state:'visible' });
-    assert.equal(await page.locator('.react-flow__minimap').count(), 0, 'the skill editor must not have an obscuring minimap');
-    assert.match(page.url(), /\/library\/[^/]+$/, 'opening a project must have its own URL');
-    assert.equal(await page.getByTestId('skill-card-content-series-planning').count(), 0,
-      'skill catalogue must not remain mounted under the editor');
+    assert.equal(await page.locator('.react-flow__minimap').count(), 0, 'the craft editor must not have an obscuring minimap');
+    assert.match(page.url(), /\/dashboard\/crafts\/[^/]+$/, 'opening a project must have its own URL');
+    assert.equal(await page.getByTestId('craft-card-content-series-planning').count(), 0,
+      'craft catalogue must not remain mounted under the editor');
     await page.setViewportSize({ width: 1480, height: 640 });
     const positions = await page.evaluate(() => {
       const main = document.querySelector('[data-testid="automation-main-scroll"]') as HTMLElement;
@@ -185,17 +186,21 @@ test('Agent skills library connects canvas, MDX, export and operator chat', { ti
     assert(positions.documentHeight <= positions.viewportHeight + 1, 'desktop document must not scroll');
     assert(positions.composerVisible, 'chat input stays mounted while the center scrolls');
     await page.setViewportSize({ width: 1480, height: 970 });
-    await page.getByRole('button', { name: 'All skill projects' }).click();
+    await page.getByRole('button', { name: 'All crafts' }).click();
     await candidate.waitFor();
-    assert.match(page.url(), /\/library$/);
+    assert.match(page.url(), /\/dashboard\/crafts$/);
     await page.goBack();
-    await page.getByTestId('skills-artboard').waitFor();
-    await page.getByTestId('skill-node-goal').click();
+    await page.getByTestId('crafts-artboard').waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Save', exact: true }).isDisabled(),true,
+      'the shared predefined craft is not editable');
+    await page.getByRole('button', { name: 'Clone to my crafts' }).click();
+    await page.getByText('Created your private craft variation.').waitFor();
+    await page.getByTestId('craft-node-goal').click();
     await page.getByLabel('Step title').fill('Define the social-content goal');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await page.getByText('Saved and synchronized with MDX source.').waitFor();
     await page.getByRole('tab', { name: 'MDX source' }).click();
-    const editor = page.getByTestId('skill-mdx-editor');
+    const editor = page.getByTestId('craft-mdx-editor');
     const initial = await editor.inputValue();
     await editor.fill(initial + '\nUnapplied source draft');
     await page.getByRole('tab', { name: 'Visual craft' }).click();
@@ -206,12 +211,12 @@ test('Agent skills library connects canvas, MDX, export and operator chat', { ti
     assert.match(initial, /\*\*Next:\*\* \[evidence\]/);
     await editor.fill(initial.replace('**Next:** [evidence](#step-evidence)', '**Next:** [craft](#step-craft)'));
     await page.getByText('Unapplied MDX changes.').waitFor();
-    assert.match(page.url(), /\/library\/[^/]+\/source$/, 'MDX has a direct source route');
+    assert.match(page.url(), /\/dashboard\/crafts\/[^/]+\/source$/, 'MDX has a direct source route');
     await page.getByRole('button', { name: 'Apply MDX to graph' }).click();
     await page.getByText('Unapplied MDX changes.').waitFor({ state:'hidden' });
     await page.getByText('Saved and synchronized with MDX source.').waitFor();
-    const all = (await app.inject('/skills')).json();
-    const item = all.find((skill: {slug:string}) => skill.slug === 'content-series-planning');
+    const all = (await app.inject('/crafts')).json();
+    const item = all.find((skill: {slug:string}) => skill.slug === 'content-series-planning-copy');
     assert(item);
     assert(item.links.some((edge: {source:string;target:string})=> edge.source==='goal'&&edge.target==='craft'),
       'edited MDX changed the canonical graph');
@@ -222,18 +227,20 @@ test('Agent skills library connects canvas, MDX, export and operator chat', { ti
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: '.skill' }).click();
     const downloaded = await downloadPromise;
-    assert.equal(downloaded.suggestedFilename(), 'content-series-planning.skill');
-    await page.getByRole('textbox', { name: 'Structured command', exact: true }).fill('/skill unlink goal -> craft');
+    assert.equal(downloaded.suggestedFilename(), 'content-series-planning-copy.skill');
+    await page.getByRole('textbox', { name: 'Structured command', exact: true }).fill('/craft unlink goal -> craft');
     await page.getByRole('button', { name: 'Send structured command' }).click();
     await page.getByText(/Updated Content series planning/).waitFor({ timeout: 12000 });
-    const final = (await app.inject('/skills')).json().find((skill: {slug:string})=>skill.slug==='content-series-planning');
+    const final = (await app.inject('/crafts')).json().find((skill: {slug:string})=>skill.slug==='content-series-planning-copy');
     assert(!final.links.some((link: {source:string;target:string})=>link.source==='goal'&&link.target==='craft'),
-      'chat modification changed the same persisted skill graph');
-    const finalMdx = await app.inject('/skills/'+final.id+'/mdx');
+      'chat modification changed only this owner\'s persisted craft graph');
+    const original=(await app.inject('/crafts/default-content-series-planning')).json();
+    assert.equal(original.steps[0].title,'Define the objective','the shared default remains unchanged');
+    const finalMdx = await app.inject('/crafts/'+final.id+'/mdx');
     assert.match(finalMdx.body, /\*\*Next:\*\* End/);
     const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
-    await mobile.goto('http://127.0.0.1:3100/library', { waitUntil:'domcontentloaded' });
-    await mobile.getByTestId('skills-library').waitFor();
+    await mobile.goto('http://127.0.0.1:3100/dashboard/crafts', { waitUntil:'domcontentloaded' });
+    await mobile.getByTestId('crafts-library').waitFor();
     const metrics = await mobile.evaluate(() => ({
       viewport: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth,
     }));
@@ -265,7 +272,7 @@ test('LinkedIn templates load onto the artboard without connection; execution st
   try{
     await app.listen({host:'127.0.0.1',port:3101});
     const page=await browser.newPage();
-    await page.goto('http://127.0.0.1:3100/workspace',{waitUntil:'domcontentloaded'});
+    await page.goto('http://127.0.0.1:3100/dashboard/pipeline',{waitUntil:'domcontentloaded'});
     const existingIds=new Set(((await app.inject('/workflows')).json() as Array<{id:string}>).map(item=>item.id));
     const run=page.getByRole('button',{name:'Start workflow'});
     assert.equal(await run.isDisabled(),true);
@@ -324,7 +331,7 @@ test('LinkedIn templates load onto the artboard without connection; execution st
       }])});
     });
     await page.getByTestId('automation-navigation-sidebar').getByRole('button',{name:'Run history'}).click();
-    await page.getByTestId('automation-navigation-sidebar').getByRole('button',{name:'Workspace'}).click();
+    await page.getByTestId('automation-navigation-sidebar').getByRole('button',{name:'Pipeline'}).click();
     const reloadedBoard=page.getByTestId('workflow-artboard');
     await reloadedBoard.getByTestId('workflow-run-readiness').getByText(/Execution target: Test verified account/).waitFor();
     assert.match(await reloadedBoard.innerText(),/Headline and About revision/,
@@ -357,7 +364,7 @@ test('Creator research connects a real form to persisted results and remains ava
   try{
     await app.listen({host:'127.0.0.1',port:3101});
     const page=await browser.newPage();
-    await page.goto('http://127.0.0.1:3100/research',{waitUntil:'domcontentloaded'});
+    await page.goto('http://127.0.0.1:3100/dashboard/research',{waitUntil:'domcontentloaded'});
     const studio=page.getByTestId('linkedin-creator-research');
     await studio.waitFor({state:'visible'});
     await studio.getByRole('textbox',{name:'Your niche'}).fill('Software education');
@@ -416,7 +423,7 @@ test('LinkedIn editorial research-to-draft workflow persists, approves and retur
     assert.equal(research.statusCode,201,research.body);
     const researchRun=research.json() as {id:string};
     const page=await browser.newPage();
-    await page.goto('http://127.0.0.1:3100/editorial',{waitUntil:'domcontentloaded'});
+    await page.goto('http://127.0.0.1:3100/dashboard/editorial',{waitUntil:'domcontentloaded'});
     const studio=page.getByTestId('linkedin-editorial-studio');
     await studio.waitFor({state:'visible'});
     await studio.getByRole('combobox',{name:'Saved LinkedIn account'}).selectOption(savedAccount.id);
@@ -455,7 +462,7 @@ test('LinkedIn Growth hub exposes truthful scope, searches modules, and links on
   try{
     await app.listen({host:'127.0.0.1',port:3101});
     const page=await browser.newPage({viewport:{width:1280,height:800}});
-    await page.goto('http://127.0.0.1:3100/growth',{waitUntil:'domcontentloaded'});
+    await page.goto('http://127.0.0.1:3100/dashboard/growth',{waitUntil:'domcontentloaded'});
     const hub=page.getByTestId('linkedin-growth-hub');
     await hub.getByRole('heading',{name:'Capability inventory'}).waitFor();
     assert.match(await hub.innerText(),/15 modules/);
@@ -471,7 +478,7 @@ test('LinkedIn Growth hub exposes truthful scope, searches modules, and links on
     await hub.getByRole('button',{name:/Profile auditing & section optimization/}).click();
     assert.equal(await detail.getByText('20 sections in the target audit').isVisible(),true);
     await detail.getByRole('link',{name:'Open available workflow'}).click();
-    await page.waitForURL('**/profile');
+    await page.waitForURL('**/dashboard/profile');
     await page.getByTestId('automation-navigation-sidebar').getByRole('button',{name:'LinkedIn growth'}).click();
     await hub.getByRole('heading',{name:'Capability inventory'}).waitFor();
     await page.setViewportSize({width:390,height:844});
@@ -489,7 +496,7 @@ test('LinkedIn connector adds a server-owned profile and stays available from th
   try{
     await app.listen({host:'127.0.0.1',port:3101});
     const page=await browser.newPage({viewport:{width:1280,height:800}});
-    await page.goto('http://127.0.0.1:3100/workspace',{waitUntil:'domcontentloaded'});
+    await page.goto('http://127.0.0.1:3100/dashboard/pipeline',{waitUntil:'domcontentloaded'});
     const dialog=page.getByRole('dialog',{name:'Connect your social accounts'});
     await page.getByTestId('workflow-artboard').waitFor();
     await clickUntilVisible(page,page.getByTestId('floating-connector-button'),dialog);
@@ -501,7 +508,7 @@ test('LinkedIn connector adds a server-owned profile and stays available from th
     await dialog.getByRole('textbox',{name:'LinkedIn profile address'})
       .fill('https://www.linkedin.com/in/compact-test-owner/');
     await dialog.getByRole('button',{name:'Add account',exact:true}).click();
-    await dialog.getByText('@compact-test-owner').waitFor();
+    await dialog.getByText('@compact-test-owner',{exact:true}).waitFor();
     const state=(await app.inject('/account')).json() as
       {socialAccounts:Array<{id:string;platform:string;handle:string}>};
     const saved=state.socialAccounts.find(row=>row.handle==='compact-test-owner');
@@ -509,13 +516,13 @@ test('LinkedIn connector adds a server-owned profile and stays available from th
     const connector=(await app.inject('/connectors')).json() as Array<{id:string;status:string}>;
     assert.equal(connector.find(row=>row.id===saved.id)?.status,'disconnected');
     await page.keyboard.press('Escape');
-    await page.goto('http://127.0.0.1:3100/profile/connections',{waitUntil:'domcontentloaded'});
+    await page.goto('http://127.0.0.1:3100/dashboard/profile/connections',{waitUntil:'domcontentloaded'});
     await page.getByTestId('owner-profile-page').waitFor();
     await page.getByTestId('owner-profile-page').getByText('@compact-test-owner').waitFor();
     const status=page.getByTestId('profile-connection-status-'+saved.id);
     await status.getByText('Not connected').waitFor();
     await page.getByRole('button',{name:'Connect LinkedIn',exact:true}).click();
     await dialog.waitFor({state:'visible'});
-    assert.equal(await dialog.getByText('@compact-test-owner').count(),1);
+    assert.equal(await dialog.getByText('@compact-test-owner',{exact:true}).count(),1);
   }finally{await browser.close();await app.close();await rm(root,{recursive:true,force:true});}
 });

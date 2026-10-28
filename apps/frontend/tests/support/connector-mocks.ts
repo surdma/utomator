@@ -48,7 +48,7 @@ export const CONNECTORS_ROUTE = "**/api/connectors**";
  * retry until the dialog actually mounts.
  */
 export async function openConnectorDialog(page: Page) {
-  await page.goto("/workspace", { waitUntil: "domcontentloaded" });
+  await page.goto("/dashboard/pipeline", { waitUntil: "domcontentloaded" });
   const trigger = page.getByTestId("floating-connector-button");
   const wizard = page.getByRole("dialog", { name: "Connect your social accounts" });
   await expect(trigger).toBeVisible();

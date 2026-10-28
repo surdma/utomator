@@ -20,7 +20,7 @@ export type GrowthCapability = {
   modes:readonly GrowthMode[];
   availableNow:string;
   requires:string;
-  route?: "/profile" | "/research" | "/editorial";
+  route?: "/dashboard/profile" | "/dashboard/research" | "/dashboard/editorial";
 };
 export const profileSections = [
   "Profile photo","Banner / cover","Full name and pronunciation","Headline","About",
@@ -46,7 +46,7 @@ export const growthCapabilities:readonly GrowthCapability[] = [
     ],modes:["assisted","owner-operated","restricted"],
     availableNow:"Saved account profiles, selected approval-gated browser workflows, and a manual evidence-based profile planner.",
     requires:"Additional section extractors, real field-by-field audit rubric, provenance, and supported permission checks.",
-    route:"/profile",
+    route:"/dashboard/profile",
   },
   {
     id:"competitors",title:"Creator, competitor & niche intelligence",priority:"P0",pillar:"research",status:"partial",
@@ -63,7 +63,7 @@ export const growthCapabilities:readonly GrowthCapability[] = [
     ],modes:["assisted","owner-operated","restricted"],
     availableNow:"User-submitted creator research: source-linked reports, positioning comparison and experiment proposals; no automated LinkedIn scraping.",
     requires:"Permitted discovery sources, explicit watchlist storage and timestamped comparative evidence.",
-    route:"/research",
+    route:"/dashboard/research",
   },
   {
     id:"content",title:"Post creation, publishing & management",priority:"P0",pillar:"execution",status:"partial",
@@ -81,7 +81,7 @@ export const growthCapabilities:readonly GrowthCapability[] = [
     ],modes:["official-api","assisted","owner-operated","restricted"],
     availableNow:"Private editorial lifecycle and explicitly confirmed personal text-post publishing; provider receipts and failure-safe states.",
     requires:"OAuth product access and consent for live publishing; permission-specific provider read/update/delete, media, scheduler and metrics integrations.",
-    route:"/editorial",
+    route:"/dashboard/editorial",
   },
   {
     id:"engagement",title:"Engagement & community discussions",priority:"P1",pillar:"execution",status:"planned",
@@ -142,7 +142,7 @@ export const growthCapabilities:readonly GrowthCapability[] = [
     ],modes:["assisted","owner-operated"],
     availableNow:"Profile planning and creator research can inform positioning, but no unified, persisted brand strategy module.",
     requires:"Versioned owner goals, approved voice samples, evidence taxonomy and brand strategy reviews.",
-    route:"/profile",
+    route:"/dashboard/profile",
   },
   {
     id:"jobs",title:"Job search & career opportunity pipeline",priority:"P1",pillar:"execution",status:"planned",

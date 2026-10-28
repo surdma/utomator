@@ -1,6 +1,6 @@
 # Utomator
 
-Local-first, repeatable Playwright automation for a LinkedIn or X account you control. Fastify 5, TypeScript, Node 22+, pnpm, Biome, and Chrome. The dashboard is served by the frontend at /workspace, with a loopback Fastify API. The dashboard streams every workflow through a persistent Server-Sent Events connection. No language-model service or AI API is required at runtime.
+Local-first, repeatable Playwright automation for a LinkedIn or X account you control. Fastify 5, TypeScript, Node 22+, pnpm, Biome, and Chrome. The dashboard is served by the frontend at /dashboard/pipeline, with a loopback Fastify API. The dashboard streams every workflow through a persistent Server-Sent Events connection. No language-model service or AI API is required at runtime.
 
 ## LinkedIn growth scope
 
@@ -19,7 +19,7 @@ pnpm --filter @utomator/backend exec playwright install chrome
 pnpm dev:automate
 ```
 
-Open http://127.0.0.1:3000/workspace. The runner first checks for an **already-running local Chrome debugging session** on `http://127.0.0.1:9222`. When available, Playwright attaches to that Chrome's default context, opens a new automation tab, and shares the session cookies already stored in the connected Chrome profile. Existing tabs are not navigated or closed by Utomator. When the debugging endpoint is unavailable, the runner uses the dedicated persistent profile in `apps/backend/.runtime/chrome/{platform}` instead, reusing its own logins across runs.
+Open http://127.0.0.1:3000/dashboard/pipeline. The runner first checks for an **already-running local Chrome debugging session** on `http://127.0.0.1:9222`. When available, Playwright attaches to that Chrome's default context, opens a new automation tab, and shares the session cookies already stored in the connected Chrome profile. Existing tabs are not navigated or closed by Utomator. When the debugging endpoint is unavailable, the runner uses the dedicated persistent profile in `apps/backend/.runtime/chrome/{platform}` instead, reusing its own logins across runs.
 
 ### Reuse a signed-in browser session
 
@@ -187,7 +187,7 @@ Authentication first reuses an existing local CDP Chrome session when available;
 
 ## Architecture and lifecycle
 
-Start both processes with `pnpm dev:automate` at the workspace root. The frontend serves `http://127.0.0.1:3000/workspace`, forwarding only allowlisted API and SSE endpoints to Fastify on 127.0.0.1:3101. Standalone Fastify starts with `pnpm --filter @utomator/backend dev`, but does not serve the UI. `src/main.ts` exports the testable Fastify factory, while `src/server.ts` is the unconditional executable that listens even when a shell inherited NODE_ENV=test. `pnpm ... start` uses dist/server.js.
+Start both processes with `pnpm dev:automate` at the workspace root. The frontend serves `http://127.0.0.1:3000/dashboard/pipeline`, forwarding only allowlisted API and SSE endpoints to Fastify on 127.0.0.1:3101. Standalone Fastify starts with `pnpm --filter @utomator/backend dev`, but does not serve the UI. `src/main.ts` exports the testable Fastify factory, while `src/server.ts` is the unconditional executable that listens even when a shell inherited NODE_ENV=test. `pnpm ... start` uses dist/server.js.
 
 The chat is a **deterministic command interpreter, not an AI model**. It stages audit/headline/skill/post drafts and never publishes a change from chat input alone. The source-backed playbook reads the reviewed LinkedIn guide and inventories root YAML/PNG/Playwright captures as **historical evidence**, not live state. Coverage indicators mean a handler exists, not that external providers have been dogfooded.
 
@@ -199,10 +199,14 @@ Playwright checks for delayed login redirects and visible login forms after navi
 
 ## Connected visual reviews, page scopes and identity memory
 
-The Utomator operator studio at `/workspace` binds the chat and React Flow artboard through a selected node, social account, and page scope. You can attach a PNG/JPEG/WebP image (2 MiB maximum) or annotate an actual Playwright PNG capture. Drag to mark up to 15 normalized regions, describe intended changes, and save the review. Each review is stored locally in `apps/backend/.runtime/visual/` with the source image copied into an immutable review file. Capture provenance retains the originating run ID. Review images remain accessible after the runner process restarts; no server filesystem path is exposed to the browser.
+The Utomator operator studio at `/dashboard/pipeline` binds the chat and React Flow artboard through a selected node, social account, and page scope. You can attach a PNG/JPEG/WebP image (2 MiB maximum) or annotate an actual Playwright PNG capture. Drag to mark up to 15 normalized regions, describe intended changes, and save the review. Each review is stored locally in `apps/backend/.runtime/visual/` with the source image copied into an immutable review file. Capture provenance retains the originating run ID. Review images remain accessible after the runner process restarts; no server filesystem path is exposed to the browser.
 
 A review offers **Inspect this exact page** and **Configure a supported action**. Inspection runs a real, read-only `audit-page` workflow through Fastify/Playwright, limited to the exact selected LinkedIn profile or its existing Experience, Skills, Projects and Featured detail pages, or the exact selected X profile. An annotation's coordinates are **not verified selectors**, so they cannot be replayed as clicks or generate new browser actions. Supported editing workflows still require exact field values and individual owner approval; no AI service is connected. Arbitrary websites and bulk cross-page modifications are not supported.
 
 The Profile page exposes source-backed identity from the reviewed seed snapshot plus owner-written memory notes and a timeline of actual browser audit observations extracted from `.runtime/runs/*.jsonl`. Observed titles, headlines and bios are not treated as verified résumé claims. Notes and visual reviews persist as local JSON and binary evidence in `.runtime` and are deliberately not committed to Git. This is a **single-owner local storage design**, not a multi-user production database, embedding model, or autonomous long-term memory engine. Local files must be protected/backed up by the owner, and cannot be inferred from the network after deletion or when the application is hosted remotely.
 
 API surface: `GET/POST /visual-reviews`, `GET /visual-reviews/:id/image`, `GET/POST /identity-memory`, `GET /identity-timeline`, and `POST /runs` with `action=audit-page` plus a validated `pageUrl`. The frontend proxies only these allowlisted paths from loopback. One-time credentials are never accepted into review or memory records by the UI.
+
+## Craft persistence and tenant boundaries
+
+The former file-backed Skill library has been replaced by database-backed Crafts. Six immutable built-in MDX definitions are seeded from `crafts/default/*.mdx` into each account's database namespace. The defaults can be viewed and cloned, never updated or deleted via user API operations. Personal drafts and clones are scoped by the authenticated tenant owner in the document store and support MDX/graph round-trips. The hosted worker uses a code-relative path for bundled defaults so its private working directory does not affect startup. Portable exports still contain `SKILL.md` for agent compatibility.

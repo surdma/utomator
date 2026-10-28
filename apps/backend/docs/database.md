@@ -42,3 +42,7 @@ input forms are described by step-forms.yaml. The runner continues to execute
 only allowlisted YAML operations and enforces ownership and explicit approvals.
 
 Never expose Fastify, Chrome CDP or unencrypted session data to the Internet.
+
+## Crafts
+
+`crafts` and `craft-migrations` are validated document namespaces under the existing composite `(owner_id, namespace, record_key)` primary key. Each Craft record stores its validated MDX, scope (`default` or `personal`), optional clone-source ID, timestamp and optimistic version. The tenant owner ID must come from authenticated worker context rather than request input; no separate global in-memory Craft registry is authoritative. Defaults are loaded from bundled MDX at startup, while personal records remain unchanged across default revisions. Hosted workers have tenant-private databases.
