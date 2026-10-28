@@ -121,7 +121,7 @@ function Inner({selectedId,onSelected,onChat,revision,view,onView,onBack}:Props)
       if(!res.ok)throw Error("Start the local engine to manage crafts");
       const list=await res.json() as Craft[];
       setCatalog(list);
-      const requested=preferred===""?null:(preferred||selectedId);
+      const requested=preferred===""?null:(preferred||(view==="catalog"?null:selectedId));
       const picked=requested?list.find(s=>s.id===requested):undefined;
       if(picked){
         onSelected(picked.id,picked.slug);
@@ -133,7 +133,7 @@ function Inner({selectedId,onSelected,onChat,revision,view,onView,onBack}:Props)
       } else {setBaseline(null);setDraft(null);}
       setError(requested&&!picked?"This craft could not be found. Return to the craft catalog.":"");
     } catch(e) {setError(e instanceof Error?e.message:"Unable to load crafts");}
-  },[selectedId,onSelected]);
+  },[selectedId,onSelected,view]);
   // An explicit refresh signal is shared with the chat command dispatcher.
   useEffect(()=>{void load();},[revision]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(()=>{

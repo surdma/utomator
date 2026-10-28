@@ -195,8 +195,11 @@ test('Growth workspace connects 21 capability and toolkit graphs, MDX, export an
       'chat editing must update the owner clone, never a shared default');
     const original=(await app.inject('/crafts/default-growth-profile')).json() as {steps:Array<{title:string}>};
     assert.equal(original.steps[0]?.title,'Scope 20 profile sections');
-    await page.getByRole('button',{name:'Growth library'}).click();
+    const sidebar=page.getByTestId('automation-navigation-sidebar');
+    await sidebar.getByRole('button',{name:'Profile',exact:true}).click();
+    await sidebar.getByRole('button',{name:'Growth',exact:true}).click();
     await catalog.waitFor();
+    assert.match(page.url(),/\/dashboard\/growth$/,'returning via sidebar must not reopen a stale editor');
     await page.getByRole('button',{name:'New growth flow'}).click();
     const creation=page.getByRole('dialog',{name:'Create a growth flow'});
     await creation.waitFor();
