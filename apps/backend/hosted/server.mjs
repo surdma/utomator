@@ -115,9 +115,13 @@ export function createHostedGateway({auth,workers,nextOrigin,baseUrl}){
     catch{return reject(res,400,'Invalid URL');}
     const raw=new URL(req.url||'/',externalOrigin);
     const path=url.pathname;
-    const privatePath=/^\/dashboard(?:\/|$)/i.test(path) ||
-      /^\/%5fautomate(?:\/|$)/i.test(path);
-    const apiPath=/^\/dashboard\/api(?:\/|$)/i.test(path);
+    // The product homepage is public. Every operator route and API call is private.
+    // Reject legacy route names instead of exposing old automation endpoints.
+    if(/^\/_automate(?:\/|$)/i.test(path))
+      return reject(res,404,'Legacy automation route removed');
+    const privatePage=/^\/(?:dashboard|editorial|growth|research|history|library|profile|resumes|observer|memory|settings)(?:\/|$)/i.test(path);
+    const apiPath=/^\/api(?:\/|$)/i.test(path);
+    const privatePath=privatePage || apiPath;
     const session=auth.session(req.headers.cookie);
     if(req.method==='GET' && path==='/health')
       return json(res,200,{status:'ok'});
@@ -157,13 +161,13 @@ export function createHostedGateway({auth,workers,nextOrigin,baseUrl}){
       (!session || !auth.requireOrigin(req.headers.origin)))
       return reject(res,403,'Authenticated same-origin request required');
     if(apiPath){
-      if(req.method==='HEAD'||!/^\/dashboard\/api\/[a-zA-Z0-9._/-]+$/.test(path) ||
+      if(req.method==='HEAD'||!/^\/api\/[a-zA-Z0-9._/-]+$/.test(path) ||
         path.split('/').some(part=>part==='.'||part==='..'))
         return reject(res,404,'Unsupported API path');
       // Only the authenticated user's worker receives private API and SSE traffic.
       return proxy(req,res,url,true,session.ownerId);
     }
-    // Public portfolio remains publicly viewable. Private pages were gated above.
+    // The product homepage and shared static assets remain public. Operator pages are gated above.
     return proxy(req,res,url,false,session?.ownerId);
   };
   return http.createServer((req,res)=>{

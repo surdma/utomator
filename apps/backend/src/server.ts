@@ -18,7 +18,7 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => { void app.close().then(() => { process.exitCode = 0; }); });
 }
 app.listen({ host: '127.0.0.1', port })
-  .then((address) => { app.log.info({ address }, 'Automation API ready; use /dashboard in the portfolio'); })
+  .then((address) => { app.log.info({ address }, 'Automation API ready; open the Utomator frontend at /dashboard'); })
   .catch((error: unknown) => {
     app.log.error(error, 'Cannot start Utomator API');
     process.exitCode = 1;

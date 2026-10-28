@@ -44,7 +44,7 @@ test('authenticated hosted gateway authorizes UI, API, SSE, mutations and select
   });
   const next=await server((req,res)=>{
     res.setHeader('content-type','text/html');
-    res.end('<h1>Portfolio '+req.url+'</h1>');
+    res.end('<h1>Utomator '+req.url+'</h1>');
   });
   let stops=0;
   const starts=[];
@@ -77,10 +77,12 @@ test('authenticated hosted gateway authorizes UI, API, SSE, mutations and select
   try{
     const publicPage=await request(origin,'/');
     assert.equal(publicPage.status,200);
-    assert.match(publicPage.body,/Portfolio/);
-    const privatePage=await request(origin,'/dashboard');
-    assert.equal(privatePage.status,303);
-    assert.equal(privatePage.headers.location,'/auth/login');
+    assert.match(publicPage.body,/Utomator/);
+    for(const page of ['/dashboard','/editorial','/growth','/research','/history','/library','/profile','/resumes','/observer','/memory','/settings']){
+      const privatePage=await request(origin,page);
+      assert.equal(privatePage.status,303,page+' should require authentication');
+      assert.equal(privatePage.headers.location,'/auth/login');
+    }
     const anonymous=await request(origin,'/api/runs');
     assert.equal(anonymous.status,401);
     assert.deepEqual(starts,[]);
@@ -113,7 +115,7 @@ test('authenticated hosted gateway authorizes UI, API, SSE, mutations and select
     assert.match(stream.body,/event: status/);
     assert.match(stream.body,/"owner":"alice"/);
     const escaped=await request(origin,'/%5fautomate/api/runs');
-    assert.equal(escaped.status,401);
+    assert.equal(escaped.status,404);
     const login=await request(origin,'/auth/login');
     assert.equal(login.status,303);
     assert.equal(login.headers.location,'https://identity.example.test/authorize');
