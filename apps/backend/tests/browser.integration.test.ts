@@ -519,6 +519,7 @@ test('Growth YAML templates load into the existing workflow artboard with nested
     const graph=board.getByTestId('growth-nested-artboard');
     await graph.waitFor();
     assert.equal(await graph.locator('[data-testid^="growth-pipeline-node-"]').count(),6);
+    await graph.locator('.react-flow__edge').first().waitFor({timeout:15000});
     assert.equal(await graph.locator('.react-flow__edge').count(),5);
     await graph.getByTestId('growth-pipeline-node-identity').click();
     await graph.getByTestId('growth-task-node-start').waitFor();
