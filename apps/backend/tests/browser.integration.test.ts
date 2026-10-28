@@ -519,8 +519,10 @@ test('Growth YAML templates load into the existing workflow artboard with nested
     const graph=board.getByTestId('growth-nested-artboard');
     await graph.waitFor();
     assert.equal(await graph.locator('[data-testid^="growth-pipeline-node-"]').count(),6);
-    await graph.locator('.react-flow__edge').first().waitFor({timeout:15000});
+    await graph.locator('.react-flow__edge').first().waitFor({state:'attached',timeout:15000});
     assert.equal(await graph.locator('.react-flow__edge').count(),5);
+    for(const path of await graph.locator('.react-flow__edge path.react-flow__edge-path').all())
+      assert.match(await path.getAttribute('d') ?? '',/^M/, 'connected pipeline edges must have SVG path geometry');
     await graph.getByTestId('growth-pipeline-node-identity').click();
     await graph.getByTestId('growth-task-node-start').waitFor();
     await graph.getByTestId('growth-task-node-session').waitFor();
