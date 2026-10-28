@@ -155,7 +155,7 @@ test('Agent skills library connects canvas, MDX, export and operator chat', { ti
     await page.getByRole('button', { name: 'Open Mator' }).click();
     await page.getByTestId('automation-right-sidebar').waitFor({ state:'visible' });
     assert.equal(await page.locator('.react-flow__minimap').count(), 0, 'the skill editor must not have an obscuring minimap');
-    assert.match(page.url(), /\/dashboard\/library\/[^/]+$/, 'opening a project must have its own URL');
+    assert.match(page.url(), /\/library\/[^/]+$/, 'opening a project must have its own URL');
     assert.equal(await page.getByTestId('skill-card-content-series-planning').count(), 0,
       'skill catalogue must not remain mounted under the editor');
     await page.setViewportSize({ width: 1480, height: 640 });
@@ -187,7 +187,7 @@ test('Agent skills library connects canvas, MDX, export and operator chat', { ti
     await page.setViewportSize({ width: 1480, height: 970 });
     await page.getByRole('button', { name: 'All skill projects' }).click();
     await candidate.waitFor();
-    assert.match(page.url(), /\/dashboard\/library$/);
+    assert.match(page.url(), /\/library$/);
     await page.goBack();
     await page.getByTestId('skills-artboard').waitFor();
     await page.getByTestId('skill-node-goal').click();
@@ -206,7 +206,7 @@ test('Agent skills library connects canvas, MDX, export and operator chat', { ti
     assert.match(initial, /\*\*Next:\*\* \[evidence\]/);
     await editor.fill(initial.replace('**Next:** [evidence](#step-evidence)', '**Next:** [craft](#step-craft)'));
     await page.getByText('Unapplied MDX changes.').waitFor();
-    assert.match(page.url(), /\/dashboard\/library\/[^/]+\/source$/, 'MDX has a direct source route');
+    assert.match(page.url(), /\/library\/[^/]+\/source$/, 'MDX has a direct source route');
     await page.getByRole('button', { name: 'Apply MDX to graph' }).click();
     await page.getByText('Unapplied MDX changes.').waitFor({ state:'hidden' });
     await page.getByText('Saved and synchronized with MDX source.').waitFor();
