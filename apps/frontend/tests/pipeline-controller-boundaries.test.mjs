@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { resolve } from 'node:path';
 
-const root = resolve(import.meta.dirname, '..', 'components', 'automate');
+const root = resolve(import.meta.dirname, '..', 'components', 'dashboard');
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 
 test('pipeline coordinates dedicated controllers rather than owning run transport', () => {

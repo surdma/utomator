@@ -1,0 +1,38 @@
+name: Temporary dashboard formatting diagnostic
+on:
+  push:
+    branches: [feat/yaml-growth-profile-pipeline]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  format-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: pnpm install --frozen-lockfile
+      - name: Format eight changed files locally in the runner
+        run: |
+          pnpm exec prettier --write \
+            apps/frontend/components/dashboard/career/career-studio.tsx \
+            apps/frontend/components/dashboard/career/resume-paper.tsx \
+            apps/frontend/components/dashboard/career/section-editor.tsx \
+            apps/frontend/components/dashboard/pipeline/pipeline-workspace.tsx \
+            apps/frontend/components/dashboard/pipeline/use-visual-reviews.ts \
+            apps/frontend/tests/dashboard-component-structure.test.mjs \
+            apps/frontend/tests/pipeline-api-client.test.mjs \
+            apps/frontend/tests/routes.test.mjs
+      - name: Exact formatter patch
+        run: |
+          git diff --no-ext-diff -- \
+            apps/frontend/components/dashboard/career/ \
+            apps/frontend/components/dashboard/pipeline/pipeline-workspace.tsx \
+            apps/frontend/components/dashboard/pipeline/use-visual-reviews.ts \
+            apps/frontend/tests/dashboard-component-structure.test.mjs \
+            apps/frontend/tests/pipeline-api-client.test.mjs \
+            apps/frontend/tests/routes.test.mjs
