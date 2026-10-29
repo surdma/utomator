@@ -211,12 +211,11 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
     </button>}
     <StudioDialog open={open} onDismiss={()=>{if(!busy)setOpen(false);}}
       dismissible={!busy} testId="connector-onboarding-dialog" title="Connect your social accounts"
-      description="Choose a network and verify the account you want to use." titleSize="prominent">
-      <div data-testid="linkedin-connector" className="mx-auto flex max-w-2xl flex-col gap-5">
+      titleSize="prominent">
+      <div data-testid="linkedin-connector" className="mx-auto flex max-w-2xl flex-col gap-4">
         <section aria-labelledby="connector-network-heading" data-testid="network-picker">
-          <div className="mb-3 flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
+          <div className="mb-2 flex items-center justify-between">
             <h3 id="connector-network-heading" className="text-sm font-semibold text-slate-900">Select a network</h3>
-            <p className="text-xs text-slate-500">One account per network</p>
           </div>
           <div aria-label="Social networks" className="grid grid-cols-2 gap-2">
             {(["linkedin","x"] as const).map(key=>{
@@ -235,7 +234,6 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
         <section aria-label={providerMeta[network].name+" connection"} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3.5 sm:px-5">
             <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Selected network</p>
               <h3 className="text-lg font-semibold leading-7 text-slate-950">{providerMeta[network].name}</h3>
             </div>
             <span data-testid="connector-status" className={"inline-flex min-h-8 max-w-full items-center rounded-full px-3 py-1 text-xs font-semibold leading-5 "+
@@ -273,7 +271,7 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
                 </p>
               </div>:<div className="flex flex-col gap-3">
                 {browserSupported?<p className="text-sm leading-6 text-slate-600">
-                  No {providerMeta[network].name} account linked. Sign in with the provider and your profile will be detected automatically.
+                  No {providerMeta[network].name} account connected. Connect to detect your verified profile automatically.
                 </p>:<p className="rounded-xl bg-slate-50 p-3 text-sm leading-6 text-slate-700">
                   Official API connector not available yet. Sync is disabled.
                 </p>}
