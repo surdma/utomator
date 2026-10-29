@@ -257,6 +257,8 @@ export default function TemplateBrowser({
     if (selected.growthId) {
       try {
         await onGrowthApply?.(selected.growthId);
+        // Callback fires after the template-load event, never during render.
+        // react-doctor-disable-next-line react-doctor/no-prop-callback-in-render
         onApplied();
       } catch (e) {
         setError(
@@ -297,6 +299,8 @@ export default function TemplateBrowser({
       : { ...plan, name: selected.title };
     try {
       await onApply(configured, selected.id);
+      // Callback fires after the template-load event, never during render.
+      // react-doctor-disable-next-line react-doctor/no-prop-callback-in-render
       onApplied();
     } catch (e) {
       setError(
