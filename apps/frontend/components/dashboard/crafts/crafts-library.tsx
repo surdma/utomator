@@ -48,7 +48,7 @@ import {
 import CraftCatalog from './craft-catalog';
 import Stage from './craft-stage';
 import { renderMdx } from './craft-mdx';
-import type { Category, Kind, Step, Link, Craft, Draft } from './craft-types';
+import type { Category, Kind, Craft, Draft } from './craft-types';
 export type { Category, Kind, Step, Link, Craft } from './craft-types';
 import { craftCategoryTitles as titles } from './craft-category-titles';
 import StudioDialog from '@/components/ui/studio-dialog';

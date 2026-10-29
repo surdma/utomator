@@ -16,14 +16,11 @@ import {
 } from '@xyflow/react';
 import {
   ChevronRight,
-  Pause,
-  Play,
   Plus,
   Save,
   Settings2,
   Square,
   Trash2,
-  Workflow,
   ArrowUp,
   ArrowDown,
 } from 'lucide-react';
