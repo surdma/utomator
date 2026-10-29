@@ -8,7 +8,7 @@ async function server(handler) {
   const srv = http.createServer(handler);
   srv.listen(0, '127.0.0.1');
   await once(srv, 'listening');
-  return { srv, origin: 'http://127.0.0.1:' + srv.address().port };
+  return { srv, origin: `http://127.0.0.1:${srv.address().port}` };
 }
 const request = (origin, path, options = {}) =>
   new Promise((resolve, reject) => {
@@ -57,7 +57,7 @@ test('authenticated hosted gateway authorizes UI, API, SSE, mutations and select
   });
   const next = await server((req, res) => {
     res.setHeader('content-type', 'text/html');
-    res.end('<h1>Utomator ' + req.url + '</h1>');
+    res.end(`<h1>Utomator ${req.url}</h1>`);
   });
   let stops = 0;
   const starts = [];
@@ -93,7 +93,7 @@ test('authenticated hosted gateway authorizes UI, API, SSE, mutations and select
   });
   gateway.listen(0, '127.0.0.1');
   await once(gateway, 'listening');
-  const origin = 'http://127.0.0.1:' + gateway.address().port;
+  const origin = `http://127.0.0.1:${gateway.address().port}`;
   try {
     const publicPage = await request(origin, '/');
     assert.equal(publicPage.status, 200);
@@ -114,7 +114,7 @@ test('authenticated hosted gateway authorizes UI, API, SSE, mutations and select
       '/dashboard/settings',
     ]) {
       const privatePage = await request(origin, page);
-      assert.equal(privatePage.status, 303, page + ' should require authentication');
+      assert.equal(privatePage.status, 303, `${page} should require authentication`);
       assert.equal(privatePage.headers.location, '/auth/login');
     }
     const anonymous = await request(origin, '/api/runs');

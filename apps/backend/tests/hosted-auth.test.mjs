@@ -16,7 +16,7 @@ const signed = (claims) => {
     '.' +
     payload +
     '.' +
-    sign('RSA-SHA256', Buffer.from(header + '.' + payload), keys.privateKey).toString('base64url')
+    sign('RSA-SHA256', Buffer.from(`${header}.${payload}`), keys.privateKey).toString('base64url')
   );
 };
 const config = {
@@ -41,9 +41,9 @@ const create = (overrides) => {
       if (url.endsWith('/.well-known/openid-configuration'))
         return {
           issuer,
-          authorization_endpoint: issuer + '/authorize',
-          token_endpoint: issuer + '/token',
-          jwks_uri: issuer + '/keys',
+          authorization_endpoint: `${issuer}/authorize`,
+          token_endpoint: `${issuer}/token`,
+          jwks_uri: `${issuer}/keys`,
         };
       if (url.endsWith('/keys')) return { keys: [jwk] };
       if (url.endsWith('/token')) {
@@ -55,7 +55,7 @@ const create = (overrides) => {
         assert(form.get('code_verifier').length >= 43);
         return { id_token: signed(claims(overrides.nonce, overrides.claims)) };
       }
-      throw Error('Unexpected identity provider request: ' + url);
+      throw Error(`Unexpected identity provider request: ${url}`);
     },
   };
   return createHostedAuth(config, io);
@@ -150,7 +150,7 @@ test('OIDC signed token rejects wrong audience, issuer, expired time and invalid
     await assert.rejects(auth.verifyIdToken(signed(claims(nonce, mismatch)), nonce));
   await assert.rejects(auth.verifyIdToken('eyJhbGciOiJub25lIn0.eyJzdWIiOiJ4In0.', nonce));
   const token = signed(claims(nonce));
-  await assert.rejects(auth.verifyIdToken(token.slice(0, -2) + 'xx', nonce), /signature/);
+  await assert.rejects(auth.verifyIdToken(`${token.slice(0, -2)}xx`, nonce), /signature/);
   assert.equal((await auth.verifyIdToken(token, nonce)).sub, 'alice-subject');
 });
 

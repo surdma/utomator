@@ -274,7 +274,7 @@ test('Scoped inspection accepts only exact owned LinkedIn/X pages', async () => 
     () => validatePageScope('linkedin', profile, 'https://evil.test/in/surdma/'),
     /official/,
   );
-  assert.throws(() => validatePageScope('linkedin', profile, expected + '?token=1'), /official/);
+  assert.throws(() => validatePageScope('linkedin', profile, `${expected}?token=1`), /official/);
   assert.equal(
     validateRun({
       platform: 'linkedin',

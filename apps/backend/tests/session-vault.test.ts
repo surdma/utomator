@@ -31,11 +31,11 @@ class FakeDocuments implements DocumentStore {
   readonly rows = new Map<string, Row>();
   constructor(readonly ownerId: string) {}
   async get<T>(namespace: string, key: string): Promise<DocumentRecord<T> | null> {
-    const row = this.rows.get(namespace + ':' + key);
+    const row = this.rows.get(`${namespace}:${key}`);
     return row ? { key, version: row.version, value: row.value as T } : null;
   }
   async put<T>(namespace: string, key: string, value: T, expectedVersion: number) {
-    const id = namespace + ':' + key,
+    const id = `${namespace}:${key}`,
       existing = this.rows.get(id);
     if (!expectedVersion) {
       if (existing) throw Error('Database document changed. Reload before saving.');
@@ -50,7 +50,7 @@ class FakeDocuments implements DocumentStore {
   }
   async list<T>(namespace: string) {
     return [...this.rows.entries()]
-      .filter(([id]) => id.startsWith(namespace + ':'))
+      .filter(([id]) => id.startsWith(`${namespace}:`))
       .map(([id, row]) => ({
         key: id.slice(namespace.length + 1),
         version: row.version,
@@ -58,7 +58,7 @@ class FakeDocuments implements DocumentStore {
       }));
   }
   async remove(namespace: string, key: string, expectedVersion: number) {
-    const id = namespace + ':' + key,
+    const id = `${namespace}:${key}`,
       existing = this.rows.get(id);
     if (!existing || existing.version !== expectedVersion)
       throw Error('Database document changed. Reload before saving.');
@@ -70,7 +70,7 @@ class FakeDocuments implements DocumentStore {
 const cookie = (name: string): Cookie =>
   ({
     name,
-    value: 'v-' + name,
+    value: `v-${name}`,
     domain: '.linkedin.com',
     path: '/',
     secure: true,
@@ -211,9 +211,9 @@ test('vault records stored for one owner are unreadable under another owner stor
     deriveOwnerKey(MASTER, ownerA.ownerId),
     serializeVaultPayload(samplePayload()),
   );
-  ownerB.rows.set(VAULT_NAMESPACE + ':conn-1', { version: 1, value: leaked });
+  ownerB.rows.set(`${VAULT_NAMESPACE}:conn-1`, { version: 1, value: leaked });
   await assert.rejects(() => loadVaultPayload(ownerB, 'conn-1', MASTER), VaultDecryptError);
   // And the real owner still decrypts the same envelope without change.
-  ownerA.rows.set(VAULT_NAMESPACE + ':conn-1', { version: 1, value: leaked });
+  ownerA.rows.set(`${VAULT_NAMESPACE}:conn-1`, { version: 1, value: leaked });
   assert.equal((await loadVaultPayload(ownerA, 'conn-1', MASTER))?.platform, 'linkedin');
 });

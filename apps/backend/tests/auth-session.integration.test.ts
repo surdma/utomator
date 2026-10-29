@@ -16,7 +16,7 @@ async function awaitRun(
 ) {
   const until = Date.now() + timeoutMs;
   while (Date.now() < until) {
-    const result = await app.inject('/runs/' + id);
+    const result = await app.inject(`/runs/${id}`);
     if (result.statusCode === 200) {
       const run = result.json() as {
         state: string;
@@ -107,7 +107,7 @@ test('Delayed authwall holds Chrome open for human login, then resumes audit', {
     assert.equal(page.isClosed(), false, 'Chrome stays open for a human sign-in');
     await new Promise((done) => setTimeout(done, 350));
     assert.equal(page.isClosed(), false, 'browser must remain open while approval is pending');
-    const artifacts = app.inject('/runs/' + runId + '/assessment');
+    const artifacts = app.inject(`/runs/${runId}/assessment`);
     // No login-screen screenshots may be emitted before authentication completes.
     const assessment = await artifacts;
     assert.equal(assessment.json().observations, 0);
@@ -115,7 +115,7 @@ test('Delayed authwall holds Chrome open for human login, then resumes audit', {
     await page.waitForURL('https://www.linkedin.com/session-ready');
     const approval = await app.inject({
       method: 'POST',
-      url: '/runs/' + runId + '/decision',
+      url: `/runs/${runId}/decision`,
       payload: {
         checkpointId: waiting.checkpoint?.id,
         approved: true,
@@ -198,7 +198,7 @@ test('Rejecting a login checkpoint closes the browser without running the audit'
     assert(page && !page.isClosed());
     const answer = await app.inject({
       method: 'POST',
-      url: '/runs/' + id + '/decision',
+      url: `/runs/${id}/decision`,
       payload: {
         checkpointId: waiting.checkpoint?.id,
         approved: false,

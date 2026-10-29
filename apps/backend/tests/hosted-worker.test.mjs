@@ -35,9 +35,9 @@ test('real per-owner Fastify workers isolate SQL, legacy files, memory and saved
     assert.notEqual(a.port, b.port);
     assert.notEqual(a.child.pid, b.child.pid);
     assert.notEqual(a.secret, b.secret);
-    const direct = await fetch(a.target + '/account');
+    const direct = await fetch(`${a.target}/account`);
     assert.equal(direct.status, 401);
-    const foreign = await fetch(a.target + '/account', {
+    const foreign = await fetch(`${a.target}/account`, {
       headers: { 'x-utomator-worker-token': b.secret },
     });
     assert.equal(foreign.status, 401);

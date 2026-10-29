@@ -158,7 +158,7 @@ test('Screenshot endpoints do not disclose unknown runs or unregistered images',
       '/runs/00000000-0000-0000-0000-000000000000/evidence/..%2Fsecret.png',
     ]) {
       const response = await app.inject({ method: 'GET', url: path });
-      assert.ok([400, 404].includes(response.statusCode), 'Evidence must be inaccessible: ' + path);
+      assert.ok([400, 404].includes(response.statusCode), `Evidence must be inaccessible: ${path}`);
     }
   } finally {
     await app.close();
@@ -209,7 +209,7 @@ test('Visual review uploads real images, rejects unregistered captures, and stor
         nodeId: 'inspect',
         note: '',
         regions: [shape],
-        source: { kind: 'upload', imageData: 'data:image/png;base64,' + png },
+        source: { kind: 'upload', imageData: `data:image/png;base64,${png}` },
       },
     });
     assert.equal(wrongPage.statusCode, 400);
@@ -221,7 +221,7 @@ test('Visual review uploads real images, rejects unregistered captures, and stor
         nodeId: 'inspect',
         note: 'Review this isolated page',
         regions: [shape],
-        source: { kind: 'upload', imageData: 'data:image/png;base64,' + png },
+        source: { kind: 'upload', imageData: `data:image/png;base64,${png}` },
       },
     });
     assert.equal(created.statusCode, 201, created.body);
@@ -260,13 +260,13 @@ test('Visual review uploads real images, rejects unregistered captures, and stor
     });
     assert.equal(tagged.statusCode, 201, tagged.body);
     assert.equal(tagged.json().annotations[0].shape, 'ellipse');
-    const yaml = await app.inject('/visual-reviews/' + tagged.json().id + '/yaml');
+    const yaml = await app.inject(`/visual-reviews/${tagged.json().id}/yaml`);
     assert.equal(yaml.statusCode, 200, yaml.body);
     assert.match(yaml.body, /shape: "ellipse"/);
     assert.match(yaml.body, /action: "edit-profile"/);
     assert.match(yaml.body, /browserActionsExecuted: false/);
     assert.match(yaml.body, /kind: "tag"/);
-    const reusedImage = await app.inject('/visual-reviews/' + tagged.json().id + '/image');
+    const reusedImage = await app.inject(`/visual-reviews/${tagged.json().id}/image`);
     assert.equal(reusedImage.statusCode, 200);
     assert.equal(reusedImage.rawPayload.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
     const forged = await app.inject({
@@ -297,11 +297,11 @@ test('Visual review uploads real images, rejects unregistered captures, and stor
       },
     });
     assert.equal(foreign.statusCode, 400, 'never copy image evidence across account scopes');
-    const missingYaml = await app.inject('/visual-reviews/' + record.id + '/yaml');
+    const missingYaml = await app.inject(`/visual-reviews/${record.id}/yaml`);
     assert.equal(missingYaml.statusCode, 404, 'legacy review has no fabricated annotation YAML');
 
     assert.equal(JSON.stringify(record).includes('base64'), false, 'return metadata only');
-    const served = await app.inject('/visual-reviews/' + record.id + '/image');
+    const served = await app.inject(`/visual-reviews/${record.id}/image`);
     assert.equal(served.statusCode, 200);
     assert.match(String(served.headers['content-type']), /image\/png/);
     assert.equal(served.rawPayload.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
@@ -329,7 +329,7 @@ test('Visual review uploads real images, rejects unregistered captures, and stor
         nodeId: 'inspect',
         note: '',
         regions: [{ ...shape, x: -0.3 }],
-        source: { kind: 'upload', imageData: 'data:image/png;base64,' + png },
+        source: { kind: 'upload', imageData: `data:image/png;base64,${png}` },
       },
     });
     assert.equal(invalidRegion.statusCode, 400);

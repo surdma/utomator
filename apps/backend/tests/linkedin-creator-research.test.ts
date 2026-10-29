@@ -113,13 +113,13 @@ test('Fastify validates research and returns persisted report and YAML', async (
     assert.equal(response.statusCode, 201, response.body);
     const created = response.json();
     assert.equal(created.output.profiles.length, 1);
-    const read = await app.inject('/linkedin/research/' + created.id);
+    const read = await app.inject(`/linkedin/research/${created.id}`);
     assert.equal(read.statusCode, 200);
     assert.equal(read.json().id, created.id);
     const list = await app.inject('/linkedin/research');
     assert.equal(list.statusCode, 200);
     assert.ok(list.json().some((row: { id: string }) => row.id === created.id));
-    const yaml = await app.inject('/linkedin/research/' + created.id + '/yaml');
+    const yaml = await app.inject(`/linkedin/research/${created.id}/yaml`);
     assert.equal(yaml.statusCode, 200);
     assert.match(yaml.headers['content-type'] as string, /yaml/);
     assert.match(yaml.body, /outputSha256/);
