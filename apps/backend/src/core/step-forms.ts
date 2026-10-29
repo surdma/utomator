@@ -44,7 +44,7 @@ export function parseStepForms(yaml: string): Record<StepKind, StepForm> {
       summary.length > 300 ||
       Object.keys(definition).some((key) => !['title', 'summary', 'fields'].includes(key))
     )
-      throw Error('Invalid step form: ' + kind);
+      throw Error(`Invalid step form: ${kind}`);
     const rawFields = definition.fields === undefined ? {} : mapping(definition.fields);
     const fields: StepFormField[] = [];
     for (const [key, raw] of Object.entries(rawFields)) {
@@ -64,7 +64,7 @@ export function parseStepForms(yaml: string): Record<StepKind, StepForm> {
         (input.max !== undefined && (!Number.isInteger(input.max) || Number(input.max) > 30000)) ||
         (input.max !== undefined && input.min !== undefined && Number(input.min) > Number(input.max))
       )
-        throw Error('Invalid step form field: ' + kind + '.' + key);
+        throw Error(`Invalid step form field: ${kind}.${key}`);
       fields.push({
         key: key as StepFormField['key'],
         label: input.label,

@@ -74,7 +74,7 @@ const block = (record: object, spaces: number): string =>
   Object.entries(record)
     .map(
       ([key, value]) =>
-        ' '.repeat(spaces) + key + ': ' + stringValue(value as string | number | boolean | null),
+        `${' '.repeat(spaces) + key}: ${stringValue(value as string | number | boolean | null)}`,
     )
     .join('\n');
 
@@ -88,7 +88,7 @@ export function compileWorkflow(
     const definition = original.definition ? authored.get(original.id) : undefined;
     if (original.definition && !definition)
       throw Error(
-        'Authored YAML definition must be resolved before compilation: ' + original.definition.id,
+        `Authored YAML definition must be resolved before compilation: ${original.definition.id}`,
       );
     const source = definition ? instantiateStep(original, definition) : original;
     if (source.kind === 'assess' && (!source.expectedText || !source.inputBindings?.text))
@@ -155,32 +155,32 @@ export function compileWorkflow(
       },
     };
     const lines = [
-      'apiVersion: ' + stringValue(document.apiVersion),
-      'kind: ' + stringValue(document.kind),
+      `apiVersion: ${stringValue(document.apiVersion)}`,
+      `kind: ${stringValue(document.kind)}`,
       'metadata:',
       block(document.metadata, 2),
       'spec:',
-      '  operation: ' + stringValue(document.spec.operation),
+      `  operation: ${stringValue(document.spec.operation)}`,
       '  inputs:',
       block({ from: document.spec.inputs.from, scope: document.spec.inputs.scope }, 4),
       ...(document.spec.inputs.bindings
         ? [
             '    bindings:',
             ...Object.entries(document.spec.inputs.bindings).flatMap(([target, reference]) => [
-              '      ' + target + ':',
-              '        stepId: ' + stringValue(reference.stepId),
-              '        field: ' + stringValue(reference.field),
-              '        schema: ' + stringValue(reference.schema),
+              `      ${target}:`,
+              `        stepId: ${stringValue(reference.stepId)}`,
+              `        field: ${stringValue(reference.field)}`,
+              `        schema: ${stringValue(reference.schema)}`,
             ]),
           ]
         : []),
       '  outputs:',
       block(document.spec.outputs, 4),
       '  config:',
-      ...(source.message !== undefined ? ['    message: ' + stringValue(source.message)] : []),
-      ...(source.delayMs !== undefined ? ['    delayMs: ' + stringValue(source.delayMs)] : []),
+      ...(source.message !== undefined ? [`    message: ${stringValue(source.message)}`] : []),
+      ...(source.delayMs !== undefined ? [`    delayMs: ${stringValue(source.delayMs)}`] : []),
       ...(source.expectedText !== undefined
-        ? ['    expectedText: ' + stringValue(source.expectedText)]
+        ? [`    expectedText: ${stringValue(source.expectedText)}`]
         : []),
       ...(source.message === undefined &&
       source.delayMs === undefined &&
@@ -191,7 +191,7 @@ export function compileWorkflow(
       block(document.spec.policy, 4),
     ];
     // Empty mappings must use YAML's explicit {} form.
-    const yaml = lines.join('\n').replace('  config:\n    {}', '  config: {}') + '\n';
+    const yaml = `${lines.join('\n').replace('  config:\n    {}', '  config: {}')}\n`;
     return {
       source,
       document,
@@ -199,25 +199,24 @@ export function compileWorkflow(
       digest: createHash('sha256').update(yaml).digest('hex'),
     };
   });
-  const manifest =
-    [
-      'apiVersion: "utomator.dev/v1"',
-      'kind: "SocialWorkflow"',
-      'metadata:',
-      '  name: ' + stringValue(plan.name),
-      '  platform: ' + stringValue(plan.platform),
-      '  action: ' + stringValue(plan.action),
-      'spec:',
-      '  graph: "linear"',
-      '  schedule: "manual"',
-      '  steps:',
-      ...steps.map((step) =>
-        [
-          '    - id: ' + stringValue(step.source.id),
-          '      document: ' + stringValue(step.source.id + '.yaml'),
-          '      sha256: ' + stringValue(step.digest),
-        ].join('\n'),
-      ),
-    ].join('\n') + '\n';
+  const manifest = `${[
+    'apiVersion: "utomator.dev/v1"',
+    'kind: "SocialWorkflow"',
+    'metadata:',
+    `  name: ${stringValue(plan.name)}`,
+    `  platform: ${stringValue(plan.platform)}`,
+    `  action: ${stringValue(plan.action)}`,
+    'spec:',
+    '  graph: "linear"',
+    '  schedule: "manual"',
+    '  steps:',
+    ...steps.map((step) =>
+      [
+        `    - id: ${stringValue(step.source.id)}`,
+        `      document: ${stringValue(`${step.source.id}.yaml`)}`,
+        `      sha256: ${stringValue(step.digest)}`,
+      ].join('\n'),
+    ),
+  ].join('\n')}\n`;
   return { plan, yaml: manifest, steps };
 }

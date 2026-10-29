@@ -13,7 +13,7 @@ export class WorkflowPlanStore {
   }
   constructor(private readonly root = resolve(process.cwd(), '.runtime', 'workflow-plans')) {}
   private pathFor(platform: Platform, action: Action): string {
-    return resolve(this.root, platform + '-' + action + '.json');
+    return resolve(this.root, `${platform}-${action}.json`);
   }
 
   async get(platform: Platform, action: Action): Promise<WorkflowPlan> {
@@ -22,7 +22,7 @@ export class WorkflowPlanStore {
         ? (templates('linkedin').find((plan) => plan.action === action) ?? defaultPlan(platform, action))
         : defaultPlan(platform, action);
     if (this.documents) {
-      const row = await this.documents.get<WorkflowPlan>('workflow-plans', platform + '-' + action);
+      const row = await this.documents.get<WorkflowPlan>('workflow-plans', `${platform}-${action}`);
       if (row) return validatePlan(row.value, platform, action);
     }
     if (this.documents && this.documents.ownerId !== 'local-owner') return fallback;
@@ -43,14 +43,14 @@ export class WorkflowPlanStore {
     const plan = validatePlan(raw, platform, action);
     const operation = this.queue.then(async () => {
       if (this.documents) {
-        const key = platform + '-' + action;
+        const key = `${platform}-${action}`;
         const existing = await this.documents.get<WorkflowPlan>('workflow-plans', key);
         await this.documents.put('workflow-plans', key, plan, existing?.version ?? 0);
       } else {
         await mkdir(this.root, { recursive: true, mode: 0o700 });
         const path = this.pathFor(platform, action);
-        const temp = path + '.' + randomUUID();
-        await writeFile(temp, JSON.stringify(plan, null, 2) + '\n', {
+        const temp = `${path}.${randomUUID()}`;
+        await writeFile(temp, `${JSON.stringify(plan, null, 2)}\n`, {
           mode: 0o600,
         });
         await rename(temp, path);
