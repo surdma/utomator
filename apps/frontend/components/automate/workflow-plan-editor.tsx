@@ -369,7 +369,9 @@ function EditorBody(props: Props) {
   } = props;
   const [configOpen, setConfigOpen] = useState(false);
   useEffect(() => {
-    if (configRequest > 0) setConfigOpen(true);
+    if (configRequest <= 0) return;
+    const frame = requestAnimationFrame(() => setConfigOpen(true));
+    return () => cancelAnimationFrame(frame);
   }, [configRequest]);
   const [templateOpen, setTemplateOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -383,7 +385,6 @@ function EditorBody(props: Props) {
   const [stepFormsRequest, setStepFormsRequest] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
-    setStepFormsError("");
     void fetch("/api/step-forms", {
       cache: "no-store",
       signal: controller.signal,
@@ -407,7 +408,10 @@ function EditorBody(props: Props) {
           !Array.isArray(data.start?.fields)
         )
           throw Error("Step forms returned an invalid response.");
-        if (!controller.signal.aborted) setStepForms(data);
+        if (!controller.signal.aborted) {
+          setStepForms(data);
+          setStepFormsError("");
+        }
       })
       .catch((error) => {
         if (!controller.signal.aborted)
@@ -456,18 +460,21 @@ function EditorBody(props: Props) {
   );
   const [nodes, setNodes, onNodesChange] = useNodesState(data.nodes);
   useEffect(() => {
-    setNodes((previous) => {
-      const changed =
-        previous.map((node) => node.id).join("|") !==
-        data.nodes.map((node) => node.id).join("|");
-      return data.nodes.map((node) => ({
-        ...node,
-        position: changed
-          ? node.position
-          : (previous.find((item) => item.id === node.id)?.position ??
-            node.position),
-      }));
+    const frame = requestAnimationFrame(() => {
+      setNodes((previous) => {
+        const changed =
+          previous.map((node) => node.id).join("|") !==
+          data.nodes.map((node) => node.id).join("|");
+        return data.nodes.map((node) => ({
+          ...node,
+          position: changed
+            ? node.position
+            : (previous.find((item) => item.id === node.id)?.position ??
+              node.position),
+        }));
+      });
     });
+    return () => cancelAnimationFrame(frame);
   }, [data.nodes, setNodes]);
   const canEdit = !busy;
   function update(next: WorkflowPlan) {
