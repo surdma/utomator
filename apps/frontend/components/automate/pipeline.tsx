@@ -84,6 +84,8 @@ import { stateLabel, timeLabel, short } from './pipeline/presentation-utils';
 import { explainCommand } from './pipeline/command-parser';
 import { buildRunPayload } from './pipeline/build-run-payload';
 import { editCraftFromCommand } from './pipeline/craft-command-editor';
+import RunHistory from './pipeline/run-history';
+import RunTrackingDialog from './pipeline/run-tracking-dialog';
 
 type WorkflowRecord = {
   id: string;
@@ -1658,52 +1660,16 @@ export default function AutomationPipeline({
             </div>
           )}
           {pane === 'history' && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent executions</CardTitle>
-                <CardDescription>
-                  Stored in memory during the current engine session. Select a
-                  run to inspect streamed events.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="divide-y divide-slate-100">
-                  {runs.length === 0 && (
-                    <p className="py-10 text-center text-sm text-slate-500">
-                      No runs yet. Start an audit to capture the first trace.
-                    </p>
-                  )}
-                  {runs.map((run) => (
-                    <button
-                      key={run.id}
-                      type="button"
-                      className="flex min-h-16 w-full items-center justify-between gap-3 py-3 text-left hover:bg-slate-50"
-                      onClick={() => {
-                        currentRunRef.current = run.id;
-                        setActive(run);
-                        setEvents([]);
-                        connect(run.id);
-                        navigatePane('pipeline');
-                      }}
-                    >
-                      <span>
-                        <span className="block text-sm font-semibold capitalize">
-                          {run.platform} / {run.action.replaceAll('-', ' ')}
-                        </span>
-                        <span className="text-xs text-slate-500">
-                          {short(run.id)} ·{' '}
-                          {new Date(run.createdAt).toLocaleString()}
-                        </span>
-                      </span>
-                      <span className="text-xs font-semibold text-slate-500 capitalize">
-                        {stateLabel(run.state)}{' '}
-                        <ArrowRight className="ml-1 inline size-3" />
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <RunHistory
+              runs={runs}
+              onSelect={(run) => {
+                currentRunRef.current = run.id;
+                setActive(run);
+                setEvents([]);
+                connect(run.id);
+                navigatePane('pipeline');
+              }}
+            />
           )}
           {pane === 'growth' && (
             <CraftsLibrary
@@ -2155,110 +2121,14 @@ export default function AutomationPipeline({
         </aside>
       </div>
 
-      <StudioDialog
+      <RunTrackingDialog
         open={trackingOpen}
         onDismiss={() => setTrackingOpen(false)}
-        title="Run tracking"
-        description="Live event telemetry, audit comparisons, and the latest verified observation."
-        testId="tracking-dialog"
-        size="wide"
-      >
-        <div
-          data-testid="automation-tracking-panel"
-          className="flex flex-col gap-4"
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle>Run telemetry</CardTitle>
-              <CardDescription>
-                Live events, approvals and verified outcomes.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="rounded-xl bg-slate-950 p-4 text-white">
-                  <p className="text-[10px] tracking-[.15em] text-slate-400 uppercase">
-                    Current state
-                  </p>
-                  <p className="mt-2 flex items-center gap-2 text-base font-bold capitalize">
-                    <Activity className="size-4 text-teal-300" />
-                    {active ? stateLabel(active.state) : 'Waiting for a run'}
-                  </p>
-                  <p className="mt-2 truncate font-mono text-[10px] text-slate-400">
-                    {active?.id || '–'}
-                  </p>
-                </div>
-                {playbook?.stages.map((stage, index) => (
-                  <div key={stage} className="flex gap-3">
-                    <span
-                      className={
-                        'flex size-7 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold ' +
-                        (index === 0 && active
-                          ? 'border-teal-200 bg-teal-50 text-teal-700'
-                          : 'border-slate-200 text-slate-400')
-                      }
-                    >
-                      {index + 1}
-                    </span>
-                    <div>
-                      <p className="text-xs font-semibold">{stage}</p>
-                      <p className="text-[10px] text-slate-400">
-                        {index === 0 && active
-                          ? 'Run started'
-                          : 'Reference sequence · not a progress claim'}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-          {assessment && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Audit comparison</CardTitle>
-                <CardDescription>
-                  Current observation against an owner-authored draft.
-                  Differences require your judgment.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {assessment.comparisons.map((check) => (
-                  <div key={check.field} className="space-y-2 text-xs">
-                    <p className="font-bold capitalize">
-                      {check.field} ·{' '}
-                      <span className="font-medium text-slate-500">
-                        {check.status.replaceAll('-', ' ')}
-                      </span>
-                    </p>
-                    <p className="rounded-lg bg-slate-50 p-2 text-slate-600">
-                      Observed: {check.observed || 'Not observed'}
-                    </p>
-                    <p className="rounded-lg bg-teal-50 p-2 text-teal-900">
-                      Source draft: {check.proposed || 'No draft available'}
-                    </p>
-                  </div>
-                ))}
-                <p className="mt-3 text-[11px] leading-5 text-slate-500">
-                  {assessment.notice}
-                </p>
-              </CardContent>
-            </Card>
-          )}
-          <Card>
-            <CardHeader>
-              <CardTitle>Latest observation</CardTitle>
-              <CardDescription>Not a model confidence score.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs leading-5 break-words text-slate-600">
-                {latest?.message ||
-                  'An audit will record profile observations and review evidence.'}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </StudioDialog>
+        active={active}
+        playbook={playbook}
+        assessment={assessment}
+        latest={latest}
+      />
       <StudioDialog
         open={Boolean(checkpoint)}
         onDismiss={() => {}}
