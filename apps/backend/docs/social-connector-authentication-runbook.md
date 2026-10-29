@@ -177,3 +177,47 @@ apps/backend, listens on 127.0.0.1:3101), Next dev server on 3000
 - [ ] `.runtime/chrome/accounts/` is git-ignored and was never committed.
 - [ ] After testing, the connection was disconnected (profile deleted) or the
       provider session was revoked from the provider's own security settings.
+
+## Desktop Chrome attachment and automatic sign-in detection
+
+- Isolated mode remains the default. Set `UTOMATOR_BROWSER_MODE=attached` only
+  for a **local, single-user desktop** with Chrome explicitly started using
+  loopback CDP. Modern Chrome may require a separate user-data directory; the
+  regular default Chrome profile cannot necessarily be attached. Never expose
+  CDP over a network, tunnel, or hosted server. This mode grants the local
+  automation process access to tabs and cookies in the attached Chrome profile.
+- The connector opens a NEW tab in the explicitly authorized Chrome context.
+  It does not replace the user's existing tab. Closing the connector only closes
+  its own tab; disconnecting does not remotely sign out the browser itself.
+- Sign-in detection probes the current provider page without navigating over
+  login, MFA or consent forms. A verified owner-only profile control remains
+  necessary before saving an account. The app polls while a connection is
+  pending, and offers a manual Verify action if automatic checks cannot complete.
+- `GET /connectors/capabilities` distinguishes a local interactive browser
+  from a headless/hosted deployment. `POST /connectors/:id/check` performs a
+  server-authoritative, deduplicated pending verification. No client-provided
+  username, URL or boolean may mark an account connected.
+- **Mobile and remote browser limitations:** a server-side Playwright process
+  cannot inherit Safari or Chrome cookies from a phone. The UI must not offer
+  local browser linking on a mobile device and must not promise same-session
+  access without a provider OAuth flow. LinkedIn's existing publishing OAuth
+  is separate from automated browser-profile ownership and does not make
+  remote browser automation authenticated.
+
+## Proposed headless human interaction contract (not implemented)
+
+Extend the existing Runner checkpoint mechanism rather than inventing a new
+YAML interpreter. A reviewed workflow may request a typed checkpoint with:
+`type` (text, password, file, consent), `label`, `description`,
+`required`, `maxLength`, `accept`, `stepId`, `runId` and
+`checkpointId`. The server must validate a fixed allowlist and signed-in
+workspace ownership, then release exactly the matching paused step.
+
+Passwords/OTP and CAPTCHA must never be parsed from the provider DOM into
+the Utomator app, logged, copied into YAML, or persisted as run evidence.
+Preferred approach is the provider's own interactive OAuth authorization or
+the explicitly attached desktop browser for MFA. File uploads should use a
+bounded one-time upload token, validated type/size and a cleanup lifetime.
+Destructive external writes still require separate, explicit approval.
+Server restart, disconnect, timeout and cancellation must end pending
+checkpoints safely without marking the workflow completed.

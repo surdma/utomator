@@ -204,11 +204,12 @@ test('browser-sign-in discovers a new LinkedIn identity without a typed profile'
     };
     const service=new ConnectorService(store,()=>browser,root);
     const started=await service.start('linkedin');
+    assert.equal(service.capabilities().mobileBrowserSession,false);
     assert.equal(started.status,'sign-in-open');
     assert.equal((await store.get()).socialAccounts.length,0);
-    assert.equal((await service.sync(started.accountId)).status,'reconnect-required');
+    assert.equal((await service.check(started.accountId)).status,'sign-in-open');
     signedIn=true;
-    assert.equal((await service.sync(started.accountId)).status,'connected');
+    assert.equal((await service.check(started.accountId)).status,'connected');
     const saved=(await store.get()).socialAccounts;
     assert.equal(saved.length,1);
     assert.equal(saved[0]?.handle,'verified-owner');
@@ -242,4 +243,37 @@ test('disconnected saved account cannot sync until Connect', async () => {
     await assert.rejects(service.sync(state.socialAccounts[0]!.id),/Connect before requesting sync/);
     await assert.rejects(service.start('linkedin'),/already exists/);
   } finally {await rm(root,{recursive:true,force:true});}
+});
+
+
+test('automatic connection checks leave an unfinished provider challenge unchanged',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'utomator-connector-probe-'));
+  try{
+    const store=new AccountStore(root);
+    let url='https://www.linkedin.com/checkpoint/challenge/';
+    let owner=false;
+    const visited:string[]=[];
+    const browser={
+      currentPage:undefined as Page|undefined,
+      async open(){
+        const page={url:()=>url,isClosed:()=>false,
+          goto:async(next:string)=>{visited.push(next);url=next;},
+          locator:()=>({first:()=>({getAttribute:async()=>owner?'/in/verified-owner/':null})}),
+          getByRole:()=>({first:()=>({waitFor:async()=>{if(!owner)throw Error('No ownership');}})}),
+        } as unknown as Page;
+        this.currentPage=page;return page;
+      },
+      async close(){this.currentPage=undefined;},
+    };
+    const service=new ConnectorService(store,()=>browser,root);
+    const started=await service.start('linkedin');
+    visited.length=0;
+    const results=await Promise.all([service.check(started.accountId),service.check(started.accountId)]);
+    assert.deepEqual(results.map(result=>result.status),['sign-in-open','sign-in-open']);
+    assert.deepEqual(visited,[]);
+    assert.equal((await store.get()).socialAccounts.length,0);
+    url='https://www.linkedin.com/feed/';owner=true;
+    assert.equal((await service.check(started.accountId)).status,'connected');
+    assert.equal((await store.get()).socialAccounts.length,1);
+  }finally{await rm(root,{recursive:true,force:true});}
 });

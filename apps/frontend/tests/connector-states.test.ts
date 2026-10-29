@@ -12,7 +12,7 @@ test("LinkedIn connection moves from disconnected through sign-in to verified an
   await dialog.getByRole("button",{name:"Verify connection"}).click();
   await expect(dialog.getByTestId("connector-status")).toHaveText("Session connected");
   await expect(dialog.getByText(/LinkedIn session verified/)).toBeVisible();
-  expect(fixture.commands.map(command=>command.operation)).toEqual(["connect","sync"]);
+  expect(fixture.commands.filter(command=>command.operation!=="check").map(command=>command.operation)).toEqual(["connect","sync"]);
   await page.reload();
   await expect((await openConnectorDialog(page)).getByTestId("connector-status")).toHaveText("Session connected");
 });
@@ -81,7 +81,7 @@ test("a new connection discovers its identity without manual input",async({page}
   await expect(dialog.getByTestId("connector-status")).toHaveText("Sign-in in progress");
   await dialog.getByRole("button",{name:"Verify connection"}).click();
   await expect(dialog.getByText("@verified-owner")).toBeVisible();
-  expect(fixture.commands.map(event=>event.operation)).toEqual(["start","sync"]);
+  expect(fixture.commands.filter(event=>event.operation!=="check").map(event=>event.operation)).toEqual(["start","sync"]);
 });
 
 test("unsupported providers cannot sync",async({page})=>{
@@ -100,5 +100,31 @@ test("X linking is discovered through provider sign-in",async({page})=>{
   await dialog.getByRole("button",{name:"Connect X",exact:true}).click();
   await dialog.getByRole("button",{name:"Verify connection"}).click();
   await expect(dialog.getByText("@verified-owner")).toBeVisible();
-  expect(fixture.commands.map(event=>event.operation)).toEqual(["start","sync"]);
+  expect(fixture.commands.filter(event=>event.operation!=="check").map(event=>event.operation)).toEqual(["start","sync"]);
+});
+
+
+test("provider completion is detected automatically without a Verify click",async({page})=>{
+  let ownerSignedIn=false;
+  const fixture=await installConnectorApi(page,[],event=>
+    event.operation==="check"&&ownerSignedIn?{body:{status:"connected"}}:undefined);
+  const dialog=await openConnectorDialog(page);
+  await dialog.getByRole("button",{name:"Connect LinkedIn",exact:true}).click();
+  await expect(dialog.getByTestId("connector-status")).toHaveText("Sign-in in progress");
+  ownerSignedIn=true;
+  await expect(dialog.getByTestId("connector-status")).toHaveText("Session connected",{timeout:16000});
+  expect(fixture.commands.some(event=>event.operation==="check")).toBe(true);
+});
+
+
+test("mobile Safari cannot start a server-side Playwright browser login",async({page})=>{
+  await page.addInitScript(()=>{
+    Object.defineProperty(navigator,"userAgent",{configurable:true,
+      get:()=>"Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148"});
+  });
+  const fixture=await installConnectorApi(page,[]);
+  const dialog=await openConnectorDialog(page);
+  await expect(dialog.getByText(/Mobile Chrome and Safari cannot share/)).toBeVisible();
+  await expect(dialog.getByRole("button",{name:"Connect LinkedIn",exact:true})).toBeDisabled();
+  expect(fixture.commands).toHaveLength(0);
 });

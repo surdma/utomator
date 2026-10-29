@@ -74,6 +74,7 @@ export class ConnectorService {
   private readonly path: string;
   private sessions = new Map<string, BrowserPort>();
   private pending = new Map<string, PendingConnection>();
+  private checks = new Map<string,Promise<{status:string;accountId:string}>>();
   private mutation: Promise<void> = Promise.resolve();
   private documents?:DocumentStore;
   setDocuments(documents:DocumentStore){this.documents=documents;}
@@ -140,6 +141,14 @@ export class ConnectorService {
     if (!account) throw Error('Social account not found');
     return account;
   }
+  capabilities() {
+    const browserAvailable = process.env.HEADLESS !== 'true' && !process.env.UTOMATOR_INTERNAL_OWNER_ID;
+    return {
+      browserAvailable: Boolean(browserAvailable),
+      mode: process.env.UTOMATOR_BROWSER_MODE === 'attached' ? 'attached' : 'isolated',
+      mobileBrowserSession: false,
+    };
+  }
   async list(): Promise<ConnectionStatus[]> {
     for (const [id, entry] of this.pending) {
       if (entry.browser.currentPage?.isClosed?.()) {
@@ -200,8 +209,8 @@ export class ConnectorService {
   async start(platform: SocialPlatform) {
     if (platform !== 'linkedin' && platform !== 'x')
       throw Error('Official API connector not configured for this network');
-    if (process.env.HEADLESS==='true')
-      throw Error('Interactive browser sign-in requires a visible local Chrome window');
+    if (!this.capabilities().browserAvailable)
+      throw Error('Interactive sign-in requires a local desktop agent; mobile and hosted browser sessions cannot be shared');
     if ((await this.accounts.get()).socialAccounts.some(item=>item.platform===platform))
       throw Error('A profile for this network already exists. Reconnect or remove it first.');
     if ([...this.pending.values()].some(entry=>entry.platform===platform))
@@ -230,9 +239,7 @@ export class ConnectorService {
   // Extract only an owner-navigation link from an authenticated provider page.
   // Never infer the account from a URL typed into Utomator or a public search result.
   private async discover(page:Page,platform:'linkedin'|'x') {
-    await navigateWithRetry(page,providerHome[platform],{
-      waitUntil:'domcontentloaded',timeout:15000,maxAttempts:2,baseDelayMs:400,
-    });
+    // Never navigate away from a login, MFA or consent page while checking.
     const here=new URL(page.url());
     if(here.protocol!=='https:'||!platformHosts[platform]!.includes(here.hostname))
       throw Error('Provider sign-in is not complete');
@@ -254,7 +261,7 @@ export class ConnectorService {
         profileUrl=candidate;break;
       }catch{/* Invalid provider link is not owner identity evidence. */}
     }
-    if(!profileUrl)throw Error('Provider identity has not been verified. Finish sign-in and try again.');
+    if(!profileUrl)return null; // Not signed in yet. Leave the page intact.
     const handle=profileUrl.pathname.split('/').filter(Boolean).at(-1)!;
     const normalized=platform==='linkedin'
       ? 'https://www.linkedin.com/in/'+handle+'/' : 'https://x.com/'+handle;
@@ -271,8 +278,8 @@ export class ConnectorService {
       throw Error('Legacy duplicate accounts must be resolved before reconnecting');
     // A hosted headless worker cannot present the provider's sign-in or MFA
     // screen on the owner's device. Never announce that a remote window opened.
-    if(process.env.HEADLESS==='true'&&process.env.UTOMATOR_INTERNAL_OWNER_ID)
-      throw Error('Interactive browser sign-in is unavailable on this hosted server. Use supported LinkedIn OAuth for publishing; browser workflows require an interactive connection host.');
+    if(!this.capabilities().browserAvailable)
+      throw Error('Interactive browser sign-in requires a local desktop agent. Hosted and mobile sessions cannot be shared.');
     const network = platformLabel(account.platform);
     if (!browserPlatform(account.platform)) {
       throw Error('This network requires an official API connector. Browser login is not offered.');
@@ -320,6 +327,13 @@ export class ConnectorService {
       throw e;
     }
   }
+  async check(id: string): Promise<{status:string;accountId:string}> {
+    const inFlight=this.checks.get(id);
+    if(inFlight)return inFlight;
+    const attempt=this.sync(id).finally(()=>this.checks.delete(id));
+    this.checks.set(id,attempt);
+    return attempt;
+  }
   async sync(id: string) {
     const pending=this.pending.get(id);
     if(pending){
@@ -329,9 +343,9 @@ export class ConnectorService {
       try{identity=await this.discover(page,pending.platform);}
       catch(error){
         if(isConnectionTimeout(error))return {status:'temporarily-unavailable' as const,accountId:id};
-        return {status:'reconnect-required' as const,accountId:id};
+        throw error;
       }
-      if(!identity)return {status:'temporarily-unavailable' as const,accountId:id};
+      if(!identity)return {status:'sign-in-open' as const,accountId:id};
       await this.accounts.linkVerifiedSocial(id,identity);
       await this.update(id,{accountId:id,verifiedAt:new Date().toISOString(),...identity});
       this.pending.delete(id);

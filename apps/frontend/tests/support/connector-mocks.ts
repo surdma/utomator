@@ -120,6 +120,7 @@ export async function installConnectorApi(
   const defaultBody: Record<string, unknown> = {
     connect: { status: "sign-in-open", navigationWarning: "Mock provider sign-in is open in isolated Chrome. Finish signing in there - including any MFA or consent step - then choose Sync." },
     sync: { status: "connected" },
+    check: { status: "sign-in-open" },
     disconnect: { status: "disconnected" },
   };
 
@@ -127,6 +128,10 @@ export async function installConnectorApi(
     const request = route.request();
     const path = new URL(request.url()).pathname.split("/").filter(Boolean);
     try {
+      if(request.method()==="GET"&&path[2]==="capabilities"){
+        await respond(route,{browserAvailable:true,mode:"isolated",mobileBrowserSession:false});
+        return;
+      }
       if (request.method() === "GET") {
         const event: ConnectorCommandEvent = { method: "GET", operation: "", id: "" };
         requests.push(event);

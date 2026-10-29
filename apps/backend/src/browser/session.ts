@@ -35,9 +35,15 @@ export class BrowserSession {
   async open(platform: string, accountId?: string): Promise<Page> {
     if (accountId && !/^[0-9a-fA-F-]{36}$/.test(accountId)) throw new Error('Invalid connector account ID');
     if (this.page) throw new Error('Browser session is already in use');
-    // Connected accounts must never share the user's global Chrome/CDP cookies.
-    const cdpUrl = process.env.UTOMATOR_DISABLE_CDP === 'true' || accountId
+    // Only an explicitly opted-in local desktop may share an existing Chrome profile.
+    // Remote workers and mobile browsers cannot expose their cookies through CDP.
+    const attach = process.env.UTOMATOR_BROWSER_MODE === 'attached' &&
+      process.env.HEADLESS !== 'true' && !process.env.UTOMATOR_INTERNAL_OWNER_ID;
+    const cdpUrl = process.env.UTOMATOR_DISABLE_CDP === 'true' || (accountId && !attach)
       ? undefined : process.env.CHROME_CDP_URL?.trim() || await discoverRunningChrome();
+    if (attach && !cdpUrl) throw Error(
+      'Existing Chrome was not found. Enable loopback Chrome debugging in a local profile, or use isolated browser mode.'
+    );
     if (cdpUrl) {
       const cdp = new URL(cdpUrl);
       if (!['127.0.0.1', 'localhost', '[::1]'].includes(cdp.hostname) ||

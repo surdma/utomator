@@ -29,6 +29,7 @@ function permitted(path: string, method: string): boolean {
   if (method === "POST" && (path === "growth/workflows/profile/runs" ||
     /^growth\/workflows\/profile\/runs\/[0-9a-fA-F-]{36}\/(advance|evidence)$/.test(path))) return true;
   if (method === "GET") {
+    if (path === "connectors/capabilities") return true;
     if (/^linkedin\/oauth\/(status|callback)$/.test(path)) return true;
     if (path === "linkedin/research" || /^linkedin\/research\/[0-9a-fA-F-]{36}(?:\/yaml)?$/.test(path) ||
       path === "linkedin/drafts" || /^linkedin\/drafts\/[0-9a-fA-F-]{36}(?:\/yaml)?$/.test(path)) return true;
@@ -52,7 +53,7 @@ function permitted(path: string, method: string): boolean {
     if (path === "linkedin/research" || path === "linkedin/drafts" ||
       /^linkedin\/drafts\/[0-9a-fA-F-]{36}\/transition$/.test(path)) return true;
     if (/^crafts\/[a-zA-Z0-9-]{1,75}\/clone$/.test(path)) return true;
-    if (path === "connectors/start" || path === "intelligence/chat" || /^connectors\/[0-9a-fA-F-]{36}\/(connect|sync|disconnect)$/.test(path)) return true;
+    if (path === "connectors/start" || path === "intelligence/chat" || /^connectors\/[0-9a-fA-F-]{36}\/(connect|sync|check|disconnect)$/.test(path)) return true;
     return ["runs", "visual-reviews", "identity-memory", "career/resumes", "crafts", "crafts/from-mdx", "workflows", "step-definitions", "profile-plans"].includes(path) ||
       new RegExp("^profile-plans/" + id + "/(decision|select)$").test(path) || new RegExp("^runs/" + id + "/(decision|input|cancel|pause|resume)$").test(path);
   }
