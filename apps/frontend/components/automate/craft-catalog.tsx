@@ -17,15 +17,8 @@ import {
 } from './linkedin-growth-capabilities';
 import { capabilityForSlug } from './growth-capability-details';
 import type { Category, Craft } from './crafts-library';
+import { craftCategoryTitles } from './craft-category-titles';
 
-export const craftCategoryTitles: Record<Category, string> = {
-  presence: 'Professional presence',
-  portfolio: 'Portfolio evidence',
-  'job-hunt': 'Career research',
-  applications: 'Applications',
-  content: 'Editorial authority',
-  engagement: 'Relationships',
-};
 type Props = {
   crafts: Craft[];
   filter: Category | 'all';

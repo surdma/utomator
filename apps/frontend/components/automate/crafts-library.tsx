@@ -49,7 +49,8 @@ import {
   CardHeader,
   Button,
 } from '@/components/ui/automate-card';
-import CraftCatalog, { craftCategoryTitles as titles } from './craft-catalog';
+import CraftCatalog from './craft-catalog';
+import { craftCategoryTitles as titles } from './craft-category-titles';
 import StudioDialog from '@/components/ui/studio-dialog';
 import GrowthCapabilityDetails, {
   capabilityForSlug,
