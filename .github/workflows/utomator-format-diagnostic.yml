@@ -1,0 +1,25 @@
+name: Temporary frontend formatter diagnostic
+
+on:
+  push:
+    branches:
+      - feat/yaml-growth-profile-pipeline
+
+permissions:
+  contents: read
+
+jobs:
+  report-diff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: pnpm install --frozen-lockfile
+      - name: Show exact Prettier formatting diff
+        run: |
+          pnpm exec prettier --write apps/frontend/components/automate/pipeline/craft-command-service.ts apps/frontend/tests/craft-command-service.test.mjs
+          git --no-pager diff -- apps/frontend/components/automate/pipeline/craft-command-service.ts apps/frontend/tests/craft-command-service.test.mjs
