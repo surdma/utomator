@@ -67,8 +67,7 @@ export function buildRunPayload({
     const value = form[field.key]?.trim();
     if (field.required && !value) throw Error(field.label + ' is required');
     if (value) {
-      payload[field.key] =
-        field.key === 'websiteIndex' ? Number(value) : value;
+      payload[field.key] = field.key === 'websiteIndex' ? Number(value) : value;
     }
   }
   return payload;
