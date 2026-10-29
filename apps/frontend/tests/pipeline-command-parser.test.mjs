@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { explainCommand } from '../components/automate/pipeline/command-parser.ts';
-import { workflows } from '../components/automate/pipeline/workflow-catalog.ts';
+import { explainCommand } from '../components/dashboard/pipeline/command-parser.ts';
+import { workflows } from '../components/dashboard/pipeline/workflow-catalog.ts';
 
 test('workflow catalogue keeps supported audited and approved operations', () => {
   assert.ok(workflows.linkedin.some((workflow) => workflow.id === 'audit'));

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { craftCategoryTitles } from '../components/automate/craft-category-titles.ts';
+import { craftCategoryTitles } from '../components/dashboard/crafts/craft-category-titles.ts';
 
 test('Craft categories retain the six named catalogue sections', () => {
   assert.deepEqual(craftCategoryTitles, {

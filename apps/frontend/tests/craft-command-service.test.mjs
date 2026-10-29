@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
-import { executeCraftCommand } from '../components/automate/pipeline/craft-command-service.ts';
+import { executeCraftCommand } from '../components/dashboard/pipeline/craft-command-service.ts';
 
 const originalFetch = globalThis.fetch;
 afterEach(() => {

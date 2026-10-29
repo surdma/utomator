@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { defaultWorkflowPlan } from '../components/automate/pipeline/default-workflow-plan.ts';
+import { defaultWorkflowPlan } from '../components/dashboard/pipeline/default-workflow-plan.ts';
 import {
   appendVisualReviewStep,
   captureSection,
   reviewSection,
   validateReviewImage,
-} from '../components/automate/pipeline/visual-review-model.ts';
+} from '../components/dashboard/pipeline/visual-review-model.ts';
 
 test('review upload accepts only supported types at the original 2 MiB boundary', () => {
   for (const type of ['image/png', 'image/jpeg', 'image/webp']) {

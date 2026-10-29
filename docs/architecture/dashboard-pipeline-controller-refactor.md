@@ -1,6 +1,6 @@
 # Dashboard pipeline controller refactor
 
-Scope: `apps/frontend/components/automate/pipeline.tsx` and its page-specific modules.
+Scope: `apps/frontend/components/dashboard/dashboard-shell.tsx` and its page-specific modules.
 
 ## Behavior preserved
 
@@ -44,3 +44,18 @@ Frontend unit/route tests (including the visual review model), TypeScript, forma
 and responsive/accessibility checks are required before this refactor is considered validated. Live
 LinkedIn account execution remains outside fixture-based CI and is not claimed by this structural
 refactor.
+
+## Dashboard component migration
+
+The dashboard now lives under `apps/frontend/components/dashboard/` with
+`dashboard-shell.tsx` as the route-level coordinator. Feature modules are
+grouped into `career/`, `connections/`, `crafts/`, `editorial/`,
+`growth/`, `intelligence/`, `pipeline/`, `research/`, `reviews/`,
+`settings/` and `workflows/`. The former `components/automate/` directory
+is removed. Previously unreferenced `intelligence-studio.tsx` and
+`linkedin-growth-hub.tsx` were also removed after checking their consumers.
+
+The career section editor, résumé preview, workflow step card, shared workflow
+types and craft graph node/MDX serializer are separate from their page
+controllers. The remaining large orchestrators should be decomposed only with
+behavior-level tests and a route/consumer trace, not by dropping live UI.

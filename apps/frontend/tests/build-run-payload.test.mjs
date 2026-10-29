@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildRunPayload } from '../components/automate/pipeline/build-run-payload.ts';
+import { buildRunPayload } from '../components/dashboard/pipeline/build-run-payload.ts';
 
 const base = () => ({
   loadingWorkflow: false,

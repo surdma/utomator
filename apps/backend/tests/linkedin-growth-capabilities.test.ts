@@ -6,7 +6,7 @@ import {
   growthJourneys,
   growthGuardrails,
   profileSections,
-} from '../../frontend/components/automate/linkedin-growth-capabilities.js';
+} from '../../frontend/components/dashboard/growth/linkedin-growth-capabilities.js';
 
 test('LinkedIn scope registry preserves all product modules without pretending full delivery', () => {
   assert.equal(growthCapabilities.length, 15);

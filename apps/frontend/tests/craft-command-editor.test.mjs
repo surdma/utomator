@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { editCraftFromCommand } from '../components/automate/pipeline/craft-command-editor.ts';
+import { editCraftFromCommand } from '../components/dashboard/pipeline/craft-command-editor.ts';
 
 const craft = () => ({
   id: 'craft-one',

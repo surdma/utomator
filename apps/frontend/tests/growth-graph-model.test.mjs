@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import {
   buildGrowthGraph,
   getGrowthTaskStates,
-} from '../components/automate/growth-graph-model.ts';
+} from '../components/dashboard/growth/growth-graph-model.ts';
 
 const stage = {
   id: 'audit',

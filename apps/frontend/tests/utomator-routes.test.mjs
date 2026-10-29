@@ -69,15 +69,15 @@ test('landing page and pipeline identity are Utomator, not the portfolio', () =>
 
 test('unified Growth editor reads the ID from nested Growth and legacy Craft URLs', () => {
   const pipeline = readFileSync(
-    resolve(root, 'components', 'automate', 'pipeline.tsx'),
+    resolve(root, 'components', 'dashboard', 'dashboard-shell.tsx'),
     'utf8'
   );
   const navigation = readFileSync(
-    resolve(root, 'components/automate/pipeline/dashboard-route.ts'),
+    resolve(root, 'components/dashboard/pipeline/dashboard-route.ts'),
     'utf8'
   );
   const navigationHook = readFileSync(
-    resolve(root, 'components/automate/pipeline/use-dashboard-navigation.ts'),
+    resolve(root, 'components/dashboard/pipeline/use-dashboard-navigation.ts'),
     'utf8'
   );
   assert.match(
@@ -97,7 +97,7 @@ test('unified Growth editor reads the ID from nested Growth and legacy Craft URL
     /pane\s*===\s*['"]growth['"]\s*&&\s*\(?\s*<CraftsLibrary/
   );
   const pipelineWorkspace = readFileSync(
-    resolve(root, 'components/automate/pipeline/pipeline-workspace.tsx'),
+    resolve(root, 'components/dashboard/pipeline/pipeline-workspace.tsx'),
     'utf8'
   );
   assert.match(
@@ -131,11 +131,11 @@ test('unified Growth editor reads the ID from nested Growth and legacy Craft URL
 
 test('dashboard navigation is distinct from account and career API paths', () => {
   const account = readFileSync(
-    resolve(root, 'components', 'automate', 'account-studio.tsx'),
+    resolve(root, 'components', 'dashboard', 'connections/account-studio.tsx'),
     'utf8'
   );
   const career = readFileSync(
-    resolve(root, 'components', 'automate', 'career-studio.tsx'),
+    resolve(root, 'components', 'dashboard', 'career/career-studio.tsx'),
     'utf8'
   );
   assert.match(
@@ -161,15 +161,15 @@ test('dashboard navigation is distinct from account and career API paths', () =>
 
 test('unified Growth UI retains coverage, pipeline boundaries and the MDX editor', () => {
   const catalog = readFileSync(
-    resolve(root, 'components/automate/craft-catalog.tsx'),
+    resolve(root, 'components/dashboard/crafts/craft-catalog.tsx'),
     'utf8'
   );
   const details = readFileSync(
-    resolve(root, 'components/automate/growth-capability-details.tsx'),
+    resolve(root, 'components/dashboard/growth/growth-capability-details.tsx'),
     'utf8'
   );
   const editor = readFileSync(
-    resolve(root, 'components/automate/crafts-library.tsx'),
+    resolve(root, 'components/dashboard/crafts/crafts-library.tsx'),
     'utf8'
   );
   assert.match(catalog, /growthJourneys\.map/);
@@ -189,15 +189,15 @@ test('unified Growth UI retains coverage, pipeline boundaries and the MDX editor
 
 test('Growth YAML loads through the existing Templates modal and nested artboard', () => {
   const modal = readFileSync(
-    resolve(root, 'components/automate/template-browser.tsx'),
+    resolve(root, 'components/dashboard/workflows/template-browser.tsx'),
     'utf8'
   );
   const editor = readFileSync(
-    resolve(root, 'components/automate/workflow-plan-editor.tsx'),
+    resolve(root, 'components/dashboard/workflows/workflow-plan-editor.tsx'),
     'utf8'
   );
   const graph = readFileSync(
-    resolve(root, 'components/automate/growth-workflow-artboard.tsx'),
+    resolve(root, 'components/dashboard/growth/growth-workflow-artboard.tsx'),
     'utf8'
   );
   const proxy = readFileSync(
@@ -205,7 +205,7 @@ test('Growth YAML loads through the existing Templates modal and nested artboard
     'utf8'
   );
   const optionsModel = readFileSync(
-    resolve(root, 'components/automate/template-options.ts'),
+    resolve(root, 'components/dashboard/workflows/template-options.ts'),
     'utf8'
   );
   assert.match(
@@ -223,7 +223,7 @@ test('Growth YAML loads through the existing Templates modal and nested artboard
   assert.match(graph, /growth-pipeline-node-/);
   assert.match(graph, /growth-task-node-/);
   const graphModel = readFileSync(
-    resolve(root, 'components/automate/growth-graph-model.ts'),
+    resolve(root, 'components/dashboard/growth/growth-graph-model.ts'),
     'utf8'
   );
   assert.match(graphModel, /details\?\.stepId/);

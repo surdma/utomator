@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { getDashboardRoute } from '../components/automate/pipeline/dashboard-route.ts';
+import { getDashboardRoute } from '../components/dashboard/pipeline/dashboard-route.ts';
 
 test('dashboard pages resolve their active pane without effect-driven state', () => {
   for (const [path, pane] of [

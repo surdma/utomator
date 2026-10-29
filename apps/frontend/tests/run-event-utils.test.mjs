@@ -5,7 +5,7 @@ import {
   belongsToRun,
   isPauseOrResume,
   isTerminalRunStatus,
-} from '../components/automate/pipeline/run-event-utils.ts';
+} from '../components/dashboard/pipeline/run-event-utils.ts';
 
 const runEvent = (kind, message, id = 1, runId = 'run-one') => ({
   id,

@@ -7,7 +7,7 @@ const root = resolve(import.meta.dirname, '..', 'components', 'automate');
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 
 test('pipeline coordinates dedicated controllers rather than owning run transport', () => {
-  const page = read('pipeline.tsx');
+  const page = read('dashboard-shell.tsx');
   const monitor = read('pipeline/use-run-monitor.ts');
   const workspace = read('pipeline/use-workflow-workspace.ts');
   const chat = read('pipeline/use-operator-commands.ts');
