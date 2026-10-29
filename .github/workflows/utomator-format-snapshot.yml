@@ -1,0 +1,56 @@
+name: Utomator formatter snapshot
+
+on:
+  push:
+    branches: [feat/yaml-growth-profile-pipeline]
+    paths:
+      - "apps/backend/**"
+      - "apps/frontend/**"
+      - ".github/workflows/utomator-format-snapshot.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  format-snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Produce backend Biome formatting
+        run: pnpm --filter @utomator/backend exec biome format --write .
+      - name: Produce frontend Prettier formatting
+        run: >-
+          pnpm exec prettier --write
+          'apps/frontend/{app,components,lib,tests}/**/*.{js,jsx,mjs,ts,tsx,css,md,json}'
+          'apps/frontend/*.{js,mjs,ts,tsx,json}'
+      - name: Export changed file contents for reviewed Git patch
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64
+          import hashlib
+          import pathlib
+          import subprocess
+
+          paths = subprocess.check_output(
+              ['git', 'diff', '--name-only', '--diff-filter=ACM'],
+              text=True,
+          ).splitlines()
+          print(f'FORMAT_FILE_COUNT:{len(paths)}', flush=True)
+          for path in paths:
+              content = pathlib.Path(path).read_bytes()
+              digest = hashlib.sha256(content).hexdigest()
+              print(f'FORMAT_BEGIN:{path}:{len(content)}:{digest}', flush=True)
+              encoded = base64.b64encode(content).decode('ascii')
+              for offset in range(0, len(encoded), 2000):
+                  print(f'FORMAT_CHUNK:{path}:{offset // 2000}:{encoded[offset:offset + 2000]}', flush=True)
+              print(f'FORMAT_END:{path}', flush=True)
+          PY
