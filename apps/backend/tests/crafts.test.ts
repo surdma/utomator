@@ -10,7 +10,7 @@ import { CraftLibrary, parseMdx, toMdx, craftArchive, type Craft } from '../src/
 import {
   growthCapabilities,
   profileSections,
-} from '../../frontend/components/automate/linkedin-growth-capabilities.js';
+} from '../../frontend/components/dashboard/growth/linkedin-growth-capabilities.js';
 
 const root = await mkdtemp(join(tmpdir(), 'utomator-crafts-'));
 const databaseFile = `file:${join(root, 'crafts.db')}`;
