@@ -209,7 +209,7 @@ export default function AutomationPipeline({
       setConnectorRequest(null);
     },
     [
-      activeConnector?.id,
+      activeConnector,
       platform,
       invalidateWorkflowSelection,
       setAction,
