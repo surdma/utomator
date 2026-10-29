@@ -183,7 +183,15 @@ test('Growth YAML loads through the existing Templates modal and nested artboard
     resolve(root, 'app/api/[...path]/route.ts'),
     'utf8'
   );
-  assert.match(modal, /growthCapabilities\.map/);
+  const optionsModel = readFileSync(
+    resolve(root, 'components/automate/template-options.ts'),
+    'utf8'
+  );
+  assert.match(
+    modal,
+    /buildTemplateOptions\(growthTemplates, toolkits, growthSupported\)/
+  );
+  assert.match(optionsModel, /growthCapabilities\.map/);
   assert.match(modal, /\/api\/growth\/templates/);
   assert.match(modal, /onGrowthApply/);
   assert.match(editor, /onGrowthTemplateApply/);
