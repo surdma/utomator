@@ -49,7 +49,7 @@ test('six YAML planning stages have a stable allowlisted order and typed handoff
     const yaml = manifest.steps[stages[i]]!;
     assert.match(yaml, /providerMutation: false/);
     assert.match(yaml, /operation: "/);
-    assert.match(yaml, new RegExp('sourceStep: ' + (i ? '"' + stages[i - 1] + '"' : 'null')));
+    assert.match(yaml, new RegExp(`sourceStep: ${i ? `"${stages[i - 1]}"` : 'null'}`));
   }
 });
 
@@ -143,7 +143,7 @@ test('planning report refuses an approval whose persisted evidence digest no lon
     const planner = new ProfilePlanner(root, loadIdentityTimeline);
     const start = await planner.start(input);
     await planner.decide(start.id, true);
-    const path = join(root, start.id + '.json');
+    const path = join(root, `${start.id}.json`);
     const stored = JSON.parse(await readFile(path, 'utf8')) as {
       stages: Array<{ output?: { evidenceRef?: { digest?: string } } }>;
     };
@@ -179,7 +179,7 @@ test('planning different selected accounts does not reuse a fixed LinkedIn handl
     assert.equal(second.profileUrl, 'https://www.linkedin.com/in/bob-example/');
     assert.equal(second.proposals.find((p) => p.id === 'headline')?.proposed, 'Chemistry teacher');
     await planner.decide(first.id, true);
-    const path = join(root, first.id + '.json');
+    const path = join(root, `${first.id}.json`);
     const stored = JSON.parse(await readFile(path, 'utf8')) as {
       accountId?: string;
     };
