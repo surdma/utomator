@@ -533,3 +533,29 @@ test('Growth YAML templates load into the existing workflow artboard with nested
       'selecting a Growth template must not execute a browser action');
   }finally{await browser.close();await app.close();}
 });
+
+
+test('second Growth YAML uses the same modal and nested pipeline graph', {timeout:90000},async()=>{
+  const app=buildApp();
+  const browser=await chromium.launch({headless:true});
+  try {
+    await app.listen({host:'127.0.0.1',port:3101});
+    const page=await browser.newPage({viewport:{width:1280,height:820}});
+    await page.goto('http://127.0.0.1:3100/dashboard/pipeline',{waitUntil:'domcontentloaded'});
+    const before=(await app.inject('/runs')).json().length;
+    const modal=page.getByRole('dialog',{name:'Workflow template library'});
+    await clickUntilVisible(page,page.getByRole('button',{name:'Choose workflow template'}),modal);
+    await modal.getByRole('searchbox',{name:'Search workflow templates'}).fill('Personal positioning & professional authority');
+    await modal.getByRole('option',{name:/Personal positioning & professional authority/}).click();
+    await modal.getByText(/1 connected pipelines/).waitFor();
+    await modal.getByRole('button',{name:'Load Growth workflow'}).click();
+    await modal.waitFor({state:'hidden'});
+    const graph=page.getByTestId('workflow-artboard').getByTestId('growth-nested-artboard');
+    await graph.getByTestId('growth-pipeline-node-positioning').waitFor();
+    assert.equal(await graph.locator('[data-testid^="growth-pipeline-node-"]').count(),1);
+    await graph.getByTestId('growth-pipeline-node-positioning').click();
+    await graph.getByTestId('growth-task-node-session').waitFor();
+    assert((await graph.locator('[data-testid^="growth-task-node-"]').count())>=4);
+    assert.equal((await app.inject('/runs')).json().length,before);
+  } finally { await browser.close(); await app.close(); }
+});

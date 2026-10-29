@@ -111,3 +111,16 @@ Pipeline → Templates modal
 - One YAML sample plus a catalogue does not mean the remaining 20 Growth experiences execute.
 - MDX, Research and Editorial cannot be deleted until lossless replacement validated.
 - Keep PR #7 **draft** if integration, independent review, real account proof or generic compiler acceptance remains blocked.
+
+
+## 8. 2026-10-29 continuation: a reusable, bounded Growth YAML contract
+
+**Verified gap:** `compileGrowthProfileYaml` claimed to allow 1–24 pipelines but discarded all coverage assignments on a single final `sections: "*"` stage. The coordinator's reserved `review` name also applied to unrelated Growth IDs.
+
+**Architecture change candidate:** Preserve `GrowthProfileWorkflow` unchanged and also accept `GrowthWorkflow` with the same safe, read-only LinkedIn Runner contract. A one-stage `*` pipeline now covers all its fields. A later final `*` stage only revisits requirements assigned in earlier pipelines, preventing omitted coverage from being silently claimed. The special default profile final review restriction is unchanged.
+
+**Concrete proof:** `apps/backend/growth/branding-workflow.yaml` is a separate YAML *definition*, not a separate React template page. The existing Templates modal and artboard discover it as a one-pipeline read-only positioning baseline, with session authentication and five owner-supplied field records. This is not a full brand strategy, provider editing or measured growth outcome. Template descriptions now reflect each executable YAML's actual objective.
+
+**Validation scope:** Added backend catalogue/contract/owner-evidence tests and a browser-fixture route through the existing Templates modal and task graph. The tests have not yet been executed in a full checkout in this session; the earlier green CI refers only to the previous application SHA.
+
+**Status and predecessor/successor:** INVESTIGATED → PLANNED → implementation candidate prepared. Predecessor: Engineering Lead, Repository Investigator, API & Contract, Backend and Frontend. Successor: Test Engineer (typecheck, backend and browser regression) → Independent Code Reviewer (coverage and trust boundaries) → Integration/Dogfood (real owner read-only run, failure highlight, keyboard/mobile) → Git/Release (exact-head CI, PR ancestry). Keep PR #7 draft until gates pass. Existing P0 blockers for field-level collectors, generic typed provider operations, durable restart reconciliation and unimplemented Growth capabilities remain open.

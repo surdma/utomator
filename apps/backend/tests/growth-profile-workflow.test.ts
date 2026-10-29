@@ -229,3 +229,62 @@ test('completed child waits for Runner browser cleanup before the next pipeline'
   assert.equal(next.activeIndex,1);
   assert.equal(starts,2);
 });
+
+
+test('a second Growth YAML is discovered and compiled as one guarded pipeline',async()=>{
+  const templates=await readGrowthTemplateCatalog();
+  const second=templates.find(item=>item.program.id==='linkedin-branding');
+  assert(second,'another Growth must be discovered without a dedicated page or controller');
+  assert.equal(second.program.kind,'GrowthWorkflow');
+  assert.equal(second.program.stages.length,1);
+  assert.equal(second.program.coverage.length,5);
+  assert.deepEqual(second.program.stages[0]?.sectionIds,
+    second.program.coverage.map(item=>item.id));
+  assert.equal(second.program.stages[0]?.plan.steps[1]?.kind,'session');
+  assert(second.program.stages[0]!.plan.links.length>=4);
+  assert.throws(()=>compileGrowthProfileYaml(second.yaml.replace(
+    '      action: "audit"','      action: "edit-profile"')),
+    /Invalid or unsafe Growth pipeline stage configuration/);
+  const app=buildApp();
+  try {
+    await app.ready();
+    const detail=await app.inject('/growth/templates/linkedin-branding');
+    assert.equal(detail.statusCode,200,detail.body);
+    assert.equal(detail.json().stages.length,1);
+    assert.equal((await app.inject('/growth/templates/linkedin-branding/yaml')).statusCode,200);
+    assert.deepEqual((await app.inject('/growth/templates/linkedin-branding/runs')).json(),[]);
+  }finally{await app.close();}
+});
+
+test('single-pipeline Growth reports all owner evidence without false provider verification',async()=>{
+  const runs=new Map<string,RunSummary>();
+  const runner={
+    start(input:RunRequest){
+      validateRun(input);
+      assert(input.workflow);
+      compileWorkflow(input.workflow);
+      const child:RunSummary={id:randomUUID(),platform:input.platform,action:input.action,
+        state:'completed',createdAt:new Date().toISOString()};
+      runs.set(child.id,child);
+      return child;
+    },
+    get(id:string){return runs.get(id);},
+    stepOutput(){return {schema:'evidence/v1',
+      url:'https://www.linkedin.com/in/verified-owner/',digest:'a'.repeat(64)};},
+    isIdle(){return true;},
+    cancel(){return true;},
+  } as unknown as Runner;
+  const coordinator=new ProfileGrowthCoordinator(runner);
+  const started=await coordinator.start('c63e8078-644d-4a2a-80bd-7cba9eaa0e1b',
+    'https://www.linkedin.com/in/verified-owner/','linkedin-branding');
+  assert.equal(started.stages.length,1);
+  assert.equal(started.counts.total,5);
+  for(const field of started.coverage)
+    await coordinator.supplyEvidence(started.id,{sectionId:field.id,
+      text:'Owner reported observation for '+field.id});
+  const final=await coordinator.advance(started.id);
+  assert.equal(final.status,'completed-with-owner-evidence');
+  assert.equal(final.counts.missing,0);
+  assert.equal(final.counts.independentlyProviderVerified,0);
+  assert.equal(runs.size,1);
+});
