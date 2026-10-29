@@ -951,7 +951,7 @@ export default function AutomationPipeline({ initialPane = "pipeline" }: { initi
           </div>}
       </StudioDialog>
       {pane !== "profile" && pane !== "resumes" && <button type="button" aria-label="Open Mator" onClick={()=>{setChatVisible(true);setMobileChatOpen(true);}}
-        className={"fixed bottom-5 right-5 z-30 inline-flex min-h-12 items-center gap-2 rounded-full bg-slate-950 px-5 text-sm font-bold text-white shadow-2xl ring-2 ring-white/80 hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-teal-600 "+(chatVisible?"lg:hidden":"")+(mobileChatOpen?" hidden":"")}>
+        className={"fixed right-5 bottom-24 lg:bottom-5 z-30 inline-flex min-h-12 items-center gap-2 rounded-full bg-slate-950 px-5 text-sm font-bold text-white shadow-2xl ring-2 ring-white/80 hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-teal-600 "+(chatVisible?"lg:hidden":"")+(mobileChatOpen?" hidden":"")}>
         <MessageSquareText className="size-5" />Mator
       </button>}
     {imageDraft && <VisualReviewPanel source={imageDraft} platform={platform} handle={normalizedHandle}
