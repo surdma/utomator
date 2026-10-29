@@ -3,14 +3,9 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import {
-  AccountStore,
-  parseSocialAccount,
-} from '../src/profile/account-store.js';
+import { AccountStore, parseSocialAccount } from '../src/profile/account-store.js';
 
-async function withStore(
-  fn: (store: AccountStore, root: string) => Promise<void>
-) {
+async function withStore(fn: (store: AccountStore, root: string) => Promise<void>) {
   const root = await mkdtemp(join(tmpdir(), 'account-store-'));
   try {
     await fn(new AccountStore(root), root);
@@ -41,7 +36,7 @@ test('fresh workspace does not inherit portfolio owner or social handles', async
     assert.deepEqual(
       (await new AccountStore(root).get()).socialAccounts,
       social.socialAccounts,
-      'social account survives restart before personal details are filled out'
+      'social account survives restart before personal details are filled out',
     );
     assert.equal((await new AccountStore(root).get()).profile.displayName, '');
   });
@@ -56,15 +51,12 @@ test('one verified account per provider and linked identities persist', async ()
       location: 'Lagos',
       about: 'Owner profile',
     });
-    const alice = await store.linkVerifiedSocial(
-      '00000000-0000-4000-8000-000000000011',
-      {
-        platform: 'linkedin',
-        label: 'Work LinkedIn',
-        handle: 'alice',
-        profileUrl: 'https://www.linkedin.com/in/alice/',
-      }
-    );
+    const alice = await store.linkVerifiedSocial('00000000-0000-4000-8000-000000000011', {
+      platform: 'linkedin',
+      label: 'Work LinkedIn',
+      handle: 'alice',
+      profileUrl: 'https://www.linkedin.com/in/alice/',
+    });
     assert.equal(alice.revision, changed.revision + 1);
     await assert.rejects(
       store.linkVerifiedSocial('00000000-0000-4000-8000-000000000012', {
@@ -73,7 +65,7 @@ test('one verified account per provider and linked identities persist', async ()
         handle: 'bob',
         profileUrl: 'https://www.linkedin.com/in/bob/',
       }),
-      /Only one linked account/
+      /Only one linked account/,
     );
     await assert.rejects(
       store.addSocial(alice.revision, {
@@ -82,17 +74,14 @@ test('one verified account per provider and linked identities persist', async ()
         handle: 'bob',
         profileUrl: 'https://www.linkedin.com/in/bob/',
       }),
-      /Only one linked account/
+      /Only one linked account/,
     );
-    const x = await store.linkVerifiedSocial(
-      '00000000-0000-4000-8000-000000000013',
-      {
-        platform: 'x',
-        label: 'X profile',
-        handle: 'alice',
-        profileUrl: 'https://x.com/alice',
-      }
-    );
+    const x = await store.linkVerifiedSocial('00000000-0000-4000-8000-000000000013', {
+      platform: 'x',
+      label: 'X profile',
+      handle: 'alice',
+      profileUrl: 'https://x.com/alice',
+    });
     assert.equal(x.socialAccounts.length, 2);
     assert.equal((await new AccountStore(root).get()).socialAccounts.length, 2);
     await assert.rejects(
@@ -102,12 +91,9 @@ test('one verified account per provider and linked identities persist', async ()
         handle: 'bob',
         profileUrl: 'https://www.linkedin.com/in/bob/',
       }),
-      /Only one linked account/
+      /Only one linked account/,
     );
-    const removed = await store.removeSocial(
-      x.revision,
-      alice.socialAccounts[0]!.id
-    );
+    const removed = await store.removeSocial(x.revision, alice.socialAccounts[0]!.id);
     assert.equal(removed.socialAccounts.length, 1);
   });
 });
@@ -123,7 +109,7 @@ test('account revisions and provider identity checks reject conflicting updates'
           handle: 'alice',
           profileUrl: 'https://linkedin.com/in/bob/',
         }),
-      /handle must match/
+      /handle must match/,
     );
     assert.throws(
       () =>
@@ -133,7 +119,7 @@ test('account revisions and provider identity checks reject conflicting updates'
           handle: 'alice',
           profileUrl: 'https://linkedin.com/company/alice/',
         }),
-      /LinkedIn profile/
+      /LinkedIn profile/,
     );
     assert.throws(
       () =>
@@ -143,7 +129,7 @@ test('account revisions and provider identity checks reject conflicting updates'
           handle: 'alice',
           profileUrl: 'https://linkedin.com/in/alice?next=/in/bob',
         }),
-      /without credentials or parameters/
+      /without credentials or parameters/,
     );
     assert.throws(
       () =>
@@ -153,7 +139,7 @@ test('account revisions and provider identity checks reject conflicting updates'
           handle: 'alice',
           profileUrl: 'https://example.org/alice',
         }),
-      /does not match/
+      /does not match/,
     );
     const full = {
       displayName: 'Test Owner',
@@ -167,10 +153,7 @@ test('account revisions and provider identity checks reject conflicting updates'
     ]);
     assert.equal(results.filter((r) => r.status === 'fulfilled').length, 1);
     assert.equal(results.filter((r) => r.status === 'rejected').length, 1);
-    await assert.rejects(
-      store.removeSocial(1, '00000000-0000-4000-8000-000000009999'),
-      /not found/
-    );
+    await assert.rejects(store.removeSocial(1, '00000000-0000-4000-8000-000000009999'), /not found/);
   });
 });
 
@@ -197,7 +180,7 @@ test('manual account API write is not a valid linking mechanism', async () => {
           payload: fake,
         })
       ).statusCode,
-      405
+      405,
     );
     assert.equal(
       (
@@ -207,7 +190,7 @@ test('manual account API write is not a valid linking mechanism', async () => {
           payload: fake,
         })
       ).statusCode,
-      405
+      405,
     );
   } finally {
     await app.close();

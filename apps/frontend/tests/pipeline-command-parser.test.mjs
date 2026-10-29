@@ -5,7 +5,9 @@ import { workflows } from '../components/automate/pipeline/workflow-catalog.ts';
 
 test('workflow catalogue keeps supported audited and approved operations', () => {
   assert.ok(workflows.linkedin.some((workflow) => workflow.id === 'audit'));
-  assert.ok(workflows.linkedin.some((workflow) => workflow.id === 'edit-profile'));
+  assert.ok(
+    workflows.linkedin.some((workflow) => workflow.id === 'edit-profile')
+  );
   assert.ok(workflows.x.some((workflow) => workflow.id === 'compose-post'));
 });
 

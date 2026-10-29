@@ -40,23 +40,15 @@ export type CareerState = {
 };
 
 const text = (value: unknown, limit: number, field: string): string => {
-  if (typeof value !== 'string' || value.length > limit)
-    throw new Error(`Invalid ${field}`);
+  if (typeof value !== 'string' || value.length > limit) throw new Error(`Invalid ${field}`);
   return value.trim();
 };
-const list = (
-  value: unknown,
-  limit: number,
-  maxLength: number,
-  field: string
-): string[] => {
-  if (!Array.isArray(value) || value.length > limit)
-    throw new Error(`Invalid ${field}`);
+const list = (value: unknown, limit: number, maxLength: number, field: string): string[] => {
+  if (!Array.isArray(value) || value.length > limit) throw new Error(`Invalid ${field}`);
   return value.map((item) => text(item, maxLength, field)).filter(Boolean);
 };
 const record = (value: unknown, field: string): Record<string, unknown> => {
-  if (!value || typeof value !== 'object' || Array.isArray(value))
-    throw new Error(`Invalid ${field}`);
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`Invalid ${field}`);
   return value as Record<string, unknown>;
 };
 
@@ -72,12 +64,9 @@ export function parseCareerDocument(value: unknown): CareerDocument {
   const customSections = doc.customSections ?? [];
   if (!Array.isArray(customSections) || customSections.length > 12)
     throw Error('Invalid custom sections');
-  if (!Array.isArray(education) || education.length > 12)
-    throw new Error('Invalid education');
-  if (!Array.isArray(experience) || experience.length > 35)
-    throw new Error('Invalid experience');
-  if (!Array.isArray(projects) || projects.length > 30)
-    throw new Error('Invalid projects');
+  if (!Array.isArray(education) || education.length > 12) throw new Error('Invalid education');
+  if (!Array.isArray(experience) || experience.length > 35) throw new Error('Invalid experience');
+  if (!Array.isArray(projects) || projects.length > 30) throw new Error('Invalid projects');
   return {
     name,
     headline,
@@ -106,8 +95,7 @@ export function parseCareerDocument(value: unknown): CareerDocument {
       const row = record(entry, 'custom section ' + index);
       const id = text(row.id, 60, 'custom section id');
       const title = text(row.title, 100, 'custom section title');
-      if (!/^[a-zA-Z0-9-]{1,60}$/.test(id) || !title)
-        throw Error('Section ID and title are required');
+      if (!/^[a-zA-Z0-9-]{1,60}$/.test(id) || !title) throw Error('Section ID and title are required');
       return {
         id,
         title,
@@ -170,14 +158,8 @@ export class CareerStore {
   }
   async get(): Promise<CareerState> {
     try {
-      const stored = this.documents
-        ? await this.documents.get<CareerState>('career', 'profile')
-        : null;
-      if (
-        this.documents?.ownerId !== 'local-owner' &&
-        this.documents &&
-        !stored
-      )
+      const stored = this.documents ? await this.documents.get<CareerState>('career', 'profile') : null;
+      if (this.documents?.ownerId !== 'local-owner' && this.documents && !stored)
         return { revision: 0, profile: emptyCareerDocument(), resumes: [] };
       const content = stored
         ? stored.value
@@ -210,7 +192,7 @@ export class CareerStore {
   }
   private async change(
     expectedRevision: number,
-    fn: (current: CareerState) => CareerState
+    fn: (current: CareerState) => CareerState,
   ): Promise<CareerState> {
     if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0)
       throw new Error('Invalid expected revision');
@@ -221,16 +203,8 @@ export class CareerStore {
       const next = fn(current);
       next.revision = current.revision + 1;
       if (this.documents) {
-        const stored = await this.documents.get<CareerState>(
-          'career',
-          'profile'
-        );
-        await this.documents.put(
-          'career',
-          'profile',
-          next,
-          stored?.version ?? 0
-        );
+        const stored = await this.documents.get<CareerState>('career', 'profile');
+        await this.documents.put('career', 'profile', next, stored?.version ?? 0);
       } else {
         await mkdir(dirname(this.file), { recursive: true, mode: 0o700 });
         const temp = `${this.file}.${randomUUID()}.tmp`;
@@ -243,7 +217,7 @@ export class CareerStore {
     });
     this.queue = operation.then(
       () => undefined,
-      () => undefined
+      () => undefined,
     );
     return operation;
   }
@@ -256,17 +230,12 @@ export class CareerStore {
   }
   createResume(expectedRevision: number, fromId?: string) {
     return this.change(expectedRevision, (current) => {
-      if (current.resumes.length >= 40)
-        throw new Error('Maximum 40 résumé versions');
-      const origin = fromId
-        ? current.resumes.find((r) => r.id === fromId)
-        : undefined;
+      if (current.resumes.length >= 40) throw new Error('Maximum 40 résumé versions');
+      const origin = fromId ? current.resumes.find((r) => r.id === fromId) : undefined;
       if (fromId && !origin) throw new Error('Source résumé not found');
       const doc = structuredClone(origin || current.profile);
       if (!doc.name.trim() || !doc.headline.trim())
-        throw new Error(
-          'Complete your career source name and headline before creating a résumé'
-        );
+        throw new Error('Complete your career source name and headline before creating a résumé');
       const draft = parseResume({
         ...doc,
         label: origin ? `${origin.label} copy` : 'New tailored résumé',
@@ -291,10 +260,8 @@ export class CareerStore {
   }
   deleteResume(expectedRevision: number, id: string) {
     return this.change(expectedRevision, (current) => {
-      if (!current.resumes.some((r) => r.id === id))
-        throw new Error('Résumé not found');
-      if (current.resumes.length === 1)
-        throw new Error('Keep at least one résumé version');
+      if (!current.resumes.some((r) => r.id === id)) throw new Error('Résumé not found');
+      if (current.resumes.length === 1) throw new Error('Keep at least one résumé version');
       return {
         ...current,
         resumes: current.resumes.filter((r) => r.id !== id),

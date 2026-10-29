@@ -1,12 +1,7 @@
 import { mkdir, rm } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
-import {
-  chromium,
-  type Browser,
-  type BrowserContext,
-  type Page,
-} from 'playwright';
+import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import type { VaultPayload } from '../core/session-vault.js';
 import { seedOriginStorage } from './vault-probe.js';
 
@@ -49,9 +44,7 @@ async function discoverRunningChrome(): Promise<string | undefined> {
     const metadata = (await response.json()) as {
       webSocketDebuggerUrl?: unknown;
     };
-    return typeof metadata.webSocketDebuggerUrl === 'string'
-      ? localCdpUrl
-      : undefined;
+    return typeof metadata.webSocketDebuggerUrl === 'string' ? localCdpUrl : undefined;
   } catch {
     // Nothing is listening on the debugging port; use our persisted Chrome profile.
     return undefined;
@@ -62,16 +55,14 @@ export class BrowserSession {
   private browser?: Browser;
   private context?: BrowserContext;
   private page?: Page;
-  private connection?:
-    'existing-chrome' | 'persistent-profile' | 'vault-restored';
+  private connection?: 'existing-chrome' | 'persistent-profile' | 'vault-restored';
   private scratchDir?: string;
 
   get currentPage(): Page | undefined {
     return this.page;
   }
 
-  get kind():
-    'existing-chrome' | 'persistent-profile' | 'vault-restored' | undefined {
+  get kind(): 'existing-chrome' | 'persistent-profile' | 'vault-restored' | undefined {
     return this.connection;
   }
 
@@ -92,7 +83,7 @@ export class BrowserSession {
         : undefined;
     if (attach && !cdpUrl)
       throw Error(
-        'Existing Chrome was not found. Enable loopback Chrome debugging in a local profile, or use isolated browser mode.'
+        'Existing Chrome was not found. Enable loopback Chrome debugging in a local profile, or use isolated browser mode.',
       );
     if (cdpUrl) {
       const cdp = new URL(cdpUrl);
@@ -105,7 +96,7 @@ export class BrowserSession {
         this.browser = await attachChrome(cdpUrl);
       } catch {
         throw new Error(
-          'Cannot attach to Chrome debugging session. Verify Chrome is running with a loopback CDP port, or disable CHROME_CDP_URL to use the persistent profile.'
+          'Cannot attach to Chrome debugging session. Verify Chrome is running with a loopback CDP port, or disable CHROME_CDP_URL to use the persistent profile.',
         );
       }
       this.context = this.browser.contexts()[0];
@@ -120,9 +111,7 @@ export class BrowserSession {
       await mkdir(dir, { recursive: true, mode: 0o700 });
       this.context = await chromium.launchPersistentContext(dir, {
         // Hosted workers use their own Playwright-managed Chromium, never a system Chrome profile.
-        ...(process.env.UTOMATOR_DISABLE_CDP === 'true'
-          ? {}
-          : { channel: 'chrome' }),
+        ...(process.env.UTOMATOR_DISABLE_CDP === 'true' ? {} : { channel: 'chrome' }),
         headless: process.env.HEADLESS === 'true',
         viewport: { width: 1366, height: 850 },
         acceptDownloads: false,

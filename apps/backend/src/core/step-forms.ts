@@ -27,9 +27,7 @@ export function parseStepForms(yaml: string): Record<StepKind, StepForm> {
   if (
     document.apiVersion !== 'utomator.dev/v1' ||
     document.kind !== 'StepForms' ||
-    Object.keys(document).some(
-      (key) => !['apiVersion', 'kind', 'forms'].includes(key)
-    )
+    Object.keys(document).some((key) => !['apiVersion', 'kind', 'forms'].includes(key))
   )
     throw Error('Unknown step form document');
   const forms = mapping(document.forms);
@@ -44,13 +42,10 @@ export function parseStepForms(yaml: string): Record<StepKind, StepForm> {
       typeof summary !== 'string' ||
       !summary.trim() ||
       summary.length > 300 ||
-      Object.keys(definition).some(
-        (key) => !['title', 'summary', 'fields'].includes(key)
-      )
+      Object.keys(definition).some((key) => !['title', 'summary', 'fields'].includes(key))
     )
       throw Error('Invalid step form: ' + kind);
-    const rawFields =
-      definition.fields === undefined ? {} : mapping(definition.fields);
+    const rawFields = definition.fields === undefined ? {} : mapping(definition.fields);
     const fields: StepFormField[] = [];
     for (const [key, raw] of Object.entries(rawFields)) {
       const input = mapping(raw);
@@ -59,21 +54,15 @@ export function parseStepForms(yaml: string): Record<StepKind, StepForm> {
         (key === 'message' && !['note', 'stop', 'pause'].includes(kind)) ||
         (key === 'delayMs' && kind !== 'delay') ||
         (key === 'expectedText' && kind !== 'assess') ||
-        Object.keys(input).some(
-          (k) => !['label', 'control', 'min', 'max'].includes(k)
-        ) ||
+        Object.keys(input).some((k) => !['label', 'control', 'min', 'max'].includes(k)) ||
         typeof input.label !== 'string' ||
         !input.label.trim() ||
         input.label.length > 100 ||
         !['text', 'textarea', 'number'].includes(String(input.control)) ||
         (key === 'delayMs') !== (input.control === 'number') ||
-        (input.min !== undefined &&
-          (!Number.isInteger(input.min) || Number(input.min) < 0)) ||
-        (input.max !== undefined &&
-          (!Number.isInteger(input.max) || Number(input.max) > 30000)) ||
-        (input.max !== undefined &&
-          input.min !== undefined &&
-          Number(input.min) > Number(input.max))
+        (input.min !== undefined && (!Number.isInteger(input.min) || Number(input.min) < 0)) ||
+        (input.max !== undefined && (!Number.isInteger(input.max) || Number(input.max) > 30000)) ||
+        (input.max !== undefined && input.min !== undefined && Number(input.min) > Number(input.max))
       )
         throw Error('Invalid step form field: ' + kind + '.' + key);
       fields.push({
@@ -91,7 +80,5 @@ export function parseStepForms(yaml: string): Record<StepKind, StepForm> {
   return result;
 }
 export async function loadStepForms(root = process.cwd()) {
-  return parseStepForms(
-    await readFile(resolve(root, 'step-forms.yaml'), 'utf8')
-  );
+  return parseStepForms(await readFile(resolve(root, 'step-forms.yaml'), 'utf8'));
 }

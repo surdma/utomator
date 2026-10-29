@@ -20,10 +20,7 @@ export type ConsumedTicket = { connectorId: string; ownerId: string | null };
 
 export interface StreamTicketStore {
   /** Mint a ticket bound to one connector attempt. */
-  mint(
-    connectorId: string,
-    ownerId?: string | null
-  ): { token: string; expiresAt: number };
+  mint(connectorId: string, ownerId?: string | null): { token: string; expiresAt: number };
   /** Burn and return the ticket's binding, or null when unknown/expired/spent. */
   consume(token: string): ConsumedTicket | null;
   size(): number;
@@ -38,7 +35,7 @@ const timingSafeToken = (candidate: string, stored: string): boolean => {
 
 export function createStreamTicketStore(
   ttlMs: number = TICKET_TTL_MS,
-  maxTickets: number = MAX_TICKETS
+  maxTickets: number = MAX_TICKETS,
 ): StreamTicketStore {
   const tickets = new Map<string, StreamTicket>();
   const prune = (now: number) => {

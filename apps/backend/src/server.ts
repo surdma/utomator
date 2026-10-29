@@ -1,8 +1,7 @@
 import { buildApp } from './main.js';
 
 const port = Number(process.env.UTOMATOR_PORT || 3101);
-if (!Number.isInteger(port) || port <= 0 || port > 65535)
-  throw new Error('Invalid UTOMATOR_PORT');
+if (!Number.isInteger(port) || port <= 0 || port > 65535) throw new Error('Invalid UTOMATOR_PORT');
 
 const app = buildApp();
 // Hosted workers run in separate process groups. If the gateway disappears,
@@ -30,10 +29,7 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
 app
   .listen({ host: '127.0.0.1', port })
   .then((address) => {
-    app.log.info(
-      { address },
-      'Automation API ready; use /workspace in the frontend'
-    );
+    app.log.info({ address }, 'Automation API ready; use /workspace in the frontend');
   })
   .catch((error: unknown) => {
     app.log.error(error, 'Cannot start Utomator API');

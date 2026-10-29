@@ -4,7 +4,7 @@ import type { Page } from 'playwright';
 export const isConnectionTimeout = (error: unknown): boolean =>
   error instanceof Error &&
   /net::ERR_CONNECTION_TIMED_OUT|net::ERR_CONNECTION_REFUSED|net::ERR_NAME_NOT_RESOLVED/i.test(
-    error.message
+    error.message,
   );
 
 /**
@@ -20,7 +20,7 @@ export async function navigateWithRetry(
     timeout?: number;
     maxAttempts?: number;
     baseDelayMs?: number;
-  } = {}
+  } = {},
 ): Promise<void> {
   const { waitUntil, timeout, maxAttempts = 3, baseDelayMs = 2000 } = opts;
   let lastError: unknown;
@@ -32,9 +32,7 @@ export async function navigateWithRetry(
       lastError = error;
       if (attempt === maxAttempts) break;
       if (!isConnectionTimeout(error)) break; // non-network errors are not retried
-      await new Promise((resolve) =>
-        setTimeout(resolve, baseDelayMs * attempt)
-      );
+      await new Promise((resolve) => setTimeout(resolve, baseDelayMs * attempt));
     }
   }
   throw lastError;

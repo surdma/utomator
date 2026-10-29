@@ -9,7 +9,9 @@ export async function fetchGrowthRunJournal(
     { cache: 'no-store', signal }
   );
   if (!response.ok) {
-    throw Error('Runner event journal unavailable (HTTP ' + response.status + ')');
+    throw Error(
+      'Runner event journal unavailable (HTTP ' + response.status + ')'
+    );
   }
   const entries: unknown = await response.json();
   if (!Array.isArray(entries)) throw Error('Invalid Runner journal');

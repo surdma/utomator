@@ -10,7 +10,5 @@ export const documents = pgTable(
     payload: text('payload').notNull(),
     updatedAt: text('updated_at').notNull(),
   },
-  (table) => [
-    primaryKey({ columns: [table.ownerId, table.namespace, table.key] }),
-  ]
+  (table) => [primaryKey({ columns: [table.ownerId, table.namespace, table.key] })],
 );

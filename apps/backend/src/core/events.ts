@@ -15,9 +15,7 @@ export class EventJournal {
   }
 
   getSince(lastId: number, runId?: string): StreamEvent[] {
-    return this.history.filter(
-      (evt) => evt.id > lastId && (!runId || evt.runId === runId)
-    );
+    return this.history.filter((evt) => evt.id > lastId && (!runId || evt.runId === runId));
   }
 
   subscribe(listener: (evt: StreamEvent) => void): () => void {

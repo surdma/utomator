@@ -19,9 +19,7 @@ export const linkedInProfileActions = [
   'add-featured',
 ] as const satisfies readonly Action[];
 
-const file = fileURLToPath(
-  new URL('../../growth/profile-workflow.yaml', import.meta.url)
-);
+const file = fileURLToPath(new URL('../../growth/profile-workflow.yaml', import.meta.url));
 const plain = (input: unknown): input is Record<string, unknown> =>
   Boolean(input) &&
   typeof input === 'object' &&
@@ -30,7 +28,7 @@ const plain = (input: unknown): input is Record<string, unknown> =>
 function fields(
   input: unknown,
   expected: readonly string[],
-  label: string
+  label: string,
 ): asserts input is Record<string, unknown> {
   if (
     !plain(input) ||
@@ -39,13 +37,7 @@ function fields(
   )
     throw Error('Invalid Growth profile YAML ' + label);
 }
-function entries(
-  input: unknown,
-  prefix: 'requirement' | '',
-  min: number,
-  max: number,
-  label: string
-) {
+function entries(input: unknown, prefix: 'requirement' | '', min: number, max: number, label: string) {
   if (
     !plain(input) ||
     Object.keys(input).length < min ||
@@ -57,7 +49,7 @@ function entries(
           : /^[a-z][a-zA-Z0-9]*$/.test(key)) &&
         typeof value === 'string' &&
         value.trim().length > 0 &&
-        value.length <= 400
+        value.length <= 400,
     )
   )
     throw Error('Invalid Growth profile YAML ' + label);
@@ -69,23 +61,14 @@ export function compileGrowthProfileYaml(yaml: string) {
   fields(parsed.metadata, ['id', 'version', 'title'], 'metadata');
   fields(
     parsed.spec,
-    [
-      'platform',
-      'objective',
-      'requirements',
-      'coverage',
-      'pipelines',
-      'stages',
-    ],
-    'spec'
+    ['platform', 'objective', 'requirements', 'coverage', 'pipelines', 'stages'],
+    'spec',
   );
   const metadata = parsed.metadata,
     spec = parsed.spec;
   if (
     parsed.apiVersion !== 'utomator.dev/v1' ||
-    !['GrowthProfileWorkflow', 'GrowthWorkflow'].includes(
-      String(parsed.kind)
-    ) ||
+    !['GrowthProfileWorkflow', 'GrowthWorkflow'].includes(String(parsed.kind)) ||
     typeof metadata.id !== 'string' ||
     !/^[a-z][a-z0-9-]{2,70}$/.test(metadata.id) ||
     !Number.isSafeInteger(metadata.version) ||
@@ -99,24 +82,14 @@ export function compileGrowthProfileYaml(yaml: string) {
     spec.objective.length > 300
   )
     throw Error('Invalid Growth profile YAML identity');
-  const requirements = entries(
-    spec.requirements,
-    'requirement',
-    1,
-    32,
-    'requirements'
-  );
+  const requirements = entries(spec.requirements, 'requirement', 1, 32, 'requirements');
   const coverage = entries(spec.coverage, '', 1, 64, 'coverage');
   const pipelines = entries(spec.pipelines, '', 1, 24, 'pipelines');
   if (
     metadata.id === 'linkedin-profile' &&
-    (requirements.length !== 9 ||
-      coverage.length !== 20 ||
-      pipelines.length !== 9)
+    (requirements.length !== 9 || coverage.length !== 20 || pipelines.length !== 9)
   )
-    throw Error(
-      'Default Growth profile requirements, coverage or actions changed unexpectedly'
-    );
+    throw Error('Default Growth profile requirements, coverage or actions changed unexpectedly');
   const rawStages = spec.stages;
   if (
     !plain(rawStages) ||
@@ -129,22 +102,15 @@ export function compileGrowthProfileYaml(yaml: string) {
   const stageKeys = Object.keys(rawStages);
   const registeredSections = new Set(coverage.map(([id]) => id));
   const stages = stageKeys.map((id, index) => {
-    if (!/^[a-z][a-zA-Z0-9]*$/.test(id))
-      throw Error('Invalid Growth pipeline stage ID');
+    if (!/^[a-z][a-zA-Z0-9]*$/.test(id)) throw Error('Invalid Growth pipeline stage ID');
     const raw = rawStages[id];
-    fields(
-      raw,
-      ['title', 'action', 'page', 'sections', 'dependsOn', 'tasks'],
-      'stage'
-    );
+    fields(raw, ['title', 'action', 'page', 'sections', 'dependsOn', 'tasks'], 'stage');
     if (
       typeof raw.title !== 'string' ||
       !raw.title.trim() ||
       raw.title.length > 120 ||
       !['audit', 'audit-page'].includes(String(raw.action)) ||
-      !['profile', 'experience', 'skills', 'projects', 'featured'].includes(
-        String(raw.page)
-      ) ||
+      !['profile', 'experience', 'skills', 'projects', 'featured'].includes(String(raw.page)) ||
       (raw.action === 'audit-page' && raw.page === 'profile') ||
       (raw.action === 'audit' && raw.page !== 'profile') ||
       raw.dependsOn !== (index === 0 ? 'none' : stageKeys[index - 1]) ||
@@ -167,20 +133,15 @@ export function compileGrowthProfileYaml(yaml: string) {
       metadata.id === 'linkedin-profile' &&
       (raw.sections !== '*' || sectionIds.length !== 20)
     )
-      throw Error(
-        'Default profile final review must include all 20 evidence targets'
-      );
+      throw Error('Default profile final review must include all 20 evidence targets');
     if (isFinalStage && raw.sections === '*' && index > 0) {
       // A final review can repeat prior coverage, but cannot hide omitted sections.
       if (seenSections.size !== registeredSections.size)
-        throw Error(
-          'Final Growth review requires coverage in preceding pipelines'
-        );
+        throw Error('Final Growth review requires coverage in preceding pipelines');
     } else {
       // A single-pipeline Growth may cover all its evidence requirements.
       for (const section of sectionIds) {
-        if (seenSections.has(section))
-          throw Error('Growth profile coverage assigned twice');
+        if (seenSections.has(section)) throw Error('Growth profile coverage assigned twice');
         seenSections.add(section);
       }
     }
@@ -192,29 +153,24 @@ export function compileGrowthProfileYaml(yaml: string) {
     if (
       !plain(taskOverrides) ||
       !['start', 'session', 'action'].every(
-        (key) =>
-          typeof taskOverrides[key] === 'string' && taskOverrides[key].trim()
+        (key) => typeof taskOverrides[key] === 'string' && taskOverrides[key].trim(),
       ) ||
       Object.entries(taskOverrides).some(
         ([key, value]) =>
           !base.steps.some((step) => step.id === key) ||
           typeof value !== 'string' ||
           !value.trim() ||
-          value.length > 100
+          value.length > 100,
       )
     )
-      throw Error(
-        'Growth pipeline tasks must match registered Runner task IDs'
-      );
+      throw Error('Growth pipeline tasks must match registered Runner task IDs');
     // YAML may refine text for existing reviewed tasks, never alter operation, scope or bindings.
     const plan = {
       ...base,
       steps: base.steps.map((step) => ({
         ...step,
         title:
-          typeof taskOverrides[step.id] === 'string'
-            ? (taskOverrides[step.id] as string)
-            : step.title,
+          typeof taskOverrides[step.id] === 'string' ? (taskOverrides[step.id] as string) : step.title,
       })),
     };
     const compiled = compileWorkflow(plan);
@@ -222,8 +178,7 @@ export function compileGrowthProfileYaml(yaml: string) {
       id,
       title: raw.title,
       action,
-      page: raw.page as
-        'profile' | 'experience' | 'skills' | 'projects' | 'featured',
+      page: raw.page as 'profile' | 'experience' | 'skills' | 'projects' | 'featured',
       dependsOn: raw.dependsOn as string,
       sectionIds,
       stepCount: compiled.steps.length,
@@ -240,9 +195,7 @@ export function compileGrowthProfileYaml(yaml: string) {
     new Set(pipelines.map(([, action]) => action)).size !== pipelines.length ||
     pipelines.some(([, action]) => !expected.has(action))
   )
-    throw Error(
-      'Growth profile YAML contains missing, duplicated or unregistered coverage/actions'
-    );
+    throw Error('Growth profile YAML contains missing, duplicated or unregistered coverage/actions');
   const resolved = pipelines.map(([id, action]) => {
     const compiled = compileWorkflow(linkedinPipeline(action as Action));
     return {
@@ -294,7 +247,7 @@ export async function readGrowthTemplateCatalog() {
       const yaml = await readFile(join(directory, name), 'utf8');
       const program = compileGrowthProfileYaml(yaml);
       return { yaml, program };
-    })
+    }),
   );
   if (new Set(compiled.map((item) => item.program.id)).size !== compiled.length)
     throw Error('Duplicate Growth YAML template IDs');
@@ -302,9 +255,5 @@ export async function readGrowthTemplateCatalog() {
 }
 export async function readGrowthTemplate(id: string) {
   if (!/^[a-z][a-z0-9-]{2,70}$/.test(id)) return null;
-  return (
-    (await readGrowthTemplateCatalog()).find(
-      (item) => item.program.id === id
-    ) ?? null
-  );
+  return (await readGrowthTemplateCatalog()).find((item) => item.program.id === id) ?? null;
 }

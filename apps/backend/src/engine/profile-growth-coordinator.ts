@@ -42,10 +42,8 @@ export type ProfileGrowthRun = {
   ownerEvidence: Record<string, OwnerEvidence>;
 };
 type Stored = { version: number; value: ProfileGrowthRun };
-const digest = (value: string) =>
-  createHash('sha256').update(value).digest('hex');
-const allowed = (value: string) =>
-  typeof value === 'string' && uuid.test(value);
+const digest = (value: string) => createHash('sha256').update(value).digest('hex');
+const allowed = (value: string) => typeof value === 'string' && uuid.test(value);
 /**
  * Composes six verified read-only WorkflowPlans. Browser work, checkpoint approval,
  * run evidence, session ownership and cancellation stay inside the existing Runner.
@@ -68,25 +66,18 @@ export class ProfileGrowthCoordinator {
   private async read(id: string): Promise<Stored | null> {
     if (!allowed(id)) return null;
     if (this.documents) {
-      const record = await this.documents.get<ProfileGrowthRun>(
-        'growth-runs',
-        id
-      );
+      const record = await this.documents.get<ProfileGrowthRun>('growth-runs', id);
       return record ? { version: record.version, value: record.value } : null;
     }
     return this.records.get(id) ?? null;
   }
-  private async write(
-    value: ProfileGrowthRun,
-    expected: number
-  ): Promise<void> {
+  private async write(value: ProfileGrowthRun, expected: number): Promise<void> {
     if (this.documents) {
       await this.documents.put('growth-runs', value.id, value, expected);
       return;
     }
     const previous = this.records.get(value.id);
-    if ((previous?.version ?? 0) !== expected)
-      throw Error('Growth run version conflict');
+    if ((previous?.version ?? 0) !== expected) throw Error('Growth run version conflict');
     this.records.set(value.id, {
       version: expected + 1,
       value: structuredClone(value),
@@ -96,14 +87,9 @@ export class ProfileGrowthCoordinator {
     const stage = run.stages[stageIndex];
     if (!stage) throw Error('Growth stage not found');
     if (!stage.plan)
-      throw Error(
-        'Legacy Growth run has no pinned YAML task plan. Start a new Growth run.'
-      );
+      throw Error('Legacy Growth run has no pinned YAML task plan. Start a new Growth run.');
     const base = run.profileUrl.replace(/\/$/, '');
-    const pageUrl =
-      stage.action === 'audit-page'
-        ? base + '/details/' + stage.page + '/'
-        : undefined;
+    const pageUrl = stage.action === 'audit-page' ? base + '/details/' + stage.page + '/' : undefined;
     return this.runner.start({
       platform: 'linkedin',
       action: stage.action,
@@ -115,43 +101,32 @@ export class ProfileGrowthCoordinator {
   }
   private summarize(value: ProfileGrowthRun) {
     const stage = value.stages[value.activeIndex];
-    const child = stage?.childRunId
-      ? (this.runner.get(stage.childRunId) ?? null)
-      : null;
-    const sectionIds = [
-      ...new Set(value.stages.flatMap((item) => item.sectionIds)),
-    ];
+    const child = stage?.childRunId ? (this.runner.get(stage.childRunId) ?? null) : null;
+    const sectionIds = [...new Set(value.stages.flatMap((item) => item.sectionIds))];
     const coverage = sectionIds.map((id) => ({
       id,
       stageId: value.stages.find((item) => item.sectionIds.includes(id))!.id,
-      status: value.ownerEvidence[id]
-        ? ('owner-supplied-unverified' as const)
-        : ('missing' as const),
+      status: value.ownerEvidence[id] ? ('owner-supplied-unverified' as const) : ('missing' as const),
       evidence: value.ownerEvidence[id] ?? null,
     }));
     const output =
       child && stage?.childRunId
         ? this.runner.stepOutput(
             stage.childRunId,
-            stage.action === 'audit-page' ? 'sectionEvidence' : 'baseline'
+            stage.action === 'audit-page' ? 'sectionEvidence' : 'baseline',
           )
         : null;
     const pageEvidence =
-      output?.schema === 'evidence/v1'
-        ? { url: output.url, digest: output.digest }
-        : null;
+      output?.schema === 'evidence/v1' ? { url: output.url, digest: output.digest } : null;
     const counts = {
       total: sectionIds.length,
       ownerSupplied: coverage.filter((c) => c.evidence).length,
       missing: coverage.filter((c) => !c.evidence).length,
       independentlyProviderVerified: 0,
     };
-    const childState =
-      child?.state ?? (value.status === 'active' ? 'unavailable' : null);
+    const childState = child?.state ?? (value.status === 'active' ? 'unavailable' : null);
     const releasePending =
-      value.status === 'active' &&
-      childState === 'completed' &&
-      !this.runner.isIdle();
+      value.status === 'active' && childState === 'completed' && !this.runner.isIdle();
     return {
       ...value,
       currentChild: child,
@@ -159,15 +134,11 @@ export class ProfileGrowthCoordinator {
       pipelineRuns: value.stages.map((item) => ({
         id: item.id,
         childRunId: item.childRunId,
-        state: item.childRunId
-          ? (this.runner.get(item.childRunId)?.state ?? 'unavailable')
-          : 'waiting',
+        state: item.childRunId ? (this.runner.get(item.childRunId)?.state ?? 'unavailable') : 'waiting',
         currentStepId: item.childRunId
           ? (this.runner.get(item.childRunId)?.currentStepId ?? null)
           : null,
-        error: item.childRunId
-          ? (this.runner.get(item.childRunId)?.error ?? null)
-          : null,
+        error: item.childRunId ? (this.runner.get(item.childRunId)?.error ?? null) : null,
       })),
       currentPageEvidence: pageEvidence,
       coverage,
@@ -184,14 +155,9 @@ export class ProfileGrowthCoordinator {
     };
   }
 
-  async start(
-    accountId: string,
-    profileUrl: string,
-    templateId = 'linkedin-profile'
-  ) {
+  async start(accountId: string, profileUrl: string, templateId = 'linkedin-profile') {
     return this.serial(async () => {
-      if (!allowed(accountId))
-        throw Error('Verified LinkedIn account ID required');
+      if (!allowed(accountId)) throw Error('Verified LinkedIn account ID required');
       const normalized = validateProfileUrl('linkedin', profileUrl).href;
       const template = await readGrowthTemplate(templateId);
       if (!template) throw Error('Growth YAML template not found');
@@ -255,16 +221,13 @@ export class ProfileGrowthCoordinator {
       const stored = await this.read(id);
       if (!stored) throw Error('Growth run not found');
       const run = structuredClone(stored.value);
-      if (run.status !== 'active')
-        throw Error('Growth run is already finalized');
+      if (run.status !== 'active') throw Error('Growth run is already finalized');
       const stage = run.stages[run.activeIndex]!;
       if (
         !stage.sectionIds.includes(input.sectionId) ||
         (run.programId === 'linkedin-profile' && stage.id === 'review')
       )
-        throw Error(
-          'Supply evidence for a section assigned to the current stage'
-        );
+        throw Error('Supply evidence for a section assigned to the current stage');
       const excerpt = typeof input.text === 'string' ? input.text.trim() : '';
       if (excerpt.length < 10 || excerpt.length > 1500)
         throw Error('Owner evidence must be 10–1500 characters');
@@ -283,25 +246,18 @@ export class ProfileGrowthCoordinator {
       const stored = await this.read(id);
       if (!stored) throw Error('Growth run not found');
       const run = structuredClone(stored.value);
-      if (run.status !== 'active')
-        throw Error('Growth workflow already finalized');
+      if (run.status !== 'active') throw Error('Growth workflow already finalized');
       const stage = run.stages[run.activeIndex]!;
-      const child = stage.childRunId
-        ? this.runner.get(stage.childRunId)
-        : undefined;
+      const child = stage.childRunId ? this.runner.get(stage.childRunId) : undefined;
       if (!child || child.state !== 'completed')
-        throw Error(
-          'Current Runner pipeline has not completed its approvals and evidence'
-        );
+        throw Error('Current Runner pipeline has not completed its approvals and evidence');
       // Runner marks the child completed before async browser cleanup finishes.
       // Do not start the next child while the prior browser still owns this Runner.
       if (!this.runner.isIdle())
-        throw Error(
-          'Runner browser session is still closing; retry when the Runner is idle'
-        );
+        throw Error('Runner browser session is still closing; retry when the Runner is idle');
       const proof = this.runner.stepOutput(
         child.id,
-        stage.action === 'audit-page' ? 'sectionEvidence' : 'baseline'
+        stage.action === 'audit-page' ? 'sectionEvidence' : 'baseline',
       );
       if (!proof || proof.schema !== 'evidence/v1')
         throw Error('Runner did not produce its required real page evidence');
@@ -318,8 +274,7 @@ export class ProfileGrowthCoordinator {
       }
       const nextIndex = run.activeIndex + 1;
       const next = run.stages[nextIndex]!;
-      if (next.dependsOn !== stage.id)
-        throw Error('Unresolved Growth stage dependency');
+      if (next.dependsOn !== stage.id) throw Error('Unresolved Growth stage dependency');
       // The previous Runner must have released its browser before this call.
       const started = this.openStage(run, nextIndex);
       next.childRunId = started.id;

@@ -1,24 +1,10 @@
 ﻿import { randomUUID } from 'node:crypto';
-import {
-  chmod,
-  mkdir,
-  readFile,
-  rename,
-  rm,
-  writeFile,
-} from 'node:fs/promises';
+import { chmod, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import type { Page } from 'playwright';
 import { BrowserSession } from '../browser/session.js';
-import {
-  isConnectionTimeout,
-  navigateWithRetry,
-} from '../browser/navigation.js';
-import {
-  AccountStore,
-  type SocialAccount,
-  type SocialPlatform,
-} from '../profile/account-store.js';
+import { isConnectionTimeout, navigateWithRetry } from '../browser/navigation.js';
+import { AccountStore, type SocialAccount, type SocialPlatform } from '../profile/account-store.js';
 import type { DocumentStore } from '../db/documents.js';
 
 type ConnectionRecord = {
@@ -53,8 +39,7 @@ const allowId = (id: string) => /^[0-9a-fA-F-]{36}$/.test(id);
  * official API connectors and report `api-required`.
  */
 const browserPlatforms: ReadonlySet<string> = new Set(['linkedin', 'x']);
-const browserPlatform = (platform: string): boolean =>
-  browserPlatforms.has(platform);
+const browserPlatform = (platform: string): boolean => browserPlatforms.has(platform);
 /** HTTPS hosts each browser connector may operate on. */
 const platformHosts: Record<string, ReadonlyArray<string>> = {
   linkedin: ['linkedin.com', 'www.linkedin.com'],
@@ -72,10 +57,7 @@ export class ConnectorService {
   private readonly path: string;
   private sessions = new Map<string, BrowserPort>();
   private pending = new Map<string, PendingConnection>();
-  private checks = new Map<
-    string,
-    Promise<{ status: string; accountId: string }>
-  >();
+  private checks = new Map<string, Promise<{ status: string; accountId: string }>>();
   private mutation: Promise<void> = Promise.resolve();
   private documents?: DocumentStore;
   setDocuments(documents: DocumentStore) {
@@ -83,9 +65,8 @@ export class ConnectorService {
   }
   constructor(
     private readonly accounts = new AccountStore(),
-    private readonly makeBrowser: () => BrowserPort = () =>
-      new BrowserSession(),
-    root = process.cwd()
+    private readonly makeBrowser: () => BrowserPort = () => new BrowserSession(),
+    root = process.cwd(),
   ) {
     this.path = resolve(root, '.runtime', 'connectors.json');
     this.root = root;
@@ -95,27 +76,22 @@ export class ConnectorService {
   private async records(): Promise<Record<string, ConnectionRecord>> {
     // Prefer the durable Drizzle document store when available.
     if (this.documents) {
-      const value = await this.documents.get<Record<string, ConnectionRecord>>(
-        'connectors',
-        'sessions'
-      );
+      const value = await this.documents.get<Record<string, ConnectionRecord>>('connectors', 'sessions');
       if (value) return value.value;
     }
     // A hosted tenant must never inherit the local operator's connection records.
     if (this.documents?.ownerId !== 'local-owner' && this.documents) return {};
     // Fall back to JSON only for the original single-user local workspace.
     try {
-      const raw = JSON.parse(await readFile(this.path, 'utf8')) as Record<
-        string,
-        ConnectionRecord
-      >;
+      const raw = JSON.parse(await readFile(this.path, 'utf8')) as Record<string, ConnectionRecord>;
       if (!raw || typeof raw !== 'object' || Array.isArray(raw))
         throw Error('Invalid connector metadata');
       // Backfill the database from the JSON file so a later restart reads from SQL.
       if (this.documents) {
-        const existing = await this.documents.get<
-          Record<string, ConnectionRecord>
-        >('connectors', 'sessions');
+        const existing = await this.documents.get<Record<string, ConnectionRecord>>(
+          'connectors',
+          'sessions',
+        );
         if (!existing) {
           await this.documents.put('connectors', 'sessions', raw, 0);
         }
@@ -135,15 +111,11 @@ export class ConnectorService {
       // SQL is the source of truth once the engine has initialized a database.
       // Never write a JSON snapshot that can disagree with a failed SQL update.
       if (this.documents) {
-        const existing = await this.documents.get<
-          Record<string, ConnectionRecord>
-        >('connectors', 'sessions');
-        await this.documents.put(
+        const existing = await this.documents.get<Record<string, ConnectionRecord>>(
           'connectors',
           'sessions',
-          all,
-          existing?.version ?? 0
         );
+        await this.documents.put('connectors', 'sessions', all, existing?.version ?? 0);
         return;
       }
       await mkdir(dirname(this.path), { recursive: true, mode: 0o700 });
@@ -159,22 +131,15 @@ export class ConnectorService {
   }
   private async account(id: string): Promise<SocialAccount> {
     if (!allowId(id)) throw Error('Invalid connector account');
-    const account = (await this.accounts.get()).socialAccounts.find(
-      (row) => row.id === id
-    );
+    const account = (await this.accounts.get()).socialAccounts.find((row) => row.id === id);
     if (!account) throw Error('Social account not found');
     return account;
   }
   capabilities() {
-    const browserAvailable =
-      process.env.HEADLESS !== 'true' &&
-      !process.env.UTOMATOR_INTERNAL_OWNER_ID;
+    const browserAvailable = process.env.HEADLESS !== 'true' && !process.env.UTOMATOR_INTERNAL_OWNER_ID;
     return {
       browserAvailable: Boolean(browserAvailable),
-      mode:
-        process.env.UTOMATOR_BROWSER_MODE === 'attached'
-          ? 'attached'
-          : 'isolated',
+      mode: process.env.UTOMATOR_BROWSER_MODE === 'attached' ? 'attached' : 'isolated',
       mobileBrowserSession: false,
     };
   }
@@ -185,17 +150,13 @@ export class ConnectorService {
         await entry.browser.close().catch(() => {});
       }
     }
-    const [accounts, records] = await Promise.all([
-      this.accounts.get(),
-      this.records(),
-    ]);
+    const [accounts, records] = await Promise.all([this.accounts.get(), this.records()]);
     const saved: ConnectionStatus[] = accounts.socialAccounts.map((row) => {
       const browser = browserPlatform(row.platform);
       const verified = records[row.id];
       // Legacy duplicates are kept for explicit cleanup, but cannot both be marked usable.
       const unique =
-        accounts.socialAccounts.filter((item) => item.platform === row.platform)
-          .length === 1;
+        accounts.socialAccounts.filter((item) => item.platform === row.platform).length === 1;
       const connected =
         unique &&
         browser &&
@@ -206,8 +167,7 @@ export class ConnectorService {
         ...row,
         status: !browser
           ? 'api-required'
-          : this.sessions.has(row.id) &&
-              !this.sessions.get(row.id)?.currentPage?.isClosed?.()
+          : this.sessions.has(row.id) && !this.sessions.get(row.id)?.currentPage?.isClosed?.()
             ? 'sign-in-open'
             : connected
               ? 'connected'
@@ -218,35 +178,25 @@ export class ConnectorService {
       };
     });
     // The pending row is not an account. No handle is exposed until provider verification.
-    const pending: ConnectionStatus[] = [...this.pending].map(
-      ([id, entry]) => ({
-        id,
-        platform: entry.platform,
-        label: 'Sign-in in progress',
-        handle: '',
-        profileUrl: '',
-        status: 'sign-in-open',
-        verifiedAt: null,
-        authentication: 'browser',
-        interactiveSignIn: process.env.HEADLESS !== 'true',
-      })
-    );
+    const pending: ConnectionStatus[] = [...this.pending].map(([id, entry]) => ({
+      id,
+      platform: entry.platform,
+      label: 'Sign-in in progress',
+      handle: '',
+      profileUrl: '',
+      status: 'sign-in-open',
+      verifiedAt: null,
+      authentication: 'browser',
+      interactiveSignIn: process.env.HEADLESS !== 'true',
+    }));
     return [...saved, ...pending];
   }
-  async requireConnected(
-    id: string,
-    platform: string,
-    profileUrl?: string
-  ): Promise<SocialAccount> {
+  async requireConnected(id: string, platform: string, profileUrl?: string): Promise<SocialAccount> {
     const row = await this.account(id);
     if (
-      (await this.accounts.get()).socialAccounts.filter(
-        (item) => item.platform === platform
-      ).length > 1
+      (await this.accounts.get()).socialAccounts.filter((item) => item.platform === platform).length > 1
     )
-      throw Error(
-        'Legacy duplicate accounts must be resolved before running workflows'
-      );
+      throw Error('Legacy duplicate accounts must be resolved before running workflows');
     const records = await this.records();
     const record = records[id];
     if (row.platform !== platform)
@@ -267,8 +217,7 @@ export class ConnectorService {
         supplied.search ||
         supplied.hash ||
         supplied.hostname !== expected.hostname ||
-        supplied.pathname.replace(/\/$/, '') !==
-          expected.pathname.replace(/\/$/, '')
+        supplied.pathname.replace(/\/$/, '') !== expected.pathname.replace(/\/$/, '')
       )
         throw Error('Selected connection does not match the workflow profile');
     }
@@ -279,9 +228,7 @@ export class ConnectorService {
       record.platform !== row.platform ||
       record.profileUrl !== row.profileUrl
     )
-      throw Error(
-        'Connection is not verified. Connect and sync before starting.'
-      );
+      throw Error('Connection is not verified. Connect and sync before starting.');
     return row;
   }
   // Unlike the legacy connect-by-account-ID route, this starts with no identity.
@@ -291,16 +238,10 @@ export class ConnectorService {
       throw Error('Official API connector not configured for this network');
     if (!this.capabilities().browserAvailable)
       throw Error(
-        'Interactive sign-in requires a local desktop agent; mobile and hosted browser sessions cannot be shared'
+        'Interactive sign-in requires a local desktop agent; mobile and hosted browser sessions cannot be shared',
       );
-    if (
-      (await this.accounts.get()).socialAccounts.some(
-        (item) => item.platform === platform
-      )
-    )
-      throw Error(
-        'A profile for this network already exists. Reconnect or remove it first.'
-      );
+    if ((await this.accounts.get()).socialAccounts.some((item) => item.platform === platform))
+      throw Error('A profile for this network already exists. Reconnect or remove it first.');
     if ([...this.pending.values()].some((entry) => entry.platform === platform))
       throw Error('A connection for this network is already in progress');
     const id = randomUUID();
@@ -320,8 +261,7 @@ export class ConnectorService {
         return {
           status: 'sign-in-open' as const,
           accountId: id,
-          navigationWarning:
-            'The provider did not respond. Complete sign-in in Chrome, then verify.',
+          navigationWarning: 'The provider did not respond. Complete sign-in in Chrome, then verify.',
         };
       }
       this.pending.delete(id);
@@ -339,10 +279,7 @@ export class ConnectorService {
   private async discover(page: Page, platform: 'linkedin' | 'x') {
     // Never navigate away from a login, MFA or consent page while checking.
     const here = new URL(page.url());
-    if (
-      here.protocol !== 'https:' ||
-      !platformHosts[platform]!.includes(here.hostname)
-    )
+    if (here.protocol !== 'https:' || !platformHosts[platform]!.includes(here.hostname))
       throw Error('Provider sign-in is not complete');
     const candidates =
       platform === 'linkedin'
@@ -373,9 +310,7 @@ export class ConnectorService {
         )
           continue;
         const path =
-          platform === 'linkedin'
-            ? /^\/in\/([a-zA-Z0-9_-]{3,100})\/?$/
-            : /^\/([a-zA-Z0-9_]{1,15})\/?$/;
+          platform === 'linkedin' ? /^\/in\/([a-zA-Z0-9_-]{3,100})\/?$/ : /^\/([a-zA-Z0-9_]{1,15})\/?$/;
         if (!path.test(candidate.pathname)) continue;
         profileUrl = candidate;
         break;
@@ -398,32 +333,26 @@ export class ConnectorService {
       profileUrl: normalized,
     });
     if (verified === 'temporarily-unavailable') return null;
-    if (verified !== 'verified')
-      throw Error('Provider profile ownership could not be verified');
+    if (verified !== 'verified') throw Error('Provider profile ownership could not be verified');
     return { platform, label: handle, handle, profileUrl: normalized };
   }
 
   async begin(id: string) {
     const account = await this.account(id);
     if (
-      (await this.accounts.get()).socialAccounts.filter(
-        (item) => item.platform === account.platform
-      ).length > 1
+      (await this.accounts.get()).socialAccounts.filter((item) => item.platform === account.platform)
+        .length > 1
     )
-      throw Error(
-        'Legacy duplicate accounts must be resolved before reconnecting'
-      );
+      throw Error('Legacy duplicate accounts must be resolved before reconnecting');
     // A hosted headless worker cannot present the provider's sign-in or MFA
     // screen on the owner's device. Never announce that a remote window opened.
     if (!this.capabilities().browserAvailable)
       throw Error(
-        'Interactive browser sign-in requires a local desktop agent. Hosted and mobile sessions cannot be shared.'
+        'Interactive browser sign-in requires a local desktop agent. Hosted and mobile sessions cannot be shared.',
       );
     const network = platformLabel(account.platform);
     if (!browserPlatform(account.platform)) {
-      throw Error(
-        'This network requires an official API connector. Browser login is not offered.'
-      );
+      throw Error('This network requires an official API connector. Browser login is not offered.');
     }
     // A user may close the isolated Chrome window before finishing login.
     // Never advertise sign-in-open for an already closed tab.
@@ -467,7 +396,7 @@ export class ConnectorService {
           'Cannot reach ' +
             network +
             '. Verify Chrome is running with a loopback CDP port (127.0.0.1:9222) ' +
-            'or that the persistent Chrome profile can launch, then retry Connect.'
+            'or that the persistent Chrome profile can launch, then retry Connect.',
         );
       }
       throw e;
@@ -490,17 +419,12 @@ export class ConnectorService {
     const account = await this.account(id);
     const browser = this.sessions.get(id);
     const page = browser?.currentPage;
-    if (!page || page.isClosed?.())
-      return { status: 'reconnect-required' as const, accountId: id };
+    if (!page || page.isClosed?.()) return { status: 'reconnect-required' as const, accountId: id };
     const here = new URL(page.url());
     const target = new URL(account.profileUrl);
-    if (
-      here.protocol !== 'https:' ||
-      !platformHosts[account.platform]?.includes(here.hostname)
-    )
+    if (here.protocol !== 'https:' || !platformHosts[account.platform]?.includes(here.hostname))
       return { status: 'sign-in-open' as const, accountId: id };
-    const onOwnedProfile =
-      here.pathname.replace(/\/$/, '') === target.pathname.replace(/\/$/, '');
+    const onOwnedProfile = here.pathname.replace(/\/$/, '') === target.pathname.replace(/\/$/, '');
     if (onOwnedProfile) {
       const outcome = await this.verify(page, account, false);
       if (outcome !== 'verified')
@@ -514,10 +438,7 @@ export class ConnectorService {
     } else {
       // A provider home page can expose the signed-in user's self-profile link.
       // Login/MFA pages do not; never navigate away from them while polling.
-      const owner = await this.discover(
-        page,
-        account.platform as 'linkedin' | 'x'
-      ).catch(() => null);
+      const owner = await this.discover(page, account.platform as 'linkedin' | 'x').catch(() => null);
       if (!owner) return { status: 'sign-in-open' as const, accountId: id };
       if (owner.profileUrl !== account.profileUrl)
         return { status: 'reconnect-required' as const, accountId: id };
@@ -538,8 +459,7 @@ export class ConnectorService {
     const pending = this.pending.get(id);
     if (pending) {
       const page = pending.browser.currentPage;
-      if (!page || page.isClosed?.())
-        throw Error('Connection window is closed. Connect again.');
+      if (!page || page.isClosed?.()) throw Error('Connection window is closed. Connect again.');
       let identity: Awaited<ReturnType<ConnectorService['discover']>>;
       try {
         identity = await this.discover(page, pending.platform);
@@ -561,9 +481,8 @@ export class ConnectorService {
     }
     const account = await this.account(id);
     if (
-      (await this.accounts.get()).socialAccounts.filter(
-        (item) => item.platform === account.platform
-      ).length > 1
+      (await this.accounts.get()).socialAccounts.filter((item) => item.platform === account.platform)
+        .length > 1
     )
       throw Error('Legacy duplicate accounts must be resolved before syncing');
     const current = await this.records();
@@ -572,16 +491,13 @@ export class ConnectorService {
       current[id]?.platform === account.platform &&
       current[id]?.handle === account.handle &&
       current[id]?.profileUrl === account.profileUrl;
-    if (!session && !matching)
-      throw Error('Account is disconnected. Connect before requesting sync.');
-    if (!browserPlatform(account.platform))
-      throw Error('Official API connector not configured');
+    if (!session && !matching) throw Error('Account is disconnected. Connect before requesting sync.');
+    if (!browserPlatform(account.platform)) throw Error('Official API connector not configured');
     const browser = this.sessions.get(id) || this.makeBrowser();
     if (!this.sessions.has(id)) this.sessions.set(id, browser);
     let keepWindowOpen = false;
     try {
-      const page =
-        browser.currentPage || (await browser.open(account.platform, id));
+      const page = browser.currentPage || (await browser.open(account.platform, id));
       const outcome = await this.verify(page, account);
       if (outcome === 'temporarily-unavailable') {
         // Transient network failure is not evidence that the stored session expired.
@@ -616,7 +532,7 @@ export class ConnectorService {
   async verify(
     page: Page,
     account: SocialAccount,
-    navigate = true
+    navigate = true,
   ): Promise<'verified' | 'not-authenticated' | 'temporarily-unavailable'> {
     try {
       if (navigate)
@@ -636,8 +552,7 @@ export class ConnectorService {
       return (
         hosts.includes(url.hostname) &&
         url.protocol === 'https:' &&
-        url.pathname.replace(/\/$/, '') ===
-          new URL(account.profileUrl).pathname.replace(/\/$/, '')
+        url.pathname.replace(/\/$/, '') === new URL(account.profileUrl).pathname.replace(/\/$/, '')
       );
     };
     if (!isOwnedProfilePage()) return 'not-authenticated';
@@ -653,9 +568,7 @@ export class ConnectorService {
     // rendering. Wait for the actual owner-only control instead of requiring a
     // page refresh. Verification failures degrade to reconnect-required.
     try {
-      await ownerOnlyControl
-        .first()
-        .waitFor({ state: 'visible', timeout: 8000 });
+      await ownerOnlyControl.first().waitFor({ state: 'visible', timeout: 8000 });
       return isOwnedProfilePage() ? 'verified' : 'not-authenticated';
     } catch {
       return 'not-authenticated';
@@ -718,12 +631,7 @@ export class ConnectorService {
         platform: account?.platform ?? '-',
         action,
       });
-      await this.documents.put(
-        'connectors',
-        'audit',
-        entries.slice(-200),
-        existing?.version ?? 0
-      );
+      await this.documents.put('connectors', 'audit', entries.slice(-200), existing?.version ?? 0);
     } catch {
       // An audit failure must never block connection management; state persists in connectors store.
     }

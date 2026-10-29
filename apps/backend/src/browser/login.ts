@@ -6,27 +6,19 @@ export async function attemptLogin(
   page: Page,
   platform: Platform,
   credentials: LoginCredentials,
-  signal: AbortSignal
+  signal: AbortSignal,
 ): Promise<boolean> {
   if (signal.aborted) throw new Error('Run cancelled');
   const current = new URL(page.url());
-  const hosts =
-    platform === 'linkedin'
-      ? ['linkedin.com', 'www.linkedin.com']
-      : ['x.com', 'www.x.com'];
+  const hosts = platform === 'linkedin' ? ['linkedin.com', 'www.linkedin.com'] : ['x.com', 'www.x.com'];
   if (current.protocol !== 'https:' || !hosts.includes(current.hostname)) {
     throw new Error('Login form is not on the official platform');
   }
   if (platform === 'linkedin') {
     if (!current.pathname.includes('login')) return false;
-    const identifier = page.locator(
-      'input#username, input[name="session_key"]'
-    );
-    const password = page.locator(
-      'input#password, input[name="session_password"]'
-    );
-    if ((await identifier.count()) !== 1 || (await password.count()) !== 1)
-      return false;
+    const identifier = page.locator('input#username, input[name="session_key"]');
+    const password = page.locator('input#password, input[name="session_password"]');
+    if ((await identifier.count()) !== 1 || (await password.count()) !== 1) return false;
     await identifier.fill(credentials.identifier);
     await password.fill(credentials.password);
     const submit = page.getByRole('button', { name: /^sign in$/i });
@@ -39,9 +31,7 @@ export async function attemptLogin(
   if (!current.pathname.startsWith('/i/flow/login')) return false;
   let password = page.locator('input[type="password"]');
   if ((await password.count()) === 0 || !(await password.first().isVisible())) {
-    const identifier = page.locator(
-      'input[autocomplete="username"], input[name="text"]'
-    );
+    const identifier = page.locator('input[autocomplete="username"], input[name="text"]');
     if ((await identifier.count()) !== 1) return false;
     await identifier.fill(credentials.identifier);
     const next = page.getByRole('button', { name: /^next$/i });

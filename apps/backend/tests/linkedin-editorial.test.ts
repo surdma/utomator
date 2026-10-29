@@ -5,10 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AccountStore } from '../src/profile/account-store.js';
 import { randomUUID } from 'node:crypto';
-import {
-  LinkedInEditorialStore,
-  editorialYaml,
-} from '../src/core/linkedin-editorial.js';
+import { LinkedInEditorialStore, editorialYaml } from '../src/core/linkedin-editorial.js';
 
 process.env.NODE_ENV = 'test';
 const { buildApp } = await import('../src/main.js');
@@ -27,8 +24,7 @@ const id = randomUUID(),
     }),
   };
 const researchId = randomUUID(),
-  reference =
-    'https://www.linkedin.com/posts/editorial-sample_topic-activity-12345';
+  reference = 'https://www.linkedin.com/posts/editorial-sample_topic-activity-12345';
 const research = {
   get: async (value: string) =>
     value === researchId
@@ -54,18 +50,11 @@ test('Private LinkedIn editorial lifecycle persists and resets approval after re
     assert.equal(created.status, 'draft');
     assert.equal(created.history.length, 1);
     assert.equal(
-      (
-        await new LinkedInEditorialStore(account, research, path).get(
-          created.id
-        )
-      )?.version,
-      1
+      (await new LinkedInEditorialStore(account, research, path).get(created.id))?.version,
+      1,
     );
     assert.equal((await store.list(id)).length, 1);
-    await assert.rejects(
-      store.update(created.id, 2, draft),
-      /version conflict/
-    );
+    await assert.rejects(store.update(created.id, 2, draft), /version conflict/);
     const approved = await store.transition(created.id, 1, 'approve');
     assert.equal(approved.status, 'approved');
     const revised = await store.update(created.id, 2, {
@@ -79,10 +68,7 @@ test('Private LinkedIn editorial lifecycle persists and resets approval after re
     await assert.rejects(store.update(created.id, 4, draft), /Restore/);
     const restored = await store.transition(created.id, 4, 'restore');
     assert.equal(restored.status, 'draft');
-    await assert.rejects(
-      store.transition(created.id, 5, 'delete'),
-      /confirmation/
-    );
+    await assert.rejects(store.transition(created.id, 5, 'delete'), /confirmation/);
     const deleted = await store.transition(created.id, 5, 'delete', true);
     assert.equal(deleted.status, 'deleted');
     assert.equal((await store.list(id)).length, 0);
@@ -98,25 +84,19 @@ test('Editorial input rejects unowned accounts, unrelated evidence, duplicate so
   try {
     const store = new LinkedInEditorialStore(account, research, path);
     await assert.rejects(store.create(randomUUID(), draft), /not saved/);
-    await assert.rejects(
-      store.create(id, { ...draft, body: 'short' }),
-      /Draft body/
-    );
+    await assert.rejects(store.create(id, { ...draft, body: 'short' }), /Draft body/);
     await assert.rejects(
       store.create(id, { ...draft, sourceUrls: [reference, reference] }),
-      /Duplicate/
+      /Duplicate/,
     );
     await assert.rejects(
       store.create(id, {
         ...draft,
         sourceUrls: ['https://other.example/report'],
       }),
-      /match/
+      /match/,
     );
-    await assert.rejects(
-      store.create(id, { ...draft, unexpected: true }),
-      /Unknown/
-    );
+    await assert.rejects(store.create(id, { ...draft, unexpected: true }), /Unknown/);
     assert.equal((await store.list()).length, 0);
   } finally {
     await rm(path, { recursive: true, force: true });
@@ -164,13 +144,8 @@ test('Fastify editorial API verifies saved account and supports versioned CRUD w
       status: string;
     };
     assert.equal(saved.version, 1);
-    assert.equal(
-      (await app.inject('/linkedin/drafts/' + saved.id)).statusCode,
-      200
-    );
-    const list = (
-      await app.inject('/linkedin/drafts?accountId=' + accountId)
-    ).json() as Array<{
+    assert.equal((await app.inject('/linkedin/drafts/' + saved.id)).statusCode, 200);
+    const list = (await app.inject('/linkedin/drafts?accountId=' + accountId)).json() as Array<{
       id: string;
     }>;
     assert.ok(list.some((row) => row.id === saved.id));
@@ -230,9 +205,7 @@ test('Fastify editorial API verifies saved account and supports versioned CRUD w
       },
     });
     assert.equal(remove.statusCode, 200);
-    const remaining = (
-      await app.inject('/linkedin/drafts?accountId=' + accountId)
-    ).json() as Array<{
+    const remaining = (await app.inject('/linkedin/drafts?accountId=' + accountId)).json() as Array<{
       id: string;
     }>;
     assert.ok(!remaining.some((row) => row.id === saved.id));

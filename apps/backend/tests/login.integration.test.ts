@@ -21,7 +21,7 @@ test('LinkedIn fixture receives credentials with no logging or external request'
         identifier: 'fixture@example.test',
         password: 'a-test-secret',
       },
-      new AbortController().signal
+      new AbortController().signal,
     );
     assert.equal(submitted, true);
     assert.equal(await page.locator('body').getAttribute('data-sent'), 'yes');
@@ -43,9 +43,9 @@ test('credentials are never used on an untrusted origin', async () => {
           identifier: 'someone@example.test',
           password: 'not-real',
         },
-        new AbortController().signal
+        new AbortController().signal,
       ),
-      /official platform/
+      /official platform/,
     );
   } finally {
     await browser.close();
@@ -77,9 +77,9 @@ test('X two-step fixture logs in without writing credentials to run history', as
           identifier: 'surdma_fixture',
           password: 'one-time-only',
         },
-        new AbortController().signal
+        new AbortController().signal,
       ),
-      true
+      true,
     );
     assert.equal(await page.locator('body').getAttribute('data-sent'), 'yes');
   } finally {

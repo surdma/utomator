@@ -36,4 +36,3 @@ export function explainCommand(
     };
   return null;
 }
-

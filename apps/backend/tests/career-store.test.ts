@@ -16,9 +16,7 @@ const identity = {
   projects: [],
   customSections: [],
 };
-async function withStore(
-  fn: (store: CareerStore, root: string) => Promise<void>
-) {
+async function withStore(fn: (store: CareerStore, root: string) => Promise<void>) {
   const root = await mkdtemp(join(tmpdir(), 'career-store-'));
   try {
     await fn(new CareerStore(root), root);
@@ -72,13 +70,7 @@ test('career profile edits keep optimistic revision and field validation', async
     ]);
     assert.equal(outcomes.filter((x) => x.status === 'fulfilled').length, 1);
     assert.equal(outcomes.filter((x) => x.status === 'rejected').length, 1);
-    assert.throws(
-      () => store.updateProfile(1, { ...identity, name: '' }),
-      /required/
-    );
-    await assert.rejects(
-      store.createResume(1, '00000000-0000-4000-8000-aaaaaaaaaaaa'),
-      /not found/
-    );
+    assert.throws(() => store.updateProfile(1, { ...identity, name: '' }), /required/);
+    await assert.rejects(store.createResume(1, '00000000-0000-4000-8000-aaaaaaaaaaaa'), /not found/);
   });
 });

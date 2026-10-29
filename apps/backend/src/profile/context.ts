@@ -5,19 +5,9 @@ import ts from 'typescript';
 
 // Read the actual portfolio declarations rather than copying biography text.
 // This deliberately evaluates only literal AST nodes, never executable TypeScript.
-type ContextValue =
-  | string
-  | number
-  | boolean
-  | null
-  | ContextValue[]
-  | { [key: string]: ContextValue };
+type ContextValue = string | number | boolean | null | ContextValue[] | { [key: string]: ContextValue };
 function literal(node: ts.Expression): ContextValue | undefined {
-  if (
-    ts.isAsExpression(node) ||
-    ts.isSatisfiesExpression(node) ||
-    ts.isParenthesizedExpression(node)
-  ) {
+  if (ts.isAsExpression(node) || ts.isSatisfiesExpression(node) || ts.isParenthesizedExpression(node)) {
     return literal(node.expression);
   }
   if (ts.isStringLiteralLike(node)) return node.text;
@@ -43,26 +33,15 @@ function literal(node: ts.Expression): ContextValue | undefined {
   return undefined;
 }
 
-async function collect(
-  file: string,
-  names: readonly string[]
-): Promise<Record<string, ContextValue>> {
-  const root = fileURLToPath(
-    new URL('../../data/seed-profile/', import.meta.url)
-  );
+async function collect(file: string, names: readonly string[]): Promise<Record<string, ContextValue>> {
+  const root = fileURLToPath(new URL('../../data/seed-profile/', import.meta.url));
   const source = await readFile(resolve(root, file), 'utf8');
-  const document = ts.createSourceFile(
-    file,
-    source,
-    ts.ScriptTarget.Latest,
-    true
-  );
+  const document = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
   const result: Record<string, ContextValue> = {};
   for (const statement of document.statements) {
     if (!ts.isVariableStatement(statement)) continue;
     for (const declaration of statement.declarationList.declarations) {
-      if (!ts.isIdentifier(declaration.name) || !declaration.initializer)
-        continue;
+      if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue;
       if (!names.includes(declaration.name.text)) continue;
       const parsed = literal(declaration.initializer);
       if (parsed !== undefined) result[declaration.name.text] = parsed;
@@ -70,51 +49,33 @@ async function collect(
   }
   for (const name of names) {
     if (!(name in result))
-      throw new Error(
-        'Portfolio context missing declaration: ' + file + ':' + name
-      );
+      throw new Error('Portfolio context missing declaration: ' + file + ':' + name);
   }
   return result;
 }
 
 export async function loadOwnerContext() {
-  const root = fileURLToPath(
-    new URL('../../data/seed-profile/', import.meta.url)
-  );
-  const [
-    portfolio,
-    resume,
-    about,
-    roles,
-    photo,
-    provenance,
-    claims,
-    linkedinGuidance,
-  ] = await Promise.all([
-    collect('lib/data.ts', [
-      'siteConfig',
-      'socialLinks',
-      'projects',
-      'experiences',
-      'education',
-    ]),
-    collect('lib/resume-data.ts', [
-      'resumeProfile',
-      'resumeContacts',
-      'resumeSummary',
-      'resumeEducation',
-      'resumeExperience',
-      'resumeSelectedWork',
-      'resumeSkills',
-      'resumeCourses',
-    ]),
-    collect('lib/about-evidence.ts', ['technologyGroups']),
-    collect('lib/about-profile.ts', ['professionalRoles', 'strengths']),
-    collect('lib/profile-image.ts', ['profileImage']),
-    readFile(resolve(root, 'docs/portfolio-evidence.md'), 'utf8'),
-    readFile(resolve(root, 'docs/about-evidence.md'), 'utf8'),
-    readFile(resolve(root, 'docs/linkedin-profile-optimization.md'), 'utf8'),
-  ]);
+  const root = fileURLToPath(new URL('../../data/seed-profile/', import.meta.url));
+  const [portfolio, resume, about, roles, photo, provenance, claims, linkedinGuidance] =
+    await Promise.all([
+      collect('lib/data.ts', ['siteConfig', 'socialLinks', 'projects', 'experiences', 'education']),
+      collect('lib/resume-data.ts', [
+        'resumeProfile',
+        'resumeContacts',
+        'resumeSummary',
+        'resumeEducation',
+        'resumeExperience',
+        'resumeSelectedWork',
+        'resumeSkills',
+        'resumeCourses',
+      ]),
+      collect('lib/about-evidence.ts', ['technologyGroups']),
+      collect('lib/about-profile.ts', ['professionalRoles', 'strengths']),
+      collect('lib/profile-image.ts', ['profileImage']),
+      readFile(resolve(root, 'docs/portfolio-evidence.md'), 'utf8'),
+      readFile(resolve(root, 'docs/about-evidence.md'), 'utf8'),
+      readFile(resolve(root, 'docs/linkedin-profile-optimization.md'), 'utf8'),
+    ]);
   return {
     source: 'apps/backend/data/seed-profile',
     sourceFiles: [

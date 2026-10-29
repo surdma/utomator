@@ -1,12 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import {
-  mkdir,
-  readFile,
-  rename,
-  writeFile,
-  unlink,
-  rm,
-} from 'node:fs/promises';
+import { mkdir, readFile, rename, writeFile, unlink, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { CareerDocument } from '../profile/career-store.js';
 import { validateProfileUrl } from './validate.js';
@@ -20,8 +13,7 @@ import {
 
 type State = 'approval-needed' | 'selection-needed' | 'completed' | 'declined';
 type StageState = 'completed' | 'waiting' | 'pending' | 'declined';
-type StageId =
-  'context' | 'assessment' | 'proposals' | 'approval' | 'selection' | 'report';
+type StageId = 'context' | 'assessment' | 'proposals' | 'approval' | 'selection' | 'report';
 const chain: readonly {
   id: StageId;
   operation: string;
@@ -104,16 +96,13 @@ export type ProfilePlanningRun = {
   proposals: ProfileProposal[];
   report?: PlanningReport;
 };
-const idPattern =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const idPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function checkedId(id: string): string {
   if (!idPattern.test(id)) throw Error('Invalid optimization run ID');
   return id.toLowerCase();
 }
 function text(value: unknown, limit: number): string | null {
-  return typeof value === 'string' && value.trim()
-    ? value.trim().slice(0, limit)
-    : null;
+  return typeof value === 'string' && value.trim() ? value.trim().slice(0, limit) : null;
 }
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -139,15 +128,14 @@ function sourceEvidence(run: ProfilePlanningRun) {
       : { facts: owner.facts ?? owner, proposals: run.proposals };
   if (
     run.source === 'account-career' &&
-    (run.accountId !== owner.accountId ||
-      !idPattern.test(String(owner.accountId)))
+    (run.accountId !== owner.accountId || !idPattern.test(String(owner.accountId)))
   )
     throw Error('Stored evidence belongs to another social account');
   const expected = evidenceRecord(
     'context',
     'owner-evidence/v1',
     run.profileUrl,
-    JSON.stringify(payload)
+    JSON.stringify(payload),
   );
   if (
     owner.evidenceRef !== undefined &&
@@ -160,8 +148,7 @@ function sourceEvidence(run: ProfilePlanningRun) {
     throw Error('Stored evidence reference does not match owner facts');
   return expected;
 }
-const snapshot = (run: ProfilePlanningRun): string =>
-  JSON.stringify(run, null, 2) + '\n';
+const snapshot = (run: ProfilePlanningRun): string => JSON.stringify(run, null, 2) + '\n';
 const scalar = (value: string) => JSON.stringify(value);
 export function planningManifest(): {
   manifest: string;
@@ -207,7 +194,7 @@ export class ProfilePlanner {
   private queue: Promise<unknown> = Promise.resolve();
   constructor(
     private readonly root = resolve(process.cwd(), '.runtime', 'profile-plans'),
-    private readonly timelineLoader = loadIdentityTimeline
+    private readonly timelineLoader = loadIdentityTimeline,
   ) {}
   private serialized<T>(work: () => Promise<T>): Promise<T> {
     const promise = this.queue.then(work);
@@ -231,9 +218,7 @@ export class ProfilePlanner {
   }
   async get(id: string): Promise<ProfilePlanningRun | null> {
     try {
-      const value = JSON.parse(
-        await readFile(this.path(id), 'utf8')
-      ) as ProfilePlanningRun;
+      const value = JSON.parse(await readFile(this.path(id), 'utf8')) as ProfilePlanningRun;
       if (
         value.id !== checkedId(id) ||
         value.templateId !== 'li-full' ||
@@ -260,16 +245,10 @@ export class ProfilePlanner {
       const role = text(career.headline, 220);
       const about = text(career.summary, 2600);
       if (!text(career.name, 150) || !role)
-        throw Error(
-          'Complete your career source name and professional headline first'
-        );
-      const experience = career.experience.find(
-        (row) => text(row.company, 120) && text(row.role, 120)
-      );
+        throw Error('Complete your career source name and professional headline first');
+      const experience = career.experience.find((row) => text(row.company, 120) && text(row.role, 120));
       const experienceLines =
-        experience?.bullets
-          .map((v) => text(v, 400))
-          .filter((v): v is string => Boolean(v)) ?? [];
+        experience?.bullets.map((v) => text(v, 400)).filter((v): v is string => Boolean(v)) ?? [];
       const featured = career.projects.find((row) => text(row.title, 150));
       const ownerEvidence = {
         profileUrl: url,
@@ -281,9 +260,7 @@ export class ProfilePlanner {
           about,
           experience: experience
             ? [
-                text(experience.role, 120) +
-                  ' · ' +
-                  text(experience.company, 120),
+                text(experience.role, 120) + ' · ' + text(experience.company, 120),
                 ...experienceLines.slice(0, 3),
               ].join('\n')
             : null,
@@ -294,8 +271,7 @@ export class ProfilePlanner {
       const matched = timeline.find(
         (event) =>
           event.platform === 'linkedin' &&
-          event.url.replace(/\/$/, '') ===
-            ownerEvidence.profileUrl.replace(/\/$/, '')
+          event.url.replace(/\/$/, '') === ownerEvidence.profileUrl.replace(/\/$/, ''),
       );
       const observedHeadline = text(matched?.headline, 300);
       // The proposal generator consumes the assessment's typed, source-bounded
@@ -306,16 +282,8 @@ export class ProfilePlanner {
         facts: ownerEvidence.facts,
         observedHeadline: observedHeadline ?? null,
         lastObservation: matched?.timestamp ?? null,
-        comparisonStatus: observedHeadline
-          ? 'headline-observed-only'
-          : 'live-profile-not-observed',
-        sectionsWithoutLiveEvidence: [
-          'About',
-          'Experience',
-          'Services',
-          'Projects',
-          'Featured',
-        ],
+        comparisonStatus: observedHeadline ? 'headline-observed-only' : 'live-profile-not-observed',
+        sectionsWithoutLiveEvidence: ['About', 'Experience', 'Services', 'Projects', 'Featured'],
         advisory:
           'Career data entered in this workspace is not proof of the live LinkedIn page or permission to edit it.',
       };
@@ -360,10 +328,7 @@ export class ProfilePlanner {
             'Saved career project candidate. Confirm the account owner wants it featured on LinkedIn.',
           status: 'draft-for-review',
         });
-      if (!proposals.length)
-        throw Error(
-          'No factual profile fields found for an optimization proposal'
-        );
+      if (!proposals.length) throw Error('No factual profile fields found for an optimization proposal');
       const stages: PlanningStage[] = chain.map((stage, i) => ({
         id: stage.id,
         operation: stage.operation,
@@ -383,7 +348,7 @@ export class ProfilePlanner {
                     careerRevision: input.careerRevision,
                     facts: ownerEvidence.facts,
                     proposals,
-                  })
+                  }),
                 ),
               },
             }
@@ -432,8 +397,7 @@ export class ProfilePlanner {
     return this.serialized(async () => {
       const run = await this.get(id);
       if (!run) throw Error('Optimization run not found');
-      if (run.state !== 'approval-needed')
-        throw Error('Approval checkpoint already resolved');
+      if (run.state !== 'approval-needed') throw Error('Approval checkpoint already resolved');
       run.state = approved ? 'selection-needed' : 'declined';
       run.stages[3]!.state = approved ? 'completed' : 'declined';
       const evidence = sourceEvidence(run);
@@ -459,18 +423,12 @@ export class ProfilePlanner {
     return this.serialized(async () => {
       const run = await this.get(id);
       if (!run) throw Error('Optimization run not found');
-      if (run.state !== 'selection-needed')
-        throw Error('Selection requires explicit prior approval');
+      if (run.state !== 'selection-needed') throw Error('Selection requires explicit prior approval');
       if (selectedIds.some((v) => !run.proposals.some((p) => p.id === v)))
         throw Error('Unknown proposal ID');
       const evidence = sourceEvidence(run);
-      if (
-        JSON.stringify(record(run.stages[2]?.output).items) !==
-        JSON.stringify(run.proposals)
-      )
-        throw Error(
-          'Selected proposals differ from reviewed planning evidence'
-        );
+      if (JSON.stringify(record(run.stages[2]?.output).items) !== JSON.stringify(run.proposals))
+        throw Error('Selected proposals differ from reviewed planning evidence');
       const decision = record(run.stages[3]?.output);
       // Historical records created before the versioned approval contract are
       // accepted only in their already-approved selection state.
@@ -480,9 +438,7 @@ export class ProfilePlanner {
         decision.approved === true &&
         run.stages[3]?.state === 'completed';
       if (!isApprovalFor(decision, evidence) && !legacyApproved)
-        throw Error(
-          'Selection requires approval of this exact evidence snapshot'
-        );
+        throw Error('Selection requires approval of this exact evidence snapshot');
       const selected = run.proposals.filter((p) => selectedIds.includes(p.id));
       run.stages[4]!.state = 'completed';
       run.stages[4]!.output = { selectedIds: selected.map((p) => p.id) };
