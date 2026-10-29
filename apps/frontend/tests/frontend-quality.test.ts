@@ -63,8 +63,10 @@ test("provider icons have one consistent size and no redundant status graphics",
   await installConnectorApi(page, []);
   const dialog = await openConnectorDialog(page);
   const choices = dialog.locator('[aria-label="Social networks"] button');
-  await expect(choices).toHaveCount(5);
-  const icons = choices.locator("svg");
+  await expect(choices).toHaveCount(2);
+  await dialog.getByRole("button", { name: /Other networks/ }).click();
+  await expect(dialog.getByRole("button", { name: /Other networks/ })).toHaveAttribute("aria-expanded", "true");
+  const icons = dialog.getByTestId("linkedin-connector").locator("svg");
   await expect(icons).toHaveCount(5);
   const dimensions = await icons.evaluateAll(elements =>
     elements.map(element => {
@@ -91,10 +93,20 @@ test("provider choices, connection CTA, and the full dialog fit the active viewp
   await installConnectorApi(page, []);
   const dialog = await openConnectorDialog(page);
   await expect(dialog.getByRole("button", { name: "LinkedIn", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await expect(dialog.getByRole("button", { name: "Connect LinkedIn", exact: true })).toBeVisible();
+  const primaryAction = dialog.getByRole("button", { name: "Connect LinkedIn", exact: true });
+  await expect(primaryAction).toBeVisible();
+  if (info.project.name === "small-mobile-chromium") {
+    const actionBounds = await primaryAction.evaluate(element => {
+      const button = element.getBoundingClientRect();
+      const modal = element.closest("dialog")?.getBoundingClientRect();
+      return { buttonBottom: button.bottom, modalBottom: modal?.bottom ?? 0 };
+    });
+    expect(actionBounds.buttonBottom, "The Connect action should be on screen without scrolling").toBeLessThanOrEqual(actionBounds.modalBottom - 4);
+  }
   await assertLayout(page);
   await capture(page, info, "linkedin-unlinked");
 
+  await dialog.getByRole("button", { name: /Other networks/ }).click();
   await dialog.getByRole("button", { name: "Instagram" }).click();
   await expect(dialog.getByTestId("connector-status")).toHaveText("Unavailable");
   await expect(dialog.getByText(/Official API connector not available yet/)).toBeVisible();
@@ -147,6 +159,7 @@ test("WCAG A and AA checks cover unlinked, unavailable, and connected provider s
   ]);
   const dialog = await openConnectorDialog(page);
   await assertAxe(page, info, "connected");
+  await dialog.getByRole("button", { name: /Other networks/ }).click();
   await dialog.getByRole("button", { name: "GitHub" }).click();
   await assertAxe(page, info, "unavailable");
   await dialog.getByRole("button", { name: "X", exact: true }).click();

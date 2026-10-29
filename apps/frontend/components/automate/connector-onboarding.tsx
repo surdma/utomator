@@ -33,6 +33,7 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
   const [message,setMessage]=useState("");
   const [confirming,setConfirming]=useState(false);
   const [network,setNetwork]=useState<ProviderKey>("linkedin");
+  const [showOtherNetworks,setShowOtherNetworks]=useState(false);
   const [saving,setSaving]=useState(false);
   const [capabilities,setCapabilities]=useState<Capabilities|null>(null);
   const [mobileClient,setMobileClient]=useState(false);
@@ -212,17 +213,17 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
       dismissible={!busy} testId="connector-onboarding-dialog" title="Connect your social accounts"
       description="Choose a network and verify the account you want to use." titleSize="prominent">
       <div data-testid="linkedin-connector" className="mx-auto flex max-w-2xl flex-col gap-5">
-        <section aria-labelledby="connector-network-heading">
+        <section aria-labelledby="connector-network-heading" data-testid="network-picker">
           <div className="mb-3 flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
             <h3 id="connector-network-heading" className="text-sm font-semibold text-slate-900">Select a network</h3>
             <p className="text-xs text-slate-500">One account per network</p>
           </div>
-          <div aria-label="Social networks" className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-            {(["linkedin","x","instagram","github","devto"] as const).map(key=>{
+          <div aria-label="Social networks" className="grid grid-cols-2 gap-2">
+            {(["linkedin","x"] as const).map(key=>{
               const Icon=providerMeta[key].icon;
               return <button key={key} type="button" aria-pressed={network===key}
                 onClick={()=>{setNetwork(key);setSelected(null);setConfirming(false);setError("");setMessage("");}}
-                className={"flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-xl border px-2.5 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 "+(key==="devto"?"col-span-2 sm:col-span-1 ":"")+
+                className={"flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-xl border px-2.5 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 "+
                   (network===key?"border-slate-950 bg-slate-950 text-white":"border-slate-200 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50")}>
                 <Icon className="size-5! shrink-0" aria-hidden="true"/>
                 <span className="min-w-0">{providerMeta[key].name}</span>
@@ -349,6 +350,26 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
                 Manage profiles
               </button>}
             </>}
+          </div>
+        </section>
+
+        <section aria-label="Additional social networks" className="rounded-xl border border-slate-200">
+          <button type="button" aria-expanded={showOtherNetworks} aria-controls="other-network-options"
+            onClick={()=>setShowOtherNetworks(value=>!value)}
+            className="flex min-h-11 w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl px-4 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950">
+            <span>Other networks</span><span className="text-xs font-normal text-slate-500">Coming soon</span>
+          </button>
+          <div id="other-network-options" className={showOtherNetworks?"grid grid-cols-1 gap-2 border-t border-slate-200 p-2 sm:grid-cols-3":"hidden"}>
+            {(["instagram","github","devto"] as const).map(key=>{
+              const Icon=providerMeta[key].icon;
+              return <button key={key} type="button" aria-pressed={network===key}
+                onClick={()=>{setNetwork(key);setSelected(null);setConfirming(false);setError("");setMessage("");}}
+                className={"flex min-h-11 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 "+
+                  (network===key?"border-slate-950 bg-slate-950 text-white":"border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>
+                <Icon className="size-5! shrink-0" aria-hidden="true"/>
+                <span>{providerMeta[key].name}</span>
+              </button>;
+            })}
           </div>
         </section>
 

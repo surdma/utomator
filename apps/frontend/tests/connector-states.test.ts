@@ -87,6 +87,7 @@ test("a new connection discovers its identity without manual input",async({page}
 test("unsupported providers cannot sync",async({page})=>{
   const fixture=await installConnectorApi(page,[]);
   const dialog=await openConnectorDialog(page);
+  await dialog.getByRole("button",{name:/Other networks/}).click();
   await dialog.getByRole("button",{name:"GitHub"}).click();
   await expect(dialog.getByText(/Official API connector not available yet/)).toBeVisible();
   await expect(dialog.getByRole("button",{name:/Sync|Verify connection|Check connection/})).toHaveCount(0);
