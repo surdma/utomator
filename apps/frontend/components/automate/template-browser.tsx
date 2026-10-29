@@ -249,7 +249,7 @@ export default function TemplateBrowser({
   // Account verification is checked again when the operator starts a run.
   const loadable =
     executable && platform === "linkedin" && activePlatform === "linkedin";
-  async function useTemplate() {
+  async function applyTemplate() {
     if (!selected || !loadable) return;
     if (!selected.action && !selected.growthId) return;
     setApplying(true);
@@ -610,7 +610,7 @@ export default function TemplateBrowser({
                     type="button"
                     disabled={!loadable || applying}
                     onClick={() => {
-                      void useTemplate();
+                      void applyTemplate();
                     }}
                     aria-label={
                       selected?.growthId
