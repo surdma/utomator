@@ -21,9 +21,7 @@ export default function GrowthCoverageList({
             key={item.id}
             className="flex justify-between gap-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-700"
           >
-            <span>
-              {labels.get(item.id) ?? item.id}
-            </span>
+            <span>{labels.get(item.id) ?? item.id}</span>
             <span className="shrink-0 font-semibold">
               {item.status === 'missing' ? 'Missing' : 'Owner reported'}
             </span>

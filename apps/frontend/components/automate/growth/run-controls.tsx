@@ -73,14 +73,10 @@ export default function GrowthRunControls({
                 className="min-h-10 rounded-lg border border-amber-600 px-3 text-xs font-semibold text-amber-950 disabled:opacity-50"
                 onClick={() =>
                   void mutate(() =>
-                    request(
-                      '/api/runs/' + child.id + '/decision',
-                      'POST',
-                      {
-                        checkpointId: checkpoint.id,
-                        approved,
-                      }
-                    )
+                    request('/api/runs/' + child.id + '/decision', 'POST', {
+                      checkpointId: checkpoint.id,
+                      approved,
+                    })
                   )
                 }
               >

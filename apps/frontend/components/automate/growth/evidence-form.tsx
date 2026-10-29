@@ -36,11 +36,10 @@ export default function GrowthEvidenceForm({
         event.preventDefault();
         if (!evidenceSection) return;
         void mutate(async () => {
-          await request(
-            endpoint + '/runs/' + run.id + '/evidence',
-            'POST',
-            { sectionId: evidenceSection, text: evidenceText }
-          );
+          await request(endpoint + '/runs/' + run.id + '/evidence', 'POST', {
+            sectionId: evidenceSection,
+            text: evidenceText,
+          });
           setEvidenceText('');
         });
       }}
@@ -49,8 +48,8 @@ export default function GrowthEvidenceForm({
         Record independent section evidence
       </h3>
       <p className="mt-1 text-xs leading-5 text-slate-500">
-        Owner observations are stored as unverified input, never
-        represented as a verified LinkedIn extraction.
+        Owner observations are stored as unverified input, never represented as
+        a verified LinkedIn extraction.
       </p>
       <label className="mt-3 block text-xs font-semibold text-slate-800">
         Coverage section
@@ -87,10 +86,8 @@ export default function GrowthEvidenceForm({
       {currentEvidence?.evidence && (
         <p className="mt-2 text-xs text-slate-500">
           Previously submitted on{' '}
-          {new Date(
-            currentEvidence.evidence.capturedAt
-          ).toLocaleString()}
-          ; this remains owner-supplied, not independently verified.
+          {new Date(currentEvidence.evidence.capturedAt).toLocaleString()}; this
+          remains owner-supplied, not independently verified.
         </p>
       )}
       <button
