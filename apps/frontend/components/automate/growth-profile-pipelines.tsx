@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { ArrowRight, FileCode2, ShieldCheck } from 'lucide-react';
+import { FileCode2, ShieldCheck } from 'lucide-react';
 import GrowthWorkflowArtboard from './growth-workflow-artboard';
 import type { Run } from './growth-profile-types';
 import { request } from '../../lib/growth-profile-client';
 import { useGrowthProfileWorkflow } from './hooks/use-growth-profile-workflow';
+import GrowthRunControls from './growth/run-controls';
+import GrowthEvidenceForm from './growth/evidence-form';
+import GrowthCoverageList from './growth/coverage-list';
 
 type Props = {
   platform: 'linkedin' | 'x';
@@ -27,17 +29,6 @@ export default function GrowthProfilePipelines({
 }: Props) {
   const { endpoint, program, run, setRun, error, working, mutate } =
     useGrowthProfileWorkflow(platform, templateId, accountId);
-  const [evidenceSection, setEvidenceSection] = useState('');
-  const [evidenceText, setEvidenceText] = useState('');
-  const active = run?.currentStage;
-  const child = run?.currentChild;
-  const selectedSections =
-    program?.coverage.filter((section) =>
-      active?.sectionIds.includes(section.id)
-    ) ?? [];
-  const currentEvidence = run?.coverage.find(
-    (item) => item.id === evidenceSection
-  );
   if (platform !== 'linkedin') return null;
   return (
     <section
@@ -118,232 +109,24 @@ export default function GrowthProfilePipelines({
         )}
       {run && (
         <>
-          <div className="rounded-xl border border-slate-200 p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-950">
-                  Run {run.id.slice(0, 8)}
-                </h3>
-                <p className="mt-1 text-xs text-slate-600">
-                  Current stage: {active?.title} · {run.state}
-                </p>
-              </div>
-              <span className="text-xs font-semibold text-slate-600">
-                {run.counts.ownerSupplied}/{run.counts.total} owner-supplied ·{' '}
-                {run.counts.missing} missing
-              </span>
-            </div>
-            {run.currentPageEvidence && (
-              <p className="mt-3 text-xs leading-5 break-words text-slate-600">
-                Runner page evidence: {run.currentPageEvidence.url} · SHA-256{' '}
-                {run.currentPageEvidence.digest.slice(0, 16)}…
-              </p>
-            )}
-            {child?.id && (
-              <a
-                href={'/api/runs/' + child.id + '/workflow.yaml'}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-flex min-h-9 items-center gap-1 text-xs font-semibold text-teal-800 underline"
-              >
-                Inspect actual Runner YAML <ArrowRight className="size-3.5" />
-              </a>
-            )}
-            {child?.state === 'approval-needed' && child.checkpoint && (
-              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
-                <p className="text-sm font-semibold text-amber-950">
-                  Owner evidence approval required
-                </p>
-                <p className="mt-2 text-xs leading-5 text-amber-900">
-                  {child.checkpoint.message}
-                </p>
-                <div className="mt-3 flex gap-2">
-                  {[true, false].map((approved) => (
-                    <button
-                      key={String(approved)}
-                      type="button"
-                      disabled={working}
-                      className="min-h-10 rounded-lg border border-amber-600 px-3 text-xs font-semibold text-amber-950 disabled:opacity-50"
-                      onClick={() =>
-                        void mutate(() =>
-                          request(
-                            '/api/runs/' + child.id + '/decision',
-                            'POST',
-                            {
-                              checkpointId: child.checkpoint!.id,
-                              approved,
-                            }
-                          )
-                        )
-                      }
-                    >
-                      {approved ? 'Approve evidence' : 'Reject'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            {child?.state === 'paused' && (
-              <button
-                type="button"
-                disabled={working}
-                className="mt-3 min-h-10 rounded-lg bg-slate-950 px-4 text-xs font-semibold text-white disabled:opacity-50"
-                onClick={() =>
-                  void mutate(() =>
-                    request('/api/runs/' + child.id + '/resume', 'POST')
-                  )
-                }
-              >
-                Resume reviewed Runner stage
-              </button>
-            )}
-            {child?.error && (
-              <p className="mt-3 text-xs text-rose-700" role="alert">
-                {child.error}
-              </p>
-            )}
-            {run.status === 'active' &&
-              child &&
-              ['running', 'paused', 'approval-needed', 'input-needed'].includes(
-                child.state
-              ) && (
-                <button
-                  type="button"
-                  disabled={working}
-                  className="mt-3 ml-2 min-h-10 rounded-lg border border-rose-200 px-3 text-xs font-semibold text-rose-800 disabled:opacity-50"
-                  onClick={() =>
-                    void mutate(() =>
-                      request('/api/runs/' + child.id + '/cancel', 'POST')
-                    )
-                  }
-                >
-                  Cancel active Runner pipeline
-                </button>
-              )}
-            {run.releasePending && (
-              <p role="status" className="mt-3 text-xs text-amber-800">
-                The completed Runner is releasing its browser session. The next
-                pipeline becomes available after cleanup.
-              </p>
-            )}
-            {run.canAdvance && (
-              <button
-                type="button"
-                disabled={working || busy}
-                className="mt-3 min-h-11 rounded-xl bg-teal-800 px-4 text-sm font-semibold text-white disabled:opacity-50"
-                onClick={() =>
-                  void mutate(() =>
-                    request(endpoint + '/runs/' + run.id + '/advance', 'POST')
-                  )
-                }
-              >
-                {run.activeIndex + 1 === program?.stages.length
-                  ? 'Finalize evidence report'
-                  : 'Advance to the next dependent pipeline'}
-              </button>
-            )}
-            <p className="mt-3 text-xs leading-5 text-slate-500">
-              {run.outcomeNotice}
-            </p>
-          </div>
+          <GrowthRunControls
+            run={run}
+            program={program}
+            busy={busy}
+            working={working}
+            endpoint={endpoint}
+            mutate={mutate}
+          />
           {run.status === 'active' && active?.id !== 'review' && (
-            <form
-              className="rounded-xl border border-slate-200 p-4"
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (!evidenceSection) return;
-                void mutate(async () => {
-                  await request(
-                    endpoint + '/runs/' + run.id + '/evidence',
-                    'POST',
-                    { sectionId: evidenceSection, text: evidenceText }
-                  );
-                  setEvidenceText('');
-                });
-              }}
-            >
-              <h3 className="text-sm font-semibold text-slate-950">
-                Record independent section evidence
-              </h3>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                Owner observations are stored as unverified input, never
-                represented as a verified LinkedIn extraction.
-              </p>
-              <label className="mt-3 block text-xs font-semibold text-slate-800">
-                Coverage section
-                <select
-                  aria-label="Coverage section"
-                  required
-                  value={evidenceSection}
-                  onChange={(event) => {
-                    setEvidenceSection(event.target.value);
-                    setEvidenceText('');
-                  }}
-                  className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3"
-                >
-                  <option value="">
-                    Choose a section in the current stage
-                  </option>
-                  {selectedSections.map((section) => (
-                    <option key={section.id} value={section.id}>
-                      {section.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="mt-3 block text-xs font-semibold text-slate-800">
-                Real owner-supplied observation (10–1500 characters)
-                <textarea
-                  value={evidenceText}
-                  onChange={(event) => setEvidenceText(event.target.value)}
-                  aria-label="Section observation"
-                  required
-                  minLength={10}
-                  maxLength={1500}
-                  className="mt-1 min-h-24 w-full rounded-lg border border-slate-300 p-3 text-sm"
-                />
-              </label>
-              {currentEvidence?.evidence && (
-                <p className="mt-2 text-xs text-slate-500">
-                  Previously submitted on{' '}
-                  {new Date(
-                    currentEvidence.evidence.capturedAt
-                  ).toLocaleString()}
-                  ; this remains owner-supplied, not independently verified.
-                </p>
-              )}
-              <button
-                type="submit"
-                disabled={
-                  working || evidenceText.trim().length < 10 || !evidenceSection
-                }
-                className="mt-3 min-h-10 rounded-lg bg-slate-950 px-4 text-xs font-semibold text-white disabled:opacity-50"
-              >
-                Save source-labelled evidence
-              </button>
-            </form>
+            <GrowthEvidenceForm
+              run={run}
+              program={program}
+              endpoint={endpoint}
+              working={working}
+              mutate={mutate}
+            />
           )}
-          <details className="rounded-xl border border-slate-200 p-4">
-            <summary className="cursor-pointer text-sm font-semibold">
-              All {run.counts.total} independent coverage records
-            </summary>
-            <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-              {run.coverage.map((item) => (
-                <li
-                  key={item.id}
-                  className="flex justify-between gap-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-700"
-                >
-                  <span>
-                    {program?.coverage.find((c) => c.id === item.id)?.label ??
-                      item.id}
-                  </span>
-                  <span className="shrink-0 font-semibold">
-                    {item.status === 'missing' ? 'Missing' : 'Owner reported'}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </details>
+          <GrowthCoverageList run={run} program={program} />
         </>
       )}
       {program && (

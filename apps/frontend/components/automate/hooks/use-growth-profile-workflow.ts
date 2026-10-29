@@ -39,8 +39,11 @@ export function useGrowthProfileWorkflow(
     if (platform !== 'linkedin') return;
     const controller = new AbortController();
     let active = true;
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    let inFlight = false;
     const poll = async () => {
+      // An interval tick must not start a second request while one is pending.
+      if (!active || inFlight) return;
+      inFlight = true;
       try {
         await refresh(controller.signal);
       } catch (reason) {
@@ -52,15 +55,15 @@ export function useGrowthProfileWorkflow(
           );
         }
       } finally {
-        // Only one outstanding poll at a time; cleanup aborts an in-flight request.
-        if (active) timer = setTimeout(() => void poll(), 2500);
+        inFlight = false;
       }
     };
     void poll();
+    const interval = setInterval(() => void poll(), 2500);
     return () => {
       active = false;
+      clearInterval(interval);
       controller.abort();
-      if (timer) clearTimeout(timer);
     };
   }, [platform, refresh]);
 

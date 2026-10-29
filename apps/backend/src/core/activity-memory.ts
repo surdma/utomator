@@ -43,7 +43,7 @@ export class ActivityMemory {
     };
     const operation = this.writing.then(async () => {
       await mkdir(dirname(this.path), { recursive: true, mode: 0o700 });
-      await appendFile(this.path, JSON.stringify(entry) + '\n', {
+      await appendFile(this.path, `${JSON.stringify(entry)}\n`, {
         mode: 0o600,
       });
     });
@@ -68,7 +68,7 @@ export class ActivityMemory {
       }
     });
     const audit = (await loadIdentityTimeline()).map((entry) => ({
-      id: entry.runId + ':' + entry.timestamp,
+      id: `${entry.runId}:${entry.timestamp}`,
       time: entry.timestamp,
       source: 'browser' as const,
       platform: entry.platform,

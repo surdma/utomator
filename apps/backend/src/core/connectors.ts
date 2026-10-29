@@ -119,8 +119,8 @@ export class ConnectorService {
         return;
       }
       await mkdir(dirname(this.path), { recursive: true, mode: 0o700 });
-      const temp = this.path + '.' + randomUUID() + '.tmp';
-      await writeFile(temp, JSON.stringify(all, null, 2) + '\n', {
+      const temp = `${this.path}.${randomUUID()}.tmp`;
+      await writeFile(temp, `${JSON.stringify(all, null, 2)}\n`, {
         mode: 0o600,
       });
       await rename(temp, this.path);
@@ -322,8 +322,8 @@ export class ConnectorService {
     const handle = profileUrl.pathname.split('/').filter(Boolean).at(-1)!;
     const normalized =
       platform === 'linkedin'
-        ? 'https://www.linkedin.com/in/' + handle + '/'
-        : 'https://x.com/' + handle;
+        ? `https://www.linkedin.com/in/${handle}/`
+        : `https://x.com/${handle}`;
     // Prove ownership at the discovered profile before it is persisted.
     const verified = await this.verify(page, {
       id: '',

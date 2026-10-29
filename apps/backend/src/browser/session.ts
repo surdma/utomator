@@ -37,7 +37,7 @@ async function attachChrome(endpoint: string): Promise<Browser> {
 
 async function discoverRunningChrome(): Promise<string | undefined> {
   try {
-    const response = await fetch(localCdpUrl + '/json/version', {
+    const response = await fetch(`${localCdpUrl}/json/version`, {
       signal: AbortSignal.timeout(800),
     });
     if (!response.ok) return undefined;

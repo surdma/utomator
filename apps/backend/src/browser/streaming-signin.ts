@@ -171,7 +171,7 @@ export const defaultLaunch = async (
   context: BrowserContext;
   dispose: () => Promise<void>;
 }> => {
-  const dir = resolve('.runtime', 'chrome', 'scratch', randomUUID() + '-' + platform);
+  const dir = resolve('.runtime', 'chrome', 'scratch', `${randomUUID()}-${platform}`);
   await mkdir(dir, { recursive: true, mode: 0o700 });
   const context = await chromium.launchPersistentContext(dir, {
     headless: true,
