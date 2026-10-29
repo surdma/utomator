@@ -343,7 +343,7 @@ export default function ConnectorOnboarding({
     return () => {
       live = false;
     };
-  }, [chosen?.id, chosen?.status, open]);
+  }, [chosen?.id, chosen?.platform, chosen?.status, open]);
   async function authorizePublishing(id: string) {
     if (busy) return;
     setError("");
