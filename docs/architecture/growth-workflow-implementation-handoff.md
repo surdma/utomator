@@ -67,9 +67,13 @@ Pipeline → Templates modal
 | 2026-10-28 | YAML catalogue, existing modal, nested parent/child graphs, failure attribution | IMPLEMENTED / CI_VERIFIED for baseline | former PR #9 consolidated into PR #7 at `3a06ddbf18b4b3a1efc12a7fa247ee0dcbab41d3` |
 | 2026-10-28 | Full baseline CI | CI_VERIFIED for **exact baseline SHA only** | [Actions #40776273349](https://github.com/surdma/utomator/actions/runs/40776273349) success: backend/unit/Fastify, TS/Biome, builds, hosted security, browser-fixture pipeline edges and task drill-in |
 | 2026-10-29 | Async browser cleanup race | INVESTIGATED | Runner completion before `browser.close()` vs coordinator advancement |
-| 2026-10-29 | Idle-gated advancement, session-start failure attribution, UI and regression test | IMPLEMENTED at `a640bb4decfe83c3fa5a66b6c24b3d9c7df90047`; independent CI review pending | Runner `isIdle`, coordinator `releasePending`, new regression test |
+| 2026-10-29 | Idle-gated advancement, session-start failure attribution, UI and regression test | IMPLEMENTED at `a640bb4decfe83c3fa5a66b6c24b3d9c7df90047` | Runner `isIdle`, coordinator `releasePending`, new regression test |
+| 2026-10-29 | All 21 existing Growth entries discoverable in the same Templates modal | IMPLEMENTED | The 15 capability definitions remain planned/partially supported; 6 real MDX toolkits are discoverable as **guidance only**, with links to their existing Growth-library view and no Runner dispatch. Frontend + browser regression at `3c57bb9ca40ed8a5d9605908eb92d201515fbdb7` |
+| 2026-10-29 | Full revised code CI | **CI_VERIFIED** for exact application SHA `3c57bb9ca40ed8a5d9605908eb92d201515fbdb7` | [Actions #40829676014](https://github.com/surdma/utomator/actions/runs/40829676014) completed **success** (all job steps green): backend unit and Fastify, TS/Biome, frontend/backend builds, local SQLite, hosted security, Playwright real-browser fixtures including toolkit selection, nested pipeline graph and no implicit run |
+| 2026-10-29 | CI-only validation pull request | CLOSED, **not merged** | [PR #10](https://github.com/surdma/utomator/pull/10) was a draft targeting `main` solely to activate the `pull_request` CI filter; canonical PR #7 remains draft on PR #6 |
+| 2026-10-29 | Independent review and live LinkedIn account acceptance | **BLOCKED / NOT VERIFIED** | A green CI run does not prove real LinkedIn permissions, exact 20-field assessment, live UI owner approvals, or an independently reviewed full general-purpose engine |
 
-**Local execution limitation:** no project checkout was mounted, and `git ls-remote https://github.com/surdma/utomator.git HEAD` failed with DNS resolution error in this environment. Do not claim local Node tests. CI results must be linked to the precise code SHA; local stub tests and a green CI are not live LinkedIn validation.
+**Local execution limitation:** no project checkout was mounted, and `git ls-remote https://github.com/surdma/utomator.git HEAD` failed with DNS resolution error in this environment. Do not claim local Node tests. The full GitHub CI result is verified against application SHA `3c57bb9`; this subsequent documentation-only update does not change the tested code. CI fixtures are not live LinkedIn validation.
 
 ## 5. Blockers / risks (do not mark resolved without evidence)
 
@@ -86,7 +90,7 @@ Pipeline → Templates modal
 
 ## 6. Predecessor, successor, exact handoff
 
-**Predecessors:** PR [#6](https://github.com/surdma/utomator/pull/6) (Growth/MDX catalogue) → PR [#7](https://github.com/surdma/utomator/pull/7) (YAML/Runner composition) → former PR #8 and #9 consolidated **into the PR #7 branch**, not main. Re-check refs on each resumption.
+**Predecessors:** PR [#6](https://github.com/surdma/utomator/pull/6) (Growth/MDX catalogue) → PR [#7](https://github.com/surdma/utomator/pull/7) (YAML/Runner composition) → former PR #8 and #9 consolidated **into the PR #7 branch**, not main. Temporary [PR #10](https://github.com/surdma/utomator/pull/10) provided the completed full CI gate and was **closed without merging**. Re-check refs on each resumption.
 
 **Current:** Engineering Lead controls `INVESTIGATED → IMPLEMENTED → TEST → REVIEW → DOGFOOD → GIT`. This change's scope is the real Runner cleanup handoff and associated visibility; do not broaden to synthetic full 20-field automation.
 
