@@ -63,7 +63,7 @@ export default function CheckpointDialog({
                 <input
                   aria-label="Checkpoint response"
                   value={inputReply}
-                  onChange={(event) => onInputChange(event.target.value)
+                  onChange={(event) => onInputChange(event.target.value)}
                   className="min-h-10 min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 text-sm"
                   maxLength={300}
                 />
