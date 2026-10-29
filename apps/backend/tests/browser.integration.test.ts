@@ -457,7 +457,7 @@ test('Growth discovery preserves capability delivery status, section coverage an
   }finally{await browser.close();await app.close();}
 });
 
-test('LinkedIn connector adds a server-owned profile and stays available from the Profile page',async()=>{
+test('Connector dialog rejects manual profile entry and Profile shows only verified links',async()=>{
   const root=await mkdtemp(join(tmpdir(),'utomator-linkedin-dialog-'));
   const app=buildApp({socialWorkspaceRoot:root});
   const browser=await chromium.launch({headless:true});
@@ -471,27 +471,22 @@ test('LinkedIn connector adds a server-owned profile and stays available from th
     await dialog.getByTestId('linkedin-connector').waitFor();
     await page.setViewportSize({width:390,height:760});
     assert.equal(await dialog.getByRole('heading',{name:'LinkedIn',exact:true}).count(),1);
-    assert.equal(await dialog.getByRole('heading',{name:'X',exact:true}).count(),0);
-    await dialog.getByRole('button',{name:'Add another LinkedIn account'}).click();
-    await dialog.getByRole('textbox',{name:'LinkedIn profile address'})
-      .fill('https://www.linkedin.com/in/compact-test-owner/');
-    await dialog.getByRole('button',{name:'Add account',exact:true}).click();
-    await dialog.getByText('@compact-test-owner',{exact:true}).waitFor();
-    const state=(await app.inject('/account')).json() as
-      {socialAccounts:Array<{id:string;platform:string;handle:string}>};
-    const saved=state.socialAccounts.find(row=>row.handle==='compact-test-owner');
-    assert(saved&&saved.platform==='linkedin');
-    const connector=(await app.inject('/connectors')).json() as Array<{id:string;status:string}>;
-    assert.equal(connector.find(row=>row.id===saved.id)?.status,'disconnected');
+    assert.equal(await dialog.getByRole('textbox',{name:/profile address|username|handle/i}).count(),0);
+    await dialog.getByRole('button',{name:'Connect LinkedIn',exact:true}).waitFor();
+    const before=(await app.inject('/account')).json() as {socialAccounts:unknown[]};
+    assert.equal(before.socialAccounts.length,0,'viewing a provider must not create an account');
     await page.keyboard.press('Escape');
     await page.goto('http://127.0.0.1:3100/dashboard/profile/connections',{waitUntil:'domcontentloaded'});
-    await page.getByTestId('owner-profile-page').waitFor();
-    await page.getByTestId('owner-profile-page').getByText('@compact-test-owner').waitFor();
-    const status=page.getByTestId('profile-connection-status-'+saved.id);
-    await status.getByText('Not connected').waitFor();
-    await status.locator('xpath=..').getByRole('button',{name:'Connect LinkedIn',exact:true}).click();
+    const owner=page.getByTestId('owner-profile-page');
+    await owner.waitFor();
+    await owner.getByText('No verified account linked.').first().waitFor();
+    assert.equal(await owner.getByText('No verified account linked.').count(),5);
+    assert.equal(await owner.getByRole('button',{name:'Add profile'}).count(),0);
+    await owner.getByRole('button',{name:'Manage connections'}).click();
     await dialog.waitFor({state:'visible'});
-    assert.equal(await dialog.getByText('@compact-test-owner',{exact:true}).count(),1);
+    await dialog.getByRole('button',{name:'Connect LinkedIn',exact:true}).waitFor();
+    const after=(await app.inject('/account')).json() as {socialAccounts:unknown[]};
+    assert.equal(after.socialAccounts.length,0,'an unverified profile must never be persisted');
   }finally{await browser.close();await app.close();await rm(root,{recursive:true,force:true});}
 });
 
