@@ -79,6 +79,9 @@ test("provider icons have one consistent size and no redundant status graphics",
   }
   await expect(dialog.getByTestId("linkedin-connector").locator("svg")).toHaveCount(5);
   await expect(dialog.locator('[aria-label="Connection progress"]')).toHaveCount(0);
+  const title = dialog.getByRole("heading", { name: "Connect your social accounts" });
+  const titleSize = await title.evaluate(element => parseFloat(getComputedStyle(element).fontSize));
+  expect(titleSize).toBeGreaterThanOrEqual(20);
   const width = await dialog.evaluate(element => element.getBoundingClientRect().width);
   expect(width).toBeLessThanOrEqual(700);
   await assertLayout(page);

@@ -210,7 +210,7 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
     </button>}
     <StudioDialog open={open} onDismiss={()=>{if(!busy)setOpen(false);}}
       dismissible={!busy} testId="connector-onboarding-dialog" title="Connect your social accounts"
-      description="Choose a network and verify the account you want to use.">
+      description="Choose a network and verify the account you want to use." titleSize="prominent">
       <div data-testid="linkedin-connector" className="mx-auto flex max-w-2xl flex-col gap-5">
         <section aria-labelledby="connector-network-heading">
           <div className="mb-3 flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
@@ -222,7 +222,7 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
               const Icon=providerMeta[key].icon;
               return <button key={key} type="button" aria-pressed={network===key}
                 onClick={()=>{setNetwork(key);setSelected(null);setConfirming(false);setError("");setMessage("");}}
-                className={"flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 "+(key==="devto"?"col-span-2 sm:col-span-1 ":"")+
+                className={"flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-xl border px-2.5 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 "+(key==="devto"?"col-span-2 sm:col-span-1 ":"")+
                   (network===key?"border-slate-950 bg-slate-950 text-white":"border-slate-200 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50")}>
                 <Icon className="size-5! shrink-0" aria-hidden="true"/>
                 <span className="min-w-0">{providerMeta[key].name}</span>
