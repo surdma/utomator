@@ -4,9 +4,7 @@ export function profileUrlForHandle(platform: 'linkedin' | 'x', rawHandle: strin
   const handle = rawHandle.trim().replace(/^@/, '');
   const pattern = platform === 'linkedin' ? /^[a-zA-Z0-9_-]{3,100}$/ : /^[a-zA-Z0-9_]{1,15}$/;
   if (!pattern.test(handle)) throw new Error('Enter a valid profile handle, not a URL or email address');
-  return platform === 'linkedin'
-    ? 'https://www.linkedin.com/in/' + handle + '/'
-    : 'https://x.com/' + handle;
+  return platform === 'linkedin' ? `https://www.linkedin.com/in/${handle}/` : `https://x.com/${handle}`;
 }
 
 export function validateProfileUrl(platform: 'linkedin' | 'x', input: string): URL {
@@ -46,7 +44,7 @@ export function validatePageScope(platform: 'linkedin' | 'x', profile: URL, raw:
     if (
       path !== base &&
       !['experience', 'skills', 'projects', 'featured'].some(
-        (section) => path === base + '/details/' + section,
+        (section) => path === `${base}/details/${section}`,
       )
     )
       throw new Error('Unsupported LinkedIn details page');

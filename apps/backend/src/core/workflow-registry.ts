@@ -45,11 +45,11 @@ export class WorkflowRegistry {
     private readonly legacyRoot = resolve(process.cwd(), '.runtime', 'workflow-plans'),
   ) {}
   private pathFor(id: string): string {
-    return resolve(this.root, checkedId(id) + '.json');
+    return resolve(this.root, `${checkedId(id)}.json`);
   }
   private revisionPath(id: string, revision: number): string {
     if (!Number.isSafeInteger(revision) || revision < 1) throw Error('Invalid workflow revision');
-    return resolve(this.root, 'revisions', checkedId(id), revision + '.json');
+    return resolve(this.root, 'revisions', checkedId(id), `${revision}.json`);
   }
   private serialize<T>(operation: () => Promise<T>): Promise<T> {
     const result = this.queue.then(operation);
@@ -57,7 +57,7 @@ export class WorkflowRegistry {
     return result;
   }
   private async atomic(path: string, contents: string): Promise<void> {
-    const temp = path + '.' + randomUUID();
+    const temp = `${path}.${randomUUID()}`;
     await writeFile(temp, contents, { mode: 0o600, flag: 'wx' });
     try {
       await rename(temp, path);
@@ -69,7 +69,7 @@ export class WorkflowRegistry {
   private async persist(record: WorkflowRecord): Promise<void> {
     if (this.documents) {
       const current = await this.documents.get<WorkflowRecord>('workflows', record.id);
-      const revisionKey = record.id + ':' + record.revision;
+      const revisionKey = `${record.id}:${record.revision}`;
       const revision = await this.documents.get<WorkflowRecord>('workflow-revisions', revisionKey);
       if (revision) throw Error('Version conflict: workflow revision already exists');
       await this.documents.put('workflow-revisions', revisionKey, record, 0);
@@ -87,12 +87,12 @@ export class WorkflowRegistry {
     });
     // The snapshot is created exactly once; the mutable pointer is updated only afterward.
     const revisionPath = this.revisionPath(record.id, record.revision);
-    await writeFile(revisionPath, JSON.stringify(record, null, 2) + '\n', {
+    await writeFile(revisionPath, `${JSON.stringify(record, null, 2)}\n`, {
       mode: 0o600,
       flag: 'wx',
     });
     try {
-      await this.atomic(this.pathFor(record.id), JSON.stringify(record, null, 2) + '\n');
+      await this.atomic(this.pathFor(record.id), `${JSON.stringify(record, null, 2)}\n`);
     } catch (error) {
       await unlink(revisionPath).catch(() => undefined);
       throw error;
@@ -104,7 +104,7 @@ export class WorkflowRegistry {
       const stored = this.documents
         ? await this.documents.get<WorkflowRecord>(
             revision === undefined ? 'workflows' : 'workflow-revisions',
-            revision === undefined ? checkedId(id) : checkedId(id) + ':' + revision,
+            revision === undefined ? checkedId(id) : `${checkedId(id)}:${revision}`,
           )
         : null;
       if (this.documents && this.documents.ownerId !== 'local-owner' && !stored) return null;
@@ -169,10 +169,8 @@ export class WorkflowRegistry {
     if (this.documents && this.documents.ownerId !== 'local-owner') return;
     for (const platform of ['linkedin', 'x'] as const) {
       for (const template of templates(platform)) {
-        const key = platform + '-' + template.action;
-        const digest = createHash('sha256')
-          .update('utomator:legacy:' + key)
-          .digest('hex');
+        const key = `${platform}-${template.action}`;
+        const digest = createHash('sha256').update(`utomator:legacy:${key}`).digest('hex');
         const id =
           digest.slice(0, 8) +
           '-' +
@@ -187,7 +185,7 @@ export class WorkflowRegistry {
         let plan: WorkflowPlan;
         try {
           plan = validatedPlan(
-            JSON.parse(await readFile(resolve(this.legacyRoot, key + '.json'), 'utf8')),
+            JSON.parse(await readFile(resolve(this.legacyRoot, `${key}.json`), 'utf8')),
           );
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
@@ -197,7 +195,7 @@ export class WorkflowRegistry {
         await this.persist({
           id,
           ownerId: 'local-owner',
-          templateId: 'legacy-' + key,
+          templateId: `legacy-${key}`,
           revision: 1,
           createdAt: now,
           updatedAt: now,
