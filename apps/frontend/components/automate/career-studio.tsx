@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import StudioDialog from "@/components/ui/studio-dialog";
 import {
-  ArrowDownToLine,
   ArrowRight,
-  Check,
   Copy,
   FileText,
   LayoutTemplate,
@@ -17,7 +15,6 @@ import {
   Search,
   ShieldCheck,
   Trash2,
-  UserRound,
 } from "lucide-react";
 import "./career-studio.css";
 import "./career-redesign.css";
@@ -98,28 +95,6 @@ function Field({
     </label>
   );
 }
-function Section({
-  title,
-  detail,
-  children,
-}: {
-  title: string;
-  detail?: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-      <div className="mb-4 border-b border-slate-100 pb-3">
-        <h3 className="text-sm font-bold text-slate-950">{title}</h3>
-        {detail && (
-          <p className="mt-1 text-xs leading-5 text-slate-500">{detail}</p>
-        )}
-      </div>
-      {children}
-    </section>
-  );
-}
-
 type SectionKey =
   | "identity"
   | "contacts"
