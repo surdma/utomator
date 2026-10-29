@@ -73,6 +73,10 @@ test('unified Growth editor reads the ID from nested Growth and legacy Craft URL
     'utf8'
   );
   const navigation = readFileSync(
+    resolve(root, 'components/automate/pipeline/dashboard-route.ts'),
+    'utf8'
+  );
+  const navigationHook = readFileSync(
     resolve(root, 'components/automate/pipeline/use-dashboard-navigation.ts'),
     'utf8'
   );
@@ -95,7 +99,7 @@ test('unified Growth editor reads the ID from nested Growth and legacy Craft URL
   assert.match(pipeline, /onGrowthTemplateApply=\{applyGrowthTemplate\}/);
   assert.match(pipeline, /growthTemplateId=\{selectedGrowthTemplateId\}/);
   assert.match(
-    navigation,
+    navigationHook,
     /['"]\/dashboard\/growth\/['"]\s*\+\s*encodeURIComponent/
   );
   assert.ok(!pipeline.includes('<LinkedInGrowthHub'));

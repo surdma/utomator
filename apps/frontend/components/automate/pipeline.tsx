@@ -18,6 +18,7 @@ import {
   Pause,
   Plus,
   Send,
+  Workflow,
   X,
   ImageIcon,
   Paperclip,

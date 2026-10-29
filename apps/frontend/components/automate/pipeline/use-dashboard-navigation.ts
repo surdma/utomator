@@ -1,78 +1,33 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { getDashboardRoute, type DashboardPane } from './dashboard-route';
 
-export type DashboardPane =
-  | 'pipeline'
-  | 'history'
-  | 'crafts'
-  | 'profile'
-  | 'resumes'
-  | 'observer'
-  | 'memory'
-  | 'research'
-  | 'editorial'
-  | 'growth'
-  | 'settings';
+export type { DashboardPane } from './dashboard-route';
 
 export function useDashboardNavigation(initialPane: DashboardPane) {
   const pathname = usePathname();
-  const [pane, setPane] = useState<DashboardPane>(initialPane);
+  const route = getDashboardRoute(pathname);
+  const [requestedPane, setPane] = useState<DashboardPane>(initialPane);
   const [mobileMenu, setMobileMenu] = useState(false);
-  const [selectedCraftId, setSelectedCraftId] = useState<string | null>(null);
+  const [rememberedCraftId, setSelectedCraftId] = useState<string | null>(
+    () => getDashboardRoute(pathname).craftId ?? null
+  );
   const [selectedCraftSlug, setSelectedCraftSlug] = useState<string | null>(
     null
   );
 
-  const libraryView = pathname.endsWith('/source')
-    ? 'source'
-    : pathname.startsWith('/growth/') ||
-        pathname.startsWith('/dashboard/growth/') ||
-        pathname.startsWith('/dashboard/crafts/')
-      ? 'visual'
-      : 'catalog';
-  useEffect(() => {
-    if (pathname === '/growth/default-growth-profile') {
-      setPane('growth');
-      setSelectedCraftId('default-growth-profile');
-    } else if (
-      pathname.startsWith('/dashboard/growth/') ||
-      pathname.startsWith('/dashboard/crafts/')
-    ) {
-      const id = pathname.split('/')[3];
-      setPane('growth');
-      setSelectedCraftId(id || null);
-    } else if (pathname === '/dashboard/crafts') setPane('growth');
-    else if (pathname === '/dashboard/history') setPane('history');
-    else if (pathname.startsWith('/dashboard/profile')) setPane('profile');
-    else if (pathname.startsWith('/dashboard/resumes')) setPane('resumes');
-    else if (pathname === '/dashboard/observer') setPane('observer');
-    else if (pathname === '/dashboard/memory') setPane('memory');
-    else if (pathname === '/dashboard/research') setPane('research');
-    else if (pathname === '/dashboard/editorial') setPane('editorial');
-    else if (pathname === '/dashboard/growth') setPane('growth');
-    else if (pathname === '/dashboard/settings') setPane('settings');
-    else if (pathname === '/dashboard/pipeline') setPane('pipeline');
-  }, [pathname]);
+  const pane = route.pane ?? requestedPane;
+  const selectedCraftId =
+    route.craftId === undefined ? rememberedCraftId : route.craftId;
+  const { libraryView } = route;
+
   function navigate(path: string) {
     if (typeof window !== 'undefined' && window.location.pathname !== path)
       window.history.pushState(null, '', path);
   }
-  function navigatePane(
-    next:
-      | 'pipeline'
-      | 'history'
-      | 'crafts'
-      | 'profile'
-      | 'resumes'
-      | 'observer'
-      | 'memory'
-      | 'research'
-      | 'editorial'
-      | 'growth'
-      | 'settings'
-  ) {
+  function navigatePane(next: DashboardPane) {
     if (
       next !== pane &&
       typeof document !== 'undefined' &&
