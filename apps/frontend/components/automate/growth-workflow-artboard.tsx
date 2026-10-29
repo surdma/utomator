@@ -127,21 +127,22 @@ function GraphContent({
   run: GrowthGraphRun;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [journal, setJournal] = useState<JournalEvent[]>([]);
-  const [logError, setLogError] = useState("");
+  const [journalResult, setJournalResult] = useState<{
+    runId: string;
+    entries: JournalEvent[];
+    error: string;
+  }>({ runId: "", entries: [], error: "" });
   const selected =
     program.stages.find((stage) => stage.id === selectedId) ?? null;
   const live = run?.pipelineRuns.find((item) => item.id === selectedId);
   const childRunId = live?.childRunId ?? null;
+  const journal =
+    childRunId === journalResult.runId ? journalResult.entries : [];
+  const logError =
+    childRunId === journalResult.runId ? journalResult.error : "";
+
   useEffect(() => {
-    setSelectedId(null);
-  }, [program.id]);
-  useEffect(() => {
-    if (!childRunId) {
-      setJournal([]);
-      setLogError("");
-      return;
-    }
+    if (!childRunId) return;
     let mounted = true;
     const refresh = async () => {
       const response = await fetch(
@@ -154,27 +155,20 @@ function GraphContent({
         );
       const entries = (await response.json()) as JournalEvent[];
       if (!Array.isArray(entries)) throw Error("Invalid Runner journal");
-      if (mounted) {
-        setJournal(entries);
-        setLogError("");
-      }
+      if (mounted) setJournalResult({ runId: childRunId, entries, error: "" });
     };
-    void refresh().catch((error) => {
+    const recordError = (error: unknown) => {
       if (mounted)
-        setLogError(
-          error instanceof Error ? error.message : "Journal unavailable",
-        );
-    });
-    const interval = setInterval(
-      () =>
-        void refresh().catch((error) => {
-          if (mounted)
-            setLogError(
-              error instanceof Error ? error.message : "Journal unavailable",
-            );
-        }),
-      2500,
-    );
+        setJournalResult({
+          runId: childRunId,
+          entries: [],
+          error: error instanceof Error ? error.message : "Journal unavailable",
+        });
+    };
+    void refresh().catch(recordError);
+    const interval = setInterval(() => {
+      void refresh().catch(recordError);
+    }, 2500);
     return () => {
       mounted = false;
       clearInterval(interval);
@@ -392,7 +386,7 @@ export default function GrowthWorkflowArtboard(props: {
 }) {
   return (
     <ReactFlowProvider>
-      <GraphContent {...props} />
+      <GraphContent key={props.program.id} {...props} />
     </ReactFlowProvider>
   );
 }
