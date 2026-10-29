@@ -82,6 +82,7 @@ import { LinkedInIcon, TwitterIcon } from '@/components/svgs';
 import { workflows, type Platform } from './pipeline/workflow-catalog';
 import { stateLabel, timeLabel, short } from './pipeline/presentation-utils';
 import { explainCommand } from './pipeline/command-parser';
+import { buildRunPayload } from './pipeline/build-run-payload';
 
 type WorkflowRecord = {
   id: string;
@@ -796,37 +797,19 @@ export default function AutomationPipeline({
     }; // EventSource retries automatically.
   }
   async function startRun() {
-    if (loadingWorkflow)
-      throw Error('Selected workflow has not finished loading');
-    if (activeWorkflow && (planDirty || formDirty))
-      throw Error('Save workflow changes before starting this revision');
-    if (
-      !activeConnector ||
-      activeConnector.status !== 'connected' ||
-      activeConnector.platform !== platform
-    )
-      throw Error(
-        'Select and verify the social account before starting a workflow'
-      );
-    const payload: Record<string, unknown> = {
+    const payload = buildRunPayload({
+      loadingWorkflow,
+      activeWorkflow,
+      planDirty,
+      formDirty,
+      activeConnector,
       platform,
       action,
-      accountId: activeConnector.id,
-      profileUrl: activeConnector.profileUrl,
-    };
-    if (activeWorkflow) {
-      payload.workflowId = activeWorkflow.id;
-      payload.workflowRevision = activeWorkflow.revision;
-    } else payload.workflow = { ...workflowPlan, parameters: { ...form } };
-    if (action === 'audit-page') payload.pageUrl = selectedPage;
-    for (const field of selected.fields) {
-      const value = form[field.key]?.trim();
-      if (field.required && !value)
-        throw new Error(field.label + ' is required');
-      if (value)
-        payload[field.key] =
-          field.key === 'websiteIndex' ? Number(value) : value;
-    }
+      workflowPlan,
+      form,
+      selectedPage,
+      fields: selected.fields,
+    });
     const result = await apiPost('runs', payload);
     if (!result.id) throw new Error('Server did not return a run ID');
     currentRunRef.current = result.id;

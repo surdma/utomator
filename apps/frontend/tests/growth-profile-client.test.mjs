@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { request } from '../lib/growth-profile-client.ts';
 
-test('Growth client sends JSON mutation to the same scoped endpoint', async () => {
+test('Growth client sends scoped JSON mutation', async () => {
   const previous = globalThis.fetch;
   try {
     globalThis.fetch = async (url, opts) => {
@@ -24,13 +24,16 @@ test('Growth client sends JSON mutation to the same scoped endpoint', async () =
   }
 });
 
-test('Growth client preserves error details and forwards abort signal', async () => {
+test('Growth client reports errors and forwards cancellation', async () => {
   const previous = globalThis.fetch;
   try {
     const controller = new AbortController();
     globalThis.fetch = async (_, opts) => {
       assert.equal(opts.signal, controller.signal);
-      return { ok: false, json: async () => ({ error: 'Missing account scope' }) };
+      return {
+        ok: false,
+        json: async () => ({ error: 'Missing account scope' }),
+      };
     };
     await assert.rejects(
       request(
