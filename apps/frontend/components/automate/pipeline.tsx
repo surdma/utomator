@@ -45,9 +45,7 @@ import StudioDialog from '@/components/ui/studio-dialog';
 import WorkflowPlanEditor, {
   type WorkflowPlan,
 } from '@/components/automate/workflow-plan-editor';
-import CraftsLibrary, {
-  type Craft as AgentCraft,
-} from '@/components/automate/crafts-library';
+import CraftsLibrary from '@/components/automate/crafts-library';
 import VisualReviewPanel, {
   type ImageSource,
   type VisualReviewDraft,
@@ -71,7 +69,7 @@ import { workflows, type Platform } from './pipeline/workflow-catalog';
 import { timeLabel, short } from './pipeline/presentation-utils';
 import { explainCommand } from './pipeline/command-parser';
 import { buildRunPayload } from './pipeline/build-run-payload';
-import { editCraftFromCommand } from './pipeline/craft-command-editor';
+import { executeCraftCommand } from './pipeline/craft-command-service';
 import RunHistory from './pipeline/run-history';
 import RunTrackingDialog from './pipeline/run-tracking-dialog';
 import DashboardHeader from './pipeline/dashboard-header';
@@ -786,57 +784,15 @@ export default function AutomationPipeline({
     ]);
   }
   async function handleCraftCommand(text: string) {
-    const command = text
-      .trim()
-      .replace(/^\/?craft\s*/i, '')
-      .trim();
-
     try {
-      const response = await fetch(getApi('crafts'), { cache: 'no-store' });
-      if (!response.ok)
-        throw Error('Craft library is unavailable; start the local API');
-      const library = (await response.json()) as AgentCraft[];
-      if (/^(?:crafts|list|help)?$/i.test(command)) {
+      const result = await executeCraftCommand(text, selectedCraftId);
+      if (result.kind === 'list') {
         navigatePane('growth');
-        chatNotice(
-          'Crafts opened. Commands: /craft open <slug>; /craft add <title> | <instructions>; /craft link <from> -> <to>; /craft unlink <from> -> <to>; /craft rename <name>; /craft enable; /craft disable. You can also edit visually or in MDX.'
-        );
-        return;
+      } else {
+        if (result.kind === 'updated') setCraftsRevision((value) => value + 1);
+        navigateCraft(result.id, result.slug);
       }
-      const opening = command.match(/^open\s+([a-z0-9-]+)$/i);
-      if (opening) {
-        const wanted = library.find((item) => item.slug === opening[1]);
-        if (!wanted) throw Error('No craft matches the slug ' + opening[1]);
-        navigateCraft(wanted.id, wanted.slug);
-        chatNotice(
-          'Opened ' +
-            wanted.name +
-            ' in the craft editor. Select nodes or drag handles to rewire, then save.'
-        );
-        return;
-      }
-      const chosen = library.find((item) => item.id === selectedCraftId);
-      if (!chosen) throw Error('Select a craft in Crafts first.');
-      const { expectedVersion, craft } = editCraftFromCommand(chosen, command);
-      const responseSave = await fetch(getApi('crafts/' + chosen.id), {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ expectedVersion, craft }),
-      });
-      const saved = (await responseSave.json()) as AgentCraft & {
-        error?: string;
-      };
-      if (!responseSave.ok)
-        throw Error(saved.error || 'Craft edit was rejected');
-      setCraftsRevision((v) => v + 1);
-      navigateCraft(saved.id, saved.slug);
-      chatNotice(
-        'Updated ' +
-          saved.name +
-          ' · v' +
-          saved.version +
-          '. The graph and MDX source now share this revision.'
-      );
+      chatNotice(result.notice);
     } catch (error) {
       chatNotice(
         error instanceof Error ? error.message : 'Unable to edit craft'
