@@ -1,81 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ArrowRight, FileCode2, ShieldCheck } from 'lucide-react';
 import GrowthWorkflowArtboard from './growth-workflow-artboard';
-import type { WorkflowPlan } from './workflow-plan-editor';
+import type { Run } from './growth-profile-types';
+import { request } from '../../lib/growth-profile-client';
+import { useGrowthProfileWorkflow } from './hooks/use-growth-profile-workflow';
 
-type Stage = {
-  id: string;
-  title: string;
-  action: 'audit' | 'audit-page';
-  page: string;
-  dependsOn: string;
-  sectionIds: string[];
-  stepCount: number;
-  plan: WorkflowPlan;
-};
-type Program = {
-  id: string;
-  title: string;
-  objective: string;
-  limitation: string;
-  stages: Stage[];
-  requirements: Array<{ id: string; text: string }>;
-  coverage: Array<{ id: string; label: string; status: string }>;
-  pipelines: Array<{
-    id: string;
-    action: string;
-    title: string;
-    stepCount: number;
-  }>;
-};
-type Child = {
-  id: string;
-  state: string;
-  checkpoint?: { id: string; message: string };
-  error?: string;
-};
-type Evidence = {
-  source: 'owner-supplied';
-  excerpt: string;
-  digest: string;
-  capturedAt: string;
-};
-type Run = {
-  id: string;
-  accountId: string;
-  status: string;
-  state: string;
-  activeIndex: number;
-  currentChild: Child | null;
-  currentStage: Omit<Stage, 'plan' | 'stepCount'> & {
-    childRunId: string | null;
-  };
-  pipelineRuns: Array<{
-    id: string;
-    childRunId: string | null;
-    state: string;
-    currentStepId: string | null;
-    error: string | null;
-  }>;
-  currentPageEvidence: { url: string; digest: string } | null;
-  canAdvance: boolean;
-  releasePending: boolean;
-  coverage: Array<{
-    id: string;
-    stageId: string;
-    status: 'missing' | 'owner-supplied-unverified';
-    evidence: Evidence | null;
-  }>;
-  counts: {
-    total: number;
-    missing: number;
-    ownerSupplied: number;
-    independentlyProviderVerified: number;
-  };
-  outcomeNotice: string;
-};
 type Props = {
   platform: 'linkedin' | 'x';
   selectedAction: string;
@@ -85,26 +16,6 @@ type Props = {
   templateId?: string;
   onExit?: () => void;
 };
-async function request<T>(
-  url: string,
-  method = 'GET',
-  body?: unknown
-): Promise<T> {
-  const response = await fetch(url, {
-    method,
-    cache: 'no-store',
-    ...(body === undefined
-      ? {}
-      : {
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(body),
-        }),
-  });
-  const data = (await response.json()) as T & { error?: string };
-  if (!response.ok) throw Error(data.error || 'Growth workflow request failed');
-  return data;
-}
-
 export default function GrowthProfilePipelines({
   platform,
   selectedAction,
@@ -114,58 +25,10 @@ export default function GrowthProfilePipelines({
   templateId = 'linkedin-profile',
   onExit,
 }: Props) {
-  const endpoint = '/api/growth/templates/' + encodeURIComponent(templateId);
-  const [program, setProgram] = useState<Program | null>(null);
-  const [run, setRun] = useState<Run | null>(null);
-  const [error, setError] = useState('');
-  const [working, setWorking] = useState(false);
+  const { endpoint, program, run, setRun, error, working, mutate } =
+    useGrowthProfileWorkflow(platform, templateId, accountId);
   const [evidenceSection, setEvidenceSection] = useState('');
   const [evidenceText, setEvidenceText] = useState('');
-  const refresh = useCallback(async () => {
-    if (platform !== 'linkedin') return;
-    const loaded = await request<Program>(endpoint);
-    setProgram(loaded);
-    if (!accountId) {
-      setRun(null);
-      return;
-    }
-    const runs = await request<Run[]>(endpoint + '/runs');
-    const mine = runs.find((item) => item.accountId === accountId);
-    setRun(mine ?? null);
-  }, [platform, accountId, endpoint]);
-  useEffect(() => {
-    let live = true;
-    void refresh().catch((e) => {
-      if (live) setError(e instanceof Error ? e.message : 'Growth unavailable');
-    });
-    const timer = setInterval(
-      () =>
-        void refresh().catch((e) => {
-          if (live)
-            setError(
-              e instanceof Error ? e.message : 'Cannot refresh Growth run'
-            );
-        }),
-      2500
-    );
-    return () => {
-      live = false;
-      clearInterval(timer);
-    };
-  }, [refresh]);
-  async function mutate(fn: () => Promise<unknown>) {
-    if (working) return;
-    setWorking(true);
-    setError('');
-    try {
-      await fn();
-      await refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Request failed');
-    } finally {
-      setWorking(false);
-    }
-  }
   const active = run?.currentStage;
   const child = run?.currentChild;
   const selectedSections =
