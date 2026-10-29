@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
-import { executeCraftCommand } from '../components/automate/pipeline/craft-command-service.ts';
+import {
+  executeCraftCommand,
+} from '../components/automate/pipeline/craft-command-service.ts';
 
 const originalFetch = globalThis.fetch;
 afterEach(() => {
@@ -36,7 +38,10 @@ test('craft help opens the library without writing anything', async () => {
 
 test('craft open resolves an existing slug without writing', async () => {
   globalThis.fetch = async () => Response.json([craft]);
-  const result = await executeCraftCommand('/craft open candidate-profile', null);
+  const result = await executeCraftCommand(
+    '/craft open candidate-profile',
+    null
+  );
   assert.deepEqual(result.kind, 'open');
   assert.equal(result.id, craft.id);
   assert.equal(result.slug, craft.slug);
@@ -50,7 +55,10 @@ test('craft updates use the selected ID and exact version', async () => {
       ? Response.json([craft])
       : Response.json({ ...craft, version: 8, name: 'Updated name' });
   };
-  const result = await executeCraftCommand('/craft rename Updated name', craft.id);
+  const result = await executeCraftCommand(
+    '/craft rename Updated name',
+    craft.id
+  );
   assert.equal(result.kind, 'updated');
   assert.equal(result.id, craft.id);
   assert.match(result.notice, /v8/);

@@ -10,7 +10,10 @@ export async function executeCraftCommand(
   text: string,
   selectedCraftId: string | null
 ): Promise<CraftCommandResult> {
-  const command = text.trim().replace(/^\/?craft\s*/i, '').trim();
+  const command = text
+    .trim()
+    .replace(/^\/?craft\s*/i, '')
+    .trim();
   const response = await fetch(getApi('crafts'), { cache: 'no-store' });
   if (!response.ok)
     throw Error('Craft library is unavailable; start the local API');
