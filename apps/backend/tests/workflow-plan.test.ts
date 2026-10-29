@@ -218,10 +218,8 @@ test('Fastify exposes generator and saved defaults; malformed graph never starts
 test('operator hold and stop nodes execute in the backend without clicking a website', async () => {
   const originalOpen = BrowserSession.prototype.open;
   const originalClose = BrowserSession.prototype.close;
-  BrowserSession.prototype.open = async function () {
-    return {} as Awaited<ReturnType<typeof originalOpen>>;
-  };
-  BrowserSession.prototype.close = async function () {};
+  BrowserSession.prototype.open = async () => ({}) as Awaited<ReturnType<typeof originalOpen>>;
+  BrowserSession.prototype.close = async () => {};
   const app = buildApp();
   try {
     await app.ready();
@@ -259,19 +257,19 @@ test('operator hold and stop nodes execute in the backend without clicking a web
     const id = started.json().id as string;
     let state = '';
     for (let i = 0; i < 120; i++) {
-      const current = await app.inject('/runs/' + id);
+      const current = await app.inject(`/runs/${id}`);
       state = current.json().state;
       if (state === 'paused') break;
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
     assert.equal(state, 'paused', 'backend pauses at the actual operator breakpoint');
-    const manifest = await app.inject('/runs/' + id + '/workflow.yaml');
+    const manifest = await app.inject(`/runs/${id}/workflow.yaml`);
     assert.equal(manifest.statusCode, 200);
     assert.match(manifest.body, /document: "pause-before-action.yaml"/);
-    const pausedYaml = await app.inject('/runs/' + id + '/steps/pause-before-action.yaml');
+    const pausedYaml = await app.inject(`/runs/${id}/steps/pause-before-action.yaml`);
     assert.equal(pausedYaml.statusCode, 200);
     assert.match(pausedYaml.body, /operation: "await-operator"/);
-    const stoppedYaml = await app.inject('/runs/' + id + '/steps/stop-before-action.yaml');
+    const stoppedYaml = await app.inject(`/runs/${id}/steps/stop-before-action.yaml`);
     assert.equal(stoppedYaml.statusCode, 200);
     assert.match(stoppedYaml.body, /operation: "end-run"/);
     const diskStep = await readFile(
@@ -280,25 +278,25 @@ test('operator hold and stop nodes execute in the backend without clicking a web
     );
     assert.equal(diskStep, stoppedYaml.body, 'run YAML must exist as a separate on-disk step document');
     plan.steps[2]!.title = 'Changed after the run started';
-    const snapshotAgain = await app.inject('/runs/' + id + '/steps/pause-before-action.yaml');
+    const snapshotAgain = await app.inject(`/runs/${id}/steps/pause-before-action.yaml`);
     assert.match(snapshotAgain.body, /Operator breakpoint/);
     assert(
       !snapshotAgain.body.includes('Changed after the run started'),
       'historic step instructions cannot be rewritten by the editable source plan',
     );
-    assert.equal((await app.inject('/runs/' + id + '/steps/bogus.yaml')).statusCode, 404);
+    assert.equal((await app.inject(`/runs/${id}/steps/bogus.yaml`)).statusCode, 404);
     const resumed = await app.inject({
       method: 'POST',
-      url: '/runs/' + id + '/resume',
+      url: `/runs/${id}/resume`,
     });
     assert.equal(resumed.statusCode, 200, resumed.body);
     for (let i = 0; i < 120; i++) {
-      state = (await app.inject('/runs/' + id)).json().state;
+      state = (await app.inject(`/runs/${id}`)).json().state;
       if (state === 'cancelled' || state === 'failed' || state === 'completed') break;
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
     assert.equal(state, 'cancelled', 'stop node terminates before the action');
-    const log = await app.inject('/runs/' + id + '/logs');
+    const log = await app.inject(`/runs/${id}/logs`);
     assert.equal(log.statusCode, 200);
     assert.match(log.body, /Quit safely/);
     const entries = log.json() as Array<{
@@ -393,14 +391,14 @@ test('revisioned workflow API creates separate records, rejects stale writes and
     const a = await create('Audit A'),
       b = await create('Audit B');
     assert.notEqual(a.id, b.id);
-    assert.equal((await app.inject('/workflows/' + a.id)).json().plan.name, 'Audit A');
-    assert.equal((await app.inject('/workflows/' + b.id)).json().plan.name, 'Audit B');
-    const yaml = await app.inject('/workflows/' + a.id + '/yaml');
+    assert.equal((await app.inject(`/workflows/${a.id}`)).json().plan.name, 'Audit A');
+    assert.equal((await app.inject(`/workflows/${b.id}`)).json().plan.name, 'Audit B');
+    const yaml = await app.inject(`/workflows/${a.id}/yaml`);
     assert.equal(yaml.statusCode, 200);
     assert.match(yaml.body, /kind: "SocialWorkflow"/);
     const update = await app.inject({
       method: 'PUT',
-      url: '/workflows/' + a.id,
+      url: `/workflows/${a.id}`,
       payload: {
         expectedRevision: 1,
         plan: { ...plan, name: 'Audit A edited' },
@@ -408,10 +406,10 @@ test('revisioned workflow API creates separate records, rejects stale writes and
     });
     assert.equal(update.statusCode, 200, update.body);
     assert.equal(update.json().revision, 2);
-    assert.equal((await app.inject('/workflows/' + a.id + '/revisions/1')).json().plan.name, 'Audit A');
+    assert.equal((await app.inject(`/workflows/${a.id}/revisions/1`)).json().plan.name, 'Audit A');
     const stale = await app.inject({
       method: 'PUT',
-      url: '/workflows/' + a.id,
+      url: `/workflows/${a.id}`,
       payload: {
         expectedRevision: 1,
         plan,
@@ -445,7 +443,7 @@ test('revisioned workflow API creates separate records, rejects stale writes and
   } finally {
     await app.close();
     for (const id of ids) {
-      await rm(join(process.cwd(), '.runtime', 'workflows', id + '.json'), {
+      await rm(join(process.cwd(), '.runtime', 'workflows', `${id}.json`), {
         force: true,
       });
       await rm(join(process.cwd(), '.runtime', 'workflows', 'revisions', id), {
@@ -477,7 +475,7 @@ test('typed note binding compiles from a preceding browser observation and rejec
   const result = compiled.steps.find((step) => step.source.id === 'note-observation')!;
   assert.equal(result.document.spec.inputs.bindings?.message.stepId, 'inspect');
   assert.equal(result.document.spec.inputs.bindings?.message.schema, 'page-observation/v1');
-  assert.match(result.yaml, /bindings:\n      message:\n        stepId: "inspect"/);
+  assert.match(result.yaml, /bindings:\n {6}message:\n {8}stepId: "inspect"/);
   const missing = {
     ...plan,
     steps: steps.map((step) =>
@@ -525,16 +523,15 @@ test('typed note binding compiles from a preceding browser observation and rejec
 test('a run binds live observed data to a later note and stores immutable typed step outputs', async () => {
   const originalOpen = BrowserSession.prototype.open;
   const originalClose = BrowserSession.prototype.close;
-  BrowserSession.prototype.open = async function () {
-    return {
+  BrowserSession.prototype.open = async () =>
+    ({
       goto: async () => undefined,
       url: () => 'https://x.com/flow_test',
       locator: () => ({
         innerText: async () => 'Observed account profile with a public bio.',
       }),
-    } as unknown as Awaited<ReturnType<typeof originalOpen>>;
-  };
-  BrowserSession.prototype.close = async function () {};
+    }) as unknown as Awaited<ReturnType<typeof originalOpen>>;
+  BrowserSession.prototype.close = async () => {};
   const app = buildApp();
   try {
     await app.ready();
@@ -575,12 +572,12 @@ test('a run binds live observed data to a later note and stores immutable typed 
     const id = started.json().id as string;
     let state = '';
     for (let i = 0; i < 120; i++) {
-      state = (await app.inject('/runs/' + id)).json().state;
+      state = (await app.inject(`/runs/${id}`)).json().state;
       if (['cancelled', 'failed', 'completed'].includes(state)) break;
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
     assert.equal(state, 'cancelled', 'stop prevents execution of the principal provider action');
-    const observation = await app.inject('/runs/' + id + '/steps/inspect/output');
+    const observation = await app.inject(`/runs/${id}/steps/inspect/output`);
     assert.equal(observation.statusCode, 200, observation.body);
     assert.deepEqual(observation.json(), {
       stepId: 'inspect',
@@ -588,11 +585,11 @@ test('a run binds live observed data to a later note and stores immutable typed 
       url: 'https://x.com/flow_test',
       excerpt: 'Observed account profile with a public bio.',
     });
-    const noteOutput = await app.inject('/runs/' + id + '/steps/note-excerpt/output');
+    const noteOutput = await app.inject(`/runs/${id}/steps/note-excerpt/output`);
     assert.equal(noteOutput.statusCode, 200);
     assert.equal(noteOutput.json().schema, 'status/v1');
-    assert.equal((await app.inject('/runs/' + id + '/steps/action/output')).statusCode, 404);
-    const journal = await app.inject('/runs/' + id + '/logs');
+    assert.equal((await app.inject(`/runs/${id}/steps/action/output`)).statusCode, 404);
+    const journal = await app.inject(`/runs/${id}/logs`);
     assert(
       journal
         .json()
@@ -608,7 +605,7 @@ test('a run binds live observed data to a later note and stores immutable typed 
     );
     assert.equal(JSON.parse(persisted).excerpt, observation.json().excerpt);
     assert.match(
-      (await app.inject('/runs/' + id + '/steps/note-excerpt.yaml')).body,
+      (await app.inject(`/runs/${id}/steps/note-excerpt.yaml`)).body,
       /schema: "page-observation\/v1"/,
     );
   } finally {
@@ -621,16 +618,15 @@ test('a run binds live observed data to a later note and stores immutable typed 
 test('archived runs survive a new app instance with recorded YAML and typed outputs', async () => {
   const originalOpen = BrowserSession.prototype.open;
   const originalClose = BrowserSession.prototype.close;
-  BrowserSession.prototype.open = async function () {
-    return {
+  BrowserSession.prototype.open = async () =>
+    ({
       goto: async () => undefined,
       url: () => 'https://x.com/archive_test',
       locator: () => ({
         innerText: async () => 'Archived actual browser observation.',
       }),
-    } as unknown as Awaited<ReturnType<typeof originalOpen>>;
-  };
-  BrowserSession.prototype.close = async function () {};
+    }) as unknown as Awaited<ReturnType<typeof originalOpen>>;
+  BrowserSession.prototype.close = async () => {};
   const app = buildApp();
   let id = '';
   try {
@@ -663,11 +659,11 @@ test('archived runs survive a new app instance with recorded YAML and typed outp
     assert.equal(response.statusCode, 202, response.body);
     id = response.json().id as string;
     for (let n = 0; n < 120; n++) {
-      const state = (await app.inject('/runs/' + id)).json().state;
+      const state = (await app.inject(`/runs/${id}`)).json().state;
       if (state === 'cancelled') break;
       await new Promise((done) => setTimeout(done, 20));
     }
-    assert.equal((await app.inject('/runs/' + id)).json().state, 'cancelled');
+    assert.equal((await app.inject(`/runs/${id}`)).json().state, 'cancelled');
   } finally {
     await app.close();
     BrowserSession.prototype.open = originalOpen;
@@ -677,18 +673,18 @@ test('archived runs survive a new app instance with recorded YAML and typed outp
   const restarted = buildApp();
   try {
     await restarted.ready();
-    const restored = await restarted.inject('/runs/' + id);
+    const restored = await restarted.inject(`/runs/${id}`);
     assert.equal(restored.statusCode, 200, restored.body);
     assert.equal(restored.json().state, 'cancelled');
     assert((await restarted.inject('/runs')).json().some((item: { id: string }) => item.id === id));
-    const yaml = await restarted.inject('/runs/' + id + '/workflow.yaml');
+    const yaml = await restarted.inject(`/runs/${id}/workflow.yaml`);
     assert.equal(yaml.statusCode, 200, yaml.body);
-    const output = await restarted.inject('/runs/' + id + '/steps/inspect/output');
+    const output = await restarted.inject(`/runs/${id}/steps/inspect/output`);
     assert.equal(output.statusCode, 200, output.body);
     assert.equal(output.json().excerpt, 'Archived actual browser observation.');
-    assert.equal((await restarted.inject('/runs/' + id + '/steps/action/output')).statusCode, 404);
-    assert.equal((await restarted.inject('/runs/' + id + '/logs')).statusCode, 200);
-    assert.equal((await restarted.inject('/runs/' + id + '/assessment')).statusCode, 409);
+    assert.equal((await restarted.inject(`/runs/${id}/steps/action/output`)).statusCode, 404);
+    assert.equal((await restarted.inject(`/runs/${id}/logs`)).statusCode, 200);
+    assert.equal((await restarted.inject(`/runs/${id}/assessment`)).statusCode, 409);
   } finally {
     await restarted.close();
   }
@@ -726,12 +722,12 @@ test('run archive marks interrupted sessions failed without reopening a browser'
 test('authored YAML is immutable, schema validated, and only selects allowlisted operations', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'utomator-yaml-def-'));
   const yaml = (id: string, version: number) =>
-    [
+    `${[
       'apiVersion: "utomator.dev/v1"',
       'kind: "StepDefinition"',
       'metadata:',
-      '  id: "' + id + '"',
-      '  version: ' + version,
+      `  id: "${id}"`,
+      `  version: ${version}`,
       '  title: "Evidence note"',
       'spec:',
       '  stepKind: "note"',
@@ -739,7 +735,7 @@ test('authored YAML is immutable, schema validated, and only selects allowlisted
       '  outputs: "status/v1"',
       '  config:',
       '    message: "Grounded local note"',
-    ].join('\n') + '\n';
+    ].join('\n')}\n`;
   try {
     const store = new StepDefinitionStore(dir);
     const id = 'noteTest';
@@ -772,7 +768,7 @@ test('authored YAML is immutable, schema validated, and only selects allowlisted
       /Unregistered/,
     );
     assert.throws(
-      () => parseStepDefinition(yaml(id, 1) + '  command: "bad"\n'),
+      () => parseStepDefinition(`${yaml(id, 1)}  command: "bad"\n`),
       /Invalid YAML spec schema/,
     );
   } finally {
@@ -875,33 +871,31 @@ test('typed bindings accept earlier note messages and numeric delay durations, b
 });
 
 test('saved YAML step definitions execute with pinned versions and expose step outputs without provider mutation', async () => {
-  const id = 'note' + randomUUID().replaceAll('-', '').slice(0, 20);
-  const yaml =
-    [
-      'apiVersion: "utomator.dev/v1"',
-      'kind: "StepDefinition"',
-      'metadata:',
-      '  id: "' + id + '"',
-      '  version: 1',
-      '  title: "Standalone authored note"',
-      'spec:',
-      '  stepKind: "note"',
-      '  operation: "record-event"',
-      '  outputs: "status/v1"',
-      '  config:',
-      '    message: "Verified authored instruction"',
-    ].join('\n') + '\n';
+  const id = `note${randomUUID().replaceAll('-', '').slice(0, 20)}`;
+  const yaml = `${[
+    'apiVersion: "utomator.dev/v1"',
+    'kind: "StepDefinition"',
+    'metadata:',
+    `  id: "${id}"`,
+    '  version: 1',
+    '  title: "Standalone authored note"',
+    'spec:',
+    '  stepKind: "note"',
+    '  operation: "record-event"',
+    '  outputs: "status/v1"',
+    '  config:',
+    '    message: "Verified authored instruction"',
+  ].join('\n')}\n`;
   let savedWorkflowId = '';
   const originalOpen = BrowserSession.prototype.open,
     originalClose = BrowserSession.prototype.close;
-  BrowserSession.prototype.open = async function () {
-    return {
+  BrowserSession.prototype.open = async () =>
+    ({
       goto: async () => undefined,
       url: () => 'https://x.com/authored_test',
       locator: () => ({ innerText: async () => 'Verified remote page data' }),
-    } as unknown as Awaited<ReturnType<typeof originalOpen>>;
-  };
-  BrowserSession.prototype.close = async function () {};
+    }) as unknown as Awaited<ReturnType<typeof originalOpen>>;
+  BrowserSession.prototype.close = async () => {};
   const app = buildApp();
   try {
     await app.ready();
@@ -921,7 +915,7 @@ test('saved YAML step definitions execute with pinned versions and expose step o
       ).statusCode,
       409,
     );
-    assert.equal((await app.inject('/step-definitions/' + id + '/versions/1')).statusCode, 200);
+    assert.equal((await app.inject(`/step-definitions/${id}/versions/1`)).statusCode, 200);
     const base = defaultPlan('x', 'audit');
     const note = {
       id: 'note-authored',
@@ -948,7 +942,7 @@ test('saved YAML step definitions execute with pinned versions and expose step o
     assert.equal(createdWorkflow.statusCode, 201, createdWorkflow.body);
     const record = createdWorkflow.json() as { id: string; revision: number };
     savedWorkflowId = record.id;
-    assert.match((await app.inject('/workflows/' + record.id + '/yaml')).body, /note-authored/);
+    assert.match((await app.inject(`/workflows/${record.id}/yaml`)).body, /note-authored/);
     const started = await app.inject({
       method: 'POST',
       url: '/runs',
@@ -963,19 +957,16 @@ test('saved YAML step definitions execute with pinned versions and expose step o
     assert.equal(started.statusCode, 202, started.body);
     const runId = started.json().id as string;
     for (let i = 0; i < 120; i++) {
-      const state = (await app.inject('/runs/' + runId)).json().state;
+      const state = (await app.inject(`/runs/${runId}`)).json().state;
       if (['cancelled', 'failed', 'completed'].includes(state)) break;
       await new Promise((done) => setTimeout(done, 20));
     }
-    assert.equal((await app.inject('/runs/' + runId)).json().state, 'cancelled');
-    const output = await app.inject('/runs/' + runId + '/steps/note-authored/output');
+    assert.equal((await app.inject(`/runs/${runId}`)).json().state, 'cancelled');
+    const output = await app.inject(`/runs/${runId}/steps/note-authored/output`);
     assert.equal(output.statusCode, 200, output.body);
     assert.equal(output.json().message, 'Verified authored instruction');
-    assert.match(
-      (await app.inject('/runs/' + runId + '/steps/note-authored.yaml')).body,
-      /definitionId/,
-    );
-    assert.equal((await app.inject('/runs/' + runId + '/steps/action/output')).statusCode, 404);
+    assert.match((await app.inject(`/runs/${runId}/steps/note-authored.yaml`)).body, /definitionId/);
+    assert.equal((await app.inject(`/runs/${runId}/steps/action/output`)).statusCode, 404);
   } finally {
     await app.close();
     BrowserSession.prototype.open = originalOpen;
@@ -985,7 +976,7 @@ test('saved YAML step definitions execute with pinned versions and expose step o
       force: true,
     });
     if (savedWorkflowId) {
-      await rm(join(process.cwd(), '.runtime', 'workflows', savedWorkflowId + '.json'), { force: true });
+      await rm(join(process.cwd(), '.runtime', 'workflows', `${savedWorkflowId}.json`), { force: true });
       await rm(join(process.cwd(), '.runtime', 'workflows', 'revisions', savedWorkflowId), {
         recursive: true,
         force: true,
@@ -997,14 +988,13 @@ test('saved YAML step definitions execute with pinned versions and expose step o
 test('typed note-to-note and number-to-delay handoffs execute before a guarded provider stop', async () => {
   const oldOpen = BrowserSession.prototype.open,
     oldClose = BrowserSession.prototype.close;
-  BrowserSession.prototype.open = async function () {
-    return {
+  BrowserSession.prototype.open = async () =>
+    ({
       goto: async () => undefined,
       url: () => 'https://x.com/typed_test',
       locator: () => ({ innerText: async () => 'Typed browser observation' }),
-    } as unknown as Awaited<ReturnType<typeof oldOpen>>;
-  };
-  BrowserSession.prototype.close = async function () {};
+    }) as unknown as Awaited<ReturnType<typeof oldOpen>>;
+  BrowserSession.prototype.close = async () => {};
   const app = buildApp();
   try {
     await app.ready();
@@ -1066,17 +1056,17 @@ test('typed note-to-note and number-to-delay handoffs execute before a guarded p
     const id = started.json().id as string;
     let state = '';
     for (let i = 0; i < 120; i++) {
-      state = (await app.inject('/runs/' + id)).json().state;
+      state = (await app.inject(`/runs/${id}`)).json().state;
       if (['failed', 'cancelled', 'completed'].includes(state)) break;
       await new Promise((done) => setTimeout(done, 20));
     }
     assert.equal(state, 'cancelled');
     assert.equal(
-      (await app.inject('/runs/' + id + '/steps/note-second/output')).json().message,
+      (await app.inject(`/runs/${id}/steps/note-second/output`)).json().message,
       'Typed browser observation',
     );
-    assert.equal((await app.inject('/runs/' + id + '/steps/delay-second/output')).json().durationMs, 1);
-    assert.equal((await app.inject('/runs/' + id + '/steps/action/output')).statusCode, 404);
+    assert.equal((await app.inject(`/runs/${id}/steps/delay-second/output`)).json().durationMs, 1);
+    assert.equal((await app.inject(`/runs/${id}/steps/action/output`)).statusCode, 404);
   } finally {
     await app.close();
     BrowserSession.prototype.open = oldOpen;
@@ -1085,21 +1075,20 @@ test('typed note-to-note and number-to-delay handoffs execute before a guarded p
 });
 
 test('authored assessment definitions enforce a reviewed output contract', () => {
-  const yaml =
-    [
-      'apiVersion: "utomator.dev/v1"',
-      'kind: "StepDefinition"',
-      'metadata:',
-      '  id: "assessmentExample"',
-      '  version: 1',
-      '  title: "Check observed profile text"',
-      'spec:',
-      '  stepKind: "assess"',
-      '  operation: "assess-observation"',
-      '  outputs: "assessment/v1"',
-      '  config:',
-      '    expectedText: "public"',
-    ].join('\n') + '\n';
+  const yaml = `${[
+    'apiVersion: "utomator.dev/v1"',
+    'kind: "StepDefinition"',
+    'metadata:',
+    '  id: "assessmentExample"',
+    '  version: 1',
+    '  title: "Check observed profile text"',
+    'spec:',
+    '  stepKind: "assess"',
+    '  operation: "assess-observation"',
+    '  outputs: "assessment/v1"',
+    '  config:',
+    '    expectedText: "public"',
+  ].join('\n')}\n`;
   const parsed = parseStepDefinition(yaml);
   assert.equal(parsed.spec.config.expectedText, 'public');
   assert.equal(parsed.spec.outputs, 'assessment/v1');
@@ -1107,7 +1096,7 @@ test('authored assessment definitions enforce a reviewed output contract', () =>
     () => parseStepDefinition(yaml.replace('assess-observation', 'execute-approved-action')),
     /Unregistered/,
   );
-  assert.throws(() => parseStepDefinition(yaml.replace('assessment\/v1', 'status/v1')), /Unregistered/);
+  assert.throws(() => parseStepDefinition(yaml.replace('assessment/v1', 'status/v1')), /Unregistered/);
   assert.throws(
     () => parseStepDefinition(yaml.replace('expectedText: "public"', 'expectedText: " "')),
     /expectation/,
@@ -1216,32 +1205,30 @@ test('typed assessment dataflow compiles across string and boolean outputs witho
 });
 
 test('authored observation assessments produce immutable typed outputs before guarded provider actions', async () => {
-  const authoredId = 'assessment' + randomUUID().replaceAll('-', '').slice(0, 20);
-  const yaml =
-    [
-      'apiVersion: "utomator.dev/v1"',
-      'kind: "StepDefinition"',
-      'metadata:',
-      '  id: "' + authoredId + '"',
-      '  version: 1',
-      '  title: "Read-only observation assessment"',
-      'spec:',
-      '  stepKind: "assess"',
-      '  operation: "assess-observation"',
-      '  outputs: "assessment/v1"',
-      '  config:',
-      '    expectedText: "public"',
-    ].join('\n') + '\n';
+  const authoredId = `assessment${randomUUID().replaceAll('-', '').slice(0, 20)}`;
+  const yaml = `${[
+    'apiVersion: "utomator.dev/v1"',
+    'kind: "StepDefinition"',
+    'metadata:',
+    `  id: "${authoredId}"`,
+    '  version: 1',
+    '  title: "Read-only observation assessment"',
+    'spec:',
+    '  stepKind: "assess"',
+    '  operation: "assess-observation"',
+    '  outputs: "assessment/v1"',
+    '  config:',
+    '    expectedText: "public"',
+  ].join('\n')}\n`;
   const oldOpen = BrowserSession.prototype.open,
     oldClose = BrowserSession.prototype.close;
-  BrowserSession.prototype.open = async function () {
-    return {
+  BrowserSession.prototype.open = async () =>
+    ({
       goto: async () => undefined,
       url: () => 'https://x.com/assess_test',
       locator: () => ({ innerText: async () => 'Observed public account bio' }),
-    } as unknown as Awaited<ReturnType<typeof oldOpen>>;
-  };
-  BrowserSession.prototype.close = async function () {};
+    }) as unknown as Awaited<ReturnType<typeof oldOpen>>;
+  BrowserSession.prototype.close = async () => {};
   const app = buildApp();
   let workflowId = '';
   try {
@@ -1304,12 +1291,12 @@ test('authored observation assessments produce immutable typed outputs before gu
     assert.equal(started.statusCode, 202, started.body);
     const runId = started.json().id as string;
     for (let i = 0; i < 120; i++) {
-      const state = (await app.inject('/runs/' + runId)).json().state;
+      const state = (await app.inject(`/runs/${runId}`)).json().state;
       if (['cancelled', 'failed', 'completed'].includes(state)) break;
       await new Promise((done) => setTimeout(done, 20));
     }
-    assert.equal((await app.inject('/runs/' + runId)).json().state, 'cancelled');
-    const assessment = await app.inject('/runs/' + runId + '/steps/assess-authored/output');
+    assert.equal((await app.inject(`/runs/${runId}`)).json().state, 'cancelled');
+    const assessment = await app.inject(`/runs/${runId}/steps/assess-authored/output`);
     assert.equal(assessment.statusCode, 200, assessment.body);
     assert.deepEqual(assessment.json(), {
       stepId: 'assess-authored',
@@ -1317,14 +1304,11 @@ test('authored observation assessments produce immutable typed outputs before gu
       matched: true,
       summary: 'Assessment matched the declared observation text',
     });
-    const noteResult = await app.inject('/runs/' + runId + '/steps/note-assessment/output');
+    const noteResult = await app.inject(`/runs/${runId}/steps/note-assessment/output`);
     assert.equal(noteResult.statusCode, 200, noteResult.body);
     assert.equal(noteResult.json().message, assessment.json().summary);
-    assert.equal((await app.inject('/runs/' + runId + '/steps/action/output')).statusCode, 404);
-    assert.match(
-      (await app.inject('/runs/' + runId + '/steps/assess-authored.yaml')).body,
-      /assessment\/v1/,
-    );
+    assert.equal((await app.inject(`/runs/${runId}/steps/action/output`)).statusCode, 404);
+    assert.match((await app.inject(`/runs/${runId}/steps/assess-authored.yaml`)).body, /assessment\/v1/);
     const bytes = await readFile(
       join(process.cwd(), '.runtime', 'runs', runId, 'assess-authored.output.json'),
       'utf8',
@@ -1339,7 +1323,7 @@ test('authored observation assessments produce immutable typed outputs before gu
       force: true,
     });
     if (workflowId) {
-      await rm(join(process.cwd(), '.runtime', 'workflows', workflowId + '.json'), { force: true });
+      await rm(join(process.cwd(), '.runtime', 'workflows', `${workflowId}.json`), { force: true });
       await rm(join(process.cwd(), '.runtime', 'workflows', 'revisions', workflowId), {
         recursive: true,
         force: true,
@@ -1442,16 +1426,15 @@ test('evidence and approval steps compile only with prior provenance-bound typed
 test('approval of immutable observed evidence is a real checkpoint and does not execute later provider steps', async () => {
   const oldOpen = BrowserSession.prototype.open,
     oldClose = BrowserSession.prototype.close;
-  BrowserSession.prototype.open = async function () {
-    return {
+  BrowserSession.prototype.open = async () =>
+    ({
       goto: async () => undefined,
       url: () => 'https://x.com/evidence_test',
       locator: () => ({
         innerText: async () => 'Public, observed profile text',
       }),
-    } as unknown as Awaited<ReturnType<typeof oldOpen>>;
-  };
-  BrowserSession.prototype.close = async function () {};
+    }) as unknown as Awaited<ReturnType<typeof oldOpen>>;
+  BrowserSession.prototype.close = async () => {};
   const app = buildApp();
   try {
     await app.ready();
@@ -1502,7 +1485,7 @@ test('approval of immutable observed evidence is a real checkpoint and does not 
     const id = started.json().id as string;
     let checkpointId = '';
     for (let i = 0; i < 160; i++) {
-      const run = (await app.inject('/runs/' + id)).json() as {
+      const run = (await app.inject(`/runs/${id}`)).json() as {
         state: string;
         checkpoint?: { id: string };
       };
@@ -1513,7 +1496,7 @@ test('approval of immutable observed evidence is a real checkpoint and does not 
       await new Promise((done) => setTimeout(done, 20));
     }
     assert(checkpointId, 'evidence review must request a real operator decision');
-    const evidence = (await app.inject('/runs/' + id + '/steps/evidence-capture/output')).json() as {
+    const evidence = (await app.inject(`/runs/${id}/steps/evidence-capture/output`)).json() as {
       schema: string;
       sourceStepId: string;
       sourceSchema: string;
@@ -1524,20 +1507,20 @@ test('approval of immutable observed evidence is a real checkpoint and does not 
     assert.equal(evidence.sourceStepId, 'inspect');
     assert.equal(evidence.sourceSchema, 'page-observation/v1');
     assert.equal(evidence.digest.length, 64);
-    assert.equal((await app.inject('/runs/' + id + '/steps/approve-evidence/output')).statusCode, 404);
+    assert.equal((await app.inject(`/runs/${id}/steps/approve-evidence/output`)).statusCode, 404);
     const response = await app.inject({
       method: 'POST',
-      url: '/runs/' + id + '/decision',
+      url: `/runs/${id}/decision`,
       payload: { checkpointId, approved: true },
     });
     assert.equal(response.statusCode, 200, response.body);
     for (let i = 0; i < 160; i++) {
-      const run = (await app.inject('/runs/' + id)).json() as { state: string };
+      const run = (await app.inject(`/runs/${id}`)).json() as { state: string };
       if (['cancelled', 'blocked', 'failed'].includes(run.state)) break;
       await new Promise((done) => setTimeout(done, 20));
     }
-    assert.equal((await app.inject('/runs/' + id)).json().state, 'cancelled');
-    const approval = (await app.inject('/runs/' + id + '/steps/approve-evidence/output')).json();
+    assert.equal((await app.inject(`/runs/${id}`)).json().state, 'cancelled');
+    const approval = (await app.inject(`/runs/${id}/steps/approve-evidence/output`)).json();
     assert.deepEqual(approval, {
       stepId: 'approve-evidence',
       schema: 'approval/v1',
@@ -1545,7 +1528,7 @@ test('approval of immutable observed evidence is a real checkpoint and does not 
       evidenceStepId: 'inspect',
       evidenceDigest: evidence.digest,
     });
-    assert.equal((await app.inject('/runs/' + id + '/steps/action/output')).statusCode, 404);
+    assert.equal((await app.inject(`/runs/${id}/steps/action/output`)).statusCode, 404);
     assert.match(
       await readFile(
         join(process.cwd(), '.runtime', 'runs', id, 'approve-evidence.output.json'),
@@ -1563,14 +1546,13 @@ test('approval of immutable observed evidence is a real checkpoint and does not 
 test('rejecting an evidence approval blocks the run and leaves no approved output', async () => {
   const oldOpen = BrowserSession.prototype.open,
     oldClose = BrowserSession.prototype.close;
-  BrowserSession.prototype.open = async function () {
-    return {
+  BrowserSession.prototype.open = async () =>
+    ({
       goto: async () => undefined,
       url: () => 'https://x.com/rejection_test',
       locator: () => ({ innerText: async () => 'Observed text for review' }),
-    } as unknown as Awaited<ReturnType<typeof oldOpen>>;
-  };
-  BrowserSession.prototype.close = async function () {};
+    }) as unknown as Awaited<ReturnType<typeof oldOpen>>;
+  BrowserSession.prototype.close = async () => {};
   const app = buildApp();
   try {
     await app.ready();
@@ -1617,7 +1599,7 @@ test('rejecting an evidence approval blocks the run and leaves no approved outpu
     const id = started.json().id as string;
     let checkpoint = '';
     for (let i = 0; i < 160; i++) {
-      const run = (await app.inject('/runs/' + id)).json() as {
+      const run = (await app.inject(`/runs/${id}`)).json() as {
         state: string;
         checkpoint?: { id: string };
       };
@@ -1630,23 +1612,23 @@ test('rejecting an evidence approval blocks the run and leaves no approved outpu
     assert(checkpoint);
     const denied = await app.inject({
       method: 'POST',
-      url: '/runs/' + id + '/decision',
+      url: `/runs/${id}/decision`,
       payload: { checkpointId: checkpoint, approved: false },
     });
     assert.equal(denied.statusCode, 200, denied.body);
     for (let i = 0; i < 160; i++) {
-      const state = (await app.inject('/runs/' + id)).json().state;
+      const state = (await app.inject(`/runs/${id}`)).json().state;
       if (['blocked', 'failed', 'cancelled'].includes(state)) break;
       await new Promise((done) => setTimeout(done, 20));
     }
-    assert.equal((await app.inject('/runs/' + id)).json().state, 'blocked');
-    assert.equal((await app.inject('/runs/' + id + '/steps/approval-check/output')).statusCode, 404);
-    assert.equal((await app.inject('/runs/' + id + '/steps/action/output')).statusCode, 404);
+    assert.equal((await app.inject(`/runs/${id}`)).json().state, 'blocked');
+    assert.equal((await app.inject(`/runs/${id}/steps/approval-check/output`)).statusCode, 404);
+    assert.equal((await app.inject(`/runs/${id}/steps/action/output`)).statusCode, 404);
     assert.equal(
       (
         await app.inject({
           method: 'POST',
-          url: '/runs/' + id + '/decision',
+          url: `/runs/${id}/decision`,
           payload: { checkpointId: checkpoint, approved: true },
         })
       ).statusCode,
@@ -1662,16 +1644,15 @@ test('rejecting an evidence approval blocks the run and leaves no approved outpu
 test('evidence capture rejects an off-profile redirect before any approval', async () => {
   const oldOpen = BrowserSession.prototype.open,
     oldClose = BrowserSession.prototype.close;
-  BrowserSession.prototype.open = async function () {
-    return {
+  BrowserSession.prototype.open = async () =>
+    ({
       goto: async () => undefined,
       url: () => 'https://external.example/redirected',
       locator: () => ({
         innerText: async () => 'Untrusted redirected content',
       }),
-    } as unknown as Awaited<ReturnType<typeof oldOpen>>;
-  };
-  BrowserSession.prototype.close = async function () {};
+    }) as unknown as Awaited<ReturnType<typeof oldOpen>>;
+  BrowserSession.prototype.close = async () => {};
   const app = buildApp();
   try {
     await app.ready();
@@ -1706,19 +1687,19 @@ test('evidence capture rejects an off-profile redirect before any approval', asy
     assert.equal(started.statusCode, 202, started.body);
     const id = started.json().id as string;
     for (let i = 0; i < 160; i++) {
-      const state = (await app.inject('/runs/' + id)).json().state;
+      const state = (await app.inject(`/runs/${id}`)).json().state;
       if (['failed', 'blocked', 'cancelled', 'completed'].includes(state)) break;
       await new Promise((done) => setTimeout(done, 20));
     }
-    const final = (await app.inject('/runs/' + id)).json() as {
+    const final = (await app.inject(`/runs/${id}`)).json() as {
       state: string;
       error: string;
     };
     assert.equal(final.state, 'failed');
     assert.match(final.error, /outside the exact authorized profile scope/);
-    assert.equal((await app.inject('/runs/' + id + '/steps/verify-origin/output')).statusCode, 404);
-    assert.equal((await app.inject('/runs/' + id + '/steps/action/output')).statusCode, 404);
-    const journal = (await app.inject('/runs/' + id + '/logs')).json() as Array<{
+    assert.equal((await app.inject(`/runs/${id}/steps/verify-origin/output`)).statusCode, 404);
+    assert.equal((await app.inject(`/runs/${id}/steps/action/output`)).statusCode, 404);
+    const journal = (await app.inject(`/runs/${id}/logs`)).json() as Array<{
       kind: string;
       details?: { stepId?: string; stage?: string };
     }>;
@@ -1779,7 +1760,7 @@ test('LinkedIn templates compile into owner-approved evidence and read-back pipe
     mutation.steps.find((step) => step.kind === 'evidence')?.inputBindings?.observation?.stepId,
     'inspect',
   );
-  const store = new WorkflowPlanStore(join(tmpdir(), 'missing-linkedin-fixture-' + randomUUID()));
+  const store = new WorkflowPlanStore(join(tmpdir(), `missing-linkedin-fixture-${randomUUID()}`));
   const loaded = await store.get('linkedin', 'edit-profile');
   assert.equal(loaded.steps.length, 11);
   assert.equal(
@@ -1847,12 +1828,12 @@ test('LinkedIn template can be saved while disconnected, but execution requires 
       before,
       'an unsynced LinkedIn account must never start a run',
     );
-    const exists = await app.inject('/workflows/' + id);
+    const exists = await app.inject(`/workflows/${id}`);
     assert.equal(exists.statusCode, 200, 'loading a template does not depend on a connector');
   } finally {
     await app.close();
     if (id) {
-      await rm(join(process.cwd(), '.runtime', 'workflows', id + '.json'), {
+      await rm(join(process.cwd(), '.runtime', 'workflows', `${id}.json`), {
         force: true,
       });
       await rm(join(process.cwd(), '.runtime', 'workflows', 'revisions', id), {
@@ -1868,8 +1849,8 @@ test('every LinkedIn run revalidates the saved browser session and flags authent
     oldClose = BrowserSession.prototype.close;
   let currentUrl = 'https://www.linkedin.com/in/verified-owner/';
   let signedIn = true;
-  BrowserSession.prototype.open = async function () {
-    return {
+  BrowserSession.prototype.open = async () =>
+    ({
       goto: async (url: string) => {
         currentUrl = url;
         return null;
@@ -1883,9 +1864,8 @@ test('every LinkedIn run revalidates the saved browser session and flags authent
         }),
       }),
       locator: () => ({ innerText: async () => 'Profile verified before run' }),
-    } as unknown as Awaited<ReturnType<typeof oldOpen>>;
-  };
-  BrowserSession.prototype.close = async function () {};
+    }) as unknown as Awaited<ReturnType<typeof oldOpen>>;
+  BrowserSession.prototype.close = async () => {};
   const root = await mkdtemp(join(tmpdir(), 'utomator-linkedin-reauth-'));
   const app = buildApp({ socialWorkspaceRoot: root });
   try {
@@ -1901,7 +1881,7 @@ test('every LinkedIn run revalidates the saved browser session and flags authent
       (
         await app.inject({
           method: 'POST',
-          url: '/connectors/' + account.id + '/connect',
+          url: `/connectors/${account.id}/connect`,
         })
       ).statusCode,
       200,
@@ -1910,7 +1890,7 @@ test('every LinkedIn run revalidates the saved browser session and flags authent
       (
         await app.inject({
           method: 'POST',
-          url: '/connectors/' + account.id + '/sync',
+          url: `/connectors/${account.id}/sync`,
         })
       ).json().status,
       'connected',
@@ -1928,17 +1908,17 @@ test('every LinkedIn run revalidates the saved browser session and flags authent
     assert.equal(started.statusCode, 202, started.body);
     const id = (started.json() as { id: string }).id;
     for (let i = 0; i < 180; i++) {
-      const row = (await app.inject('/runs/' + id)).json() as { state: string };
+      const row = (await app.inject(`/runs/${id}`)).json() as { state: string };
       if (['blocked', 'failed', 'cancelled', 'completed'].includes(row.state)) break;
       await new Promise((done) => setTimeout(done, 20));
     }
-    const final = (await app.inject('/runs/' + id)).json() as {
+    const final = (await app.inject(`/runs/${id}`)).json() as {
       state: string;
       error: string;
     };
     assert.equal(final.state, 'blocked');
     assert.match(final.error, /session not authenticated/);
-    const journal = (await app.inject('/runs/' + id + '/logs')).json() as Array<{
+    const journal = (await app.inject(`/runs/${id}/logs`)).json() as Array<{
       kind: string;
       details?: { stepId?: string; stage?: string };
     }>;
