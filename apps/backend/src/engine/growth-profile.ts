@@ -37,7 +37,7 @@ export function compileGrowthProfileYaml(yaml: string) {
   fields(parsed.spec, ['platform', 'objective', 'requirements', 'coverage', 'pipelines', 'stages'], 'spec');
   const metadata = parsed.metadata, spec = parsed.spec;
   if (parsed.apiVersion !== 'utomator.dev/v1' ||
-      parsed.kind !== 'GrowthProfileWorkflow' || typeof metadata.id !== 'string' || !/^[a-z][a-z0-9-]{2,70}$/.test(metadata.id) ||
+      !['GrowthProfileWorkflow','GrowthWorkflow'].includes(String(parsed.kind)) || typeof metadata.id !== 'string' || !/^[a-z][a-z0-9-]{2,70}$/.test(metadata.id) ||
       !Number.isSafeInteger(metadata.version) || (metadata.version as number) < 1 ||
       typeof metadata.title !== 'string' || !metadata.title.trim() || metadata.title.length > 120 ||
       spec.platform !== 'linkedin' || typeof spec.objective !== 'string' ||
@@ -73,14 +73,20 @@ export function compileGrowthProfileYaml(yaml: string) {
     if (!sectionIds.length || new Set(sectionIds).size !== sectionIds.length ||
         sectionIds.some(section => !registeredSections.has(section)))
       throw Error('Invalid Growth stage section assignment');
-    if (index < stageKeys.length - 1 || (metadata.id !== 'linkedin-profile' && raw.sections !== '*')) {
+    const isFinalStage = index === stageKeys.length - 1;
+    if (isFinalStage && metadata.id === 'linkedin-profile' &&
+      (raw.sections !== '*' || sectionIds.length !== 20))
+      throw Error('Default profile final review must include all 20 evidence targets');
+    if (isFinalStage && raw.sections === '*' && index > 0) {
+      // A final review can repeat prior coverage, but cannot hide omitted sections.
+      if (seenSections.size !== registeredSections.size)
+        throw Error('Final Growth review requires coverage in preceding pipelines');
+    } else {
+      // A single-pipeline Growth may cover all its evidence requirements.
       for (const section of sectionIds) {
         if (seenSections.has(section)) throw Error('Growth profile coverage assigned twice');
         seenSections.add(section);
       }
-    } else if (metadata.id === 'linkedin-profile' &&
-      (raw.sections !== '*' || sectionIds.length !== 20)) {
-      throw Error('Default profile final review must include all 20 evidence targets');
     }
     // This is an executable Runner workflow; the section assignments are
     // independent evidence requirements, not invented browser extractors.
@@ -124,7 +130,7 @@ export function compileGrowthProfileYaml(yaml: string) {
       executionEndpoint: '/runs' as const };
   });
   return {
-    apiVersion: 'utomator.dev/v1' as const, kind: 'GrowthProfileWorkflow' as const,
+    apiVersion: 'utomator.dev/v1' as const, kind: parsed.kind as 'GrowthProfileWorkflow' | 'GrowthWorkflow',
     id: metadata.id as string, version: metadata.version as number,
     title: metadata.title as string, objective: spec.objective,
     requirements: requirements.map(([id, text]) => ({ id, text })),
@@ -133,7 +139,7 @@ export function compileGrowthProfileYaml(yaml: string) {
     })),
     pipelines: resolved,
     stages,
-    execution: 'six-dependent-runner-pipelines' as const,
+    execution: metadata.id === 'linkedin-profile' ? 'six-dependent-runner-pipelines' as const : 'ordered-runner-pipelines' as const,
     limitation: 'Reviewed Runner pipelines execute supported actions. Independent section extractors, in-composition edits and verified field-level rubrics are not yet available.',
   };
 }

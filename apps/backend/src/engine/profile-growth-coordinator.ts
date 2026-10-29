@@ -153,7 +153,7 @@ export class ProfileGrowthCoordinator {
       const run = structuredClone(stored.value);
       if (run.status !== 'active') throw Error('Growth run is already finalized');
       const stage = run.stages[run.activeIndex]!;
-      if (!stage.sectionIds.includes(input.sectionId) || stage.id === 'review')
+      if (!stage.sectionIds.includes(input.sectionId) || (run.programId === 'linkedin-profile' && stage.id === 'review'))
         throw Error('Supply evidence for a section assigned to the current stage');
       const excerpt = typeof input.text === 'string' ? input.text.trim() : '';
       if (excerpt.length < 10 || excerpt.length > 1500)

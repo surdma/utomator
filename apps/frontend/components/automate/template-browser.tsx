@@ -53,9 +53,14 @@ export default function TemplateBrowser({activePlatform,templates,onApply,onAppl
     ...templateCatalog,
     ...(onGrowthApply?growthCapabilities.map(cap=>{
       const id="linkedin-"+cap.id;
-      const available=growthTemplates.some(template=>template.id===id&&template.executable);
+      const available=growthTemplates.find(template=>template.id===id&&template.executable);
       return {id:"growth-"+id,growthId:id,platform:"linkedin" as const,category:"Profile" as const,
-        title:cap.title,description:cap.summary,capabilities:[...cap.actions],
+        title:cap.title,description:available?.objective??cap.summary,
+        capabilities:available?[
+          available.pipelineCount+" reviewed Runner pipelines",
+          available.coverageCount+" owner-evidence targets",
+          "No unsupported provider edits or growth-outcome claims",
+        ]:[...cap.actions],
         automation:available?"supported" as const:"planned" as const,schedule:"manual" as const};
     }):[]),
     ...(onGrowthApply?growthTemplates.filter(template=>
