@@ -289,3 +289,23 @@ test('native dialog traps keyboard focus and closes on Escape', async ({
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
 });
+
+test('dashboard navigation stays usable after extracting the shell', async ({
+  page,
+}) => {
+  await page.goto('/dashboard/pipeline');
+  const sidebar = page.getByTestId('automation-navigation-sidebar');
+  const toggle = page.getByRole('button', { name: 'Toggle navigation' });
+  if (await toggle.isVisible()) {
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  }
+  await expect(
+    sidebar.getByRole('button', { name: 'Run history' })
+  ).toBeVisible();
+  await sidebar.getByRole('button', { name: 'Run history' }).click();
+  await expect(page).toHaveURL(/\/dashboard\/history$/);
+  if (await toggle.isVisible()) await toggle.click();
+  await sidebar.getByRole('button', { name: 'Pipeline', exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard\/pipeline$/);
+});

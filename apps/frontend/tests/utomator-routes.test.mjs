@@ -72,13 +72,20 @@ test('unified Growth editor reads the ID from nested Growth and legacy Craft URL
     resolve(root, 'components', 'automate', 'pipeline.tsx'),
     'utf8'
   );
-  assert.match(pipeline, /const\s+id\s*=\s*pathname\.split\(['"]\/['"]\)\[3\]/);
+  const navigation = readFileSync(
+    resolve(root, 'components/automate/pipeline/use-dashboard-navigation.ts'),
+    'utf8'
+  );
+  assert.match(
+    navigation,
+    /const\s+id\s*=\s*pathname\.split\(['"]\/['"]\)\[3\]/
+  );
   assert.doesNotMatch(
-    pipeline,
+    navigation,
     /const\s+id\s*=\s*pathname\.split\(['"]\/['"]\)\[2\]/
   );
   assert.match(
-    pipeline,
+    navigation,
     /pathname.startsWith\(['"]\/dashboard\/growth\/['"]\)/
   );
   assert.match(
@@ -88,7 +95,7 @@ test('unified Growth editor reads the ID from nested Growth and legacy Craft URL
   assert.match(pipeline, /onGrowthTemplateApply=\{applyGrowthTemplate\}/);
   assert.match(pipeline, /growthTemplateId=\{selectedGrowthTemplateId\}/);
   assert.match(
-    pipeline,
+    navigation,
     /['"]\/dashboard\/growth\/['"]\s*\+\s*encodeURIComponent/
   );
   assert.ok(!pipeline.includes('<LinkedInGrowthHub'));

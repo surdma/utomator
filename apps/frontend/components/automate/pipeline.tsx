@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import {
   useCallback,
   useEffect,
@@ -9,32 +8,21 @@ import {
   type FormEvent,
 } from 'react';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
 import {
   Activity,
   AlertCircle,
   Check,
   CheckCircle2,
-  Compass,
-  ExternalLink,
-  FileText,
-  History,
-  Menu,
   MessageSquareText,
   Play,
   Pause,
   Plus,
-  RotateCcw,
   Send,
-  Workflow,
   X,
-  Settings2,
-  UserRound,
   ImageIcon,
   Paperclip,
   Crosshair,
   Focus,
-  NotebookPen,
 } from 'lucide-react';
 import {
   Message,
@@ -85,6 +73,13 @@ import { buildRunPayload } from './pipeline/build-run-payload';
 import { editCraftFromCommand } from './pipeline/craft-command-editor';
 import RunHistory from './pipeline/run-history';
 import RunTrackingDialog from './pipeline/run-tracking-dialog';
+import DashboardHeader from './pipeline/dashboard-header';
+import { apiPost, getApi } from './pipeline/api-client';
+import DashboardSidebar from './pipeline/dashboard-sidebar';
+import {
+  useDashboardNavigation,
+  type DashboardPane,
+} from './pipeline/use-dashboard-navigation';
 
 type WorkflowRecord = {
   id: string;
@@ -179,23 +174,26 @@ type Review = {
     | { kind: 'review'; reviewId: string };
 };
 
-const getApi = (path: string) => '/api/' + path;
 export default function AutomationPipeline({
   initialPane = 'pipeline',
 }: {
-  initialPane?:
-    | 'pipeline'
-    | 'history'
-    | 'profile'
-    | 'resumes'
-    | 'observer'
-    | 'memory'
-    | 'research'
-    | 'editorial'
-    | 'growth'
-    | 'settings'
-    | 'crafts';
+  initialPane?: DashboardPane;
 }) {
+  const {
+    pathname,
+    pane,
+    setPane,
+    mobileMenu,
+    setMobileMenu,
+    selectedCraftId,
+    selectedCraftSlug,
+    libraryView,
+    navigate,
+    navigatePane,
+    navigateSubpage,
+    navigateCraft,
+    navigateCraftView,
+  } = useDashboardNavigation(initialPane);
   const [platform, setPlatform] = useState<Platform>('linkedin');
   const [action, setAction] = useState('audit');
   const [handle, setHandle] = useState('');
@@ -205,20 +203,6 @@ export default function AutomationPipeline({
   );
   const [connectorRequest, setConnectorRequest] = useState<string | null>(null);
   const [connectorOpenSignal, setConnectorOpenSignal] = useState(0);
-  const [pane, setPane] = useState<
-    | 'pipeline'
-    | 'history'
-    | 'crafts'
-    | 'profile'
-    | 'resumes'
-    | 'observer'
-    | 'memory'
-    | 'research'
-    | 'editorial'
-    | 'growth'
-    | 'settings'
-  >(initialPane);
-  const pathname = usePathname();
   const [trackingOpen, setTrackingOpen] = useState(false);
   const [chatVisible, setChatVisible] = useState(true);
   const [configRequest, setConfigRequest] = useState(0);
@@ -257,10 +241,6 @@ export default function AutomationPipeline({
   const [planDirty, setPlanDirty] = useState(false);
   const [planSaving, setPlanSaving] = useState(false);
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
-  const [selectedCraftId, setSelectedCraftId] = useState<string | null>(null);
-  const [selectedCraftSlug, setSelectedCraftSlug] = useState<string | null>(
-    null
-  );
   const [craftsRevision, setCraftsRevision] = useState(0);
   const [, setSelectedNode] = useState('inspect');
   const [scopeSection, setScopeSection] = useState('profile');
@@ -268,7 +248,6 @@ export default function AutomationPipeline({
   const [imageDraft, setImageDraft] = useState<ImageSource | null>(null);
   const [imageError, setImageError] = useState('');
 
-  const [mobileMenu, setMobileMenu] = useState(false);
   const [available, setAvailable] = useState<'checking' | 'ready' | 'offline'>(
     'checking'
   );
@@ -298,100 +277,11 @@ export default function AutomationPipeline({
   const streamRef = useRef<EventSource | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const currentRunRef = useRef<string | null>(null);
-  const libraryView = pathname.endsWith('/source')
-    ? 'source'
-    : pathname.startsWith('/growth/') ||
-        pathname.startsWith('/dashboard/growth/') ||
-        pathname.startsWith('/dashboard/crafts/')
-      ? 'visual'
-      : 'catalog';
-  useEffect(() => {
-    if (pathname === '/growth/default-growth-profile') {
-      setPane('growth');
-      setSelectedCraftId('default-growth-profile');
-    } else if (
-      pathname.startsWith('/dashboard/growth/') ||
-      pathname.startsWith('/dashboard/crafts/')
-    ) {
-      const id = pathname.split('/')[3];
-      setPane('growth');
-      setSelectedCraftId(id || null);
-    } else if (pathname === '/dashboard/crafts') setPane('growth');
-    else if (pathname === '/dashboard/history') setPane('history');
-    else if (pathname.startsWith('/dashboard/profile')) setPane('profile');
-    else if (pathname.startsWith('/dashboard/resumes')) setPane('resumes');
-    else if (pathname === '/dashboard/observer') setPane('observer');
-    else if (pathname === '/dashboard/memory') setPane('memory');
-    else if (pathname === '/dashboard/research') setPane('research');
-    else if (pathname === '/dashboard/editorial') setPane('editorial');
-    else if (pathname === '/dashboard/growth') setPane('growth');
-    else if (pathname === '/dashboard/settings') setPane('settings');
-    else if (pathname === '/dashboard/pipeline') setPane('pipeline');
-  }, [pathname]);
-  function navigate(path: string) {
-    if (typeof window !== 'undefined' && window.location.pathname !== path)
-      window.history.pushState(null, '', path);
-  }
-  function navigatePane(
-    next:
-      | 'pipeline'
-      | 'history'
-      | 'crafts'
-      | 'profile'
-      | 'resumes'
-      | 'observer'
-      | 'memory'
-      | 'research'
-      | 'editorial'
-      | 'growth'
-      | 'settings'
-  ) {
-    if (
-      next !== pane &&
-      typeof document !== 'undefined' &&
-      document.querySelector('[data-career-dirty="true"]') &&
-      !window.confirm('Discard unsaved career edits?')
-    )
-      return;
-    setPane(next);
-    navigate(
-      next === 'pipeline' ? '/dashboard/pipeline' : '/dashboard/' + next
-    );
-  }
-  function navigateSubpage(path: string) {
-    if (
-      typeof document !== 'undefined' &&
-      document.querySelector('[data-career-dirty="true"]') &&
-      !window.confirm('Discard unsaved career edits?')
-    )
-      return;
-    setPane(path.startsWith('/dashboard/resumes') ? 'resumes' : 'profile');
-    navigate(path);
-  }
   function selectSocialAccount(account: SocialAccount) {
     setConnectorRequest(account.id);
     setConnectorOpenSignal((value) => value + 1);
     setMobileMenu(false);
   }
-  function navigateCraft(id: string | null, slug?: string) {
-    setPane('growth');
-    setSelectedCraftId(id);
-    if (id && slug) setSelectedCraftSlug(slug);
-    if (!id) setSelectedCraftSlug(null);
-    const target = id
-      ? '/dashboard/growth/' + encodeURIComponent(id)
-      : '/dashboard/growth';
-    navigate(id && pathname === target + '/source' ? pathname : target);
-  }
-  function navigateCraftView(next: 'visual' | 'source') {
-    if (!selectedCraftId) return;
-    navigate(
-      '/dashboard/growth/' +
-        encodeURIComponent(selectedCraftId) +
-        (next === 'source' ? '/source' : '')
-    );
-  }
-
   const selected =
     workflows[platform].find((workflow) => workflow.id === action) ||
     workflows[platform][0];
@@ -738,16 +628,6 @@ export default function AutomationPipeline({
     setRunFormError('');
     navigatePane('pipeline');
     setMobileMenu(false);
-  }
-  async function apiPost(path: string, data: Record<string, unknown> = {}) {
-    const response = await fetch(getApi(path), {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    const body = (await response.json()) as { error?: string; id?: string };
-    if (!response.ok) throw new Error(body.error || 'Unable to submit request');
-    return body;
   }
   function connect(runId: string) {
     streamRef.current?.close();
@@ -1179,80 +1059,16 @@ export default function AutomationPipeline({
       data-automate
       className="flex min-h-dvh flex-col bg-[#f5f7f8] font-sans text-slate-900 lg:fixed lg:inset-0 lg:z-40 lg:h-dvh lg:overflow-hidden"
     >
-      <div className="shrink-0 border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-[1760px] items-center justify-between gap-3 px-4 py-3 md:px-6">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              className="lg:hidden"
-              type="button"
-              aria-label="Toggle navigation"
-              aria-expanded={mobileMenu}
-              onClick={() => {
-                setMobileMenu(!mobileMenu);
-                setMobileChatOpen(false);
-              }}
-            >
-              <Menu className="size-5" />
-            </Button>
-            <div className="flex size-10 items-center justify-center rounded-xl bg-slate-950 text-white">
-              <Workflow className="size-5" />
-            </div>
-            <div>
-              <p className="text-sm leading-tight font-extrabold tracking-[-.02em]">
-                Utomator{' '}
-                <span className="font-medium text-slate-400">/ Studio</span>
-              </p>
-              <p className="text-[11px] text-slate-500">
-                Local automation, evidence first
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <span
-              className={
-                'hidden items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold sm:inline-flex ' +
-                (available === 'ready'
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                  : 'border-amber-200 bg-amber-50 text-amber-800')
-              }
-            >
-              <span
-                className={
-                  'size-2 rounded-full ' +
-                  (available === 'ready' ? 'bg-emerald-500' : 'bg-amber-500')
-                }
-              />
-              {available === 'ready'
-                ? 'Engine connected'
-                : available === 'checking'
-                  ? 'Connecting'
-                  : 'Engine offline'}
-            </span>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              type="button"
-              aria-label="Open run tracking"
-              onClick={() => setTrackingOpen(true)}
-            >
-              <Activity className="size-4" />
-              <span className="hidden sm:inline">Tracking</span>
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => void refresh()}>
-              <RotateCcw className="size-4" />{' '}
-              <span className="hidden sm:inline">Refresh</span>
-            </Button>
-            <Link
-              href="/"
-              className="inline-flex min-h-10 items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-950"
-            >
-              Portfolio <ExternalLink className="size-3.5" />
-            </Link>
-          </div>
-        </div>
-      </div>
+      <DashboardHeader
+        available={available}
+        mobileMenu={mobileMenu}
+        onToggleNavigation={() => {
+          setMobileMenu(!mobileMenu);
+          setMobileChatOpen(false);
+        }}
+        onOpenTracking={() => setTrackingOpen(true)}
+        onRefresh={() => void refresh()}
+      />
       {(mobileMenu || mobileChatOpen) && (
         <button
           type="button"
@@ -1272,98 +1088,15 @@ export default function AutomationPipeline({
             : 'lg:grid-cols-[190px_minmax(0,1fr)] 2xl:grid-cols-[220px_minmax(0,1fr)]')
         }
       >
-        <aside
-          data-testid="automation-navigation-sidebar"
-          className={
-            (mobileMenu
-              ? 'fixed inset-y-0 left-0 z-50 block w-[min(85vw,290px)] p-3'
-              : 'hidden') +
-            ' min-w-0 lg:static lg:block lg:h-full lg:w-auto lg:overflow-hidden lg:p-0'
-          }
-        >
-          <div className="h-full rounded-2xl bg-[#111a25] p-4 text-white shadow-xl shadow-slate-900/10 lg:overflow-hidden">
-            <button
-              type="button"
-              aria-label="Close navigation"
-              onClick={() => setMobileMenu(false)}
-              className="mb-3 flex min-h-10 w-full items-center justify-end gap-2 rounded-lg px-2 text-xs font-semibold text-slate-200 hover:bg-slate-800 lg:hidden"
-            >
-              <X className="size-4" />
-              Close
-            </button>
-
-            {(
-              [
-                { id: 'pipeline', label: 'Pipeline', icon: Activity },
-                { id: 'history', label: 'Run history', icon: History },
-              ] as const
-            ).map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  navigatePane(item.id);
-                  setMobileMenu(false);
-                }}
-                className={
-                  'flex min-h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-xs font-semibold transition ' +
-                  (pane === item.id
-                    ? 'bg-teal-500/15 text-teal-200'
-                    : 'text-slate-300 hover:bg-slate-800')
-                }
-              >
-                <item.icon className="size-4" />
-                {item.label}
-              </button>
-            ))}
-            {(
-              [
-                { id: 'profile', label: 'Profile', icon: UserRound },
-                { id: 'resumes', label: 'Résumés', icon: FileText },
-                { id: 'memory', label: 'Intelligence', icon: NotebookPen },
-                { id: 'research', label: 'Creator research', icon: Crosshair },
-                { id: 'editorial', label: 'Editorial drafts', icon: FileText },
-                { id: 'growth', label: 'Growth', icon: Compass },
-              ] as const
-            ).map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  navigatePane(item.id);
-                  setMobileMenu(false);
-                }}
-                aria-current={pane === item.id ? 'page' : undefined}
-                className={
-                  'flex min-h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-xs font-semibold transition ' +
-                  (pane === item.id
-                    ? 'bg-teal-500/15 text-teal-200'
-                    : 'text-slate-300 hover:bg-slate-800')
-                }
-              >
-                <item.icon className="size-4" />
-                {item.label}
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => {
-                navigatePane('settings');
-                setMobileMenu(false);
-              }}
-              aria-current={pane === 'settings' ? 'page' : undefined}
-              className={
-                'flex min-h-10 w-full items-center gap-2.5 rounded-xl px-3 text-xs font-semibold transition ' +
-                (pane === 'settings'
-                  ? 'bg-teal-500/15 text-teal-200'
-                  : 'text-slate-300 hover:bg-slate-800')
-              }
-            >
-              <Settings2 className="size-4" />
-              Settings
-            </button>
-          </div>
-        </aside>
+        <DashboardSidebar
+          pane={pane}
+          mobileMenu={mobileMenu}
+          onClose={() => setMobileMenu(false)}
+          onNavigate={(next) => {
+            navigatePane(next);
+            setMobileMenu(false);
+          }}
+        />
         <main
           data-testid="automation-main-scroll"
           className="min-w-0 space-y-5 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pr-2"
