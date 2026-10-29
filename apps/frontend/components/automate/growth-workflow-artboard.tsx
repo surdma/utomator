@@ -136,8 +136,10 @@ function GraphContent({
     program.stages.find((stage) => stage.id === selectedId) ?? null;
   const live = run?.pipelineRuns.find((item) => item.id === selectedId);
   const childRunId = live?.childRunId ?? null;
-  const journal =
-    childRunId === journalResult.runId ? journalResult.entries : [];
+  const journal = useMemo(
+    () => (childRunId === journalResult.runId ? journalResult.entries : []),
+    [childRunId, journalResult],
+  );
   const logError =
     childRunId === journalResult.runId ? journalResult.error : "";
 
