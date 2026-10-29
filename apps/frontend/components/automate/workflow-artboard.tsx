@@ -451,7 +451,7 @@ function CanvasInner({
             {events.length > 0 ? (
               events.slice(-15).map((item) => (
                 <p
-                  key={item.id}
+                  key={item.id ?? `${item.kind}:${item.message}`}
                   className="border-b border-slate-100 pb-2 text-xs text-slate-600"
                 >
                   <strong className="mr-2 uppercase">{item.kind}</strong>

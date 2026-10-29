@@ -45,7 +45,9 @@ export default function WorkflowOutputDialog({
     <StudioDialog
       open={open}
       onDismiss={() => onDismiss()}
-      title={focused === 'verify' ? 'Verification evidence' : 'Final workflow output'}
+      title={
+        focused === 'verify' ? 'Verification evidence' : 'Final workflow output'
+      }
       description="Actual run results and captured evidence. Screenshots are labeled as captured, not fabricated after-state previews."
       size="wide"
       testId="workflow-output-dialog"
@@ -71,7 +73,7 @@ export default function WorkflowOutputDialog({
             </h3>
             {resultEvents.map((item) => (
               <div
-                key={item.id}
+                key={item.id ?? `${item.kind}:${item.message}`}
                 className="rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-950"
               >
                 {item.message}
@@ -118,8 +120,8 @@ export default function WorkflowOutputDialog({
               </p>
             )}
             <p className="mt-3 text-[11px] text-slate-500">
-              Rendered from a real browser observation event. Not an
-              unverified edit preview.
+              Rendered from a real browser observation event. Not an unverified
+              edit preview.
             </p>
           </div>
         )}
@@ -131,7 +133,7 @@ export default function WorkflowOutputDialog({
             <div className="grid gap-3 sm:grid-cols-2">
               {screenshots.map((item) => (
                 <div
-                  key={item.id}
+                  key={item.id ?? `${item.kind}:${item.message}`}
                   className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
                 >
                   {evidenceRoot && runId && onEvidenceOpen ? (
@@ -142,8 +144,7 @@ export default function WorkflowOutputDialog({
                         onEvidenceOpen(runId, item.details!.fileName!);
                       }}
                       aria-label={
-                        'Annotate output capture: ' +
-                        item.details!.fileName!
+                        'Annotate output capture: ' + item.details!.fileName!
                       }
                       className="block w-full text-left hover:opacity-90"
                     >
@@ -175,8 +176,8 @@ export default function WorkflowOutputDialog({
               ))}
             </div>
             <p className="text-[11px] text-slate-500">
-              Captures may precede a mutation. Only the result journal
-              asserts verification.
+              Captures may precede a mutation. Only the result journal asserts
+              verification.
             </p>
           </div>
         ) : (

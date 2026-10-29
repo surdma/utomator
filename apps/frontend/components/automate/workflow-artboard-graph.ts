@@ -1,6 +1,7 @@
 import { MarkerType, Position, type Node, type Edge } from '@xyflow/react';
 
 export type CanvasEvent = {
+  id?: number;
   kind: string;
   message: string;
   details?: {
