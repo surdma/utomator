@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import {
   useCallback,
@@ -6,7 +6,7 @@ import {
   useMemo,
   useState,
   type ChangeEvent,
-} from "react";
+} from 'react';
 import {
   addEdge,
   applyEdgeChanges,
@@ -26,7 +26,7 @@ import {
   type Node,
   type NodeChange,
   type NodeProps,
-} from "@xyflow/react";
+} from '@xyflow/react';
 import {
   Archive,
   ArrowDownToLine,
@@ -42,33 +42,28 @@ import {
   Sparkles,
   Trash2,
   Unplug,
-} from "lucide-react";
+} from 'lucide-react';
 import {
   Card,
   CardContent,
   CardHeader,
   Button,
-} from "@/components/ui/automate-card";
-import CraftCatalog, { craftCategoryTitles as titles } from "./craft-catalog";
-import StudioDialog from "@/components/ui/studio-dialog";
+} from '@/components/ui/automate-card';
+import CraftCatalog, { craftCategoryTitles as titles } from './craft-catalog';
+import StudioDialog from '@/components/ui/studio-dialog';
 import GrowthCapabilityDetails, {
   capabilityForSlug,
-} from "./growth-capability-details";
+} from './growth-capability-details';
 
 export type Category =
-  | "presence"
-  | "portfolio"
-  | "job-hunt"
-  | "applications"
-  | "content"
-  | "engagement";
+  | 'presence'
+  | 'portfolio'
+  | 'job-hunt'
+  | 'applications'
+  | 'content'
+  | 'engagement';
 export type Kind =
-  | "brief"
-  | "research"
-  | "draft"
-  | "review"
-  | "publish"
-  | "measure";
+  'brief' | 'research' | 'draft' | 'review' | 'publish' | 'measure';
 export type Step = {
   id: string;
   kind: Kind;
@@ -88,94 +83,94 @@ export type Craft = {
   updatedAt: string;
   steps: Step[];
   links: Link[];
-  scope: "default" | "personal";
+  scope: 'default' | 'personal';
   sourceCraftId?: string;
 };
 type Draft = Omit<
   Craft,
-  "id" | "version" | "updatedAt" | "scope" | "sourceCraftId"
+  'id' | 'version' | 'updatedAt' | 'scope' | 'sourceCraftId'
 >;
 type Props = {
   selectedId: string | null;
   onSelected: (id: string | null, slug?: string) => void;
   onChat: (text: string) => void;
   revision: number;
-  view: "catalog" | "visual" | "source";
-  onView: (view: "visual" | "source") => void;
+  view: 'catalog' | 'visual' | 'source';
+  onView: (view: 'visual' | 'source') => void;
   onBack: () => void;
 };
 const kinds: Kind[] = [
-  "brief",
-  "research",
-  "draft",
-  "review",
-  "publish",
-  "measure",
+  'brief',
+  'research',
+  'draft',
+  'review',
+  'publish',
+  'measure',
 ];
 const accent: Record<Kind, string> = {
-  brief: "bg-indigo-50 text-indigo-700",
-  research: "bg-sky-50 text-sky-800",
-  draft: "bg-amber-50 text-amber-800",
-  review: "bg-violet-50 text-violet-800",
-  publish: "bg-emerald-50 text-emerald-800",
-  measure: "bg-rose-50 text-rose-800",
+  brief: 'bg-indigo-50 text-indigo-700',
+  research: 'bg-sky-50 text-sky-800',
+  draft: 'bg-amber-50 text-amber-800',
+  review: 'bg-violet-50 text-violet-800',
+  publish: 'bg-emerald-50 text-emerald-800',
+  measure: 'bg-rose-50 text-rose-800',
 };
-const api = (part: string) => "/api/crafts" + part;
+const api = (part: string) => '/api/crafts' + part;
 const idFor = (name: string) =>
   name
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
     .slice(0, 55);
 function renderMdx(draft: Draft) {
   return (
     [
-      "---",
-      "name: " + draft.slug,
-      "description: " + JSON.stringify(draft.description),
-      "category: " + draft.category,
-      "enabled: " + String(draft.enabled),
-      "---",
-      "",
-      "# " + draft.name,
-      "",
+      '---',
+      'name: ' + draft.slug,
+      'description: ' + JSON.stringify(draft.description),
+      'category: ' + draft.category,
+      'enabled: ' + String(draft.enabled),
+      '---',
+      '',
+      '# ' + draft.name,
+      '',
       ...draft.steps.flatMap((step) => [
-        "## Step: " + step.id + " | " + step.title,
+        '## Step: ' + step.id + ' | ' + step.title,
         '<a id="step-' + step.id + '" />',
         '<CraftNode kind="' +
           step.kind +
           '" x={' +
           step.position.x +
-          "} y={" +
+          '} y={' +
           step.position.y +
-          "} />",
-        "",
+          '} />',
+        '',
         step.body.trim(),
-        "",
-        "**Next:** " +
+        '',
+        '**Next:** ' +
           (draft.links
             .filter((link) => link.source === step.id)
-            .map((link) => "[" + link.target + "](#step-" + link.target + ")")
-            .join(", ") || "End"),
-        "",
+            .map((link) => '[' + link.target + '](#step-' + link.target + ')')
+            .join(', ') || 'End'),
+        '',
       ]),
     ]
-      .join("\n")
-      .trimEnd() + "\n"
+      .join('\n')
+      .trimEnd() + '\n'
   );
 }
 function Stage({
   data,
   selected,
-}: NodeProps<Node<{ title: string; kind: Kind; details: string }, "craft">>) {
+}: NodeProps<Node<{ title: string; kind: Kind; details: string }, 'craft'>>) {
   return (
     <div
-      data-testid={"craft-node-" + data.details}
+      data-testid={'craft-node-' + data.details}
       className={
-        "group w-[220px] overflow-hidden rounded-2xl border bg-white shadow-[0_10px_32px_-20px_rgba(15,23,42,.5)] transition " +
+        'group w-[220px] overflow-hidden rounded-2xl border bg-white shadow-[0_10px_32px_-20px_rgba(15,23,42,.5)] transition ' +
         (selected
-          ? "border-teal-600 ring-2 ring-teal-500/15"
-          : "border-slate-200 hover:border-teal-300")
+          ? 'border-teal-600 ring-2 ring-teal-500/15'
+          : 'border-slate-200 hover:border-teal-300')
       }
     >
       <Handle
@@ -187,7 +182,7 @@ function Stage({
       <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
         <span
           className={
-            "rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wide " +
+            'rounded-md px-2 py-1 text-[10px] font-bold tracking-wide uppercase ' +
             accent[data.kind]
           }
         >
@@ -232,48 +227,48 @@ function Inner({
   const [baseline, setBaseline] = useState<Craft | null>(null);
   const [selection, setSelection] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
-  const mode = view === "source" ? "mdx" : "visual";
+  const mode = view === 'source' ? 'mdx' : 'visual';
   const [mdxDirty, setMdxDirty] = useState(false);
-  const [mdx, setMdx] = useState("");
-  const [filter, setFilter] = useState<Category | "all">("all");
-  const [search, setSearch] = useState("");
+  const [mdx, setMdx] = useState('');
+  const [filter, setFilter] = useState<Category | 'all'>('all');
+  const [search, setSearch] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const [newName, setNewName] = useState("");
-  const [newCategory, setNewCategory] = useState<Category>("content");
-  const [newOutcome, setNewOutcome] = useState("");
-  const [newAudience, setNewAudience] = useState("");
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [newName, setNewName] = useState('');
+  const [newCategory, setNewCategory] = useState<Category>('content');
+  const [newOutcome, setNewOutcome] = useState('');
+  const [newAudience, setNewAudience] = useState('');
   const [creating, setCreating] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
   const chosen = catalog.find((skill) => skill.id === selectedId);
-  const readOnly = chosen?.scope === "default";
+  const readOnly = chosen?.scope === 'default';
   const nodes = useMemo<
-    Node<{ title: string; kind: Kind; details: string }, "craft">[]
+    Node<{ title: string; kind: Kind; details: string }, 'craft'>[]
   >(
     () =>
       draft?.steps.map((step) => ({
         id: step.id,
-        type: "craft",
+        type: 'craft',
         position: step.position,
         data: { title: step.title, kind: step.kind, details: step.id },
         width: 220,
         height: 140,
         selected: step.id === selection,
       })) || [],
-    [draft, selection],
+    [draft, selection]
   );
   const edges = useMemo<Edge[]>(
     () =>
       draft?.links.map((link) => ({
         ...link,
-        type: "smoothstep",
+        type: 'smoothstep',
         animated: false,
-        style: { stroke: "#0f766e", strokeWidth: 2 },
-        markerEnd: { type: MarkerType.ArrowClosed, color: "#0f766e" },
+        style: { stroke: '#0f766e', strokeWidth: 2 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#0f766e' },
       })) || [],
-    [draft],
+    [draft]
   );
   const changed =
     baseline && draft
@@ -294,14 +289,14 @@ function Inner({
   const load = useCallback(
     async (preferred?: string) => {
       try {
-        const res = await fetch(api(""), { cache: "no-store" });
-        if (!res.ok) throw Error("Start the local engine to manage crafts");
+        const res = await fetch(api(''), { cache: 'no-store' });
+        if (!res.ok) throw Error('Start the local engine to manage crafts');
         const list = (await res.json()) as Craft[];
         setCatalog(list);
         const requested =
-          preferred === ""
+          preferred === ''
             ? null
-            : preferred || (view === "catalog" ? null : selectedId);
+            : preferred || (view === 'catalog' ? null : selectedId);
         const picked = requested
           ? list.find((s) => s.id === requested)
           : undefined;
@@ -326,21 +321,21 @@ function Inner({
         }
         setError(
           requested && !picked
-            ? "This craft could not be found. Return to the craft catalog."
-            : "",
+            ? 'This craft could not be found. Return to the craft catalog.'
+            : ''
         );
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Unable to load crafts");
+        setError(e instanceof Error ? e.message : 'Unable to load crafts');
       }
     },
-    [selectedId, onSelected, view],
+    [selectedId, onSelected, view]
   );
   // An explicit refresh signal is shared with the chat command dispatcher.
   useEffect(() => {
     void load();
   }, [revision]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (view === "catalog") return;
+    if (view === 'catalog') return;
     const picked = catalog.find((s) => s.id === selectedId);
     if (picked && picked.id !== baseline?.id) {
       onSelected(picked.id, picked.slug);
@@ -362,17 +357,17 @@ function Inner({
   const update = (fn: (skill: Draft) => Draft) => {
     if (readOnly) return;
     setDraft((prev) => (prev ? fn(prev) : null));
-    setNotice("Unsaved changes - check the MDX or save to apply.");
+    setNotice('Unsaved changes - check the MDX or save to apply.');
   };
   const onNodesChange = (
     changes: NodeChange<
-      Node<{ title: string; kind: Kind; details: string }, "craft">
-    >[],
+      Node<{ title: string; kind: Kind; details: string }, 'craft'>
+    >[]
   ) => {
     if (readOnly) return;
     const next = applyNodeChanges(changes, nodes);
     if (
-      changes.some((change) => change.type === "position" && change.position)
+      changes.some((change) => change.type === 'position' && change.position)
     ) {
       update((prev) => ({
         ...prev,
@@ -386,11 +381,11 @@ function Inner({
   const onEdgesChange = (changes: EdgeChange<Edge>[]) => {
     if (readOnly) return;
     const next = applyEdgeChanges(changes, edges);
-    if (changes.some((change) => change.type === "remove"))
+    if (changes.some((change) => change.type === 'remove'))
       update((prev) => ({
         ...prev,
         links: next.map((e) => ({
-          id: e.source + "-to-" + e.target,
+          id: e.source + '-to-' + e.target,
           source: e.source,
           target: e.target,
         })),
@@ -408,11 +403,11 @@ function Inner({
       ...prev,
       links: addEdge(
         {
-          id: connection.source + "-to-" + connection.target,
+          id: connection.source + '-to-' + connection.target,
           source: connection.source,
           target: connection.target,
         },
-        prev.links,
+        prev.links
       ).map((e) => ({ id: e.id, source: e.source, target: e.target })),
     }));
   };
@@ -430,30 +425,30 @@ function Inner({
         previous,
         connection,
         prev.links.map((e) => ({ ...e })),
-        { shouldReplaceId: false },
+        { shouldReplaceId: false }
       ).map((e) => ({
         source: e.source,
         target: e.target,
-        id: e.source + "-to-" + e.target,
+        id: e.source + '-to-' + e.target,
       })),
     }));
   };
   const newStep = () => {
     if (readOnly) return;
     if (!draft || draft.steps.length >= 40) return;
-    const base = "new-step";
+    const base = 'new-step';
     let next = base,
       n = 2;
-    while (draft.steps.some((s) => s.id === next)) next = base + "-" + n++;
+    while (draft.steps.some((s) => s.id === next)) next = base + '-' + n++;
     update((prev) => ({
       ...prev,
       steps: [
         ...prev.steps,
         {
           id: next,
-          kind: "draft",
-          title: "New step",
-          body: "Describe the action, relevant evidence and expected result.",
+          kind: 'draft',
+          title: 'New step',
+          body: 'Describe the action, relevant evidence and expected result.',
           position: {
             x: 100 + prev.steps.length * 60,
             y: 240 + (prev.steps.length % 3) * 170,
@@ -462,162 +457,162 @@ function Inner({
       ],
     }));
     setSelection(next);
-    onView("visual");
+    onView('visual');
   };
   const save = async (source?: string) => {
     if (readOnly) return;
     if (!baseline || !draft) return;
     if (source === undefined && mdxDirty) {
       setError(
-        "Unapplied MDX edits are pending. Apply the source before saving the visual graph.",
+        'Unapplied MDX edits are pending. Apply the source before saving the visual graph.'
       );
       return;
     }
     setBusy(true);
-    setError("");
-    setNotice("");
+    setError('');
+    setNotice('');
     try {
-      const res = await fetch(api("/" + baseline.id), {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
+      const res = await fetch(api('/' + baseline.id), {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           expectedVersion: baseline.version,
           ...(source !== undefined ? { mdx: source } : { craft: draft }),
         }),
       });
       const data = (await res.json()) as Craft & { error?: string };
-      if (!res.ok) throw Error(data.error || "Unable to save craft");
+      if (!res.ok) throw Error(data.error || 'Unable to save craft');
       await load(data.id);
-      setNotice("Saved and synchronized with MDX source.");
-      onChat("Saved craft " + data.slug + " (version " + data.version + ").");
+      setNotice('Saved and synchronized with MDX source.');
+      onChat('Saved craft ' + data.slug + ' (version ' + data.version + ').');
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not save craft");
+      setError(e instanceof Error ? e.message : 'Could not save craft');
     } finally {
       setBusy(false);
     }
   };
   const create = async () => {
-    const name = newName.trim().replace(/[<>\r\n]/g, " ");
+    const name = newName.trim().replace(/[<>\r\n]/g, ' ');
     const objective = newOutcome
       .trim()
-      .replace(/[<>\r\n]/g, " ")
+      .replace(/[<>\r\n]/g, ' ')
       .slice(0, 230);
     const audience = newAudience
       .trim()
-      .replace(/[<>\r\n]/g, " ")
+      .replace(/[<>\r\n]/g, ' ')
       .slice(0, 140);
     if (!name || !objective || !audience) return;
     setBusy(true);
-    setError("");
+    setError('');
     try {
       const slug = idFor(name);
-      const res = await fetch(api(""), {
-        method: "POST",
-        headers: { "content-type": "application/json" },
+      const res = await fetch(api(''), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           slug,
           name,
           category: newCategory,
           enabled: true,
           description: (
-            "Use when " +
+            'Use when ' +
             name +
-            " is needed to achieve " +
+            ' is needed to achieve ' +
             objective +
-            " for " +
+            ' for ' +
             audience +
-            "."
+            '.'
           ).slice(0, 1023),
           steps: [
             {
-              id: "scope",
-              kind: "brief",
-              title: "Define " + name.slice(0, 64),
+              id: 'scope',
+              kind: 'brief',
+              title: 'Define ' + name.slice(0, 64),
               body:
-                "Professional outcome: " +
+                'Professional outcome: ' +
                 objective +
-                ". Target audience: " +
+                '. Target audience: ' +
                 audience +
-                ". Identify the relevant account, constraints and success measure.",
+                '. Identify the relevant account, constraints and success measure.',
               position: { x: 70, y: 140 },
             },
             {
-              id: "evidence",
-              kind: "research",
-              title: "Gather relevant evidence",
+              id: 'evidence',
+              kind: 'research',
+              title: 'Gather relevant evidence',
               body:
-                "For " +
+                'For ' +
                 audience +
-                ", gather actual sources and examples connected to " +
+                ', gather actual sources and examples connected to ' +
                 objective +
-                ". Flag missing proof, permissions and provider limitations.",
+                '. Flag missing proof, permissions and provider limitations.',
               position: { x: 380, y: 140 },
             },
             {
-              id: "develop",
-              kind: "draft",
-              title: "Prepare targeted deliverables",
+              id: 'develop',
+              kind: 'draft',
+              title: 'Prepare targeted deliverables',
               body:
-                "Produce the specific outcome of " +
+                'Produce the specific outcome of ' +
                 name +
-                " for " +
+                ' for ' +
                 audience +
-                ". Explain how this advances " +
+                '. Explain how this advances ' +
                 objective +
-                " and which steps require human effort.",
+                ' and which steps require human effort.',
               position: { x: 690, y: 140 },
             },
             {
-              id: "approval",
-              kind: "review",
-              title: "Verify facts and approve",
+              id: 'approval',
+              kind: 'review',
+              title: 'Verify facts and approve',
               body:
-                "Review factual claims, platform restrictions and the relation to " +
+                'Review factual claims, platform restrictions and the relation to ' +
                 objective +
-                ". Require owner approval for external changes.",
+                '. Require owner approval for external changes.',
               position: { x: 1000, y: 140 },
             },
             {
-              id: "outcome",
-              kind: "measure",
-              title: "Measure actual progress",
+              id: 'outcome',
+              kind: 'measure',
+              title: 'Measure actual progress',
               body:
-                "Compare sourced outcomes against " +
+                'Compare sourced outcomes against ' +
                 objective +
-                ". Record the date, denominator and missing data; never generate synthetic engagement.",
+                '. Record the date, denominator and missing data; never generate synthetic engagement.',
               position: { x: 1310, y: 140 },
             },
           ],
           links: [
-            { id: "scope-to-evidence", source: "scope", target: "evidence" },
+            { id: 'scope-to-evidence', source: 'scope', target: 'evidence' },
             {
-              id: "evidence-to-develop",
-              source: "evidence",
-              target: "develop",
+              id: 'evidence-to-develop',
+              source: 'evidence',
+              target: 'develop',
             },
             {
-              id: "develop-to-approval",
-              source: "develop",
-              target: "approval",
+              id: 'develop-to-approval',
+              source: 'develop',
+              target: 'approval',
             },
             {
-              id: "approval-to-outcome",
-              source: "approval",
-              target: "outcome",
+              id: 'approval-to-outcome',
+              source: 'approval',
+              target: 'outcome',
             },
           ],
         }),
       });
       const result = (await res.json()) as Craft & { error?: string };
-      if (!res.ok) throw Error(result.error || "Unable to create craft");
-      setNewName("");
-      setNewOutcome("");
-      setNewAudience("");
+      if (!res.ok) throw Error(result.error || 'Unable to create craft');
+      setNewName('');
+      setNewOutcome('');
+      setNewAudience('');
       setCreating(false);
       await load(result.id);
-      onChat("Created craft " + result.slug + ".");
+      onChat('Created craft ' + result.slug + '.');
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to create craft");
+      setError(e instanceof Error ? e.message : 'Unable to create craft');
     } finally {
       setBusy(false);
     }
@@ -625,17 +620,17 @@ function Inner({
   const duplicate = async () => {
     if (!baseline) return;
     setBusy(true);
-    setError("");
+    setError('');
     try {
-      const res = await fetch(api("/" + baseline.id + "/clone"), {
-        method: "POST",
+      const res = await fetch(api('/' + baseline.id + '/clone'), {
+        method: 'POST',
       });
       const result = (await res.json()) as Craft & { error?: string };
-      if (!res.ok) throw Error(result.error || "Could not clone craft");
+      if (!res.ok) throw Error(result.error || 'Could not clone craft');
       await load(result.id);
-      setNotice("Created your private craft variation.");
+      setNotice('Created your private craft variation.');
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not clone craft");
+      setError(e instanceof Error ? e.message : 'Could not clone craft');
     } finally {
       setBusy(false);
     }
@@ -644,11 +639,11 @@ function Inner({
     if (readOnly) return;
     if (!baseline) return;
     setBusy(true);
-    setError("");
+    setError('');
     try {
-      const res = await fetch(api("/" + baseline.id), {
-        method: "DELETE",
-        headers: { "content-type": "application/json" },
+      const res = await fetch(api('/' + baseline.id), {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ expectedVersion: baseline.version }),
       });
       if (!res.ok) {
@@ -659,50 +654,50 @@ function Inner({
       onSelected(null);
       setBaseline(null);
       setDraft(null);
-      await load("");
-      setNotice("Deleted personal craft.");
+      await load('');
+      setNotice('Deleted personal craft.');
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to delete");
+      setError(e instanceof Error ? e.message : 'Unable to delete');
     } finally {
       setBusy(false);
     }
   };
-  const download = async (format: "skill" | "zip") => {
+  const download = async (format: 'skill' | 'zip') => {
     if (!baseline) return;
     try {
       const res = await fetch(
-        api("/" + baseline.id + "/export?format=" + format),
+        api('/' + baseline.id + '/export?format=' + format)
       );
-      if (!res.ok) throw Error("Unable to export");
+      if (!res.ok) throw Error('Unable to export');
       const blob = await res.blob();
       const href = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
+      const anchor = document.createElement('a');
       anchor.href = href;
-      anchor.download = baseline.slug + "." + format;
+      anchor.download = baseline.slug + '.' + format;
       anchor.click();
       URL.revokeObjectURL(href);
       setNotice(
-        format === "skill"
-          ? "Utomator .skill ZIP bundle downloaded."
-          : "Portable .zip bundle downloaded.",
+        format === 'skill'
+          ? 'Utomator .skill ZIP bundle downloaded.'
+          : 'Portable .zip bundle downloaded.'
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Export failed");
+      setError(e instanceof Error ? e.message : 'Export failed');
     }
   };
   const importFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    event.target.value = "";
+    event.target.value = '';
     if (!file) return;
     setBusy(true);
-    setError("");
+    setError('');
     try {
       if (file.size > 120000)
-        throw Error("File exceeds the 120 KB import limit");
+        throw Error('File exceeds the 120 KB import limit');
       let body: Record<string, unknown>, url: string;
-      if (file.name.toLowerCase().endsWith(".mdx")) {
+      if (file.name.toLowerCase().endsWith('.mdx')) {
         body = { mdx: await file.text() };
-        url = api("/from-mdx");
+        url = api('/from-mdx');
       } else if (/\.(skill|zip)$/i.test(file.name)) {
         const bytes = new Uint8Array(await file.arrayBuffer());
         let offset = 0,
@@ -718,50 +713,50 @@ function Inner({
           const extra = view.getUint16(offset + 28, true);
           const start = offset + 30 + nameLength + extra;
           const name = new TextDecoder().decode(
-            bytes.slice(offset + 30, offset + 30 + nameLength),
+            bytes.slice(offset + 30, offset + 30 + nameLength)
           );
           if (start + size > bytes.length || method !== 0)
             throw Error(
-              "Only safe, uncompressed Utomator .skill packages can be imported",
+              'Only safe, uncompressed Utomator .skill packages can be imported'
             );
-          if (name.endsWith("/graph.json"))
+          if (name.endsWith('/graph.json'))
             graph = new TextDecoder().decode(bytes.slice(start, start + size));
           offset = start + size;
         }
-        if (!graph) throw Error("Missing graph.json in .skill package");
+        if (!graph) throw Error('Missing graph.json in .skill package');
         body = JSON.parse(graph) as Record<string, unknown>;
-        url = api("");
-      } else throw Error("Choose an .mdx, .skill or .zip file");
+        url = api('');
+      } else throw Error('Choose an .mdx, .skill or .zip file');
       const res = await fetch(url, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify(body),
       });
       const saved = (await res.json()) as Craft & { error?: string };
-      if (!res.ok) throw Error(saved.error || "Import failed");
+      if (!res.ok) throw Error(saved.error || 'Import failed');
       await load(saved.id);
-      setNotice("Imported craft " + saved.slug + ".");
+      setNotice('Imported craft ' + saved.slug + '.');
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to import file");
+      setError(e instanceof Error ? e.message : 'Unable to import file');
     } finally {
       setBusy(false);
     }
   };
   const match = catalog.filter(
     (s) =>
-      (filter === "all" || s.category === filter) &&
+      (filter === 'all' || s.category === filter) &&
       (s.name.toLowerCase().includes(search.toLowerCase()) ||
         s.description.toLowerCase().includes(search.toLowerCase()) ||
         s.steps.some((step) =>
-          step.body.toLowerCase().includes(search.toLowerCase()),
-        )),
+          step.body.toLowerCase().includes(search.toLowerCase())
+        ))
   );
   return (
     <section
       data-testid="crafts-library"
       className="flex min-w-0 flex-col gap-5"
     >
-      {view === "catalog" && (
+      {view === 'catalog' && (
         <CraftCatalog
           crafts={match}
           filter={filter}
@@ -789,7 +784,7 @@ function Inner({
           onOpen={(id, slug) => onSelected(id, slug)}
         />
       )}
-      {view !== "catalog" && (
+      {view !== 'catalog' && (
         <button
           type="button"
           onClick={() => {
@@ -805,18 +800,18 @@ function Inner({
           Growth library
         </button>
       )}
-      {view !== "catalog" && chosen && draft && (
+      {view !== 'catalog' && chosen && draft && (
         <GrowthCapabilityDetails
           slug={
             capabilityForSlug(chosen.slug)
               ? chosen.slug
-              : chosen.sourceCraftId?.startsWith("default-growth-")
-                ? chosen.sourceCraftId.slice("default-".length)
+              : chosen.sourceCraftId?.startsWith('default-growth-')
+                ? chosen.sourceCraftId.slice('default-'.length)
                 : chosen.slug
           }
         />
       )}
-      {view !== "catalog" && chosen && draft && (
+      {view !== 'catalog' && chosen && draft && (
         <Card>
           <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 border-b border-slate-100">
             <div className="min-w-0 flex-1">
@@ -830,9 +825,9 @@ function Inner({
                 }
               />
               <p className="mt-1 text-xs text-slate-500">
-                Growth flow · {draft.slug} ·{" "}
-                {readOnly ? "Shared default · read only" : "My craft"} · v
-                {chosen.version} · {draft.steps.length} steps · {totalLinks}{" "}
+                Growth flow · {draft.slug} ·{' '}
+                {readOnly ? 'Shared default · read only' : 'My craft'} · v
+                {chosen.version} · {draft.steps.length} steps · {totalLinks}{' '}
                 connections
               </p>
             </div>
@@ -840,7 +835,7 @@ function Inner({
               <button
                 type="button"
                 className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-semibold"
-                onClick={() => onChat("/craft open " + draft.slug)}
+                onClick={() => onChat('/craft open ' + draft.slug)}
               >
                 <Sparkles className="size-4" />
                 Use in Chat
@@ -854,7 +849,7 @@ function Inner({
                 }}
               >
                 <Save className="size-4" />
-                {busy ? "Saving" : "Save"}
+                {busy ? 'Saving' : 'Save'}
               </Button>
             </div>
           </CardHeader>
@@ -913,27 +908,27 @@ function Inner({
               >
                 <button
                   role="tab"
-                  aria-selected={mode === "visual"}
+                  aria-selected={mode === 'visual'}
                   className={
-                    "rounded-md px-3 py-2 text-xs font-bold " +
-                    (mode === "visual"
-                      ? "bg-white shadow-sm"
-                      : "text-slate-500")
+                    'rounded-md px-3 py-2 text-xs font-bold ' +
+                    (mode === 'visual'
+                      ? 'bg-white shadow-sm'
+                      : 'text-slate-500')
                   }
-                  onClick={() => onView("visual")}
+                  onClick={() => onView('visual')}
                 >
                   Visual flow
                 </button>
                 <button
                   role="tab"
-                  aria-selected={mode === "mdx"}
+                  aria-selected={mode === 'mdx'}
                   className={
-                    "rounded-md px-3 py-2 text-xs font-bold " +
-                    (mode === "mdx" ? "bg-white shadow-sm" : "text-slate-500")
+                    'rounded-md px-3 py-2 text-xs font-bold ' +
+                    (mode === 'mdx' ? 'bg-white shadow-sm' : 'text-slate-500')
                   }
                   onClick={() => {
                     if (!mdxDirty) setMdx(renderMdx(draft));
-                    onView("source");
+                    onView('source');
                   }}
                 >
                   MDX source
@@ -946,19 +941,19 @@ function Inner({
                 </Button>
                 <Button size="sm" onClick={() => void duplicate()}>
                   <Copy className="size-4" />
-                  {readOnly ? "Clone to my crafts" : "Clone flow"}
+                  {readOnly ? 'Clone to my crafts' : 'Clone flow'}
                 </Button>
-                <Button size="sm" onClick={() => void download("skill")}>
+                <Button size="sm" onClick={() => void download('skill')}>
                   <ArrowDownToLine className="size-4" />
                   .skill
                 </Button>
-                <Button size="sm" onClick={() => void download("zip")}>
+                <Button size="sm" onClick={() => void download('zip')}>
                   <Archive className="size-4" />
                   .zip
                 </Button>
               </div>
             </div>
-            {mode === "visual" ? (
+            {mode === 'visual' ? (
               <div className="grid min-w-0 overflow-hidden rounded-xl border border-slate-200 2xl:grid-cols-[minmax(0,1fr)_280px]">
                 <div
                   data-testid="crafts-artboard"
@@ -989,8 +984,8 @@ function Inner({
                     maxZoom={1.8}
                     aria-label={
                       readOnly
-                        ? "Read-only craft graph"
-                        : "Editable craft graph with draggable connections"
+                        ? 'Read-only craft graph'
+                        : 'Editable craft graph with draggable connections'
                     }
                   >
                     <Background
@@ -1003,9 +998,9 @@ function Inner({
                 </div>
                 <div
                   data-testid="craft-node-inspector"
-                  className="min-w-0 space-y-3 border-t border-slate-200 bg-white p-4 2xl:border-l 2xl:border-t-0"
+                  className="min-w-0 space-y-3 border-t border-slate-200 bg-white p-4 2xl:border-t-0 2xl:border-l"
                 >
-                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800">
+                  <h3 className="text-xs font-extrabold tracking-wider text-slate-800 uppercase">
                     Craft inspector
                   </h3>
                   {selectedStep ? (
@@ -1026,7 +1021,7 @@ function Inner({
                               steps: prev.steps.map((st) =>
                                 st.id === selection
                                   ? { ...st, title: e.target.value }
-                                  : st,
+                                  : st
                               ),
                             }))
                           }
@@ -1045,7 +1040,7 @@ function Inner({
                               steps: prev.steps.map((st) =>
                                 st.id === selection
                                   ? { ...st, kind: e.target.value as Kind }
-                                  : st,
+                                  : st
                               ),
                             }))
                           }
@@ -1070,7 +1065,7 @@ function Inner({
                               steps: prev.steps.map((st) =>
                                 st.id === selection
                                   ? { ...st, body: e.target.value }
-                                  : st,
+                                  : st
                               ),
                             }))
                           }
@@ -1087,13 +1082,13 @@ function Inner({
                             >
                               <span className="truncate">{link.target}</span>
                               <button
-                                aria-label={"Unlink " + link.target}
+                                aria-label={'Unlink ' + link.target}
                                 type="button"
                                 onClick={() =>
                                   update((prev) => ({
                                     ...prev,
                                     links: prev.links.filter(
-                                      (item) => item.id !== link.id,
+                                      (item) => item.id !== link.id
                                     ),
                                   }))
                                 }
@@ -1112,8 +1107,7 @@ function Inner({
                             steps: prev.steps.filter((s) => s.id !== selection),
                             links: prev.links.filter(
                               (l) =>
-                                l.source !== selection &&
-                                l.target !== selection,
+                                l.source !== selection && l.target !== selection
                             ),
                           }));
                           setSelection(null);
@@ -1137,7 +1131,7 @@ function Inner({
                           update((prev) => ({
                             ...prev,
                             links: prev.links.filter(
-                              (l) => l.id !== selectedEdge,
+                              (l) => l.id !== selectedEdge
                             ),
                           }));
                           setSelectedEdge(null);
@@ -1181,7 +1175,7 @@ function Inner({
                   onChange={(e) => {
                     setMdx(e.target.value);
                     setMdxDirty(true);
-                    setNotice("Unapplied MDX changes.");
+                    setNotice('Unapplied MDX changes.');
                   }}
                 />
                 <div className="flex flex-wrap items-center gap-2">
@@ -1198,8 +1192,8 @@ function Inner({
                   <Button
                     onClick={() => {
                       navigator.clipboard.writeText(mdx).then(
-                        () => setNotice("MDX copied."),
-                        () => setError("Clipboard access was denied"),
+                        () => setNotice('MDX copied.'),
+                        () => setError('Clipboard access was denied')
                       );
                     }}
                   >
@@ -1252,9 +1246,9 @@ function Inner({
         onDismiss={() => setDeleteOpen(false)}
         title="Delete craft"
         description={
-          "Permanently remove " +
-          (baseline?.name || "this craft") +
-          " from the your personal collection?"
+          'Permanently remove ' +
+          (baseline?.name || 'this craft') +
+          ' from the your personal collection?'
         }
         testId="delete-craft-dialog"
       >
@@ -1273,7 +1267,7 @@ function Inner({
             disabled={busy || readOnly}
             onClick={() => void destroy()}
           >
-            {busy ? "Deleting…" : "Delete craft"}
+            {busy ? 'Deleting…' : 'Delete craft'}
           </Button>
         </div>
       </StudioDialog>

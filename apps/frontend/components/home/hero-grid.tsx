@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef } from 'react';
 
 export default function HeroGrid() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -9,7 +9,7 @@ export default function HeroGrid() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     let animationId: number;
@@ -56,18 +56,18 @@ export default function HeroGrid() {
 
     resize();
     animationId = requestAnimationFrame(draw);
-    window.addEventListener("resize", resize);
+    window.addEventListener('resize', resize);
 
     return () => {
       cancelAnimationFrame(animationId);
-      window.removeEventListener("resize", resize);
+      window.removeEventListener('resize', resize);
     };
   }, []);
 
   return (
     <canvas
       ref={canvasRef}
-      className="absolute inset-0 pointer-events-none"
+      className="pointer-events-none absolute inset-0"
       style={{ opacity: 0.6 }}
     />
   );

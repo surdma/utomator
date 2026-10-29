@@ -8,7 +8,11 @@ import { EventJournal } from './events.js';
 import type { RunRequest, RunSummary, StreamEvent } from './types.js';
 import { validateRun } from './validate.js';
 import { execute } from '../workflows/execute.js';
-import { compileWorkflow, type CompiledStep, type CompiledWorkflow } from './workflow-yaml.js';
+import {
+  compileWorkflow,
+  type CompiledStep,
+  type CompiledWorkflow,
+} from './workflow-yaml.js';
 import { RunArchive } from './run-archive.js';
 import type { AuthoredStepDefinition } from './step-definitions.js';
 import {
@@ -21,7 +25,12 @@ import {
 } from './evidence-approval.js';
 
 export type StepOutput =
-  | { schema: 'status/v1'; status: 'completed' | 'stopped'; message?: string; durationMs?: number }
+  | {
+      schema: 'status/v1';
+      status: 'completed' | 'stopped';
+      message?: string;
+      durationMs?: number;
+    }
   | { schema: 'page-observation/v1'; url: string; excerpt: string }
   | { schema: 'action-event/v1'; status: 'completed' }
   | { schema: 'assessment/v1'; matched: boolean; summary: string }
@@ -37,7 +46,11 @@ export class Runner {
     controller: AbortController;
     pauseRequested: boolean;
     resume?: () => void;
-    emit?: (kind: StreamEvent['kind'], message: string, details?: unknown) => void;
+    emit?: (
+      kind: StreamEvent['kind'],
+      message: string,
+      details?: unknown
+    ) => void;
   };
   private history = new Map<string, RunSummary>();
   private compiled = new Map<string, CompiledWorkflow>();
@@ -48,19 +61,31 @@ export class Runner {
     private readonly verifyOwnerSession?: (
       page: Awaited<ReturnType<BrowserSession['open']>>,
       accountId: string,
-      platform: string,
-    ) => Promise<void>,
+      platform: string
+    ) => Promise<void>
   ) {
     for (const entry of this.archive.restore().reverse())
       this.history.set(entry.summary.id, entry.summary);
   }
 
-  start(input: RunRequest, definitions?: ReadonlyMap<string, AuthoredStepDefinition>): RunSummary {
+  start(
+    input: RunRequest,
+    definitions?: ReadonlyMap<string, AuthoredStepDefinition>
+  ): RunSummary {
     const profile = validateRun(input);
-    const compiled = input.workflow ? compileWorkflow(input.workflow, definitions) : undefined;
-    if (compiled && (compiled.plan.platform !== input.platform || compiled.plan.action !== input.action))
-      throw new Error('Workflow identity does not match the requested platform and action');
-    if (this.active) throw new Error('BUSY: another browser workflow is in progress');
+    const compiled = input.workflow
+      ? compileWorkflow(input.workflow, definitions)
+      : undefined;
+    if (
+      compiled &&
+      (compiled.plan.platform !== input.platform ||
+        compiled.plan.action !== input.action)
+    )
+      throw new Error(
+        'Workflow identity does not match the requested platform and action'
+      );
+    if (this.active)
+      throw new Error('BUSY: another browser workflow is in progress');
     const summary: RunSummary = {
       id: randomUUID(),
       platform: input.platform,
@@ -68,7 +93,10 @@ export class Runner {
       state: 'running',
       createdAt: new Date().toISOString(),
       ...(input.workflowId
-        ? { workflowId: input.workflowId, workflowRevision: input.workflowRevision }
+        ? {
+            workflowId: input.workflowId,
+            workflowRevision: input.workflowRevision,
+          }
         : {}),
     };
     const controller = new AbortController();
@@ -79,13 +107,18 @@ export class Runner {
       const yamlDir = resolve(logDir, summary.id);
       mkdirSync(yamlDir, { recursive: true, mode: 0o700 });
       // The execution snapshot is immutable and written before the browser opens.
-      writeFileSync(resolve(yamlDir, 'workflow.yaml'), compiled.yaml, { flag: 'wx', mode: 0o600 });
+      writeFileSync(resolve(yamlDir, 'workflow.yaml'), compiled.yaml, {
+        flag: 'wx',
+        mode: 0o600,
+      });
       if (input.workflowId && input.workflowRevision) {
         writeFileSync(
           resolve(yamlDir, 'source-revision.json'),
-          JSON.stringify({ workflowId: input.workflowId, workflowRevision: input.workflowRevision }) +
-            '\n',
-          { flag: 'wx', mode: 0o600 },
+          JSON.stringify({
+            workflowId: input.workflowId,
+            workflowRevision: input.workflowRevision,
+          }) + '\n',
+          { flag: 'wx', mode: 0o600 }
         );
       }
       for (const step of compiled.steps) {
@@ -107,8 +140,17 @@ export class Runner {
         this.compiled.delete(stale);
       }
     }
-    const emit = (kind: StreamEvent['kind'], message: string, details?: unknown): void => {
-      const event = this.events.publish({ runId: summary.id, kind, message, details });
+    const emit = (
+      kind: StreamEvent['kind'],
+      message: string,
+      details?: unknown
+    ): void => {
+      const event = this.events.publish({
+        runId: summary.id,
+        kind,
+        message,
+        details,
+      });
       // Each run keeps its own human-readable event journal. No secrets or
       // session cookies are included in our event payloads.
       try {
@@ -132,7 +174,11 @@ export class Runner {
         // login. Check the actual account before executing any workflow stage.
         if (input.accountId && this.verifyOwnerSession) {
           try {
-            await this.verifyOwnerSession(page, input.accountId, input.platform);
+            await this.verifyOwnerSession(
+              page,
+              input.accountId,
+              input.platform
+            );
             emit('status', 'Authenticated account verified for this run');
           } catch (error) {
             summary.currentStepId = 'session';
@@ -141,7 +187,9 @@ export class Runner {
               kind: 'session',
               stage: 'failed',
               reason:
-                error instanceof Error ? error.message : 'Could not verify LinkedIn authentication',
+                error instanceof Error
+                  ? error.message
+                  : 'Could not verify LinkedIn authentication',
             });
             throw error;
           }
@@ -150,7 +198,7 @@ export class Runner {
           'status',
           browser.kind === 'existing-chrome'
             ? 'Browser session connected to existing Chrome. Existing logins are available to this run.'
-            : 'Persistent Chrome profile opened. Logins in this automation profile are reused across runs.',
+            : 'Persistent Chrome profile opened. Logins in this automation profile are reused across runs.'
         );
         const context = {
           page,
@@ -167,10 +215,11 @@ export class Runner {
                 summary.checkpoint = { id: checkpointId, message };
                 emit('input', message, { checkpointId });
               },
-              controller.signal,
+              controller.signal
             );
             summary.checkpoint = undefined;
-            if (!response) throw new Error('Text prompt unanswered or timed out');
+            if (!response)
+              throw new Error('Text prompt unanswered or timed out');
             summary.state = 'running';
             emit('status', 'Operator supplied requested text');
             return response;
@@ -183,16 +232,23 @@ export class Runner {
                 summary.checkpoint = { id: checkpointId, message };
                 emit('approval', message, { checkpointId });
               },
-              controller.signal,
+              controller.signal
             );
             summary.checkpoint = undefined;
-            if (!approved) throw new Error('Approval denied, cancelled, or timed out');
+            if (!approved)
+              throw new Error('Approval denied, cancelled, or timed out');
             summary.state = 'running';
             emit('status', 'Operator approved checkpoint');
           },
         };
         if (compiled) {
-          const outcome = await this.executePlan(compiled, context, summary, controller.signal, emit);
+          const outcome = await this.executePlan(
+            compiled,
+            context,
+            summary,
+            controller.signal,
+            emit
+          );
           if (outcome === 'stopped') {
             summary.state = 'cancelled';
             emit('status', 'Run ended: cancelled (stopped by workflow stage)');
@@ -208,7 +264,9 @@ export class Runner {
         const message = error instanceof Error ? error.message : String(error);
         const terminalState = controller.signal.aborted
           ? 'cancelled'
-          : /approval denied|not authenticated|not establish edit ownership/i.test(message)
+          : /approval denied|not authenticated|not establish edit ownership/i.test(
+                message
+              )
             ? 'blocked'
             : 'failed';
         summary.error = message;
@@ -226,7 +284,9 @@ export class Runner {
         // Invalidate the expired connector before exposing a blocked run to clients.
         if (
           input.accountId &&
-          /not authenticated|sign.in required|cannot establish edit ownership/i.test(message)
+          /not authenticated|sign.in required|cannot establish edit ownership/i.test(
+            message
+          )
         ) {
           await this.onSessionInvalid?.(input.accountId).catch(() => {});
         }
@@ -240,7 +300,9 @@ export class Runner {
         }
         await browser
           .close()
-          .catch((e: unknown) => emit('error', `Browser cleanup failed: ${String(e)}`));
+          .catch((e: unknown) =>
+            emit('error', `Browser cleanup failed: ${String(e)}`)
+          );
         if (this.active?.summary.id === summary.id) this.active = undefined;
       }
     })();
@@ -249,16 +311,22 @@ export class Runner {
 
   private async waitForResume(
     summary: RunSummary,
-    emit: (kind: StreamEvent['kind'], message: string, details?: unknown) => void,
+    emit: (
+      kind: StreamEvent['kind'],
+      message: string,
+      details?: unknown
+    ) => void,
     force: boolean,
-    signal: AbortSignal,
+    signal: AbortSignal
   ): Promise<void> {
     const active = this.active;
     if (!active || (!force && !active.pauseRequested)) return;
     if (signal.aborted) throw Error('Run cancelled');
     active.pauseRequested = true;
     summary.state = 'paused';
-    emit('status', 'Run paused at a safe workflow boundary', { stepId: summary.currentStepId });
+    emit('status', 'Run paused at a safe workflow boundary', {
+      stepId: summary.currentStepId,
+    });
     await new Promise<void>((resolve, reject) => {
       const onAbort = () => {
         active.resume = undefined;
@@ -282,14 +350,23 @@ export class Runner {
     ctx: Parameters<typeof execute>[0],
     summary: RunSummary,
     signal: AbortSignal,
-    emit: (kind: StreamEvent['kind'], message: string, details?: unknown) => void,
+    emit: (
+      kind: StreamEvent['kind'],
+      message: string,
+      details?: unknown
+    ) => void
   ): Promise<'finished' | 'stopped'> {
     summary.completedStepIds = [];
     const outputs = new Map<string, StepOutput>();
     for (const step of compiled.steps) {
       if (signal.aborted) throw Error('Run cancelled');
       summary.currentStepId = step.source.id;
-      await this.waitForResume(summary, emit, step.document.spec.operation === 'await-operator', signal);
+      await this.waitForResume(
+        summary,
+        emit,
+        step.document.spec.operation === 'await-operator',
+        signal
+      );
       emit('step', 'Started: ' + step.source.title, {
         stepId: step.source.id,
         stage: 'started',
@@ -300,7 +377,9 @@ export class Runner {
       try {
         output = await this.executeStep(step, ctx, signal, emit, outputs);
         if (output.schema !== step.document.spec.outputs.schema)
-          throw Error('Step output schema does not match compiled YAML instruction');
+          throw Error(
+            'Step output schema does not match compiled YAML instruction'
+          );
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         emit('step', 'Failed: ' + step.source.title, {
@@ -313,9 +392,14 @@ export class Runner {
       }
       // A completed stage must have an immutable result, not just a success log.
       writeFileSync(
-        resolve('.runtime', 'runs', summary.id, step.source.id + '.output.json'),
+        resolve(
+          '.runtime',
+          'runs',
+          summary.id,
+          step.source.id + '.output.json'
+        ),
         JSON.stringify({ stepId: step.source.id, ...output }) + '\n',
-        { flag: 'wx', mode: 0o600 },
+        { flag: 'wx', mode: 0o600 }
       );
       outputs.set(step.source.id, output);
       summary.completedStepIds.push(step.source.id);
@@ -326,7 +410,8 @@ export class Runner {
         yamlSha256: step.digest,
         outputSchema: output.schema,
       });
-      if (output.schema === 'status/v1' && output.status === 'stopped') return 'stopped';
+      if (output.schema === 'status/v1' && output.status === 'stopped')
+        return 'stopped';
     }
     return 'finished';
   }
@@ -335,8 +420,12 @@ export class Runner {
     step: CompiledStep,
     ctx: Parameters<typeof execute>[0],
     signal: AbortSignal,
-    emit: (kind: StreamEvent['kind'], message: string, details?: unknown) => void,
-    outputs: ReadonlyMap<string, StepOutput>,
+    emit: (
+      kind: StreamEvent['kind'],
+      message: string,
+      details?: unknown
+    ) => void,
+    outputs: ReadonlyMap<string, StepOutput>
   ): Promise<StepOutput> {
     const operation = step.document.spec.operation;
     if (operation === 'capture-evidence') {
@@ -351,15 +440,23 @@ export class Runner {
         throw Error('Evidence source is not a completed page observation');
       const authorizedPage = new URL(ctx.input.pageUrl ?? ctx.profile.href);
       const observedPage = new URL(source.url);
-      const trimPath = (value: string) => (value.endsWith('/') ? value.slice(0, -1) : value);
+      const trimPath = (value: string) =>
+        value.endsWith('/') ? value.slice(0, -1) : value;
       if (
         observedPage.origin !== authorizedPage.origin ||
         trimPath(observedPage.pathname) !== trimPath(authorizedPage.pathname) ||
         observedPage.search ||
         observedPage.hash
       )
-        throw Error('Evidence page is outside the exact authorized profile scope');
-      const evidence = evidenceRecord(binding.stepId, 'page-observation/v1', source.url, source.excerpt);
+        throw Error(
+          'Evidence page is outside the exact authorized profile scope'
+        );
+      const evidence = evidenceRecord(
+        binding.stepId,
+        'page-observation/v1',
+        source.url,
+        source.excerpt
+      );
       emit('step', 'Captured a provenance-bound read-only observation', {
         stepId: step.source.id,
         stage: 'evidence',
@@ -384,7 +481,7 @@ export class Runner {
           source.url +
           ' (SHA-256 ' +
           source.digest.slice(0, 12) +
-          '). Approve using this evidence for this workflow only. External provider writes require their own separate authorization.',
+          '). Approve using this evidence for this workflow only. External provider writes require their own separate authorization.'
       );
       const decision = approvalDecision(source, true);
       emit('step', 'Owner approved the referenced evidence', {
@@ -400,12 +497,18 @@ export class Runner {
       return { schema: 'action-event/v1', status: 'completed' };
     }
     if (operation === 'observe-page') {
-      const target = step.source.kind === 'inspect' ? ctx.profile.href : ctx.page.url();
+      const target =
+        step.source.kind === 'inspect' ? ctx.profile.href : ctx.page.url();
       if (step.source.kind === 'inspect') {
-        await ctx.page.goto(target, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await ctx.page.goto(target, {
+          waitUntil: 'domcontentloaded',
+          timeout: 30000,
+        });
       }
       if (signal.aborted) throw Error('Run cancelled');
-      const summary = await ctx.page.locator('body').innerText({ timeout: 10000 });
+      const summary = await ctx.page
+        .locator('body')
+        .innerText({ timeout: 10000 });
       const observation: StepOutput = {
         schema: 'page-observation/v1',
         url: ctx.page.url(),
@@ -420,15 +523,31 @@ export class Runner {
       return observation;
     }
     const bindingValue = (
-      key: 'message' | 'delayMs' | 'text' | 'expectedMatch',
+      key: 'message' | 'delayMs' | 'text' | 'expectedMatch'
     ): string | number | boolean | undefined => {
       const binding = step.document.spec.inputs.bindings?.[key];
       if (!binding) return undefined;
       const source = outputs.get(binding.stepId);
-      if (!source || source.schema !== binding.schema || !(binding.field in source))
-        throw Error('Typed step input unavailable: ' + binding.stepId + '.' + binding.field);
-      const value = (source as unknown as Record<string, unknown>)[binding.field];
-      const expectedType = key === 'delayMs' ? 'number' : key === 'expectedMatch' ? 'boolean' : 'string';
+      if (
+        !source ||
+        source.schema !== binding.schema ||
+        !(binding.field in source)
+      )
+        throw Error(
+          'Typed step input unavailable: ' +
+            binding.stepId +
+            '.' +
+            binding.field
+        );
+      const value = (source as unknown as Record<string, unknown>)[
+        binding.field
+      ];
+      const expectedType =
+        key === 'delayMs'
+          ? 'number'
+          : key === 'expectedMatch'
+            ? 'boolean'
+            : 'string';
       if (typeof value !== expectedType)
         throw Error('Typed step input/output mismatch: ' + binding.stepId);
       return value as string | number | boolean;
@@ -437,7 +556,9 @@ export class Runner {
       const observed = bindingValue('text');
       const expected = step.document.spec.config.expectedText;
       if (typeof observed !== 'string' || !expected)
-        throw Error('Assessment requires a resolved text input and a reviewed expectation');
+        throw Error(
+          'Assessment requires a resolved text input and a reviewed expectation'
+        );
       const matched = observed.toLowerCase().includes(expected.toLowerCase());
       const expectedMatch = bindingValue('expectedMatch');
       if (expectedMatch !== undefined && expectedMatch !== matched)
@@ -445,20 +566,29 @@ export class Runner {
       const summary = matched
         ? 'Assessment matched the declared observation text'
         : 'Assessment did not match the declared observation text';
-      emit('step', summary, { stepId: step.source.id, stage: 'assessment', matched });
+      emit('step', summary, {
+        stepId: step.source.id,
+        stage: 'assessment',
+        matched,
+      });
       return { schema: 'assessment/v1', matched, summary };
     }
     if (operation === 'record-event') {
       const resolved = bindingValue('message');
       const message = (
-        typeof resolved === 'string' ? resolved : step.document.spec.config.message || step.source.title
+        typeof resolved === 'string'
+          ? resolved
+          : step.document.spec.config.message || step.source.title
       ).slice(0, 600);
       emit('step', message, { stepId: step.source.id, stage: 'note' });
       return { schema: 'status/v1', status: 'completed', message };
     }
     if (operation === 'delay') {
       const resolved = bindingValue('delayMs');
-      const duration = resolved === undefined ? (step.document.spec.config.delayMs ?? 0) : resolved;
+      const duration =
+        resolved === undefined
+          ? (step.document.spec.config.delayMs ?? 0)
+          : resolved;
       if (
         typeof duration !== 'number' ||
         !Number.isInteger(duration) ||
@@ -486,22 +616,32 @@ export class Runner {
     if (operation === 'end-run') {
       emit(
         'status',
-        step.document.spec.config.message || 'Workflow reached operator-defined stop stage',
-        { stepId: step.source.id },
+        step.document.spec.config.message ||
+          'Workflow reached operator-defined stop stage',
+        { stepId: step.source.id }
       );
       return { schema: 'status/v1', status: 'stopped' };
     }
-    if (!['begin', 'reuse-session', 'await-operator', 'complete-run'].includes(operation))
+    if (
+      !['begin', 'reuse-session', 'await-operator', 'complete-run'].includes(
+        operation
+      )
+    )
       throw new Error('Unregistered YAML step operation: ' + operation);
     return { schema: 'status/v1', status: 'completed' };
   }
 
-  stepOutput(runId: string, stepId: string): (StepOutput & { stepId: string }) | null {
-    if (!this.history.has(runId) || !this.archive.hasStep(runId, stepId)) return null;
+  stepOutput(
+    runId: string,
+    stepId: string
+  ): (StepOutput & { stepId: string }) | null {
+    if (!this.history.has(runId) || !this.archive.hasStep(runId, stepId))
+      return null;
     const raw = this.archive.readArtifact(runId, stepId, 'output.json');
     if (!raw) return null;
     const result: unknown = JSON.parse(raw);
-    if (!result || typeof result !== 'object') throw Error('Corrupt archived step output');
+    if (!result || typeof result !== 'object')
+      throw Error('Corrupt archived step output');
     const value = result as Partial<StepOutput> & {
       stepId?: string;
       matched?: unknown;
@@ -513,7 +653,8 @@ export class Runner {
         (value.schema === 'status/v1' &&
           ['completed', 'stopped'].includes(value.status ?? '') &&
           (value.message === undefined ||
-            (typeof value.message === 'string' && value.message.length <= 600)) &&
+            (typeof value.message === 'string' &&
+              value.message.length <= 600)) &&
           (value.durationMs === undefined ||
             (Number.isInteger(value.durationMs) &&
               value.durationMs >= 0 &&
@@ -540,7 +681,9 @@ export class Runner {
     const definition = this.compiled.get(runId);
     if (definition) {
       if (!stepId) return definition.yaml;
-      return definition.steps.find((step) => step.source.id === stepId)?.yaml ?? null;
+      return (
+        definition.steps.find((step) => step.source.id === stepId)?.yaml ?? null
+      );
     }
     return this.archive.readArtifact(runId, stepId);
   }
@@ -554,7 +697,10 @@ export class Runner {
     )
       return false;
     this.active.pauseRequested = true;
-    this.active.emit?.('status', 'Pause requested; waiting for a safe step boundary');
+    this.active.emit?.(
+      'status',
+      'Pause requested; waiting for a safe step boundary'
+    );
     return true;
   }
 
@@ -593,7 +739,10 @@ export class Runner {
 
   cancel(id: string): boolean {
     if (this.active?.summary.id !== id) return false;
-    this.active.emit?.('status', 'Operator requested Stop; cancelling active run');
+    this.active.emit?.(
+      'status',
+      'Operator requested Stop; cancelling active run'
+    );
     this.active.controller.abort();
     return true;
   }

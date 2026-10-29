@@ -1,34 +1,34 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { LoaderCircle } from "lucide-react";
-import { providerMeta, type ProviderKey } from "./provider-meta";
-import StudioDialog from "@/components/ui/studio-dialog";
-import { LinkedInIcon } from "@/components/svgs";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { LoaderCircle } from 'lucide-react';
+import { providerMeta, type ProviderKey } from './provider-meta';
+import StudioDialog from '@/components/ui/studio-dialog';
+import { LinkedInIcon } from '@/components/svgs';
 
 export type Connector = {
   id: string;
-  platform: "linkedin" | "x" | "instagram" | "github" | "devto";
+  platform: 'linkedin' | 'x' | 'instagram' | 'github' | 'devto';
   label: string;
   handle: string;
   profileUrl: string;
-  status: "connected" | "disconnected" | "sign-in-open" | "api-required";
+  status: 'connected' | 'disconnected' | 'sign-in-open' | 'api-required';
   verifiedAt: string | null;
-  authentication: "browser" | "api-required";
+  authentication: 'browser' | 'api-required';
   interactiveSignIn?: boolean;
 };
-type Command = "connect" | "sync" | "disconnect";
+type Command = 'connect' | 'sync' | 'disconnect';
 type Result = { status?: string; navigationWarning?: string; error?: string };
 type Capabilities = {
   browserAvailable: boolean;
-  mode: "attached" | "isolated";
+  mode: 'attached' | 'isolated';
   mobileBrowserSession: boolean;
 };
-const path = "/api/connectors";
+const path = '/api/connectors';
 const button =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0a66c2] disabled:cursor-not-allowed disabled:opacity-50";
+  'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0a66c2] disabled:cursor-not-allowed disabled:opacity-50';
 const shortDate = (value: string | null) =>
-  value ? "Checked " + new Date(value).toLocaleString() : "Not verified";
+  value ? 'Checked ' + new Date(value).toLocaleString() : 'Not verified';
 
 export default function ConnectorOnboarding({
   activeId,
@@ -51,10 +51,10 @@ export default function ConnectorOnboarding({
   const [selected, setSelected] = useState<string | null>(null);
   const [working, setWorking] = useState<Command | null>(null);
   const [workingId, setWorkingId] = useState<string | null>(null);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [confirming, setConfirming] = useState(false);
-  const [network, setNetwork] = useState<ProviderKey>("linkedin");
+  const [network, setNetwork] = useState<ProviderKey>('linkedin');
   const [showOtherNetworks, setShowOtherNetworks] = useState(false);
   const [saving, setSaving] = useState(false);
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null);
@@ -74,9 +74,9 @@ export default function ConnectorOnboarding({
   useEffect(() => {
     setMobileClient(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
     let live = true;
-    void fetch(path + "/capabilities", { cache: "no-store" })
+    void fetch(path + '/capabilities', { cache: 'no-store' })
       .then(async (response) => {
-        if (!response.ok) throw Error("Capabilities unavailable");
+        if (!response.ok) throw Error('Capabilities unavailable');
         return response.json() as Promise<Capabilities>;
       })
       .then((value) => {
@@ -86,7 +86,7 @@ export default function ConnectorOnboarding({
         if (live)
           setCapabilities({
             browserAvailable: false,
-            mode: "isolated",
+            mode: 'isolated',
             mobileBrowserSession: false,
           });
       });
@@ -96,14 +96,14 @@ export default function ConnectorOnboarding({
   }, []);
 
   const refresh = useCallback(async () => {
-    const response = await fetch(path, { cache: "no-store" });
+    const response = await fetch(path, { cache: 'no-store' });
     const data = (await response.json()) as Connector[] & { error?: string };
     if (!response.ok || !Array.isArray(data))
-      throw Error(data.error || "Social connections unavailable");
+      throw Error(data.error || 'Social connections unavailable');
     setAccounts(data);
-    const linkedin = data.filter((item) => item.platform === "linkedin");
+    const linkedin = data.filter((item) => item.platform === 'linkedin');
     const previous = last.current.accounts.find(
-      (item) => item.id === last.current.activeId,
+      (item) => item.id === last.current.activeId
     );
     const current = data.find((item) => item.id === last.current.activeId);
     if (
@@ -114,7 +114,7 @@ export default function ConnectorOnboarding({
     )
       last.current.onSelect(current);
     if (!last.current.activeId) {
-      const linked = linkedin.find((item) => item.status === "connected");
+      const linked = linkedin.find((item) => item.status === 'connected');
       if (linked) last.current.onSelect(linked);
     }
     return data;
@@ -126,7 +126,7 @@ export default function ConnectorOnboarding({
       .catch((e) => {
         if (active)
           setError(
-            e instanceof Error ? e.message : "Unable to load connections",
+            e instanceof Error ? e.message : 'Unable to load connections'
           );
       })
       .finally(() => {
@@ -136,7 +136,7 @@ export default function ConnectorOnboarding({
     // updates the connection. This component is mounted across all app panes.
     const timer = setInterval(
       () => void refresh().catch(() => undefined),
-      15000,
+      15000
     );
     return () => {
       active = false;
@@ -149,22 +149,22 @@ export default function ConnectorOnboarding({
     handled.current = openSignal;
     setOpen(true);
     setConfirming(false);
-    setError("");
-    setMessage("");
+    setError('');
+    setMessage('');
     const target = requestedId || last.current.activeId;
     setSelected(target);
     const match = last.current.accounts.find((item) => item.id === target);
     if (match) setNetwork(match.platform);
     void refresh().catch((e) =>
-      setError(e instanceof Error ? e.message : "Unable to load connections"),
+      setError(e instanceof Error ? e.message : 'Unable to load connections')
     );
   }, [openSignal, requestedId, refresh]);
 
   // Check the provider tab without touching it until ownership can be proven.
   const pendingIds = accounts
-    .filter((item) => item.status === "sign-in-open")
+    .filter((item) => item.status === 'sign-in-open')
     .map((item) => item.id)
-    .join(",");
+    .join(',');
   useEffect(() => {
     if (!pendingIds) return;
     let live = true,
@@ -173,24 +173,24 @@ export default function ConnectorOnboarding({
       if (!live || inFlight) return;
       inFlight = true;
       try {
-        for (const id of pendingIds.split(",")) {
+        for (const id of pendingIds.split(',')) {
           const response = await fetch(
-            path + "/" + encodeURIComponent(id) + "/check",
+            path + '/' + encodeURIComponent(id) + '/check',
             {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: "{}",
-            },
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: '{}',
+            }
           );
           if (!response.ok) continue;
           const result = (await response.json()) as Result;
-          if (result.status === "connected") {
+          if (result.status === 'connected') {
             const updated = (await refresh()).find((item) => item.id === id);
-            if (live && updated?.status === "connected") {
+            if (live && updated?.status === 'connected') {
               setSelected(id);
               setNetwork(updated.platform);
               setMessage(
-                providerMeta[updated.platform].name + " session verified.",
+                providerMeta[updated.platform].name + ' session verified.'
               );
               onSelect(updated);
             }
@@ -217,8 +217,8 @@ export default function ConnectorOnboarding({
 
   async function command(id: string, operation: Command) {
     if (working || saving) return;
-    setError("");
-    setMessage("");
+    setError('');
+    setMessage('');
     setConfirming(false);
     const controller = new AbortController();
     abortRef.current = controller;
@@ -227,51 +227,50 @@ export default function ConnectorOnboarding({
     const timer = setTimeout(() => controller.abort(), 120000);
     try {
       const response = await fetch(
-        path + "/" + encodeURIComponent(id) + "/" + operation,
+        path + '/' + encodeURIComponent(id) + '/' + operation,
         {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: "{}",
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: '{}',
           signal: controller.signal,
-        },
+        }
       );
       const result = (await response.json()) as Result;
       if (!response.ok)
-        throw Error(result.error || "LinkedIn connection request failed");
+        throw Error(result.error || 'LinkedIn connection request failed');
       const updated = (await refresh()).find((row) => row.id === id);
-      if (result.status === "connected") {
+      if (result.status === 'connected') {
         if (updated) onSelect(updated);
         setSelected(id);
         setMessage(
-          providerMeta[updated?.platform || network].name +
-            " session verified.",
+          providerMeta[updated?.platform || network].name + ' session verified.'
         );
-      } else if (result.status === "sign-in-open") {
+      } else if (result.status === 'sign-in-open') {
         setSelected(id);
         setMessage(
           result.navigationWarning ||
-            "Finish signing in to LinkedIn in the secure window, then select Verify connection.",
+            'Finish signing in to LinkedIn in the secure window, then select Verify connection.'
         );
-      } else if (result.status === "reconnect-required") {
+      } else if (result.status === 'reconnect-required') {
         setSelected(id);
         setError(
-          "LinkedIn sign-in is incomplete or expired. Finish sign-in, then verify again.",
+          'LinkedIn sign-in is incomplete or expired. Finish sign-in, then verify again.'
         );
-      } else if (result.status === "temporarily-unavailable") {
+      } else if (result.status === 'temporarily-unavailable') {
         setError(
-          "LinkedIn could not be reached. Your previous connection record was preserved.",
+          'LinkedIn could not be reached. Your previous connection record was preserved.'
         );
-      } else if (result.status === "disconnected") {
+      } else if (result.status === 'disconnected') {
         if (updated && activeId === id) onSelect(updated);
-        setMessage("LinkedIn disconnected from this workspace.");
-      } else throw Error("Unexpected connection response");
+        setMessage('LinkedIn disconnected from this workspace.');
+      } else throw Error('Unexpected connection response');
     } catch (e) {
       setError(
         controller.signal.aborted
-          ? "Connection check stopped. You can retry."
+          ? 'Connection check stopped. You can retry.'
           : e instanceof Error
             ? e.message
-            : "LinkedIn connection failed",
+            : 'LinkedIn connection failed'
       );
     } finally {
       clearTimeout(timer);
@@ -280,30 +279,30 @@ export default function ConnectorOnboarding({
       setWorkingId(null);
     }
   }
-  async function beginNewConnection(provider: "linkedin" | "x") {
+  async function beginNewConnection(provider: 'linkedin' | 'x') {
     if (working || saving || !capabilities?.browserAvailable || mobileClient)
       return;
-    setError("");
-    setMessage("");
+    setError('');
+    setMessage('');
     setSaving(true);
     try {
-      const response = await fetch(path + "/start", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
+      const response = await fetch(path + '/start', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ platform: provider }),
       });
       const result = (await response.json()) as Result & { accountId?: string };
       if (!response.ok || !result.accountId)
-        throw Error(result.error || "Could not open provider sign-in");
+        throw Error(result.error || 'Could not open provider sign-in');
       setNetwork(provider);
       setSelected(result.accountId);
       await refresh();
       setMessage(
         result.navigationWarning ||
-          "Complete provider sign-in in Chrome, then select Verify connection.",
+          'Complete provider sign-in in Chrome, then select Verify connection.'
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not start connection");
+      setError(e instanceof Error ? e.message : 'Could not start connection');
     } finally {
       setSaving(false);
     }
@@ -314,19 +313,19 @@ export default function ConnectorOnboarding({
   useEffect(() => {
     if (
       !chosen?.id ||
-      chosen.platform !== "linkedin" ||
-      chosen.status === "sign-in-open"
+      chosen.platform !== 'linkedin' ||
+      chosen.status === 'sign-in-open'
     ) {
       setOauth(null);
       return;
     }
     let live = true;
     void fetch(
-      "/api/linkedin/oauth/status?accountId=" + encodeURIComponent(chosen.id),
-      { cache: "no-store" },
+      '/api/linkedin/oauth/status?accountId=' + encodeURIComponent(chosen.id),
+      { cache: 'no-store' }
     )
       .then(async (response) => {
-        if (!response.ok) throw Error("Publishing status unavailable");
+        if (!response.ok) throw Error('Publishing status unavailable');
         return response.json() as Promise<{
           connected: boolean;
           configured: boolean;
@@ -346,12 +345,12 @@ export default function ConnectorOnboarding({
   }, [chosen?.id, chosen?.platform, chosen?.status, open]);
   async function authorizePublishing(id: string) {
     if (busy) return;
-    setError("");
+    setError('');
     setSaving(true);
     try {
-      const response = await fetch("/api/linkedin/oauth/start", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
+      const response = await fetch('/api/linkedin/oauth/start', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ accountId: id }),
       });
       const result = (await response.json()) as {
@@ -359,27 +358,27 @@ export default function ConnectorOnboarding({
         error?: string;
       };
       if (!response.ok || !result.authorizationUrl)
-        throw Error(result.error || "Authorization unavailable");
+        throw Error(result.error || 'Authorization unavailable');
       window.location.assign(result.authorizationUrl);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to authorize LinkedIn");
+      setError(e instanceof Error ? e.message : 'Unable to authorize LinkedIn');
       setSaving(false);
     }
   }
   const operation: Command =
-    status === "connected" || status === "sign-in-open" ? "sync" : "connect";
+    status === 'connected' || status === 'sign-in-open' ? 'sync' : 'connect';
   const actionText =
-    operation === "connect"
-      ? "Connect " + providerMeta[network].name
-      : status === "connected"
-        ? "Check connection"
-        : "Verify connection";
+    operation === 'connect'
+      ? 'Connect ' + providerMeta[network].name
+      : status === 'connected'
+        ? 'Check connection'
+        : 'Verify connection';
   const browserLoginAvailable =
     chosen?.interactiveSignIn !== false &&
     capabilities?.browserAvailable === true &&
     !mobileClient;
   const canStart = Boolean(capabilities?.browserAvailable) && !mobileClient;
-  const browserSupported = network === "linkedin" || network === "x";
+  const browserSupported = network === 'linkedin' || network === 'x';
 
   return (
     <>
@@ -390,17 +389,17 @@ export default function ConnectorOnboarding({
             setOpen(true);
             void refresh().catch((e) =>
               setError(
-                e instanceof Error ? e.message : "Unable to load connections",
-              ),
+                e instanceof Error ? e.message : 'Unable to load connections'
+              )
             );
           }}
           aria-label="Manage connected social accounts"
           className={
-            button + " border border-slate-200 bg-white text-slate-900"
+            button + ' border border-slate-200 bg-white text-slate-900'
           }
         >
-          <LinkedInIcon className="size-5" /> LinkedIn{" "}
-          {chosen?.status === "connected" ? "connected" : "connection"}
+          <LinkedInIcon className="size-5" /> LinkedIn{' '}
+          {chosen?.status === 'connected' ? 'connected' : 'connection'}
         </button>
       )}
       <StudioDialog
@@ -433,7 +432,7 @@ export default function ConnectorOnboarding({
               aria-label="Social networks"
               className="grid grid-cols-2 gap-2"
             >
-              {(["linkedin", "x"] as const).map((key) => {
+              {(['linkedin', 'x'] as const).map((key) => {
                 const Icon = providerMeta[key].icon;
                 return (
                   <button
@@ -444,18 +443,18 @@ export default function ConnectorOnboarding({
                       setNetwork(key);
                       setSelected(null);
                       setConfirming(false);
-                      setError("");
-                      setMessage("");
+                      setError('');
+                      setMessage('');
                     }}
                     className={
-                      "flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-xl border px-2.5 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 " +
+                      'flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-xl border px-2.5 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 ' +
                       (network === key
-                        ? "border-slate-950 bg-slate-950 text-white"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50")
+                        ? 'border-slate-950 bg-slate-950 text-white'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50')
                     }
                   >
                     <Icon className="size-5! shrink-0" aria-hidden="true" />
-                    <span className={key === "x" ? "sr-only" : "min-w-0"}>
+                    <span className={key === 'x' ? 'sr-only' : 'min-w-0'}>
                       {providerMeta[key].name}
                     </span>
                   </button>
@@ -465,37 +464,37 @@ export default function ConnectorOnboarding({
           </section>
 
           <section
-            aria-label={providerMeta[network].name + " connection"}
+            aria-label={providerMeta[network].name + ' connection'}
             className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
           >
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3.5 sm:px-5">
               <div className="min-w-0">
-                <h3 className="text-lg font-semibold leading-7 text-slate-950">
+                <h3 className="text-lg leading-7 font-semibold text-slate-950">
                   {providerMeta[network].name}
                 </h3>
               </div>
               <span
                 data-testid="connector-status"
                 className={
-                  "inline-flex min-h-8 max-w-full items-center rounded-full px-3 py-1 text-xs font-semibold leading-5 " +
-                  (status === "connected"
-                    ? "bg-emerald-100 text-emerald-900"
-                    : status === "sign-in-open"
-                      ? "bg-amber-100 text-amber-950"
-                      : status === "api-required" || !browserSupported
-                        ? "bg-slate-200 text-slate-700"
-                        : "bg-white text-slate-700 ring-1 ring-inset ring-slate-200")
+                  'inline-flex min-h-8 max-w-full items-center rounded-full px-3 py-1 text-xs leading-5 font-semibold ' +
+                  (status === 'connected'
+                    ? 'bg-emerald-100 text-emerald-900'
+                    : status === 'sign-in-open'
+                      ? 'bg-amber-100 text-amber-950'
+                      : status === 'api-required' || !browserSupported
+                        ? 'bg-slate-200 text-slate-700'
+                        : 'bg-white text-slate-700 ring-1 ring-slate-200 ring-inset')
                 }
               >
-                {status === "connected"
-                  ? "Session connected"
-                  : status === "sign-in-open"
-                    ? "Sign-in in progress"
-                    : status === "api-required" || !browserSupported
-                      ? "Unavailable"
+                {status === 'connected'
+                  ? 'Session connected'
+                  : status === 'sign-in-open'
+                    ? 'Sign-in in progress'
+                    : status === 'api-required' || !browserSupported
+                      ? 'Unavailable'
                       : oauth?.connected
-                        ? "Publishing connected"
-                        : "Not connected"}
+                        ? 'Publishing connected'
+                        : 'Not connected'}
               </span>
             </div>
 
@@ -515,11 +514,11 @@ export default function ConnectorOnboarding({
                         Legacy linked accounts
                         <select
                           aria-label="Legacy linked account"
-                          value={chosen?.id || ""}
+                          value={chosen?.id || ''}
                           onChange={(e) => {
                             setSelected(e.target.value);
                             setConfirming(false);
-                            setError("");
+                            setError('');
                           }}
                           className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm"
                         >
@@ -541,15 +540,15 @@ export default function ConnectorOnboarding({
                   )}
                   {chosen ? (
                     <div className="min-w-0">
-                      <p className="break-words text-base font-semibold leading-6 text-slate-950 [overflow-wrap:anywhere]">
+                      <p className="text-base leading-6 font-semibold [overflow-wrap:anywhere] break-words text-slate-950">
                         {chosen.label}
                       </p>
                       {chosen.handle && (
-                        <p className="mt-1 break-words text-sm leading-5 text-slate-600 [overflow-wrap:anywhere]">
+                        <p className="mt-1 text-sm leading-5 [overflow-wrap:anywhere] break-words text-slate-600">
                           @{chosen.handle}
                         </p>
                       )}
-                      {activeId === chosen.id && status === "connected" && (
+                      {activeId === chosen.id && status === 'connected' && (
                         <p className="mt-2 text-xs font-semibold text-emerald-800">
                           In use in your workspace
                         </p>
@@ -558,11 +557,11 @@ export default function ConnectorOnboarding({
                         className="mt-3 text-sm leading-6 text-slate-600"
                         title={chosen.verifiedAt || undefined}
                       >
-                        {status === "connected"
+                        {status === 'connected'
                           ? shortDate(chosen.verifiedAt)
-                          : status === "sign-in-open"
-                            ? "Finish signing in with the provider. We will check for completion automatically."
-                            : "This account needs a verified session before workflows can run."}
+                          : status === 'sign-in-open'
+                            ? 'Finish signing in with the provider. We will check for completion automatically.'
+                            : 'This account needs a verified session before workflows can run.'}
                       </p>
                     </div>
                   ) : (
@@ -584,10 +583,10 @@ export default function ConnectorOnboarding({
                           disabled={busy || !canStart}
                           className={
                             button +
-                            " w-full bg-slate-950 text-white hover:bg-slate-800"
+                            ' w-full bg-slate-950 text-white hover:bg-slate-800'
                           }
                           onClick={() =>
-                            void beginNewConnection(network as "linkedin" | "x")
+                            void beginNewConnection(network as 'linkedin' | 'x')
                           }
                         >
                           {saving ? (
@@ -627,7 +626,7 @@ export default function ConnectorOnboarding({
                           onClick={() => void command(chosen.id, operation)}
                           className={
                             button +
-                            " w-full bg-slate-950 text-white hover:bg-slate-800"
+                            ' w-full bg-slate-950 text-white hover:bg-slate-800'
                           }
                         >
                           {working && workingId === chosen.id ? (
@@ -637,22 +636,22 @@ export default function ConnectorOnboarding({
                             />
                           ) : null}
                           {working && workingId === chosen.id
-                            ? "Checking connection..."
+                            ? 'Checking connection...'
                             : actionText}
                         </button>
-                      ) : network === "linkedin" ? (
+                      ) : network === 'linkedin' ? (
                         <button
                           type="button"
                           disabled={busy || !oauth?.configured}
                           onClick={() => void authorizePublishing(chosen.id)}
                           className={
                             button +
-                            " w-full bg-slate-950 text-white hover:bg-slate-800"
+                            ' w-full bg-slate-950 text-white hover:bg-slate-800'
                           }
                         >
                           {oauth?.connected
-                            ? "Renew LinkedIn publishing"
-                            : "Connect LinkedIn for publishing"}
+                            ? 'Renew LinkedIn publishing'
+                            : 'Connect LinkedIn for publishing'}
                         </button>
                       ) : (
                         <p className="text-sm leading-6 text-amber-900">
@@ -673,14 +672,14 @@ export default function ConnectorOnboarding({
                           onClick={() => abortRef.current?.abort()}
                           className={
                             button +
-                            " w-full border border-slate-200 text-slate-700 hover:bg-slate-50"
+                            ' w-full border border-slate-200 text-slate-700 hover:bg-slate-50'
                           }
                         >
                           Cancel
                         </button>
                       )}
-                      {network === "linkedin" &&
-                        status === "connected" &&
+                      {network === 'linkedin' &&
+                        status === 'connected' &&
                         activeId !== chosen.id && (
                           <button
                             type="button"
@@ -688,18 +687,18 @@ export default function ConnectorOnboarding({
                             onClick={() => {
                               onSelect(chosen);
                               setMessage(
-                                "LinkedIn is selected for your workspace.",
+                                'LinkedIn is selected for your workspace.'
                               );
                             }}
                             className={
                               button +
-                              " w-full border border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+                              ' w-full border border-slate-200 bg-white text-slate-800 hover:bg-slate-50'
                             }
                           >
                             Use this account
                           </button>
                         )}
-                      {status === "sign-in-open" && (
+                      {status === 'sign-in-open' && (
                         <>
                           <p
                             role="status"
@@ -712,26 +711,26 @@ export default function ConnectorOnboarding({
                             type="button"
                             disabled={busy}
                             onClick={() =>
-                              void command(chosen.id, "disconnect")
+                              void command(chosen.id, 'disconnect')
                             }
                             className={
                               button +
-                              " w-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                              ' w-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                             }
                           >
                             Cancel connection
                           </button>
                         </>
                       )}
-                      {network === "linkedin" &&
+                      {network === 'linkedin' &&
                         browserLoginAvailable &&
                         oauth?.configured && (
                           <details className="rounded-xl border border-slate-200 p-3 text-sm text-slate-700">
                             <summary className="min-h-11 cursor-pointer py-3 font-medium text-slate-800">
-                              Publishing access:{" "}
+                              Publishing access:{' '}
                               {oauth.connected
-                                ? "Authorized"
-                                : "Not authorized"}
+                                ? 'Authorized'
+                                : 'Not authorized'}
                             </summary>
                             <button
                               type="button"
@@ -741,12 +740,12 @@ export default function ConnectorOnboarding({
                               }
                               className={
                                 button +
-                                " mt-2 w-full border border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+                                ' mt-2 w-full border border-slate-200 bg-white text-slate-800 hover:bg-slate-50'
                               }
                             >
                               {oauth.connected
-                                ? "Renew publishing access"
-                                : "Authorize publishing"}
+                                ? 'Renew publishing access'
+                                : 'Authorize publishing'}
                             </button>
                           </details>
                         )}
@@ -756,11 +755,11 @@ export default function ConnectorOnboarding({
                             type="button"
                             disabled={busy}
                             onClick={() =>
-                              void command(chosen.id, "disconnect")
+                              void command(chosen.id, 'disconnect')
                             }
                             className={
                               button +
-                              " border border-rose-300 bg-rose-50 px-2 text-rose-900 hover:bg-rose-100"
+                              ' border border-rose-300 bg-rose-50 px-2 text-rose-900 hover:bg-rose-100'
                             }
                           >
                             Confirm disconnect
@@ -770,14 +769,14 @@ export default function ConnectorOnboarding({
                             onClick={() => setConfirming(false)}
                             className={
                               button +
-                              " border border-slate-200 px-2 text-slate-800 hover:bg-slate-50"
+                              ' border border-slate-200 px-2 text-slate-800 hover:bg-slate-50'
                             }
                           >
                             Cancel
                           </button>
                         </div>
                       ) : (
-                        status === "connected" && (
+                        status === 'connected' && (
                           <button
                             type="button"
                             disabled={busy}
@@ -793,12 +792,12 @@ export default function ConnectorOnboarding({
                   <div className="rounded-xl bg-slate-50 px-3 py-3 text-sm leading-6 text-slate-600">
                     <p>
                       {mobileClient
-                        ? "Mobile Chrome and Safari cannot share their authenticated tabs with server-side Playwright. Local browser linking requires a desktop session."
+                        ? 'Mobile Chrome and Safari cannot share their authenticated tabs with server-side Playwright. Local browser linking requires a desktop session.'
                         : !capabilities?.browserAvailable
-                          ? "This server cannot open an interactive login on your device. Use a local desktop agent or a supported provider authorization."
-                          : capabilities.mode === "attached"
-                            ? "Local Chrome attachment enabled. Sign-in opens in a new tab in your authorized Chrome profile."
-                            : "Isolated Chrome mode uses a separate browser profile. To reuse a Chrome login, opt in to local Chrome attachment."}
+                          ? 'This server cannot open an interactive login on your device. Use a local desktop agent or a supported provider authorization.'
+                          : capabilities.mode === 'attached'
+                            ? 'Local Chrome attachment enabled. Sign-in opens in a new tab in your authorized Chrome profile.'
+                            : 'Isolated Chrome mode uses a separate browser profile. To reuse a Chrome login, opt in to local Chrome attachment.'}
                     </p>
                   </div>
                   {onManageProfile && (
@@ -810,7 +809,7 @@ export default function ConnectorOnboarding({
                       }}
                       className={
                         button +
-                        " w-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        ' w-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                       }
                     >
                       Manage profiles
@@ -841,11 +840,11 @@ export default function ConnectorOnboarding({
               id="other-network-options"
               className={
                 showOtherNetworks
-                  ? "grid grid-cols-1 gap-2 border-t border-slate-200 p-2 sm:grid-cols-3"
-                  : "hidden"
+                  ? 'grid grid-cols-1 gap-2 border-t border-slate-200 p-2 sm:grid-cols-3'
+                  : 'hidden'
               }
             >
-              {(["instagram", "github", "devto"] as const).map((key) => {
+              {(['instagram', 'github', 'devto'] as const).map((key) => {
                 const Icon = providerMeta[key].icon;
                 return (
                   <button
@@ -856,14 +855,14 @@ export default function ConnectorOnboarding({
                       setNetwork(key);
                       setSelected(null);
                       setConfirming(false);
-                      setError("");
-                      setMessage("");
+                      setError('');
+                      setMessage('');
                     }}
                     className={
-                      "flex min-h-11 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 " +
+                      'flex min-h-11 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 ' +
                       (network === key
-                        ? "border-slate-950 bg-slate-950 text-white"
-                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
+                        ? 'border-slate-950 bg-slate-950 text-white'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50')
                     }
                   >
                     <Icon className="size-5! shrink-0" aria-hidden="true" />

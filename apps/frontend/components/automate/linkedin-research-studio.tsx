@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from 'react';
 import {
   ArrowRight,
   ExternalLink,
   Plus,
   ShieldCheck,
   Trash2,
-} from "lucide-react";
+} from 'lucide-react';
 
 type Post = { url: string; text: string };
 type Creator = {
@@ -42,27 +42,27 @@ type Research = {
   };
 };
 const blank = (): Creator => ({
-  name: "",
-  profileUrl: "",
-  headline: "",
-  posts: [{ url: "", text: "" }],
+  name: '',
+  profileUrl: '',
+  headline: '',
+  posts: [{ url: '', text: '' }],
 });
 const field =
-  "min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-teal-700";
+  'min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-teal-700';
 export default function LinkedInResearchStudio() {
-  const [niche, setNiche] = useState(""),
-    [objective, setObjective] = useState("");
-  const [ownerHeadline, setOwnerHeadline] = useState("");
+  const [niche, setNiche] = useState(''),
+    [objective, setObjective] = useState('');
+  const [ownerHeadline, setOwnerHeadline] = useState('');
   const [creators, setCreators] = useState<Creator[]>([blank()]);
   const [history, setHistory] = useState<Research[]>([]);
   const [active, setActive] = useState<Research | null>(null);
-  const [error, setError] = useState(""),
+  const [error, setError] = useState(''),
     [saving, setSaving] = useState(false);
   useEffect(() => {
     let mounted = true;
-    void fetch("/api/linkedin/research", { cache: "no-store" })
+    void fetch('/api/linkedin/research', { cache: 'no-store' })
       .then(async (response) => {
-        if (!response.ok) throw Error("Research history unavailable");
+        if (!response.ok) throw Error('Research history unavailable');
         const rows = (await response.json()) as Research[];
         if (mounted) {
           setHistory(rows);
@@ -71,7 +71,7 @@ export default function LinkedInResearchStudio() {
       })
       .catch((e) => {
         if (mounted)
-          setError(e instanceof Error ? e.message : "Unable to load research");
+          setError(e instanceof Error ? e.message : 'Unable to load research');
       });
     return () => {
       mounted = false;
@@ -80,14 +80,14 @@ export default function LinkedInResearchStudio() {
   const updateCreator = (index: number, patch: Partial<Creator>) =>
     setCreators((rows) =>
       rows.map((creator, i) =>
-        index === i ? { ...creator, ...patch } : creator,
-      ),
+        index === i ? { ...creator, ...patch } : creator
+      )
     );
   const updatePost = (
     index: number,
     p: number,
     key: keyof Post,
-    value: string,
+    value: string
   ) =>
     setCreators((rows) =>
       rows.map((creator, i) =>
@@ -96,27 +96,27 @@ export default function LinkedInResearchStudio() {
           : {
               ...creator,
               posts: creator.posts.map((post, j) =>
-                p === j ? { ...post, [key]: value } : post,
+                p === j ? { ...post, [key]: value } : post
               ),
-            },
-      ),
+            }
+      )
     );
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
+    setError('');
     setSaving(true);
     try {
-      const response = await fetch("/api/linkedin/research", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
+      const response = await fetch('/api/linkedin/research', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ niche, objective, ownerHeadline, creators }),
       });
       const result = (await response.json()) as Research & { error?: string };
-      if (!response.ok) throw Error(result.error || "Research pipeline failed");
+      if (!response.ok) throw Error(result.error || 'Research pipeline failed');
       setActive(result);
       setHistory((previous) => [result, ...previous]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Research failed");
+      setError(e instanceof Error ? e.message : 'Research failed');
     } finally {
       setSaving(false);
     }
@@ -127,7 +127,7 @@ export default function LinkedInResearchStudio() {
       className="mx-auto max-w-5xl space-y-5 pb-12"
     >
       <header className="rounded-3xl bg-[#111e2b] px-6 py-7 text-white">
-        <p className="text-xs font-bold uppercase tracking-widest text-teal-300">
+        <p className="text-xs font-bold tracking-widest text-teal-300 uppercase">
           LinkedIn / Research pipeline
         </p>
         <h1 className="mt-3 font-serif text-3xl">
@@ -193,10 +193,10 @@ export default function LinkedInResearchStudio() {
               {creators.length > 1 && (
                 <button
                   type="button"
-                  aria-label={"Remove creator " + (i + 1)}
+                  aria-label={'Remove creator ' + (i + 1)}
                   onClick={() =>
                     setCreators((rows) =>
-                      rows.filter((_, index) => index !== i),
+                      rows.filter((_, index) => index !== i)
                     )
                   }
                   className="inline-flex items-center gap-1 text-xs text-rose-700"
@@ -252,7 +252,7 @@ export default function LinkedInResearchStudio() {
                   {creator.posts.length > 1 && (
                     <button
                       type="button"
-                      aria-label={"Remove post " + (j + 1)}
+                      aria-label={'Remove post ' + (j + 1)}
                       onClick={() =>
                         updateCreator(i, {
                           posts: creator.posts.filter((_, k) => k !== j),
@@ -271,7 +271,7 @@ export default function LinkedInResearchStudio() {
                     type="url"
                     className={field}
                     value={post.url}
-                    onChange={(e) => updatePost(i, j, "url", e.target.value)}
+                    onChange={(e) => updatePost(i, j, 'url', e.target.value)}
                     placeholder="https://www.linkedin.com/posts/..."
                   />
                 </label>
@@ -282,9 +282,9 @@ export default function LinkedInResearchStudio() {
                     minLength={20}
                     maxLength={3000}
                     rows={3}
-                    className={field + " resize-y"}
+                    className={field + ' resize-y'}
                     value={post.text}
-                    onChange={(e) => updatePost(i, j, "text", e.target.value)}
+                    onChange={(e) => updatePost(i, j, 'text', e.target.value)}
                   />
                 </label>
               </div>
@@ -294,7 +294,7 @@ export default function LinkedInResearchStudio() {
                 type="button"
                 onClick={() =>
                   updateCreator(i, {
-                    posts: [...creator.posts, { url: "", text: "" }],
+                    posts: [...creator.posts, { url: '', text: '' }],
                   })
                 }
                 className="inline-flex min-h-10 items-center gap-1 text-xs font-bold text-teal-800"
@@ -320,7 +320,7 @@ export default function LinkedInResearchStudio() {
             disabled={saving}
             className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-teal-700 px-5 text-xs font-bold text-white disabled:opacity-50"
           >
-            {saving ? "Analyzing…" : "Run evidenced comparison"}
+            {saving ? 'Analyzing…' : 'Run evidenced comparison'}
             <ArrowRight className="size-4" />
           </button>
         </div>
@@ -350,7 +350,7 @@ export default function LinkedInResearchStudio() {
             Objective: {active.input.objective}
           </p>
           <p className="text-sm text-slate-600">
-            {active.output.profiles.length} profiles · {active.stages.length}{" "}
+            {active.output.profiles.length} profiles · {active.stages.length}{' '}
             executed pipeline steps · {active.output.gaps.length} possible
             topics
           </p>
@@ -370,7 +370,7 @@ export default function LinkedInResearchStudio() {
                 >
                   <p className="font-bold capitalize">{gap.topic}</p>
                   <p className="mt-1 text-xs text-slate-600">
-                    Observed in {gap.observedIn.join(", ")}
+                    Observed in {gap.observedIn.join(', ')}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-3">
                     {gap.examples.map((url) => (

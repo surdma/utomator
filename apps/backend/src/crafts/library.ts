@@ -10,7 +10,8 @@ export type CraftCategory =
   | 'applications'
   | 'content'
   | 'engagement';
-export type CraftKind = 'brief' | 'research' | 'draft' | 'review' | 'publish' | 'measure';
+export type CraftKind =
+  'brief' | 'research' | 'draft' | 'review' | 'publish' | 'measure';
 export type CraftStep = {
   id: string;
   kind: CraftKind;
@@ -40,14 +41,23 @@ const categories = new Set<CraftCategory>([
   'content',
   'engagement',
 ]);
-const kinds = new Set<CraftKind>(['brief', 'research', 'draft', 'review', 'publish', 'measure']);
+const kinds = new Set<CraftKind>([
+  'brief',
+  'research',
+  'draft',
+  'review',
+  'publish',
+  'measure',
+]);
 const slugPattern = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const nodePattern = /^[a-z][a-z0-9-]{0,59}$/;
-const max = (s: unknown, n: number) => typeof s === 'string' && s.trim().length > 0 && s.length <= n;
+const max = (s: unknown, n: number) =>
+  typeof s === 'string' && s.trim().length > 0 && s.length <= n;
 const quote = (s: string) => JSON.stringify(s);
 const unquote = (s: string): string => {
   const value: unknown = JSON.parse(s);
-  if (typeof value !== 'string') throw Error('Frontmatter fields must be strings');
+  if (typeof value !== 'string')
+    throw Error('Frontmatter fields must be strings');
   return value;
 };
 function graphValid(input: unknown): asserts input is CraftInput {
@@ -70,7 +80,9 @@ function graphValid(input: unknown): asserts input is CraftInput {
     !Array.isArray(skill.links) ||
     skill.links.length > 100
   )
-    throw Error('Craft requires a kebab-case slug, explicit trigger description, category and steps');
+    throw Error(
+      'Craft requires a kebab-case slug, explicit trigger description, category and steps'
+    );
   const ids = new Set<string>();
   for (const step of skill.steps) {
     if (
@@ -103,16 +115,22 @@ function graphValid(input: unknown): asserts input is CraftInput {
       link.id !== link.source + '-to-' + link.target ||
       links.has(link.id)
     )
-      throw Error('Connections must join distinct existing steps without duplicates');
+      throw Error(
+        'Connections must join distinct existing steps without duplicates'
+      );
     links.add(link.id);
-    adjacent.set(link.source, [...(adjacent.get(link.source) || []), link.target]);
+    adjacent.set(link.source, [
+      ...(adjacent.get(link.source) || []),
+      link.target,
+    ]);
   }
   // Dependency order is intentional: reject cycles instead of exporting an
   // ambiguous skill that an agent could endlessly re-enter.
   const visited = new Set<string>(),
     visiting = new Set<string>();
   const visit = (id: string): void => {
-    if (visiting.has(id)) throw Error('Craft connections cannot contain a cycle');
+    if (visiting.has(id))
+      throw Error('Craft connections cannot contain a cycle');
     if (visited.has(id)) return;
     visiting.add(id);
     for (const target of adjacent.get(id) || []) visit(target);
@@ -164,30 +182,34 @@ export function toMdx(skill: CraftProject | CraftInput): string {
           .filter((l) => l.source === step.id)
           .map((l) => '[' + l.target + '](#step-' + l.target + ')')
           .join(', ') || 'End'),
-      '',
+      ''
     );
   }
   return lines.join('\n').trimEnd() + '\n';
 }
 export function parseMdx(source: string, previous?: CraftProject): CraftInput {
-  if (typeof source !== 'string' || source.length > 100000) throw Error('MDX source exceeds limit');
+  if (typeof source !== 'string' || source.length > 100000)
+    throw Error('MDX source exceeds limit');
   const match = source.match(
-    /^---\r?\nname: ([a-z][a-z0-9-]*)\r?\ndescription: (.+)\r?\n(?:category: (presence|portfolio|job-hunt|applications|content|engagement)\r?\n)?(?:enabled: (true|false)\r?\n)?---\r?\n\r?\n# ([^\r\n]+)\r?\n\r?\n/,
+    /^---\r?\nname: ([a-z][a-z0-9-]*)\r?\ndescription: (.+)\r?\n(?:category: (presence|portfolio|job-hunt|applications|content|engagement)\r?\n)?(?:enabled: (true|false)\r?\n)?---\r?\n\r?\n# ([^\r\n]+)\r?\n\r?\n/
   );
-  if (!match) throw Error('Expected name and JSON-quoted description in MDX frontmatter');
+  if (!match)
+    throw Error('Expected name and JSON-quoted description in MDX frontmatter');
   const slug = match[1]!;
   const description = unquote(match[2]!);
   const name = match[5]!;
   const rest = source.slice(match[0].length);
   const parts = rest.split(/^## Step: /m);
-  if (parts.length < 2 || parts[0]!.trim()) throw Error('Expected one or more Step sections');
+  if (parts.length < 2 || parts[0]!.trim())
+    throw Error('Expected one or more Step sections');
   const steps: CraftStep[] = [],
     links: CraftLink[] = [];
   for (const part of parts.slice(1)) {
     const block = part.match(
-      /^([a-z][a-z0-9-]*) \| ([^\r\n]+)\r?\n<a id="step-\1" \/>\r?\n<(?:CraftNode|SkillNode) kind="(brief|research|draft|review|publish|measure)" x=\{(-?\d+(?:\.\d+)?)\} y=\{(-?\d+(?:\.\d+)?)\} \/>\r?\n\r?\n([\s\S]*?)\r?\n\r?\n\*\*Next:\*\* ([^\r\n]+)\s*$/,
+      /^([a-z][a-z0-9-]*) \| ([^\r\n]+)\r?\n<a id="step-\1" \/>\r?\n<(?:CraftNode|SkillNode) kind="(brief|research|draft|review|publish|measure)" x=\{(-?\d+(?:\.\d+)?)\} y=\{(-?\d+(?:\.\d+)?)\} \/>\r?\n\r?\n([\s\S]*?)\r?\n\r?\n\*\*Next:\*\* ([^\r\n]+)\s*$/
     );
-    if (!block) throw Error('Invalid MDX node: each section needs CraftNode and Next');
+    if (!block)
+      throw Error('Invalid MDX node: each section needs CraftNode and Next');
     const [, id, title, kind, x, y, body, next] = block;
     steps.push({
       id: id!,
@@ -200,15 +222,25 @@ export function parseMdx(source: string, previous?: CraftProject): CraftInput {
       for (const item of next!.split(', ')) {
         const target = item.match(/^\[([a-z][a-z0-9-]*)\]\(#step-\1\)$/);
         if (!target) throw Error('Next links must point to valid Step IDs');
-        links.push({ id: id + '-to-' + target[1], source: id!, target: target[1]! });
+        links.push({
+          id: id + '-to-' + target[1],
+          source: id!,
+          target: target[1]!,
+        });
       }
   }
   const input: CraftInput = {
     slug,
     name,
     description,
-    category: (match[3] as CraftCategory | undefined) || previous?.category || 'content',
-    enabled: match[4] === undefined ? (previous?.enabled ?? true) : match[4] === 'true',
+    category:
+      (match[3] as CraftCategory | undefined) ||
+      previous?.category ||
+      'content',
+    enabled:
+      match[4] === undefined
+        ? (previous?.enabled ?? true)
+        : match[4] === 'true',
     steps,
     links,
   };
@@ -259,7 +291,10 @@ export function craftArchive(skill: CraftProject): Buffer {
   const files = new Map([
     [skill.slug + '/SKILL.md', toAgentMarkdown(skill)],
     [skill.slug + '/SKILL.mdx', toMdx(skill)],
-    [skill.slug + '/graph.json', JSON.stringify(asInput(skill), null, 2) + '\n'],
+    [
+      skill.slug + '/graph.json',
+      JSON.stringify(asInput(skill), null, 2) + '\n',
+    ],
   ]);
   const locals: Buffer[] = [],
     centrals: Buffer[] = [];
@@ -299,8 +334,16 @@ export function craftArchive(skill: CraftProject): Buffer {
 }
 
 export type CraftScope = 'default' | 'personal';
-export type Craft = CraftProject & { scope: CraftScope; sourceCraftId?: string };
-type StoredCraft = { scope: CraftScope; mdx: string; sourceCraftId?: string; updatedAt: string };
+export type Craft = CraftProject & {
+  scope: CraftScope;
+  sourceCraftId?: string;
+};
+type StoredCraft = {
+  scope: CraftScope;
+  mdx: string;
+  sourceCraftId?: string;
+  updatedAt: string;
+};
 const defaults: Array<{ slug: string; category: CraftCategory }> = [
   { slug: 'personal-brand-positioning', category: 'presence' },
   { slug: 'portfolio-proofing', category: 'portfolio' },
@@ -331,11 +374,16 @@ const migrationNamespace = 'craft-migrations';
 
 export class CraftLibrary {
   constructor(
-    private readonly legacyFile = resolve(process.cwd(), '.runtime', 'skills', 'library.json'),
+    private readonly legacyFile = resolve(
+      process.cwd(),
+      '.runtime',
+      'skills',
+      'library.json'
+    ),
     private readonly defaultRoot = resolve(
       dirname(fileURLToPath(import.meta.url)),
-      '../../crafts/default',
-    ),
+      '../../crafts/default'
+    )
   ) {}
   private documents: DocumentStore | undefined;
   setDocuments(documents: DocumentStore) {
@@ -360,7 +408,9 @@ export class CraftLibrary {
       version: row.version,
       updatedAt: row.value.updatedAt,
       scope: row.value.scope,
-      ...(row.value.sourceCraftId ? { sourceCraftId: row.value.sourceCraftId } : {}),
+      ...(row.value.sourceCraftId
+        ? { sourceCraftId: row.value.sourceCraftId }
+        : {}),
     };
   }
   async initialize() {
@@ -368,15 +418,27 @@ export class CraftLibrary {
     // Immutable MDX templates are imported into each tenant's real database.
     // A release may update a default without touching any personal variation.
     for (const item of defaults) {
-      const source = await readFile(resolve(this.defaultRoot, item.slug + '.mdx'), 'utf8');
-      const input = { ...parseMdx(source), category: item.category, enabled: true };
+      const source = await readFile(
+        resolve(this.defaultRoot, item.slug + '.mdx'),
+        'utf8'
+      );
+      const input = {
+        ...parseMdx(source),
+        category: item.category,
+        enabled: true,
+      };
       graphValid(input);
       const mdx = toMdx(input);
       const key = defaultKey(item.slug);
       const existing = await docs.get<StoredCraft>(docsNamespace, key);
-      if (existing?.value.scope === 'personal') throw Error('Default craft identity collision');
+      if (existing?.value.scope === 'personal')
+        throw Error('Default craft identity collision');
       if (!existing || existing.value.mdx !== mdx) {
-        const value: StoredCraft = { scope: 'default', mdx, updatedAt: new Date().toISOString() };
+        const value: StoredCraft = {
+          scope: 'default',
+          mdx,
+          updatedAt: new Date().toISOString(),
+        };
         await docs.put(docsNamespace, key, value, existing?.version ?? 0);
       }
     }
@@ -392,12 +454,19 @@ export class CraftLibrary {
       legacy = JSON.parse(await readFile(this.legacyFile, 'utf8'));
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-      await docs.put(migrationNamespace, 'legacy-json-v1', { result: 'no-source' }, 0);
+      await docs.put(
+        migrationNamespace,
+        'legacy-json-v1',
+        { result: 'no-source' },
+        0
+      );
       return;
     }
-    if (!Array.isArray(legacy)) throw Error('Legacy craft source is not an array');
+    if (!Array.isArray(legacy))
+      throw Error('Legacy craft source is not an array');
     for (const old of legacy) {
-      if (!old || typeof old !== 'object') throw Error('Invalid legacy craft entry');
+      if (!old || typeof old !== 'object')
+        throw Error('Invalid legacy craft entry');
       const item = old as CraftProject;
       const input = asInput(item);
       graphValid(input);
@@ -409,18 +478,24 @@ export class CraftLibrary {
       const candidate = base ? input.slug + '-imported' : input.slug;
       let slug = candidate,
         suffix = 2;
-      while ((await this.list()).some((c) => c.slug === slug)) slug = candidate + '-' + suffix++;
-      if (slug.length > 65) throw Error('Legacy craft slug exceeds allowed length');
+      while ((await this.list()).some((c) => c.slug === slug))
+        slug = candidate + '-' + suffix++;
+      if (slug.length > 65)
+        throw Error('Legacy craft slug exceeds allowed length');
       await this.create(
-        { ...input, slug, name: base ? input.name + ' (imported)' : input.name },
-        base ? defaultKey(base.slug) : undefined,
+        {
+          ...input,
+          slug,
+          name: base ? input.name + ' (imported)' : input.name,
+        },
+        base ? defaultKey(base.slug) : undefined
       );
     }
     await docs.put(
       migrationNamespace,
       'legacy-json-v1',
       { result: 'imported', count: legacy.length },
-      0,
+      0
     );
   }
   async list(): Promise<Craft[]> {
@@ -428,7 +503,11 @@ export class CraftLibrary {
     return records
       .map((row) => this.materialize(row))
       .sort((a, b) =>
-        a.scope === b.scope ? a.name.localeCompare(b.name) : a.scope === 'default' ? -1 : 1,
+        a.scope === b.scope
+          ? a.name.localeCompare(b.name)
+          : a.scope === 'default'
+            ? -1
+            : 1
       );
   }
   async get(id: string): Promise<Craft | undefined> {
@@ -438,7 +517,8 @@ export class CraftLibrary {
   async create(input: unknown, sourceCraftId?: string): Promise<Craft> {
     graphValid(input);
     const docs = this.store();
-    if ((await this.list()).some((c) => c.slug === input.slug)) throw Error('Craft slug already exists');
+    if ((await this.list()).some((c) => c.slug === input.slug))
+      throw Error('Craft slug already exists');
     const key = personalKey(input.slug);
     const value: StoredCraft = {
       scope: 'personal',
@@ -458,8 +538,12 @@ export class CraftLibrary {
       const slug = base.slice(0, 65 - suffix.length) + suffix;
       try {
         return await this.create(
-          { ...asInput(original), slug, name: (original.name + ' (copy)').slice(0, 100) },
-          original.id,
+          {
+            ...asInput(original),
+            slug,
+            name: (original.name + ' (copy)').slice(0, 100),
+          },
+          original.id
         );
       } catch (error) {
         if (
@@ -472,15 +556,21 @@ export class CraftLibrary {
     }
     throw Error('Too many craft variations');
   }
-  async update(id: string, input: unknown, expectedVersion: number): Promise<Craft> {
+  async update(
+    id: string,
+    input: unknown,
+    expectedVersion: number
+  ): Promise<Craft> {
     graphValid(input);
     const docs = this.store();
     const record = await docs.get<StoredCraft>(docsNamespace, id);
     if (!record) throw Error('Craft not found');
     if (record.value.scope === 'default')
       throw Error('Default crafts are read-only; clone to customize');
-    if (record.version !== expectedVersion) throw Error('Version conflict; reload before saving');
-    if (personalKey(input.slug) !== id) throw Error('Craft slug cannot be changed');
+    if (record.version !== expectedVersion)
+      throw Error('Version conflict; reload before saving');
+    if (personalKey(input.slug) !== id)
+      throw Error('Craft slug cannot be changed');
     const value: StoredCraft = {
       ...record.value,
       mdx: toMdx(input),
@@ -495,7 +585,8 @@ export class CraftLibrary {
     if (!record) throw Error('Craft not found');
     if (record.value.scope === 'default')
       throw Error('Default crafts are read-only; clone to customize');
-    if (record.version !== expectedVersion) throw Error('Version conflict; reload before deleting');
+    if (record.version !== expectedVersion)
+      throw Error('Version conflict; reload before deleting');
     await docs.remove(docsNamespace, id, expectedVersion);
     return { deleted: true };
   }

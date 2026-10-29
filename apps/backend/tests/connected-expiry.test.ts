@@ -33,8 +33,16 @@ test('expired connected sessions fail fast and never request an in-run password 
   };
   await assert.rejects(
     execute(context),
-    /Not authenticated: connected account session expired\. Reconnect and sync/,
+    /Not authenticated: connected account session expired\. Reconnect and sync/
   );
-  assert.equal(navigationCount, 1, 'expired session is not repeatedly navigated');
-  assert.equal(approvalCount, 0, 'connected workflow must not fall back to manual login');
+  assert.equal(
+    navigationCount,
+    1,
+    'expired session is not repeatedly navigated'
+  );
+  assert.equal(
+    approvalCount,
+    0,
+    'connected workflow must not fall back to manual login'
+  );
 });

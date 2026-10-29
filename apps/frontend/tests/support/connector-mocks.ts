@@ -1,6 +1,6 @@
-import { expect, type Page, type Route } from "@playwright/test";
+import { expect, type Page, type Route } from '@playwright/test';
 
-export type ProviderKey = "linkedin" | "x" | "instagram" | "github" | "devto";
+export type ProviderKey = 'linkedin' | 'x' | 'instagram' | 'github' | 'devto';
 
 export type ConnectorFixture = {
   id: string;
@@ -8,9 +8,9 @@ export type ConnectorFixture = {
   label: string;
   handle: string;
   profileUrl: string;
-  status: "connected" | "disconnected" | "sign-in-open" | "api-required";
+  status: 'connected' | 'disconnected' | 'sign-in-open' | 'api-required';
   verifiedAt: string | null;
-  authentication: "browser" | "api-required";
+  authentication: 'browser' | 'api-required';
 };
 
 export const iso = {
@@ -24,34 +24,34 @@ let sequence = 0;
 /** Deterministic connector row matching the backend `GET /connectors` response. */
 export function connectorAccount(
   platform: ProviderKey,
-  overrides: Partial<Omit<ConnectorFixture, "platform">> = {},
+  overrides: Partial<Omit<ConnectorFixture, 'platform'>> = {}
 ): ConnectorFixture {
   sequence += 1;
   const cap = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
   return {
-    id: overrides.id ?? platform + "-" + sequence,
+    id: overrides.id ?? platform + '-' + sequence,
     platform,
-    label: overrides.label ?? cap(platform) + " sample",
+    label: overrides.label ?? cap(platform) + ' sample',
     handle:
       overrides.handle ??
-      (platform === "devto" ? "sample.dev" : "sample." + platform),
+      (platform === 'devto' ? 'sample.dev' : 'sample.' + platform),
     profileUrl:
       overrides.profileUrl ??
-      "https://www." +
-        (platform === "devto" ? "dev.to/" : platform + ".com/") +
-        (platform === "linkedin" ? "in/" : "") +
-        (platform === "devto" ? "sample.dev" : "sample." + platform),
-    status: overrides.status ?? "disconnected",
+      'https://www.' +
+        (platform === 'devto' ? 'dev.to/' : platform + '.com/') +
+        (platform === 'linkedin' ? 'in/' : '') +
+        (platform === 'devto' ? 'sample.dev' : 'sample.' + platform),
+    status: overrides.status ?? 'disconnected',
     verifiedAt: overrides.verifiedAt ?? null,
     authentication:
       overrides.authentication ??
-      (platform === "linkedin" || platform === "x"
-        ? "browser"
-        : "api-required"),
+      (platform === 'linkedin' || platform === 'x'
+        ? 'browser'
+        : 'api-required'),
   };
 }
 
-export const CONNECTORS_ROUTE = "**/api/connectors**";
+export const CONNECTORS_ROUTE = '**/api/connectors**';
 
 /**
  * Open the connector dialog from the floating toolbar. The button exists in
@@ -59,10 +59,10 @@ export const CONNECTORS_ROUTE = "**/api/connectors**";
  * retry until the dialog actually mounts.
  */
 export async function openConnectorDialog(page: Page) {
-  await page.goto("/dashboard/pipeline", { waitUntil: "domcontentloaded" });
-  const trigger = page.getByTestId("floating-connector-button");
-  const wizard = page.getByRole("dialog", {
-    name: "Connect your social accounts",
+  await page.goto('/dashboard/pipeline', { waitUntil: 'domcontentloaded' });
+  const trigger = page.getByTestId('floating-connector-button');
+  const wizard = page.getByRole('dialog', {
+    name: 'Connect your social accounts',
   });
   await expect(trigger).toBeVisible();
   await expect(async () => {
@@ -79,7 +79,7 @@ export type ConnectorCommandEvent = {
 };
 
 export type ConnectorBehavior =
-  | { simulate: "hang" }
+  | { simulate: 'hang' }
   | { respondAfter?: number; status?: number; body?: unknown }
   | undefined;
 
@@ -102,7 +102,7 @@ export type ConnectorApiMock = {
 export async function installConnectorApi(
   page: Page,
   seed: ConnectorFixture[],
-  behavior?: (event: ConnectorCommandEvent) => ConnectorBehavior,
+  behavior?: (event: ConnectorCommandEvent) => ConnectorBehavior
 ): Promise<ConnectorApiMock> {
   const accounts = seed.map((account) => ({ ...account }));
   const requests: ConnectorCommandEvent[] = [];
@@ -112,7 +112,7 @@ export async function installConnectorApi(
     route
       .fulfill({
         status,
-        contentType: "application/json",
+        contentType: 'application/json',
         body: JSON.stringify(body),
       })
       .catch(() => {
@@ -124,97 +124,97 @@ export async function installConnectorApi(
     const id = (body as { id?: string }).id;
     const account = accounts.find((item) => item.id === id);
     if (!account) return;
-    if (status === "connected") {
-      account.status = "connected";
+    if (status === 'connected') {
+      account.status = 'connected';
       account.verifiedAt = iso.now();
       if (!account.handle) {
-        account.handle = "verified-owner";
-        account.label = "verified-owner";
+        account.handle = 'verified-owner';
+        account.label = 'verified-owner';
         account.profileUrl =
-          account.platform === "linkedin"
-            ? "https://www.linkedin.com/in/verified-owner/"
-            : "https://x.com/verified-owner";
+          account.platform === 'linkedin'
+            ? 'https://www.linkedin.com/in/verified-owner/'
+            : 'https://x.com/verified-owner';
       }
-    } else if (status === "sign-in-open") {
-      account.status = "sign-in-open";
-    } else if (status === "disconnected") {
-      account.status = "disconnected";
+    } else if (status === 'sign-in-open') {
+      account.status = 'sign-in-open';
+    } else if (status === 'disconnected') {
+      account.status = 'disconnected';
       account.verifiedAt = null;
     }
   };
 
   const defaultBody: Record<string, unknown> = {
     connect: {
-      status: "sign-in-open",
+      status: 'sign-in-open',
       navigationWarning:
-        "Mock provider sign-in is open in isolated Chrome. Finish signing in there - including any MFA or consent step - then choose Sync.",
+        'Mock provider sign-in is open in isolated Chrome. Finish signing in there - including any MFA or consent step - then choose Sync.',
     },
-    sync: { status: "connected" },
-    check: { status: "sign-in-open" },
-    disconnect: { status: "disconnected" },
+    sync: { status: 'connected' },
+    check: { status: 'sign-in-open' },
+    disconnect: { status: 'disconnected' },
   };
 
   await page.route(CONNECTORS_ROUTE, async (route) => {
     const request = route.request();
-    const path = new URL(request.url()).pathname.split("/").filter(Boolean);
+    const path = new URL(request.url()).pathname.split('/').filter(Boolean);
     try {
-      if (request.method() === "GET" && path[2] === "capabilities") {
+      if (request.method() === 'GET' && path[2] === 'capabilities') {
         await respond(route, {
           browserAvailable: true,
-          mode: "isolated",
+          mode: 'isolated',
           mobileBrowserSession: false,
         });
         return;
       }
-      if (request.method() === "GET") {
+      if (request.method() === 'GET') {
         const event: ConnectorCommandEvent = {
-          method: "GET",
-          operation: "",
-          id: "",
+          method: 'GET',
+          operation: '',
+          id: '',
         };
         requests.push(event);
         const custom = behavior?.(event);
-        if (custom && "simulate" in custom) return; // request stays pending
+        if (custom && 'simulate' in custom) return; // request stays pending
         if (custom?.respondAfter)
           await new Promise((resolve) =>
-            setTimeout(resolve, custom.respondAfter),
+            setTimeout(resolve, custom.respondAfter)
           );
         await respond(route, accounts, custom?.status ?? 200);
         return;
       }
       // POST /api/connectors/start links through a provider, not a supplied handle.
-      const starting = path[2] === "start";
-      const id = starting ? "" : (path[2] ?? "");
-      const operation = starting ? "start" : (path[3] ?? "");
+      const starting = path[2] === 'start';
+      const id = starting ? '' : (path[2] ?? '');
+      const operation = starting ? 'start' : (path[3] ?? '');
       const event: ConnectorCommandEvent = {
         method: request.method(),
         operation,
         id,
       };
       requests.push(event);
-      if (event.method !== "GET") commands.push(event);
+      if (event.method !== 'GET') commands.push(event);
       const custom = behavior?.(event);
-      if (custom && "simulate" in custom) return;
+      if (custom && 'simulate' in custom) return;
       if (custom?.respondAfter)
         await new Promise((resolve) =>
-          setTimeout(resolve, custom.respondAfter),
+          setTimeout(resolve, custom.respondAfter)
         );
       if (starting) {
         const provider = (request.postDataJSON() as { platform: ProviderKey })
           .platform;
         const pendingId =
-          "00000000-0000-4000-8000-" + String(sequence++).padStart(12, "0");
+          '00000000-0000-4000-8000-' + String(sequence++).padStart(12, '0');
         accounts.push({
           id: pendingId,
           platform: provider,
-          label: "Sign-in in progress",
-          handle: "",
-          profileUrl: "",
-          status: "sign-in-open",
+          label: 'Sign-in in progress',
+          handle: '',
+          profileUrl: '',
+          status: 'sign-in-open',
           verifiedAt: null,
-          authentication: "browser",
+          authentication: 'browser',
         });
-        await respond(route, { status: "sign-in-open", accountId: pendingId });
+        await respond(route, { status: 'sign-in-open', accountId: pendingId });
         return;
       }
       const body = custom?.body ?? defaultBody[operation] ?? {};

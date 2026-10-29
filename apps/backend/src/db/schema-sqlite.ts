@@ -1,4 +1,9 @@
-import { integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import {
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+} from 'drizzle-orm/sqlite-core';
 
 export const documents = sqliteTable(
   'utomator_documents',
@@ -10,5 +15,7 @@ export const documents = sqliteTable(
     payload: text('payload').notNull(),
     updatedAt: text('updated_at').notNull(),
   },
-  (table) => [primaryKey({ columns: [table.ownerId, table.namespace, table.key] })],
+  (table) => [
+    primaryKey({ columns: [table.ownerId, table.namespace, table.key] }),
+  ]
 );

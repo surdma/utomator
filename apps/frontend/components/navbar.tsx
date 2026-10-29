@@ -1,21 +1,21 @@
-"use client";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
-import Logo from "@/components/logo";
+'use client';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useState } from 'react';
+import Logo from '@/components/logo';
 const links = [
-  { title: "Pipeline", href: "/dashboard/pipeline" },
-  { title: "Growth", href: "/dashboard/growth" },
-  { title: "Crafts", href: "/dashboard/crafts" },
+  { title: 'Pipeline', href: '/dashboard/pipeline' },
+  { title: 'Growth', href: '/dashboard/growth' },
+  { title: 'Crafts', href: '/dashboard/crafts' },
 ];
 export default function Navbar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  if (pathname !== "/") return null;
+  if (pathname !== '/') return null;
   return (
     <header
       className="relative z-30 border-b"
-      style={{ borderColor: "var(--border)" }}
+      style={{ borderColor: 'var(--border)' }}
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 md:h-20 md:px-8">
         <Logo />
@@ -28,7 +28,7 @@ export default function Navbar() {
               key={link.href}
               href={link.href}
               className="text-sm font-medium transition-colors hover:text-cyan-600"
-              style={{ color: "var(--text-secondary)" }}
+              style={{ color: 'var(--text-secondary)' }}
             >
               {link.title}
             </Link>
@@ -49,7 +49,7 @@ export default function Navbar() {
           id="mobile-product-nav"
           aria-label="Mobile product navigation"
           className="flex flex-col gap-4 border-t px-6 py-5 md:hidden"
-          style={{ borderColor: "var(--border)" }}
+          style={{ borderColor: 'var(--border)' }}
         >
           {links.map((link) => (
             <Link

@@ -1,5 +1,5 @@
-"use client";
-import { useEffect, useState } from "react";
+'use client';
+import { useEffect, useState } from 'react';
 import {
   Activity,
   BookOpen,
@@ -7,27 +7,27 @@ import {
   MessageSquareText,
   Search,
   ShieldCheck,
-} from "lucide-react";
+} from 'lucide-react';
 type Entry = {
   id: string;
   time: string;
-  source: "chat" | "browser";
-  platform: "linkedin" | "x" | null;
+  source: 'chat' | 'browser';
+  platform: 'linkedin' | 'x' | null;
   accountId: string | null;
   text: string;
   runId?: string;
 };
-type View = "memory" | "observer";
+type View = 'memory' | 'observer';
 const tabs = [
   {
-    id: "memory",
-    name: "Memory",
-    description: "Exact user chat messages saved to this workspace",
+    id: 'memory',
+    name: 'Memory',
+    description: 'Exact user chat messages saved to this workspace',
   },
   {
-    id: "observer",
-    name: "Observer",
-    description: "Observed browser facts recorded during audits",
+    id: 'observer',
+    name: 'Observer',
+    description: 'Observed browser facts recorded during audits',
   },
 ] as const;
 export default function IntelligenceStudio({
@@ -38,20 +38,20 @@ export default function IntelligenceStudio({
   onNavigate: (path: string) => void;
 }) {
   const [entries, setEntries] = useState<Entry[]>([]),
-    [query, setQuery] = useState(""),
-    [error, setError] = useState("");
+    [query, setQuery] = useState(''),
+    [error, setError] = useState('');
   useEffect(() => {
     let mounted = true;
-    void fetch("/api/intelligence", { cache: "no-store" })
+    void fetch('/api/intelligence', { cache: 'no-store' })
       .then(async (response) => {
         const body = await response.json();
         if (!response.ok)
-          throw Error(body.error || "Activity memory unavailable");
+          throw Error(body.error || 'Activity memory unavailable');
         if (mounted) setEntries(body);
       })
       .catch((e) => {
         if (mounted)
-          setError(e instanceof Error ? e.message : "Could not load activity");
+          setError(e instanceof Error ? e.message : 'Could not load activity');
       });
     return () => {
       mounted = false;
@@ -59,8 +59,8 @@ export default function IntelligenceStudio({
   }, []);
   const selection = entries.filter(
     (e) =>
-      e.source === (initialView === "memory" ? "chat" : "browser") &&
-      e.text.toLowerCase().includes(query.toLowerCase()),
+      e.source === (initialView === 'memory' ? 'chat' : 'browser') &&
+      e.text.toLowerCase().includes(query.toLowerCase())
   );
   return (
     <div
@@ -69,7 +69,7 @@ export default function IntelligenceStudio({
     >
       <header className="flex flex-wrap items-end justify-between gap-5 border-b border-slate-200 pb-6">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-teal-700">
+          <p className="text-xs font-semibold tracking-wider text-teal-700 uppercase">
             Utomator / Context
           </p>
           <h1 className="mt-3 font-serif text-3xl text-slate-950">
@@ -96,20 +96,20 @@ export default function IntelligenceStudio({
             key={tab.id}
             onClick={() =>
               onNavigate(
-                tab.id === "memory"
-                  ? "/dashboard/memory"
-                  : "/dashboard/observer",
+                tab.id === 'memory'
+                  ? '/dashboard/memory'
+                  : '/dashboard/observer'
               )
             }
             className={
-              "rounded-2xl border p-5 text-left transition " +
+              'rounded-2xl border p-5 text-left transition ' +
               (tab.id === initialView
-                ? "border-teal-600 bg-teal-50"
-                : "border-slate-200 bg-white hover:border-teal-300")
+                ? 'border-teal-600 bg-teal-50'
+                : 'border-slate-200 bg-white hover:border-teal-300')
             }
           >
             <span className="flex items-center gap-2 font-semibold">
-              {tab.id === "memory" ? (
+              {tab.id === 'memory' ? (
                 <BookOpen className="size-5 text-teal-700" />
               ) : (
                 <Activity className="size-5 text-teal-700" />
@@ -124,28 +124,28 @@ export default function IntelligenceStudio({
       </div>
       <section
         data-testid={
-          initialView === "memory"
-            ? "identity-memory"
-            : "identity-observation-timeline"
+          initialView === 'memory'
+            ? 'identity-memory'
+            : 'identity-observation-timeline'
         }
         className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-8"
       >
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="font-serif text-2xl">
-              {initialView === "memory" ? "Conversation memory" : "Observer."}
+              {initialView === 'memory' ? 'Conversation memory' : 'Observer.'}
             </h2>
             <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
-              {initialView === "memory"
-                ? "Saved automatically from new messages you send in Mator. No model is connected, so nothing is inferred or invented."
-                : "Read-only audit observations. Each entry retains its browser-run provenance."}
+              {initialView === 'memory'
+                ? 'Saved automatically from new messages you send in Mator. No model is connected, so nothing is inferred or invented.'
+                : 'Read-only audit observations. Each entry retains its browser-run provenance.'}
             </p>
           </div>
           <label className="relative block w-full sm:w-64">
             <span className="sr-only">Search activity</span>
-            <Search className="absolute left-3 top-3.5 size-4 text-slate-400" />
+            <Search className="absolute top-3.5 left-3 size-4 text-slate-400" />
             <input
-              className="min-h-11 w-full rounded-xl border border-slate-200 pl-10 pr-3 text-sm focus:outline-teal-600"
+              className="min-h-11 w-full rounded-xl border border-slate-200 pr-3 pl-10 text-sm focus:outline-teal-600"
               placeholder="Search activity"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -164,23 +164,23 @@ export default function IntelligenceStudio({
               className="rounded-2xl border border-slate-100 bg-slate-50 p-5"
             >
               <p className="flex items-center gap-2 text-xs font-semibold text-teal-800">
-                {item.source === "chat" ? (
+                {item.source === 'chat' ? (
                   <MessageSquareText className="size-4" />
                 ) : (
                   <Activity className="size-4" />
                 )}
-                {item.source === "chat"
-                  ? "Your message"
-                  : "Browser observation"}
-                {item.platform ? " · " + item.platform.toUpperCase() : ""}
+                {item.source === 'chat'
+                  ? 'Your message'
+                  : 'Browser observation'}
+                {item.platform ? ' · ' + item.platform.toUpperCase() : ''}
               </p>
-              <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-slate-800">
+              <p className="mt-3 text-sm leading-7 break-words whitespace-pre-wrap text-slate-800">
                 {item.text}
               </p>
               <p className="mt-4 flex items-center gap-2 text-xs text-slate-500">
                 <Clock3 className="size-3.5" />
                 {new Date(item.time).toLocaleString()}
-                {item.runId ? " · Run " + item.runId.slice(0, 8) : ""}
+                {item.runId ? ' · Run ' + item.runId.slice(0, 8) : ''}
               </p>
             </article>
           ))}
@@ -192,9 +192,9 @@ export default function IntelligenceStudio({
               No matching events
             </p>
             <p className="mt-2 text-xs text-slate-500">
-              {initialView === "memory"
-                ? "Send a message in Mator to create the first memory entry."
-                : "Complete a read-only browser audit to populate Observer."}
+              {initialView === 'memory'
+                ? 'Send a message in Mator to create the first memory entry.'
+                : 'Complete a read-only browser audit to populate Observer.'}
             </p>
           </div>
         )}

@@ -23,7 +23,12 @@ export type ResearchRun = {
   status: 'completed';
   createdAt: string;
   input: ResearchInput;
-  sources: Array<{ creator: string; url: string; excerpt: string; digest: string }>;
+  sources: Array<{
+    creator: string;
+    url: string;
+    excerpt: string;
+    digest: string;
+  }>;
   stages: Array<{
     id: string;
     operation: string;
@@ -40,35 +45,74 @@ export type ResearchRun = {
       topics: Array<{ word: string; mentions: number; sources: string[] }>;
     }>;
     gaps: Array<{ topic: string; observedIn: string[]; examples: string[] }>;
-    experiments: Array<{ hypothesis: string; evidenceUrls: string[]; measure: string }>;
+    experiments: Array<{
+      hypothesis: string;
+      evidenceUrls: string[];
+      measure: string;
+    }>;
     limitation: string;
   };
 };
-const idPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const idPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const stop = new Set(
   'about after again against also been being build could does from have into just like more most much only other over people post posts really same share should some such than that their there these this those through using were what when where which while with your you them they each will would'.split(
-    ' ',
-  ),
+    ' '
+  )
 );
 const stages = [
-  ['sources', 'validate-submitted-sources', 'creator-research-input/v1', 'submitted-sources/v1'],
-  ['topics', 'extract-observed-post-topics', 'submitted-sources/v1', 'topic-evidence/v1'],
-  ['comparison', 'compare-owner-and-creator-positioning', 'topic-evidence/v1', 'positioning-gaps/v1'],
+  [
+    'sources',
+    'validate-submitted-sources',
+    'creator-research-input/v1',
+    'submitted-sources/v1',
+  ],
+  [
+    'topics',
+    'extract-observed-post-topics',
+    'submitted-sources/v1',
+    'topic-evidence/v1',
+  ],
+  [
+    'comparison',
+    'compare-owner-and-creator-positioning',
+    'topic-evidence/v1',
+    'positioning-gaps/v1',
+  ],
   [
     'experiments',
     'prepare-evidence-limited-experiments',
     'positioning-gaps/v1',
     'growth-experiments/v1',
   ],
-  ['report', 'produce-linked-research-report', 'growth-experiments/v1', 'creator-research-report/v1'],
+  [
+    'report',
+    'produce-linked-research-report',
+    'growth-experiments/v1',
+    'creator-research-report/v1',
+  ],
 ] as const;
-const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
-function required(value: unknown, label: string, min: number, max: number): string {
-  if (typeof value !== 'string' || value.trim().length < min || value.length > max)
+const hash = (value: unknown) =>
+  createHash('sha256').update(JSON.stringify(value)).digest('hex');
+function required(
+  value: unknown,
+  label: string,
+  min: number,
+  max: number
+): string {
+  if (
+    typeof value !== 'string' ||
+    value.trim().length < min ||
+    value.length > max
+  )
     throw Error(`${label} must contain ${min}–${max} characters`);
   return value.trim();
 }
-function linkedinUrl(value: unknown, label: string, kind: 'profile' | 'post'): string {
+function linkedinUrl(
+  value: unknown,
+  label: string,
+  kind: 'profile' | 'post'
+): string {
   const raw = required(value, label, 25, 500);
   let parsed: URL;
   try {
@@ -95,12 +139,18 @@ function linkedinUrl(value: unknown, label: string, kind: 'profile' | 'post'): s
   return parsed.href;
 }
 const words = (input: string) =>
-  (input.toLowerCase().match(/[a-z]{4,}/g) || []).filter((word) => !stop.has(word));
+  (input.toLowerCase().match(/[a-z]{4,}/g) || []).filter(
+    (word) => !stop.has(word)
+  );
 export function validateResearchInput(raw: unknown): ResearchInput {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw))
     throw Error('Research input must be an object');
   const data = raw as Partial<ResearchInput>;
-  if (!Array.isArray(data.creators) || data.creators.length < 1 || data.creators.length > 5)
+  if (
+    !Array.isArray(data.creators) ||
+    data.creators.length < 1 ||
+    data.creators.length > 5
+  )
     throw Error('Supply 1–5 creator profiles');
   const creators = data.creators.map((creator, index) => {
     if (
@@ -115,7 +165,8 @@ export function validateResearchInput(raw: unknown): ResearchInput {
       url: linkedinUrl(post?.url, `Creator ${index + 1} post ${i + 1}`, 'post'),
       text: required(post?.text, 'Post excerpt', 20, 3000),
     }));
-    if (new Set(posts.map((p) => p.url)).size !== posts.length) throw Error('Duplicate post evidence');
+    if (new Set(posts.map((p) => p.url)).size !== posts.length)
+      throw Error('Duplicate post evidence');
     return {
       name: required(creator.name, 'Creator name', 2, 120),
       profileUrl: linkedinUrl(creator.profileUrl, 'Creator profile', 'profile'),
@@ -132,7 +183,10 @@ export function validateResearchInput(raw: unknown): ResearchInput {
     creators,
   };
 }
-export function executeResearch(raw: unknown, ownerId = 'local-owner'): ResearchRun {
+export function executeResearch(
+  raw: unknown,
+  ownerId = 'local-owner'
+): ResearchRun {
   const input = validateResearchInput(raw);
   const sources = input.creators.flatMap((creator) =>
     creator.posts.map((post) => ({
@@ -140,13 +194,19 @@ export function executeResearch(raw: unknown, ownerId = 'local-owner'): Research
       url: post.url,
       excerpt: post.text,
       digest: hash(post),
-    })),
+    }))
   );
   const profiles = input.creators.map((creator) => {
-    const frequency = new Map<string, { mentions: number; urls: Set<string> }>();
+    const frequency = new Map<
+      string,
+      { mentions: number; urls: Set<string> }
+    >();
     for (const post of creator.posts)
       for (const word of new Set(words(post.text))) {
-        const item = frequency.get(word) ?? { mentions: 0, urls: new Set<string>() };
+        const item = frequency.get(word) ?? {
+          mentions: 0,
+          urls: new Set<string>(),
+        };
         item.mentions++;
         item.urls.add(post.url);
         frequency.set(word, item);
@@ -154,11 +214,23 @@ export function executeResearch(raw: unknown, ownerId = 'local-owner'): Research
     const topics = [...frequency]
       .sort((a, b) => b[1].mentions - a[1].mentions || a[0].localeCompare(b[0]))
       .slice(0, 8)
-      .map(([word, item]) => ({ word, mentions: item.mentions, sources: [...item.urls] }));
-    return { name: creator.name, profileUrl: creator.profileUrl, headline: creator.headline, topics };
+      .map(([word, item]) => ({
+        word,
+        mentions: item.mentions,
+        sources: [...item.urls],
+      }));
+    return {
+      name: creator.name,
+      profileUrl: creator.profileUrl,
+      headline: creator.headline,
+      topics,
+    };
   });
   const ownerWords = new Set(words(input.ownerHeadline));
-  const missing = new Map<string, { creators: Set<string>; sources: Set<string>; mentions: number }>();
+  const missing = new Map<
+    string,
+    { creators: Set<string>; sources: Set<string>; mentions: number }
+  >();
   for (const profile of profiles)
     for (const topic of profile.topics) {
       if (ownerWords.has(topic.word)) continue;
@@ -179,10 +251,14 @@ export function executeResearch(raw: unknown, ownerId = 'local-owner'): Research
       (a, b) =>
         b[1].creators.size - a[1].creators.size ||
         b[1].mentions - a[1].mentions ||
-        a[0].localeCompare(b[0]),
+        a[0].localeCompare(b[0])
     )
     .slice(0, 6)
-    .map(([topic, item]) => ({ topic, observedIn: [...item.creators], examples: [...item.sources] }));
+    .map(([topic, item]) => ({
+      topic,
+      observedIn: [...item.creators],
+      examples: [...item.sources],
+    }));
   const experiments = gaps.slice(0, 3).map((gap) => ({
     hypothesis: `Test whether an evidence-backed post about "${gap.topic}" is relevant to the stated ${input.niche} audience.`,
     evidenceUrls: gap.examples,
@@ -251,22 +327,32 @@ export class CreatorResearchStore {
   }
   async create(raw: unknown): Promise<ResearchRun> {
     const run = executeResearch(raw, this.documents?.ownerId ?? 'local-owner');
-    if (this.documents) await this.documents.put('linkedin-research', run.id, run, 0);
+    if (this.documents)
+      await this.documents.put('linkedin-research', run.id, run, 0);
     else {
       await mkdir(this.root, { recursive: true, mode: 0o700 });
-      await writeFile(resolve(this.root, `${run.id}.json`), `${JSON.stringify(run)}\n`, {
-        flag: 'wx',
-        mode: 0o600,
-      });
+      await writeFile(
+        resolve(this.root, `${run.id}.json`),
+        `${JSON.stringify(run)}\n`,
+        {
+          flag: 'wx',
+          mode: 0o600,
+        }
+      );
     }
     return run;
   }
   async get(id: string): Promise<ResearchRun | null> {
     if (!idPattern.test(id)) throw Error('Invalid research identifier');
     if (this.documents)
-      return (await this.documents.get<ResearchRun>('linkedin-research', id))?.value ?? null;
+      return (
+        (await this.documents.get<ResearchRun>('linkedin-research', id))
+          ?.value ?? null
+      );
     try {
-      return JSON.parse(await readFile(resolve(this.root, `${id}.json`), 'utf8')) as ResearchRun;
+      return JSON.parse(
+        await readFile(resolve(this.root, `${id}.json`), 'utf8')
+      ) as ResearchRun;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
       throw error;
@@ -288,7 +374,7 @@ export class CreatorResearchStore {
     const values = await Promise.all(
       names
         .filter((n) => n.endsWith('.json') && idPattern.test(n.slice(0, -5)))
-        .map((n) => this.get(n.slice(0, -5))),
+        .map((n) => this.get(n.slice(0, -5)))
     );
     return values
       .filter((v): v is ResearchRun => v !== null)

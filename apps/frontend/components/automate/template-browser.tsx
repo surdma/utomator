@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from 'react';
 import {
   CalendarClock,
   Check,
@@ -11,22 +11,22 @@ import {
   ShieldCheck,
   Sparkles,
   Workflow,
-} from "lucide-react";
+} from 'lucide-react';
 import {
   templateCatalog,
   templateCategories,
   type CatalogTemplate,
   type TemplateCategory,
   type TemplatePlatform,
-} from "./template-catalog";
-import { growthCapabilities } from "./linkedin-growth-capabilities";
-import type { WorkflowPlan } from "./workflow-plan-editor";
-import TemplateGraphPreview from "./template-graph-preview";
+} from './template-catalog';
+import { growthCapabilities } from './linkedin-growth-capabilities';
+import type { WorkflowPlan } from './workflow-plan-editor';
+import TemplateGraphPreview from './template-graph-preview';
 export type GrowthTemplateSummary = {
   id: string;
   title: string;
   objective: string;
-  platform: "linkedin";
+  platform: 'linkedin';
   pipelineCount: number;
   coverageCount: number;
   executable: boolean;
@@ -41,10 +41,10 @@ type MethodCraft = {
   name: string;
   description: string;
   category: string;
-  scope: "default" | "personal";
+  scope: 'default' | 'personal';
 };
 type Props = {
-  activePlatform: "linkedin" | "x";
+  activePlatform: 'linkedin' | 'x';
   templates: WorkflowPlan[];
   onApply: (plan: WorkflowPlan, templateId: string) => Promise<void>;
   onApplied: () => void;
@@ -62,17 +62,17 @@ export default function TemplateBrowser({
   const [growthTemplates, setGrowthTemplates] = useState<
     GrowthTemplateSummary[]
   >([]);
-  const [growthError, setGrowthError] = useState("");
+  const [growthError, setGrowthError] = useState('');
   const [toolkits, setToolkits] = useState<MethodCraft[]>([]);
-  const [toolkitError, setToolkitError] = useState("");
+  const [toolkitError, setToolkitError] = useState('');
   useEffect(() => {
     const controller = new AbortController();
-    void fetch("/api/growth/templates", {
-      cache: "no-store",
+    void fetch('/api/growth/templates', {
+      cache: 'no-store',
       signal: controller.signal,
     })
       .then(async (response) => {
-        if (!response.ok) throw Error("Growth catalogue unavailable");
+        if (!response.ok) throw Error('Growth catalogue unavailable');
         return response.json() as Promise<GrowthTemplateSummary[]>;
       })
       .then((value) => {
@@ -83,28 +83,28 @@ export default function TemplateBrowser({
           setGrowthError(
             error instanceof Error
               ? error.message
-              : "Growth catalogue unavailable",
+              : 'Growth catalogue unavailable'
           );
       });
     return () => controller.abort();
   }, []);
   useEffect(() => {
     const controller = new AbortController();
-    void fetch("/api/crafts", { cache: "no-store", signal: controller.signal })
+    void fetch('/api/crafts', { cache: 'no-store', signal: controller.signal })
       .then(async (response) => {
         if (!response.ok)
-          throw Error("Growth methodology catalogue unavailable");
+          throw Error('Growth methodology catalogue unavailable');
         return response.json() as Promise<MethodCraft[]>;
       })
       .then((value) => {
         if (!controller.signal.aborted) {
           if (!Array.isArray(value))
-            throw Error("Invalid Growth methodology catalogue");
+            throw Error('Invalid Growth methodology catalogue');
           setToolkits(
             value.filter(
               (item) =>
-                item.scope === "default" && !item.slug.startsWith("growth-"),
-            ),
+                item.scope === 'default' && !item.slug.startsWith('growth-')
+            )
           );
         }
       })
@@ -113,7 +113,7 @@ export default function TemplateBrowser({
           setToolkitError(
             error instanceof Error
               ? error.message
-              : "Growth methodology unavailable",
+              : 'Growth methodology unavailable'
           );
       });
     return () => controller.abort();
@@ -123,39 +123,39 @@ export default function TemplateBrowser({
     setPlatform(activePlatform);
     setPicked(null);
   }, [activePlatform]);
-  const [category, setCategory] = useState<TemplateCategory | "All">("All");
-  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState<TemplateCategory | 'All'>('All');
+  const [query, setQuery] = useState('');
   const [picked, setPicked] = useState<string | null>(null);
   const [applying, setApplying] = useState(false);
-  const [error, setError] = useState("");
-  const growthSupported = typeof onGrowthApply === "function";
+  const [error, setError] = useState('');
+  const growthSupported = typeof onGrowthApply === 'function';
   const allOptions = useMemo<GrowthOption[]>(
     () => [
       ...templateCatalog,
       ...(growthSupported
         ? growthCapabilities.map((cap) => {
-            const id = "linkedin-" + cap.id;
+            const id = 'linkedin-' + cap.id;
             const available = growthTemplates.find(
-              (template) => template.id === id && template.executable,
+              (template) => template.id === id && template.executable
             );
             return {
-              id: "growth-" + id,
+              id: 'growth-' + id,
               growthId: id,
-              platform: "linkedin" as const,
-              category: "Profile" as const,
+              platform: 'linkedin' as const,
+              category: 'Profile' as const,
               title: cap.title,
               description: available?.objective ?? cap.summary,
               capabilities: available
                 ? [
-                    available.pipelineCount + " reviewed Runner pipelines",
-                    available.coverageCount + " owner-evidence targets",
-                    "No unsupported provider edits or growth-outcome claims",
+                    available.pipelineCount + ' reviewed Runner pipelines',
+                    available.coverageCount + ' owner-evidence targets',
+                    'No unsupported provider edits or growth-outcome claims',
                   ]
                 : [...cap.actions],
               automation: available
-                ? ("supported" as const)
-                : ("planned" as const),
-              schedule: "manual" as const,
+                ? ('supported' as const)
+                : ('planned' as const),
+              schedule: 'manual' as const,
             };
           })
         : []),
@@ -164,72 +164,72 @@ export default function TemplateBrowser({
             .filter(
               (template) =>
                 !growthCapabilities.some(
-                  (cap) => "linkedin-" + cap.id === template.id,
-                ),
+                  (cap) => 'linkedin-' + cap.id === template.id
+                )
             )
             .map((template) => ({
-              id: "growth-" + template.id,
+              id: 'growth-' + template.id,
               growthId: template.id,
-              platform: "linkedin" as const,
-              category: "Profile" as const,
+              platform: 'linkedin' as const,
+              category: 'Profile' as const,
               title: template.title,
               description: template.objective,
               capabilities: [
-                template.pipelineCount + " pipelines",
-                template.coverageCount + " coverage requirements",
+                template.pipelineCount + ' pipelines',
+                template.coverageCount + ' coverage requirements',
               ],
               automation: template.executable
-                ? ("supported" as const)
-                : ("planned" as const),
-              schedule: "manual" as const,
+                ? ('supported' as const)
+                : ('planned' as const),
+              schedule: 'manual' as const,
             }))
         : []),
       ...(growthSupported
         ? toolkits.map((item) => ({
-            id: "method-" + item.slug,
+            id: 'method-' + item.slug,
             methodCraftId: item.id,
-            platform: "linkedin" as const,
-            category: (item.category === "content"
-              ? "Publishing"
-              : item.category === "engagement"
-                ? "Engagement"
-                : "Profile") as TemplateCategory,
+            platform: 'linkedin' as const,
+            category: (item.category === 'content'
+              ? 'Publishing'
+              : item.category === 'engagement'
+                ? 'Engagement'
+                : 'Profile') as TemplateCategory,
             title: item.name,
             description: item.description,
             capabilities: [
-              "Existing MDX methodology",
-              "Review in the Growth library",
-              "Not an executable YAML pipeline",
+              'Existing MDX methodology',
+              'Review in the Growth library',
+              'Not an executable YAML pipeline',
             ],
-            automation: "planned" as const,
-            schedule: "manual" as const,
+            automation: 'planned' as const,
+            schedule: 'manual' as const,
           }))
         : []),
     ],
-    [growthTemplates, toolkits, growthSupported],
+    [growthTemplates, toolkits, growthSupported]
   );
   const options = useMemo(
     () =>
       allOptions.filter(
         (item) =>
           item.platform === platform &&
-          (category === "All" || item.category === category) &&
+          (category === 'All' || item.category === category) &&
           (
             item.title +
-            " " +
+            ' ' +
             item.description +
-            " " +
-            item.capabilities.join(" ")
+            ' ' +
+            item.capabilities.join(' ')
           )
             .toLowerCase()
-            .includes(query.toLowerCase().trim()),
+            .includes(query.toLowerCase().trim())
       ),
-    [platform, category, query, allOptions],
+    [platform, category, query, allOptions]
   );
   const selected = options.find((item) => item.id === picked) ?? options[0];
   const selectedPlan = selected?.action
     ? templates.find(
-        (plan) => plan.platform === platform && plan.action === selected.action,
+        (plan) => plan.platform === platform && plan.action === selected.action
       )
     : undefined;
   const selectedGrowth = selected?.growthId
@@ -237,23 +237,23 @@ export default function TemplateBrowser({
     : undefined;
   const count = allOptions.filter((item) => item.platform === platform).length;
   const executable = Boolean(
-    selected?.automation === "supported" &&
-      (selected.growthId ||
-        (selected.action &&
-          templates.some(
-            (plan) =>
-              plan.platform === platform && plan.action === selected.action,
-          ))),
+    selected?.automation === 'supported' &&
+    (selected.growthId ||
+      (selected.action &&
+        templates.some(
+          (plan) =>
+            plan.platform === platform && plan.action === selected.action
+        )))
   );
   // Loading a validated template is local authoring, never a LinkedIn action.
   // Account verification is checked again when the operator starts a run.
   const loadable =
-    executable && platform === "linkedin" && activePlatform === "linkedin";
+    executable && platform === 'linkedin' && activePlatform === 'linkedin';
   async function applyTemplate() {
     if (!selected || !loadable) return;
     if (!selected.action && !selected.growthId) return;
     setApplying(true);
-    setError("");
+    setError('');
     if (selected.growthId) {
       try {
         await onGrowthApply?.(selected.growthId);
@@ -262,7 +262,7 @@ export default function TemplateBrowser({
         onApplied();
       } catch (e) {
         setError(
-          e instanceof Error ? e.message : "Could not load Growth workflow",
+          e instanceof Error ? e.message : 'Could not load Growth workflow'
         );
       } finally {
         setApplying(false);
@@ -270,22 +270,22 @@ export default function TemplateBrowser({
       return;
     }
     const plan = templates.find(
-      (t) => t.platform === platform && t.action === selected.action,
+      (t) => t.platform === platform && t.action === selected.action
     );
     if (!plan) {
-      setError("This template has no registered executable definition.");
+      setError('This template has no registered executable definition.');
       setApplying(false);
       return;
     }
-    const configured = selected.id.endsWith("-quit")
+    const configured = selected.id.endsWith('-quit')
       ? (() => {
           const steps = [...plan.steps],
-            index = steps.findIndex((step) => step.id === "action");
+            index = steps.findIndex((step) => step.id === 'action');
           steps.splice(index, 0, {
-            id: "step-quit",
-            kind: "stop",
-            title: "Quit safely",
-            message: "Operator stopped workflow before browser action",
+            id: 'step-quit',
+            kind: 'stop',
+            title: 'Quit safely',
+            message: 'Operator stopped workflow before browser action',
           });
           return {
             ...plan,
@@ -304,18 +304,18 @@ export default function TemplateBrowser({
       onApplied();
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : "Could not save selected template",
+        e instanceof Error ? e.message : 'Could not save selected template'
       );
     } finally {
       setApplying(false);
     }
   }
   const platforms: ReadonlyArray<{ id: TemplatePlatform; name: string }> = [
-    { id: "linkedin", name: "LinkedIn" },
-    { id: "x", name: "X / Twitter" },
-    { id: "instagram", name: "Instagram" },
-    { id: "github", name: "GitHub" },
-    { id: "devto", name: "Dev.to" },
+    { id: 'linkedin', name: 'LinkedIn' },
+    { id: 'x', name: 'X / Twitter' },
+    { id: 'instagram', name: 'Instagram' },
+    { id: 'github', name: 'GitHub' },
+    { id: 'devto', name: 'Dev.to' },
   ];
   return (
     <div
@@ -324,7 +324,7 @@ export default function TemplateBrowser({
     >
       <div className="mb-3 grid shrink-0 gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-teal-700">
+          <p className="text-[10px] font-bold tracking-[0.16em] text-teal-700 uppercase">
             Social presence library
           </p>
           <p className="mt-1 text-sm text-slate-600">
@@ -349,14 +349,14 @@ export default function TemplateBrowser({
             onClick={() => {
               setPlatform(p.id);
               setPicked(null);
-              setError("");
+              setError('');
             }}
             aria-pressed={platform === p.id}
             className={
-              "min-h-11 rounded-xl border px-4 text-xs font-bold transition " +
+              'min-h-11 rounded-xl border px-4 text-xs font-bold transition ' +
               (platform === p.id
-                ? "border-slate-950 bg-slate-950 text-white"
-                : "border-slate-200 bg-white text-slate-600 hover:border-slate-400")
+                ? 'border-slate-950 bg-slate-950 text-white'
+                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400')
             }
           >
             {p.name}
@@ -365,7 +365,7 @@ export default function TemplateBrowser({
       </div>
       <div className="mb-3 flex shrink-0 flex-wrap items-center gap-2">
         <div className="relative min-w-[210px] flex-1">
-          <Search className="pointer-events-none absolute left-3 top-3.5 size-4 text-slate-400" />
+          <Search className="pointer-events-none absolute top-3.5 left-3 size-4 text-slate-400" />
           <input
             aria-label="Search workflow templates"
             type="search"
@@ -375,14 +375,14 @@ export default function TemplateBrowser({
               setPicked(null);
             }}
             placeholder="Search optimization, posts, reels…"
-            className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm outline-teal-700"
+            className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pr-3 pl-10 text-sm outline-teal-700"
           />
         </div>
         <select
           aria-label="Filter template category"
           value={category}
           onChange={(e) => {
-            setCategory(e.target.value as TemplateCategory | "All");
+            setCategory(e.target.value as TemplateCategory | 'All');
             setPicked(null);
           }}
           className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold"
@@ -412,26 +412,26 @@ export default function TemplateBrowser({
                 aria-selected={selected?.id === item.id}
                 onClick={() => {
                   setPicked(item.id);
-                  setError("");
+                  setError('');
                 }}
                 className={
-                  "flex w-full items-start gap-3 rounded-2xl border p-3.5 text-left transition focus-visible:outline-2 focus-visible:outline-teal-700 " +
+                  'flex w-full items-start gap-3 rounded-2xl border p-3.5 text-left transition focus-visible:outline-2 focus-visible:outline-teal-700 ' +
                   (selected?.id === item.id
-                    ? "border-teal-500 bg-teal-50/80"
-                    : "border-slate-200 bg-white hover:bg-slate-50")
+                    ? 'border-teal-500 bg-teal-50/80'
+                    : 'border-slate-200 bg-white hover:bg-slate-50')
                 }
               >
                 <span
                   className={
-                    "mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl " +
-                    (item.automation === "supported"
-                      ? "bg-emerald-100 text-emerald-800"
-                      : "bg-slate-100 text-slate-500")
+                    'mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl ' +
+                    (item.automation === 'supported'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-slate-100 text-slate-500')
                   }
                 >
-                  {item.category === "Planning" ? (
+                  {item.category === 'Planning' ? (
                     <CalendarClock className="size-4" />
-                  ) : item.category === "Publishing" ? (
+                  ) : item.category === 'Publishing' ? (
                     <Sparkles className="size-4" />
                   ) : (
                     <Workflow className="size-4" />
@@ -447,17 +447,17 @@ export default function TemplateBrowser({
                   <span className="mt-2 flex flex-wrap items-center gap-2 text-[10px] font-semibold">
                     <span
                       className={
-                        item.automation === "supported"
-                          ? "text-emerald-800"
-                          : "text-amber-800"
+                        item.automation === 'supported'
+                          ? 'text-emerald-800'
+                          : 'text-amber-800'
                       }
                     >
                       {item.methodCraftId
-                        ? "MDX guidance only"
-                        : item.automation === "supported" &&
-                            item.platform === "linkedin"
-                          ? "Ready to load"
-                          : "Coming soon"}
+                        ? 'MDX guidance only'
+                        : item.automation === 'supported' &&
+                            item.platform === 'linkedin'
+                          ? 'Ready to load'
+                          : 'Coming soon'}
                     </span>
                     <span className="text-slate-400">{item.category}</span>
                   </span>
@@ -474,11 +474,11 @@ export default function TemplateBrowser({
           {selected ? (
             <>
               <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
-                <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-teal-700">
+                <div className="flex items-center gap-2 text-[11px] font-bold tracking-wider text-teal-700 uppercase">
                   <ShieldCheck className="size-4" />
                   Template details
                 </div>
-                <h3 className="text-lg font-extrabold leading-tight text-slate-950">
+                <h3 className="text-lg leading-tight font-extrabold text-slate-950">
                   {selected.title}
                 </h3>
                 {selected?.methodCraftId && (
@@ -497,7 +497,7 @@ export default function TemplateBrowser({
                 {selectedGrowth && (
                   <div className="rounded-xl border border-teal-200 bg-teal-50 p-3 text-xs leading-6 text-teal-950">
                     <p className="font-bold">
-                      YAML Growth workflow · {selectedGrowth.pipelineCount}{" "}
+                      YAML Growth workflow · {selectedGrowth.pipelineCount}{' '}
                       connected pipelines
                     </p>
                     <p>
@@ -549,12 +549,12 @@ export default function TemplateBrowser({
                 <div className="mt-5 border-t border-slate-200 pt-3 text-[11px] leading-5 text-slate-600">
                   <p className="flex items-center gap-2">
                     <Clock3 className="size-3.5" />
-                    Trigger:{" "}
-                    {selected.schedule === "manual"
-                      ? "Manual start"
-                      : "Scheduling requires a durable runner"}
+                    Trigger:{' '}
+                    {selected.schedule === 'manual'
+                      ? 'Manual start'
+                      : 'Scheduling requires a durable runner'}
                   </p>
-                  {selected.automation === "planned" &&
+                  {selected.automation === 'planned' &&
                     !selected.methodCraftId && (
                       <p className="mt-2">
                         This template is coming soon. A verified provider
@@ -598,10 +598,10 @@ export default function TemplateBrowser({
                 {selected?.methodCraftId ? (
                   <a
                     href={
-                      "/dashboard/growth/" +
+                      '/dashboard/growth/' +
                       encodeURIComponent(selected.methodCraftId)
                     }
-                    className="flex w-full min-h-11 items-center justify-center rounded-xl bg-slate-950 px-4 text-xs font-bold text-white"
+                    className="flex min-h-11 w-full items-center justify-center rounded-xl bg-slate-950 px-4 text-xs font-bold text-white"
                   >
                     Open methodology in Growth library
                   </a>
@@ -614,26 +614,26 @@ export default function TemplateBrowser({
                     }}
                     aria-label={
                       selected?.growthId
-                        ? "Load Growth workflow"
-                        : "Load selected pipeline"
+                        ? 'Load Growth workflow'
+                        : 'Load selected pipeline'
                     }
-                    className="flex w-full min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                    className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
                   >
                     {applying
-                      ? "Loading template…"
+                      ? 'Loading template…'
                       : !loadable
-                        ? "Not available yet"
+                        ? 'Not available yet'
                         : selected?.growthId
-                          ? "Load Growth workflow"
-                          : "Load pipeline"}
+                          ? 'Load Growth workflow'
+                          : 'Load pipeline'}
                   </button>
                 )}
                 <p className="mt-2 text-center text-[10px] text-slate-500">
                   {selected?.methodCraftId
-                    ? "Opens the original MDX toolkit without claiming it is an executable YAML workflow."
+                    ? 'Opens the original MDX toolkit without claiming it is an executable YAML workflow.'
                     : loadable
-                      ? "Loads an editable copy on the dashboard; it does not start a LinkedIn action."
-                      : "Planned templates require a supported integration before they can be loaded or run."}
+                      ? 'Loads an editable copy on the dashboard; it does not start a LinkedIn action.'
+                      : 'Planned templates require a supported integration before they can be loaded or run.'}
                 </p>
               </div>
             </>

@@ -3,7 +3,10 @@ import { test } from 'node:test';
 // Set the test environment before loading the Fastify app, matching other route tests.
 process.env.NODE_ENV = 'test';
 const { buildApp } = await import('../src/main.js');
-import { compileGrowthProfileYaml, readGrowthProfileWorkflow } from '../src/engine/growth-profile.js';
+import {
+  compileGrowthProfileYaml,
+  readGrowthProfileWorkflow,
+} from '../src/engine/growth-profile.js';
 
 test('Profile YAML retains nine requirements, twenty evidence targets and compiled registered actions', async () => {
   const { program } = await readGrowthProfileWorkflow();
@@ -11,31 +14,45 @@ test('Profile YAML retains nine requirements, twenty evidence targets and compil
   assert.equal(program.requirements.length, 9);
   assert.equal(program.coverage.length, 20);
   assert.equal(program.pipelines.length, 9);
-  assert(program.coverage.every((item) => item.status === 'requires-independent-evidence'));
+  assert(
+    program.coverage.every(
+      (item) => item.status === 'requires-independent-evidence'
+    )
+  );
   assert(
     program.pipelines.every(
       (item) =>
         item.source === 'registered-workflow-plan' &&
         item.requiresConnectedAccount &&
-        item.stepCount >= 4,
-    ),
+        item.stepCount >= 4
+    )
   );
 });
 test('Unknown operations, duplicated evidence targets and unknown YAML keys fail closed', async () => {
   const { yaml } = await readGrowthProfileWorkflow();
   assert.throws(
-    () => compileGrowthProfileYaml(yaml.replace('"add-featured"', '"delete-post"')),
-    /missing, duplicated or unregistered/,
+    () =>
+      compileGrowthProfileYaml(yaml.replace('"add-featured"', '"delete-post"')),
+    /missing, duplicated or unregistered/
   );
   assert.throws(
-    () => compileGrowthProfileYaml(yaml.replace('"Profile verification"', '"Profile photo"')),
-    /missing, duplicated or unregistered/,
+    () =>
+      compileGrowthProfileYaml(
+        yaml.replace('"Profile verification"', '"Profile photo"')
+      ),
+    /missing, duplicated or unregistered/
   );
   assert.throws(
-    () => compileGrowthProfileYaml(yaml.replace('  objective:', '  unsupported: "yes"\n  objective:')),
-    /Invalid Growth profile YAML spec/,
+    () =>
+      compileGrowthProfileYaml(
+        yaml.replace('  objective:', '  unsupported: "yes"\n  objective:')
+      ),
+    /Invalid Growth profile YAML spec/
   );
-  assert.throws(() => compileGrowthProfileYaml(yaml + '\nspec:\n'), /Duplicate YAML key/);
+  assert.throws(
+    () => compileGrowthProfileYaml(yaml + '\nspec:\n'),
+    /Duplicate YAML key/
+  );
 });
 test('Read-only YAML and compiled program endpoints do not create a run', async () => {
   const app = buildApp();
@@ -69,7 +86,10 @@ test('six dependent pipelines reuse validated Runner WorkflowPlans and record in
   const stub = {
     start(input: RunRequest) {
       validateRun(input);
-      assert(input.workflow, 'each stage must use the existing WorkflowPlan compiler');
+      assert(
+        input.workflow,
+        'each stage must use the existing WorkflowPlan compiler'
+      );
       compileWorkflow(input.workflow);
       actions.push(input.action);
       const summary: RunSummary = {
@@ -88,7 +108,10 @@ test('six dependent pipelines reuse validated Runner WorkflowPlans and record in
     stepOutput(id: string, stageId: string) {
       const run = runs.get(id);
       if (!run) return null;
-      assert.equal(stageId, run.input.action === 'audit-page' ? 'sectionEvidence' : 'baseline');
+      assert.equal(
+        stageId,
+        run.input.action === 'audit-page' ? 'sectionEvidence' : 'baseline'
+      );
       return {
         schema: 'evidence/v1',
         url: run.input.pageUrl ?? run.input.profileUrl,
@@ -115,7 +138,7 @@ test('six dependent pipelines reuse validated Runner WorkflowPlans and record in
       sectionId: 'headline',
       text: 'Not in the active identity stage',
     }),
-    /current stage/,
+    /current stage/
   );
   const afterEvidence = await coordinator.supplyEvidence(started.id, {
     sectionId: 'profilePhoto',
@@ -124,14 +147,21 @@ test('six dependent pipelines reuse validated Runner WorkflowPlans and record in
   assert.equal(afterEvidence.counts.ownerSupplied, 1);
   assert.equal(
     afterEvidence.coverage.find((item) => item.id === 'profilePhoto')?.status,
-    'owner-supplied-unverified',
+    'owner-supplied-unverified'
   );
   let stage = afterEvidence;
   for (let step = 0; step < 6; step++) {
     stage = await coordinator.advance(started.id);
     if (step < 5) assert.equal(stage.activeIndex, step + 1);
   }
-  assert.deepEqual(actions, ['audit', 'audit', 'audit-page', 'audit-page', 'audit', 'audit']);
+  assert.deepEqual(actions, [
+    'audit',
+    'audit',
+    'audit-page',
+    'audit-page',
+    'audit',
+    'audit',
+  ]);
   assert.equal(runs.size, 6);
   assert.equal([...runs.values()].filter((r) => r.input.pageUrl).length, 2);
   assert.equal(stage.status, 'completed-with-gaps');
@@ -169,12 +199,12 @@ test('unverified Growth run cannot advance, and no valid account means no browse
   const coordinator = new ProfileGrowthCoordinator(runner);
   await assert.rejects(
     coordinator.start('bad-identity', 'https://www.linkedin.com/in/owner/'),
-    /Verified LinkedIn account ID/,
+    /Verified LinkedIn account ID/
   );
   assert.equal(starts, 0);
   const result = await coordinator.start(
     'c63e8078-644d-4a2a-80bd-7cba9eaa0e1b',
-    'https://www.linkedin.com/in/verified-owner/',
+    'https://www.linkedin.com/in/verified-owner/'
   );
   await assert.rejects(coordinator.advance(result.id), /not completed/);
   assert.equal(starts, 1);
@@ -184,7 +214,10 @@ test('Growth composite API requires a genuine linked account, not arbitrary prof
   const app = buildApp();
   try {
     await app.ready();
-    const initial = await app.inject({ method: 'GET', url: '/growth/workflows/profile/runs' });
+    const initial = await app.inject({
+      method: 'GET',
+      url: '/growth/workflows/profile/runs',
+    });
     assert.equal(initial.statusCode, 200, initial.body);
     const start = await app.inject({
       method: 'POST',
@@ -192,26 +225,43 @@ test('Growth composite API requires a genuine linked account, not arbitrary prof
       payload: { accountId: 'c63e8078-644d-4a2a-80bd-7cba9eaa0e1b' },
     });
     assert.equal(start.statusCode, 400, start.body);
-    assert.equal((await app.inject('/growth/workflows/profile/runs')).json().length, 0);
-    assert.equal((await app.inject('/growth/workflows/profile/runs/' + randomUUID())).statusCode, 404);
+    assert.equal(
+      (await app.inject('/growth/workflows/profile/runs')).json().length,
+      0
+    );
+    assert.equal(
+      (await app.inject('/growth/workflows/profile/runs/' + randomUUID()))
+        .statusCode,
+      404
+    );
   } finally {
     await app.close();
   }
 });
 
-import { readGrowthTemplateCatalog, readGrowthTemplate } from '../src/engine/growth-profile.js';
+import {
+  readGrowthTemplateCatalog,
+  readGrowthTemplate,
+} from '../src/engine/growth-profile.js';
 
 test('all YAML Growth templates share the same discoverable manifest contract', async () => {
   const catalog = await readGrowthTemplateCatalog();
   assert(catalog.length >= 1);
-  assert.equal(catalog.find((item) => item.program.id === 'linkedin-profile')?.program.stages.length, 6);
-  assert.equal((await readGrowthTemplate('linkedin-profile'))?.program.id, 'linkedin-profile');
+  assert.equal(
+    catalog.find((item) => item.program.id === 'linkedin-profile')?.program
+      .stages.length,
+    6
+  );
+  assert.equal(
+    (await readGrowthTemplate('linkedin-profile'))?.program.id,
+    'linkedin-profile'
+  );
   assert.equal(await readGrowthTemplate('missing-template'), null);
   const { yaml } = await readGrowthProfileWorkflow();
   const another = compileGrowthProfileYaml(
     yaml
       .replace('id: "linkedin-profile"', 'id: "linkedin-competitors"')
-      .replace('    skills: "add-skill"\n', ''),
+      .replace('    skills: "add-skill"\n', '')
   );
   assert.equal(another.id, 'linkedin-competitors');
   assert.equal(another.pipelines.length, 8);
@@ -220,8 +270,8 @@ test('all YAML Growth templates share the same discoverable manifest contract', 
       (stage) =>
         stage.plan.steps[0]?.kind === 'start' &&
         stage.plan.steps[1]?.kind === 'session' &&
-        stage.plan.links.length > 0,
-    ),
+        stage.plan.links.length > 0
+    )
   );
 });
 
@@ -231,22 +281,39 @@ test('YAML Growth template API exposes the entire task graph and rejects unsuppo
     await app.ready();
     const catalog = await app.inject('/growth/templates');
     assert.equal(catalog.statusCode, 200, catalog.body);
-    assert(catalog.json().some((item: { id: string }) => item.id === 'linkedin-profile'));
+    assert(
+      catalog
+        .json()
+        .some((item: { id: string }) => item.id === 'linkedin-profile')
+    );
     const detail = await app.inject('/growth/templates/linkedin-profile');
     assert.equal(detail.statusCode, 200, detail.body);
     assert.equal(detail.json().stages.length, 6);
     assert(
-      detail.json().stages.every((item: { plan: { steps: unknown[] } }) => item.plan.steps.length >= 4),
+      detail
+        .json()
+        .stages.every(
+          (item: { plan: { steps: unknown[] } }) => item.plan.steps.length >= 4
+        )
     );
-    assert.equal((await app.inject('/growth/templates/linkedin-profile/yaml')).statusCode, 200);
-    assert.equal((await app.inject('/growth/templates/no-such-workflow')).statusCode, 404);
+    assert.equal(
+      (await app.inject('/growth/templates/linkedin-profile/yaml')).statusCode,
+      200
+    );
+    assert.equal(
+      (await app.inject('/growth/templates/no-such-workflow')).statusCode,
+      404
+    );
     const rejected = await app.inject({
       method: 'POST',
       url: '/growth/templates/linkedin-profile/runs',
       payload: { accountId: 'c63e8078-644d-4a2a-80bd-7cba9eaa0e1b' },
     });
     assert.equal(rejected.statusCode, 400, rejected.body);
-    assert.deepEqual((await app.inject('/growth/templates/linkedin-profile/runs')).json(), []);
+    assert.deepEqual(
+      (await app.inject('/growth/templates/linkedin-profile/runs')).json(),
+      []
+    );
   } finally {
     await app.close();
   }
@@ -288,7 +355,10 @@ test('composite runner reports failed pipelines and the exact failed child task'
     },
   } as unknown as Runner;
   const coordinator = new ProfileGrowthCoordinator(runner);
-  const run = await coordinator.start(id, 'https://www.linkedin.com/in/verified-owner/');
+  const run = await coordinator.start(
+    id,
+    'https://www.linkedin.com/in/verified-owner/'
+  );
   assert.equal(run.pipelineRuns[0]?.state, 'failed');
   assert.equal(run.pipelineRuns[0]?.currentStepId, 'inspect');
   assert.match(run.pipelineRuns[0]?.error ?? '', /inspection failed/);
@@ -332,11 +402,17 @@ test('completed child waits for Runner browser cleanup before the next pipeline'
     },
   } as unknown as Runner;
   const coordinator = new ProfileGrowthCoordinator(runner);
-  const started = await coordinator.start(accountId, 'https://www.linkedin.com/in/verified-owner/');
+  const started = await coordinator.start(
+    accountId,
+    'https://www.linkedin.com/in/verified-owner/'
+  );
   assert.equal(started.currentChild?.state, 'completed');
   assert.equal(started.releasePending, true);
   assert.equal(started.canAdvance, false);
-  await assert.rejects(coordinator.advance(started.id), /browser session is still closing/);
+  await assert.rejects(
+    coordinator.advance(started.id),
+    /browser session is still closing/
+  );
   assert.equal(starts, 1, 'blocked advance must never launch a second browser');
   assert.equal((await coordinator.get(started.id))?.activeIndex, 0);
   idle = true;
@@ -348,23 +424,31 @@ test('completed child waits for Runner browser cleanup before the next pipeline'
 
 test('a second Growth YAML is discovered and compiled as one guarded pipeline', async () => {
   const templates = await readGrowthTemplateCatalog();
-  const second = templates.find((item) => item.program.id === 'linkedin-branding');
-  assert(second, 'another Growth must be discovered without a dedicated page or controller');
+  const second = templates.find(
+    (item) => item.program.id === 'linkedin-branding'
+  );
+  assert(
+    second,
+    'another Growth must be discovered without a dedicated page or controller'
+  );
   assert.equal(second.program.kind, 'GrowthWorkflow');
   assert.equal(second.program.stages.length, 1);
   assert.equal(second.program.coverage.length, 5);
   assert.deepEqual(
     second.program.stages[0]?.sectionIds,
-    second.program.coverage.map((item) => item.id),
+    second.program.coverage.map((item) => item.id)
   );
   assert.equal(second.program.stages[0]?.plan.steps[1]?.kind, 'session');
   assert(second.program.stages[0]!.plan.links.length >= 4);
   assert.throws(
     () =>
       compileGrowthProfileYaml(
-        second.yaml.replace('      action: "audit"', '      action: "edit-profile"'),
+        second.yaml.replace(
+          '      action: "audit"',
+          '      action: "edit-profile"'
+        )
       ),
-    /Invalid or unsafe Growth pipeline stage configuration/,
+    /Invalid or unsafe Growth pipeline stage configuration/
   );
   const app = buildApp();
   try {
@@ -372,8 +456,14 @@ test('a second Growth YAML is discovered and compiled as one guarded pipeline', 
     const detail = await app.inject('/growth/templates/linkedin-branding');
     assert.equal(detail.statusCode, 200, detail.body);
     assert.equal(detail.json().stages.length, 1);
-    assert.equal((await app.inject('/growth/templates/linkedin-branding/yaml')).statusCode, 200);
-    assert.deepEqual((await app.inject('/growth/templates/linkedin-branding/runs')).json(), []);
+    assert.equal(
+      (await app.inject('/growth/templates/linkedin-branding/yaml')).statusCode,
+      200
+    );
+    assert.deepEqual(
+      (await app.inject('/growth/templates/linkedin-branding/runs')).json(),
+      []
+    );
   } finally {
     await app.close();
   }
@@ -417,7 +507,7 @@ test('single-pipeline Growth reports all owner evidence without false provider v
   const started = await coordinator.start(
     'c63e8078-644d-4a2a-80bd-7cba9eaa0e1b',
     'https://www.linkedin.com/in/verified-owner/',
-    'linkedin-branding',
+    'linkedin-branding'
   );
   assert.equal(started.stages.length, 1);
   assert.equal(started.counts.total, 5);

@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   Activity,
   BookOpen,
@@ -10,9 +10,9 @@ import {
   NotebookPen,
   Search,
   ShieldCheck,
-} from "lucide-react";
+} from 'lucide-react';
 
-type Platform = "linkedin" | "x";
+type Platform = 'linkedin' | 'x';
 type MemoryNote = {
   id: string;
   createdAt: string;
@@ -28,10 +28,10 @@ type Observation = {
   title: string | null;
   headline: string | null;
   bio: string | null;
-  source: "browser-audit";
+  source: 'browser-audit';
 };
 const input =
-  "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-600/15";
+  'w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-600/15';
 function Frame({
   kicker,
   heading,
@@ -46,7 +46,7 @@ function Frame({
   return (
     <div className="space-y-5">
       <header className="rounded-[24px] border border-slate-200 bg-[#111e2b] px-6 py-7 text-white">
-        <p className="text-[11px] font-bold uppercase tracking-[.18em] text-teal-300">
+        <p className="text-[11px] font-bold tracking-[.18em] text-teal-300 uppercase">
           {kicker}
         </p>
         <h1 className="mt-4 font-serif text-3xl tracking-tight sm:text-4xl">
@@ -76,9 +76,9 @@ export function MemoryStudio({
   draft: string;
   onDraftChange: (value: string) => void;
   onSave: () => void;
-  feedback?: { kind: "success" | "error"; message: string } | null;
+  feedback?: { kind: 'success' | 'error'; message: string } | null;
 }) {
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
   const matches = useMemo(
     () =>
       notes
@@ -86,11 +86,11 @@ export function MemoryStudio({
           (note) =>
             note.platform === platform &&
             note.scope.toLowerCase().includes(handle.toLowerCase()) &&
-            note.text.toLowerCase().includes(search.toLowerCase()),
+            note.text.toLowerCase().includes(search.toLowerCase())
         )
         .slice()
         .reverse(),
-    [notes, platform, handle, search],
+    [notes, platform, handle, search]
   );
   return (
     <Frame
@@ -100,8 +100,8 @@ export function MemoryStudio({
     >
       {feedback && (
         <p
-          role={feedback.kind === "error" ? "alert" : "status"}
-          className={`rounded-xl border p-3 text-sm ${feedback.kind === "error" ? "border-rose-200 bg-rose-50 text-rose-800" : "border-teal-200 bg-teal-50 text-teal-800"}`}
+          role={feedback.kind === 'error' ? 'alert' : 'status'}
+          className={`rounded-xl border p-3 text-sm ${feedback.kind === 'error' ? 'border-rose-200 bg-rose-50 text-rose-800' : 'border-teal-200 bg-teal-50 text-teal-800'}`}
         >
           {feedback.message}
         </p>
@@ -122,7 +122,7 @@ export function MemoryStudio({
         </label>
         <textarea
           id="identityNote"
-          className={input + " resize-y leading-6"}
+          className={input + ' resize-y leading-6'}
           rows={4}
           maxLength={800}
           value={draft}
@@ -149,12 +149,12 @@ export function MemoryStudio({
           <div>
             <h2 className="text-sm font-bold">Saved memory</h2>
             <p className="mt-1 text-xs text-slate-500">
-              {matches.length} note(s) for{" "}
-              {platform === "linkedin" ? "LinkedIn" : "X"} · @{handle}
+              {matches.length} note(s) for{' '}
+              {platform === 'linkedin' ? 'LinkedIn' : 'X'} · @{handle}
             </p>
           </div>
           <div className="relative w-full sm:w-56">
-            <Search className="absolute left-3 top-3 size-4 text-slate-400" />
+            <Search className="absolute top-3 left-3 size-4 text-slate-400" />
             <label className="sr-only" htmlFor="memorySearch">
               Search memory
             </label>
@@ -163,7 +163,7 @@ export function MemoryStudio({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search notes"
-              className={input + " pl-9"}
+              className={input + ' pl-9'}
             />
           </div>
         </div>
@@ -184,7 +184,7 @@ export function MemoryStudio({
                 key={note.id}
                 className="rounded-xl border border-slate-200 bg-slate-50/60 p-4"
               >
-                <p className="whitespace-pre-wrap text-sm leading-6 text-slate-800">
+                <p className="text-sm leading-6 whitespace-pre-wrap text-slate-800">
                   {note.text}
                 </p>
                 <p className="mt-3 flex items-center gap-1.5 text-[11px] text-slate-500">
@@ -214,20 +214,20 @@ export function ObserverStudio({
   platform: Platform;
   handle: string;
 }) {
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
   const scoped = useMemo(
     () =>
       observations.filter(
         (item) =>
           item.platform === platform &&
-          item.url.toLowerCase().includes(handle.toLowerCase()),
+          item.url.toLowerCase().includes(handle.toLowerCase())
       ),
-    [observations, platform, handle],
+    [observations, platform, handle]
   );
   const matches = scoped.filter((item) =>
-    `${item.title || ""} ${item.headline || ""} ${item.bio || ""}`
+    `${item.title || ''} ${item.headline || ''} ${item.bio || ''}`
       .toLowerCase()
-      .includes(search.toLowerCase()),
+      .includes(search.toLowerCase())
   );
   const uniqueRuns = new Set(scoped.map((item) => item.runId)).size;
   return (
@@ -252,7 +252,7 @@ export function ObserverStudio({
           <p className="mt-2 text-sm font-semibold">
             {scoped[0]
               ? new Date(scoped[0].timestamp).toLocaleDateString()
-              : "Not yet observed"}
+              : 'Not yet observed'}
           </p>
         </div>
       </div>
@@ -271,13 +271,13 @@ export function ObserverStudio({
             </p>
           </div>
           <div className="relative w-full sm:w-56">
-            <Filter className="absolute left-3 top-3 size-4 text-slate-400" />
+            <Filter className="absolute top-3 left-3 size-4 text-slate-400" />
             <label className="sr-only" htmlFor="observationSearch">
               Filter observations
             </label>
             <input
               id="observationSearch"
-              className={input + " pl-9"}
+              className={input + ' pl-9'}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Filter observations"
@@ -299,11 +299,11 @@ export function ObserverStudio({
             {matches.slice(0, 100).map((item, i) => (
               <li
                 key={`${item.runId}-${item.timestamp}-${i}`}
-                className="relative rounded-xl border border-slate-200 bg-slate-50/60 p-4 before:absolute before:-left-[29px] before:top-5 before:size-2 before:rounded-full before:bg-teal-600"
+                className="relative rounded-xl border border-slate-200 bg-slate-50/60 p-4 before:absolute before:top-5 before:-left-[29px] before:size-2 before:rounded-full before:bg-teal-600"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <p className="text-sm font-bold text-slate-900">
-                    {item.title || "Page observed"}
+                    {item.title || 'Page observed'}
                   </p>
                   <time
                     dateTime={item.timestamp}
@@ -314,7 +314,7 @@ export function ObserverStudio({
                 </div>
                 {item.headline && (
                   <div className="mt-3 rounded-lg bg-white p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    <p className="text-[10px] font-bold tracking-wider text-slate-500 uppercase">
                       Observed headline
                     </p>
                     <p className="mt-1 text-sm leading-6 text-slate-800">
@@ -324,7 +324,7 @@ export function ObserverStudio({
                 )}
                 {item.bio && (
                   <div className="mt-2 rounded-lg bg-white p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    <p className="text-[10px] font-bold tracking-wider text-slate-500 uppercase">
                       Observed bio
                     </p>
                     <p className="mt-1 text-sm leading-6 text-slate-800">

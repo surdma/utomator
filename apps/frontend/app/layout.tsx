@@ -1,41 +1,41 @@
-import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
-import "./globals.css";
-import Navbar from "@/components/navbar";
-import Footer from "@/components/footer";
+import type { Metadata, Viewport } from 'next';
+import { Inter, JetBrains_Mono } from 'next/font/google';
+import './globals.css';
+import Navbar from '@/components/navbar';
+import Footer from '@/components/footer';
 const inter = Inter({
-  variable: "--font-sans",
-  subsets: ["latin"],
-  display: "swap",
+  variable: '--font-sans',
+  subsets: ['latin'],
+  display: 'swap',
 });
 const mono = JetBrains_Mono({
-  variable: "--font-mono",
-  subsets: ["latin"],
-  display: "swap",
+  variable: '--font-mono',
+  subsets: ['latin'],
+  display: 'swap',
 });
 export const viewport: Viewport = {
-  themeColor: "#f8fafc",
-  width: "device-width",
+  themeColor: '#f8fafc',
+  width: 'device-width',
   initialScale: 1,
 };
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+    process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
   ),
   title: {
-    default: "Utomator | Browser automation with human control",
-    template: "%s | Utomator",
+    default: 'Utomator | Browser automation with human control',
+    template: '%s | Utomator',
   },
   description:
-    "Local-first browser workflows for LinkedIn and X. Inspect, explicitly approve, and verify account changes with evidence.",
-  applicationName: "Utomator",
+    'Local-first browser workflows for LinkedIn and X. Inspect, explicitly approve, and verify account changes with evidence.',
+  applicationName: 'Utomator',
   robots: { index: false, follow: false },
-  icons: { icon: "/icon.svg" },
+  icons: { icon: '/icon.svg' },
   openGraph: {
-    title: "Utomator",
+    title: 'Utomator',
     description:
-      "Local-first, approval-driven browser automation for your accounts.",
-    type: "website",
+      'Local-first, approval-driven browser automation for your accounts.',
+    type: 'website',
   },
 };
 export default function RootLayout({
@@ -48,9 +48,9 @@ export default function RootLayout({
       <body
         className={
           inter.variable +
-          " " +
+          ' ' +
           mono.variable +
-          " font-sans min-h-dvh flex flex-col noise"
+          ' noise flex min-h-dvh flex-col font-sans'
         }
       >
         <Navbar />

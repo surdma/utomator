@@ -70,7 +70,15 @@ const actions: Record<Platform, readonly Action[]> = {
     'add-project',
     'add-featured',
   ],
-  x: ['audit', 'audit-page', 'edit-profile', 'compose-post', 'pin-post', 'delete-post', 'upload-banner'],
+  x: [
+    'audit',
+    'audit-page',
+    'edit-profile',
+    'compose-post',
+    'pin-post',
+    'delete-post',
+    'upload-banner',
+  ],
 };
 const stepKinds = new Set<StepKind>([
   'start',
@@ -110,10 +118,17 @@ const allowedParameterKeys = new Set([
   'bannerPath',
 ]);
 
-export function defaultPlan(platform: Platform, action: Action, name?: string): WorkflowPlan {
-  if (!actions[platform]?.includes(action)) throw Error('Unsupported workflow template for platform');
+export function defaultPlan(
+  platform: Platform,
+  action: Action,
+  name?: string
+): WorkflowPlan {
+  if (!actions[platform]?.includes(action))
+    throw Error('Unsupported workflow template for platform');
   const verb =
-    action === 'audit' || action === 'audit-page' ? 'Inspect page' : 'Execute approved action';
+    action === 'audit' || action === 'audit-page'
+      ? 'Inspect page'
+      : 'Execute approved action';
   const steps: WorkflowStep[] = [
     { id: 'start', kind: 'start', title: 'Start run' },
     { id: 'session', kind: 'session', title: 'Authenticated browser' },
@@ -128,12 +143,19 @@ export function defaultPlan(platform: Platform, action: Action, name?: string): 
     action,
     name: name || action.replaceAll('-', ' '),
     steps,
-    links: steps.slice(1).map((step, i) => ({ source: steps[i]!.id, target: step.id })),
+    links: steps
+      .slice(1)
+      .map((step, i) => ({ source: steps[i]!.id, target: step.id })),
   };
 }
 
-export function validatePlan(raw: unknown, platform: Platform, action: Action): WorkflowPlan {
-  if (!raw || typeof raw !== 'object') throw Error('Workflow definition is required');
+export function validatePlan(
+  raw: unknown,
+  platform: Platform,
+  action: Action
+): WorkflowPlan {
+  if (!raw || typeof raw !== 'object')
+    throw Error('Workflow definition is required');
   const plan = raw as Partial<WorkflowPlan>;
   if (
     plan.version !== 1 ||
@@ -153,7 +175,9 @@ export function validatePlan(raw: unknown, platform: Platform, action: Action): 
       Object.keys(plan.parameters).length > 18 ||
       !Object.entries(plan.parameters).every(
         ([key, value]) =>
-          allowedParameterKeys.has(key) && typeof value === 'string' && value.length <= 3000,
+          allowedParameterKeys.has(key) &&
+          typeof value === 'string' &&
+          value.length <= 3000
       ))
   ) {
     throw Error('Invalid saved workflow parameters');
@@ -165,7 +189,9 @@ export function validatePlan(raw: unknown, platform: Platform, action: Action): 
     !Array.isArray(plan.links) ||
     plan.links.length !== plan.steps.length - 1
   )
-    throw Error('A workflow needs 4–24 connected steps and exactly one sequential link per transition');
+    throw Error(
+      'A workflow needs 4–24 connected steps and exactly one sequential link per transition'
+    );
   if (
     !plan.steps.every(
       (step) =>
@@ -179,7 +205,9 @@ export function validatePlan(raw: unknown, platform: Platform, action: Action): 
         (step.message === undefined ||
           (typeof step.message === 'string' && step.message.length <= 600)) &&
         (step.delayMs === undefined ||
-          (Number.isInteger(step.delayMs) && step.delayMs >= 0 && step.delayMs <= 30000)) &&
+          (Number.isInteger(step.delayMs) &&
+            step.delayMs >= 0 &&
+            step.delayMs <= 30000)) &&
         (step.expectedText === undefined ||
           (step.kind === 'assess' &&
             typeof step.expectedText === 'string' &&
@@ -198,25 +226,29 @@ export function validatePlan(raw: unknown, platform: Platform, action: Action): 
             Number.isFinite(step.position.x) &&
             Number.isFinite(step.position.y) &&
             Math.abs(step.position.x) <= 20000 &&
-            Math.abs(step.position.y) <= 20000)),
+            Math.abs(step.position.y) <= 20000))
     )
   )
     throw Error('Invalid workflow step type, title, message or delay');
   const steps = plan.steps;
   const byId = new Map(steps.map((step) => [step.id, step]));
-  if (byId.size !== steps.length) throw Error('Duplicate workflow node identifiers');
+  if (byId.size !== steps.length)
+    throw Error('Duplicate workflow node identifiers');
   for (const kind of required) {
     if (
       steps.filter((s) => s.kind === kind).length !== 1 ||
       !steps.some((s) => s.id === kind && s.kind === kind)
     )
-      throw Error('Required workflow stage cannot be removed, renamed or duplicated: ' + kind);
+      throw Error(
+        'Required workflow stage cannot be removed, renamed or duplicated: ' +
+          kind
+      );
   }
   if (
     steps.some(
       (s) =>
         !required.includes(s.kind as (typeof required)[number]) &&
-        required.includes(s.id as (typeof required)[number]),
+        required.includes(s.id as (typeof required)[number])
     )
   )
     throw Error('Reserved node identifier');
@@ -228,7 +260,7 @@ export function validatePlan(raw: unknown, platform: Platform, action: Action): 
         typeof link.target === 'string' &&
         byId.has(link.source) &&
         byId.has(link.target) &&
-        link.source !== link.target,
+        link.source !== link.target
     )
   )
     throw Error('Invalid workflow connector');
@@ -237,12 +269,13 @@ export function validatePlan(raw: unknown, platform: Platform, action: Action): 
   for (const link of plan.links) {
     if (out.has(link.source) || inbound.has(link.target))
       throw Error(
-        'Branching or merging is not yet supported; every stage must have one ordered successor',
+        'Branching or merging is not yet supported; every stage must have one ordered successor'
       );
     out.set(link.source, link.target);
     inbound.set(link.target, link.source);
   }
-  if (inbound.has('start') || out.has('finish')) throw Error('Start and output are terminal stages');
+  if (inbound.has('start') || out.has('finish'))
+    throw Error('Start and output are terminal stages');
   const ordered: WorkflowStep[] = [],
     seen = new Set<string>();
   let node: string | undefined = 'start';
@@ -258,11 +291,16 @@ export function validatePlan(raw: unknown, platform: Platform, action: Action): 
     ordered[1]?.id !== 'session' ||
     ordered.indexOf(byId.get('action')!) < 2
   )
-    throw Error('All nodes must connect from Start through Browser and Action to Final output');
+    throw Error(
+      'All nodes must connect from Start through Browser and Action to Final output'
+    );
   // Static binding contracts: allow read-only observation and audited local step
   // results, but never bind dynamically into provider mutation arguments.
   const indices = new Map(ordered.map((step, index) => [step.id, index]));
-  const sourceFields: Record<StepKind, Record<string, 'string' | 'number' | 'boolean'>> = {
+  const sourceFields: Record<
+    StepKind,
+    Record<string, 'string' | 'number' | 'boolean'>
+  > = {
     start: { status: 'string' },
     session: { status: 'string' },
     inspect: { url: 'string', excerpt: 'string' },
@@ -287,22 +325,35 @@ export function validatePlan(raw: unknown, platform: Platform, action: Action): 
       Object.keys(bindings).length < 1 ||
       Object.keys(bindings).some(
         (key) =>
-          !['message', 'delayMs', 'text', 'expectedMatch', 'observation', 'evidence'].includes(key),
+          ![
+            'message',
+            'delayMs',
+            'text',
+            'expectedMatch',
+            'observation',
+            'evidence',
+          ].includes(key)
       ) ||
       (step.kind !== 'note' &&
         step.kind !== 'delay' &&
         step.kind !== 'assess' &&
         step.kind !== 'evidence' &&
         step.kind !== 'approve') ||
-      (step.kind === 'note' && Object.keys(bindings).some((key) => key !== 'message')) ||
-      (step.kind === 'delay' && Object.keys(bindings).some((key) => key !== 'delayMs')) ||
+      (step.kind === 'note' &&
+        Object.keys(bindings).some((key) => key !== 'message')) ||
+      (step.kind === 'delay' &&
+        Object.keys(bindings).some((key) => key !== 'delayMs')) ||
       (step.kind === 'assess' &&
         (!bindings.text ||
-          Object.keys(bindings).some((key) => key !== 'text' && key !== 'expectedMatch'))) ||
+          Object.keys(bindings).some(
+            (key) => key !== 'text' && key !== 'expectedMatch'
+          ))) ||
       (step.kind === 'evidence' &&
-        (!bindings.observation || Object.keys(bindings).some((key) => key !== 'observation'))) ||
+        (!bindings.observation ||
+          Object.keys(bindings).some((key) => key !== 'observation'))) ||
       (step.kind === 'approve' &&
-        (!bindings.evidence || Object.keys(bindings).some((key) => key !== 'evidence')))
+        (!bindings.evidence ||
+          Object.keys(bindings).some((key) => key !== 'evidence')))
     )
       throw Error('Unsupported workflow input binding');
     for (const [target, reference] of Object.entries(bindings)) {
@@ -314,19 +365,35 @@ export function validatePlan(raw: unknown, platform: Platform, action: Action): 
       )
         throw Error('Invalid workflow input reference');
       const source = byId.get(reference.stepId);
-      if (!source || (indices.get(source.id) ?? Infinity) >= (indices.get(step.id) ?? -1))
-        throw Error('Workflow input must reference an earlier page observation or typed step result');
+      if (
+        !source ||
+        (indices.get(source.id) ?? Infinity) >= (indices.get(step.id) ?? -1)
+      )
+        throw Error(
+          'Workflow input must reference an earlier page observation or typed step result'
+        );
       if (
         target === 'observation' &&
-        (!['inspect', 'verify'].includes(source.kind) || reference.field !== 'excerpt')
+        (!['inspect', 'verify'].includes(source.kind) ||
+          reference.field !== 'excerpt')
       )
-        throw Error('Evidence must reference an earlier page observation excerpt');
-      if (target === 'evidence' && (source.kind !== 'evidence' || reference.field !== 'digest'))
+        throw Error(
+          'Evidence must reference an earlier page observation excerpt'
+        );
+      if (
+        target === 'evidence' &&
+        (source.kind !== 'evidence' || reference.field !== 'digest')
+      )
         throw Error('Approval must reference an earlier evidence digest');
       const actualType = sourceFields[source.kind][reference.field];
       const expectedType =
-        target === 'delayMs' ? 'number' : target === 'expectedMatch' ? 'boolean' : 'string';
-      if (actualType !== expectedType) throw Error('Workflow input/output type mismatch');
+        target === 'delayMs'
+          ? 'number'
+          : target === 'expectedMatch'
+            ? 'boolean'
+            : 'string';
+      if (actualType !== expectedType)
+        throw Error('Workflow input/output type mismatch');
     }
   }
   // Browser mutations still enforce their own authentication, owner checks,
@@ -343,18 +410,29 @@ export function validatePlan(raw: unknown, platform: Platform, action: Action): 
       title: step.title,
       ...(step.message === undefined ? {} : { message: step.message }),
       ...(step.delayMs === undefined ? {} : { delayMs: step.delayMs }),
-      ...(step.expectedText === undefined ? {} : { expectedText: step.expectedText }),
+      ...(step.expectedText === undefined
+        ? {}
+        : { expectedText: step.expectedText }),
       ...(step.inputBindings === undefined
         ? {}
         : {
             inputBindings: Object.fromEntries(
-              Object.entries(step.inputBindings).map(([key, ref]) => [key, { ...ref }]),
+              Object.entries(step.inputBindings).map(([key, ref]) => [
+                key,
+                { ...ref },
+              ])
             ),
           }),
-      ...(step.definition === undefined ? {} : { definition: { ...step.definition } }),
-      ...(step.position === undefined ? {} : { position: { ...step.position } }),
+      ...(step.definition === undefined
+        ? {}
+        : { definition: { ...step.definition } }),
+      ...(step.position === undefined
+        ? {}
+        : { position: { ...step.position } }),
     })),
-    links: ordered.slice(1).map((step, index) => ({ source: ordered[index]!.id, target: step.id })),
+    links: ordered
+      .slice(1)
+      .map((step, index) => ({ source: ordered[index]!.id, target: step.id })),
   };
 }
 
@@ -411,13 +489,15 @@ const linkedinPipelineDetails: Partial<
   'edit-website': {
     name: 'Contact and website correction',
     actionTitle: 'Update an authorized website',
-    preparation: 'Verify the HTTPS URL and contact row index before changing the owned profile',
+    preparation:
+      'Verify the HTTPS URL and contact row index before changing the owned profile',
     result: 'Contact URL read-back',
   },
   'edit-services': {
     name: 'Services positioning',
     actionTitle: 'Revise the Services description',
-    preparation: 'Review service offer, intended client, proof and factual claims before saving',
+    preparation:
+      'Review service offer, intended client, proof and factual claims before saving',
     result: 'Service description read-back',
   },
   'add-project': {
@@ -430,37 +510,60 @@ const linkedinPipelineDetails: Partial<
   'add-featured': {
     name: 'Featured proof-of-work link',
     actionTitle: 'Add a verified Featured item',
-    preparation: 'Verify the Featured URL, title, ownership and relevance to the profile objective',
+    preparation:
+      'Verify the Featured URL, title, ownership and relevance to the profile objective',
     result: 'Featured item read-back',
   },
 };
 
 export function linkedinPipeline(action: Action): WorkflowPlan {
   const details = linkedinPipelineDetails[action];
-  if (!details) throw Error('No verified LinkedIn pipeline for action: ' + action);
+  if (!details)
+    throw Error('No verified LinkedIn pipeline for action: ' + action);
   const selectedPage = action === 'audit-page';
   const steps: WorkflowStep[] = [
     { id: 'start', kind: 'start', title: 'Confirm selected account and goal' },
-    { id: 'session', kind: 'session', title: 'Verify selected LinkedIn session' },
+    {
+      id: 'session',
+      kind: 'session',
+      title: 'Verify selected LinkedIn session',
+    },
     ...(!selectedPage
       ? ([
-          { id: 'inspect', kind: 'inspect', title: 'Review current LinkedIn profile' },
+          {
+            id: 'inspect',
+            kind: 'inspect',
+            title: 'Review current LinkedIn profile',
+          },
           {
             id: 'baseline',
             kind: 'evidence',
             title: 'Record supporting evidence',
-            inputBindings: { observation: { stepId: 'inspect', field: 'excerpt' } },
+            inputBindings: {
+              observation: { stepId: 'inspect', field: 'excerpt' },
+            },
           },
           {
             id: 'approval',
             kind: 'approve',
             title: 'Review profile evidence',
-            inputBindings: { evidence: { stepId: 'baseline', field: 'digest' } },
+            inputBindings: {
+              evidence: { stepId: 'baseline', field: 'digest' },
+            },
           },
         ] satisfies WorkflowStep[])
       : []),
-    { id: 'prepare', kind: 'note', title: 'Confirm verified task input', message: details.preparation },
-    { id: 'checkpoint', kind: 'pause', title: 'Wait for explicit operator review' },
+    {
+      id: 'prepare',
+      kind: 'note',
+      title: 'Confirm verified task input',
+      message: details.preparation,
+    },
+    {
+      id: 'checkpoint',
+      kind: 'pause',
+      title: 'Wait for explicit operator review',
+    },
     { id: 'action', kind: 'action', title: details.actionTitle },
     { id: 'verify', kind: 'verify', title: 'Verify result on LinkedIn' },
     ...(selectedPage
@@ -469,13 +572,17 @@ export function linkedinPipeline(action: Action): WorkflowPlan {
             id: 'sectionEvidence',
             kind: 'evidence',
             title: 'Record section evidence',
-            inputBindings: { observation: { stepId: 'verify', field: 'excerpt' } },
+            inputBindings: {
+              observation: { stepId: 'verify', field: 'excerpt' },
+            },
           },
           {
             id: 'sectionApproval',
             kind: 'approve',
             title: 'Review section evidence',
-            inputBindings: { evidence: { stepId: 'sectionEvidence', field: 'digest' } },
+            inputBindings: {
+              evidence: { stepId: 'sectionEvidence', field: 'digest' },
+            },
           },
         ] satisfies WorkflowStep[])
       : []),
@@ -493,7 +600,9 @@ export function linkedinPipeline(action: Action): WorkflowPlan {
     action,
     name: details.name,
     steps,
-    links: steps.slice(1).map((step, i) => ({ source: steps[i]!.id, target: step.id })),
+    links: steps
+      .slice(1)
+      .map((step, i) => ({ source: steps[i]!.id, target: step.id })),
   };
   return validatePlan(plan, 'linkedin', action);
 }

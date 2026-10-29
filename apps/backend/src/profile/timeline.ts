@@ -18,7 +18,9 @@ export async function loadIdentityTimeline(): Promise<IdentityObservation[]> {
   const directory = resolve(process.cwd(), '.runtime', 'runs');
   let names: string[];
   try {
-    names = (await readdir(directory)).filter((n) => /^[a-f0-9-]{36}\.jsonl$/.test(n));
+    names = (await readdir(directory)).filter((n) =>
+      /^[a-f0-9-]{36}\.jsonl$/.test(n)
+    );
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
     throw error;
@@ -34,13 +36,23 @@ export async function loadIdentityTimeline(): Promise<IdentityObservation[]> {
             time: string;
             runId: string;
             kind: string;
-            details?: { url?: unknown; title?: unknown; headline?: unknown; bio?: unknown };
+            details?: {
+              url?: unknown;
+              title?: unknown;
+              headline?: unknown;
+              bio?: unknown;
+            };
           };
-          if (event.kind !== 'audit' || !event.details || typeof event.details.url !== 'string')
+          if (
+            event.kind !== 'audit' ||
+            !event.details ||
+            typeof event.details.url !== 'string'
+          )
             return [];
           const url = new URL(event.details.url);
           const platform: IdentityObservation['platform'] | null =
-            url.hostname === 'www.linkedin.com' || url.hostname === 'linkedin.com'
+            url.hostname === 'www.linkedin.com' ||
+            url.hostname === 'linkedin.com'
               ? 'linkedin'
               : url.hostname === 'x.com' || url.hostname === 'www.x.com'
                 ? 'x'
@@ -52,10 +64,18 @@ export async function loadIdentityTimeline(): Promise<IdentityObservation[]> {
               timestamp: event.time,
               platform,
               url: url.href,
-              title: typeof event.details.title === 'string' ? event.details.title.slice(0, 200) : null,
+              title:
+                typeof event.details.title === 'string'
+                  ? event.details.title.slice(0, 200)
+                  : null,
               headline:
-                typeof event.details.headline === 'string' ? event.details.headline.slice(0, 300) : null,
-              bio: typeof event.details.bio === 'string' ? event.details.bio.slice(0, 300) : null,
+                typeof event.details.headline === 'string'
+                  ? event.details.headline.slice(0, 300)
+                  : null,
+              bio:
+                typeof event.details.bio === 'string'
+                  ? event.details.bio.slice(0, 300)
+                  : null,
               source: 'browser-audit' as const,
             },
           ];
@@ -63,7 +83,7 @@ export async function loadIdentityTimeline(): Promise<IdentityObservation[]> {
           return [];
         }
       });
-    }),
+    })
   );
   return files
     .flat()

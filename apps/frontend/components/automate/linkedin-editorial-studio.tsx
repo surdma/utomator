@@ -1,6 +1,6 @@
-"use client";
-import { useEffect, useState, type FormEvent } from "react";
-import { CheckCircle2, FileText, Plus, RotateCcw, Trash2 } from "lucide-react";
+'use client';
+import { useEffect, useState, type FormEvent } from 'react';
+import { CheckCircle2, FileText, Plus, RotateCcw, Trash2 } from 'lucide-react';
 
 type Account = { id: string; platform: string; label: string; handle: string };
 type Research = {
@@ -21,42 +21,42 @@ type Draft = {
   accountId: string;
   version: number;
   status:
-    | "draft"
-    | "approved"
-    | "archived"
-    | "deleted"
-    | "publishing"
-    | "published"
-    | "publish-failed"
-    | "publication-uncertain";
+    | 'draft'
+    | 'approved'
+    | 'archived'
+    | 'deleted'
+    | 'publishing'
+    | 'published'
+    | 'publish-failed'
+    | 'publication-uncertain';
   publication?: { status: string; postUrn?: string };
   content: Content;
   updatedAt: string;
   history: Array<{ version: number; event: string; timestamp: string }>;
 };
 const blank = (): Content => ({
-  goal: "",
-  pillar: "",
-  body: "",
+  goal: '',
+  pillar: '',
+  body: '',
   sourceUrls: [],
   researchRunId: null,
 });
 const input =
-  "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-offset-2 focus-visible:outline-teal-700";
+  'w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-offset-2 focus-visible:outline-teal-700';
 const button =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 text-xs font-bold hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40";
+  'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 text-xs font-bold hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40';
 export default function LinkedInEditorialStudio() {
   const [accounts, setAccounts] = useState<Account[]>([]),
-    [accountId, setAccountId] = useState("");
+    [accountId, setAccountId] = useState('');
   const [research, setResearch] = useState<Research[]>([]),
     [drafts, setDrafts] = useState<Draft[]>([]);
   const [selected, setSelected] = useState<Draft | null>(null),
     [content, setContent] = useState<Content>(blank());
-  const [error, setError] = useState(""),
-    [feedback, setFeedback] = useState(""),
+  const [error, setError] = useState(''),
+    [feedback, setFeedback] = useState(''),
     [busy, setBusy] = useState(false),
     [loading, setLoading] = useState(true);
-  const [sourcesText, setSourcesText] = useState("");
+  const [sourcesText, setSourcesText] = useState('');
   const [oauth, setOauth] = useState<{
     connected: boolean;
     configured: boolean;
@@ -64,8 +64,8 @@ export default function LinkedInEditorialStudio() {
     expiresAt?: string;
   } | null>(null);
   const refresh = async () => {
-    const response = await fetch("/api/linkedin/drafts", { cache: "no-store" });
-    if (!response.ok) throw Error("Editorial drafts are unavailable");
+    const response = await fetch('/api/linkedin/drafts', { cache: 'no-store' });
+    if (!response.ok) throw Error('Editorial drafts are unavailable');
     const rows = (await response.json()) as Draft[];
     setDrafts(rows);
     return rows;
@@ -73,29 +73,29 @@ export default function LinkedInEditorialStudio() {
   useEffect(() => {
     let alive = true;
     void Promise.all([
-      fetch("/api/account", { cache: "no-store" }),
-      fetch("/api/linkedin/research", { cache: "no-store" }),
-      fetch("/api/linkedin/drafts", { cache: "no-store" }),
+      fetch('/api/account', { cache: 'no-store' }),
+      fetch('/api/linkedin/research', { cache: 'no-store' }),
+      fetch('/api/linkedin/drafts', { cache: 'no-store' }),
     ])
       .then(async (responses) => {
         if (responses.some((item) => !item.ok))
-          throw Error("Unable to load account, research or editorial records");
+          throw Error('Unable to load account, research or editorial records');
         const [account, report, items] = (await Promise.all(
-          responses.map((r) => r.json()),
+          responses.map((r) => r.json())
         )) as [{ socialAccounts: Account[] }, Research[], Draft[]];
         if (!alive) return;
         const linkedIn = account.socialAccounts.filter(
-          (row) => row.platform === "linkedin",
+          (row) => row.platform === 'linkedin'
         );
         setAccounts(linkedIn);
-        setAccountId(linkedIn[0]?.id ?? "");
+        setAccountId(linkedIn[0]?.id ?? '');
         setResearch(report);
         setDrafts(items);
       })
       .catch((e) => {
         if (alive)
           setError(
-            e instanceof Error ? e.message : "Unable to load editorial studio",
+            e instanceof Error ? e.message : 'Unable to load editorial studio'
           );
       })
       .finally(() => {
@@ -107,8 +107,8 @@ export default function LinkedInEditorialStudio() {
   }, []);
   async function checkPublishingStatus(id: string) {
     const response = await fetch(
-      "/api/linkedin/oauth/status?accountId=" + encodeURIComponent(id),
-      { cache: "no-store" },
+      '/api/linkedin/oauth/status?accountId=' + encodeURIComponent(id),
+      { cache: 'no-store' }
     );
     const result = (await response.json()) as {
       connected: boolean;
@@ -117,7 +117,7 @@ export default function LinkedInEditorialStudio() {
       expiresAt?: string;
       error?: string;
     };
-    if (!response.ok) throw Error(result.error || "OAuth status unavailable");
+    if (!response.ok) throw Error(result.error || 'OAuth status unavailable');
     setOauth(result);
   }
   useEffect(() => {
@@ -127,18 +127,18 @@ export default function LinkedInEditorialStudio() {
     }
     void checkPublishingStatus(accountId).catch((e) =>
       setError(
-        e instanceof Error ? e.message : "Unable to read publishing status",
-      ),
+        e instanceof Error ? e.message : 'Unable to read publishing status'
+      )
     );
   }, [accountId]);
   async function connectPublishing() {
     if (!accountId) return;
-    setError("");
-    setFeedback("");
+    setError('');
+    setFeedback('');
     try {
-      const response = await fetch("/api/linkedin/oauth/start", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
+      const response = await fetch('/api/linkedin/oauth/start', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ accountId }),
       });
       const result = (await response.json()) as {
@@ -146,13 +146,13 @@ export default function LinkedInEditorialStudio() {
         error?: string;
       };
       if (!response.ok || !result.authorizationUrl)
-        throw Error(result.error || "LinkedIn OAuth unavailable");
+        throw Error(result.error || 'LinkedIn OAuth unavailable');
       window.location.assign(result.authorizationUrl);
     } catch (e) {
       setError(
         e instanceof Error
           ? e.message
-          : "Could not start LinkedIn authorization",
+          : 'Could not start LinkedIn authorization'
       );
     }
   }
@@ -160,26 +160,26 @@ export default function LinkedInEditorialStudio() {
     if (
       !accountId ||
       !window.confirm(
-        "Disconnect LinkedIn publishing authorization? Saved drafts will remain.",
+        'Disconnect LinkedIn publishing authorization? Saved drafts will remain.'
       )
     )
       return;
     setBusy(true);
     try {
-      const response = await fetch("/api/linkedin/oauth/disconnect", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
+      const response = await fetch('/api/linkedin/oauth/disconnect', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ accountId }),
       });
       if (!response.ok)
         throw Error(
           ((await response.json()) as { error: string }).error ||
-            "Disconnect failed",
+            'Disconnect failed'
         );
       await checkPublishingStatus(accountId);
-      setFeedback("Publishing authorization disconnected.");
+      setFeedback('Publishing authorization disconnected.');
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Disconnect failed");
+      setError(e instanceof Error ? e.message : 'Disconnect failed');
     } finally {
       setBusy(false);
     }
@@ -187,45 +187,45 @@ export default function LinkedInEditorialStudio() {
   async function publish() {
     if (
       !selected ||
-      selected.status !== "approved" ||
+      selected.status !== 'approved' ||
       unsaved ||
       !oauth?.connected
     )
       return;
     if (
       !window.confirm(
-        "Publish this approved text-only draft as LinkedIn member " +
-          (oauth?.subject || "unknown") +
-          "? This creates a real public post, not a preview.",
+        'Publish this approved text-only draft as LinkedIn member ' +
+          (oauth?.subject || 'unknown') +
+          '? This creates a real public post, not a preview.'
       )
     )
       return;
     setBusy(true);
-    setError("");
-    setFeedback("");
+    setError('');
+    setFeedback('');
     try {
       const response = await fetch(
-        "/api/linkedin/drafts/" + selected.id + "/publish",
+        '/api/linkedin/drafts/' + selected.id + '/publish',
         {
-          method: "POST",
-          headers: { "content-type": "application/json" },
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             expectedVersion: selected.version,
             confirmed: true,
           }),
-        },
+        }
       );
       const result = (await response.json()) as Draft & { error?: string };
       if (!response.ok)
-        throw Error(result.error || "LinkedIn publication failed");
+        throw Error(result.error || 'LinkedIn publication failed');
       choose(result);
       await refresh();
       setFeedback(
-        "LinkedIn accepted this post. The provider ID is stored in your publication receipt.",
+        'LinkedIn accepted this post. The provider ID is stored in your publication receipt.'
       );
     } catch (e) {
       const reason =
-        e instanceof Error ? e.message : "LinkedIn publication failed";
+        e instanceof Error ? e.message : 'LinkedIn publication failed';
       await refresh()
         .then((rows) => {
           const newest = rows.find((item) => item.id === selected.id);
@@ -240,16 +240,16 @@ export default function LinkedInEditorialStudio() {
   function choose(draft: Draft | null) {
     setSelected(draft);
     setContent(draft ? { ...draft.content } : blank());
-    setSourcesText(draft?.content.sourceUrls.join("\n") ?? "");
+    setSourcesText(draft?.content.sourceUrls.join('\n') ?? '');
     if (draft) setAccountId(draft.accountId);
-    setError("");
-    setFeedback("");
+    setError('');
+    setFeedback('');
   }
   function selectResearchEvidence(id: string) {
     const run = research.find((item) => item.id === id);
     if (!run) {
       setContent((old) => ({ ...old, researchRunId: null, sourceUrls: [] }));
-      setSourcesText("");
+      setSourcesText('');
       return;
     }
     const gap = run.output.gaps[0];
@@ -261,105 +261,103 @@ export default function LinkedInEditorialStudio() {
       researchRunId: run.id,
       pillar: gap?.topic ?? old.pillar,
       goal:
-        old.goal || "Share an evidence-backed insight in " + run.input.niche,
+        old.goal || 'Share an evidence-backed insight in ' + run.input.niche,
       sourceUrls,
     }));
-    setSourcesText(sourceUrls.join("\n"));
+    setSourcesText(sourceUrls.join('\n'));
   }
   function payload(): Content {
     return {
       ...content,
       sourceUrls: sourcesText
-        .split("\n")
+        .split('\n')
         .map((row) => row.trim())
         .filter(Boolean),
     };
   }
   const unsaved = Boolean(
-    selected && JSON.stringify(payload()) !== JSON.stringify(selected.content),
+    selected && JSON.stringify(payload()) !== JSON.stringify(selected.content)
   );
   async function command(
     url: string,
-    method: "POST" | "PUT",
-    body: unknown,
+    method: 'POST' | 'PUT',
+    body: unknown
   ): Promise<Draft> {
     const response = await fetch(url, {
       method,
-      headers: { "content-type": "application/json" },
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
     });
     const result = (await response.json()) as Draft & { error?: string };
-    if (!response.ok) throw Error(result.error || "Editorial action failed");
+    if (!response.ok) throw Error(result.error || 'Editorial action failed');
     return result;
   }
   async function save(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
-    setError("");
-    setFeedback("");
+    setError('');
+    setFeedback('');
     try {
       if (!accountId)
         throw Error(
-          "Save a LinkedIn account in Profile before creating a draft",
+          'Save a LinkedIn account in Profile before creating a draft'
         );
       const result = selected
-        ? await command("/api/linkedin/drafts/" + selected.id, "PUT", {
+        ? await command('/api/linkedin/drafts/' + selected.id, 'PUT', {
             expectedVersion: selected.version,
             content: payload(),
           })
-        : await command("/api/linkedin/drafts", "POST", {
+        : await command('/api/linkedin/drafts', 'POST', {
             accountId,
             content: payload(),
           });
       choose(result);
       await refresh();
       setFeedback(
-        "Draft saved to your private workspace. No LinkedIn post was published.",
+        'Draft saved to your private workspace. No LinkedIn post was published.'
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not save draft");
+      setError(e instanceof Error ? e.message : 'Could not save draft');
     } finally {
       setBusy(false);
     }
   }
   async function transition(
-    action: "approve" | "reopen" | "archive" | "delete" | "restore",
+    action: 'approve' | 'reopen' | 'archive' | 'delete' | 'restore'
   ) {
     if (!selected) return;
     if (
-      action === "delete" &&
+      action === 'delete' &&
       !window.confirm(
-        "Remove this internal draft from the list? It will not delete any LinkedIn post.",
+        'Remove this internal draft from the list? It will not delete any LinkedIn post.'
       )
     )
       return;
     setBusy(true);
-    setError("");
-    setFeedback("");
+    setError('');
+    setFeedback('');
     try {
       const updated = await command(
-        "/api/linkedin/drafts/" + selected.id + "/transition",
-        "POST",
+        '/api/linkedin/drafts/' + selected.id + '/transition',
+        'POST',
         {
           expectedVersion: selected.version,
           action,
-          confirm: action === "delete",
-        },
+          confirm: action === 'delete',
+        }
       );
-      if (action === "delete") {
+      if (action === 'delete') {
         choose(null);
-        setFeedback("Draft removed from your workspace list.");
+        setFeedback('Draft removed from your workspace list.');
       } else {
         choose(updated);
         setFeedback(
-          "Draft is now " +
-            updated.status +
-            ". No LinkedIn post was published.",
+          'Draft is now ' + updated.status + '. No LinkedIn post was published.'
         );
       }
       await refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not change draft state");
+      setError(e instanceof Error ? e.message : 'Could not change draft state');
     } finally {
       setBusy(false);
     }
@@ -370,7 +368,7 @@ export default function LinkedInEditorialStudio() {
       className="mx-auto max-w-5xl space-y-5 pb-16"
     >
       <header className="rounded-3xl bg-[#111e2b] px-6 py-7 text-white">
-        <p className="text-xs font-bold uppercase tracking-widest text-teal-300">
+        <p className="text-xs font-bold tracking-widest text-teal-300 uppercase">
           LinkedIn / Editorial workflow
         </p>
         <h1 className="mt-3 font-serif text-3xl">Draft, review and refine.</h1>
@@ -403,13 +401,13 @@ export default function LinkedInEditorialStudio() {
       )}
       {!loading && accounts.length === 0 && (
         <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm">
-          Add your LinkedIn profile in{" "}
+          Add your LinkedIn profile in{' '}
           <a
             className="font-bold underline"
             href="/dashboard/profile/connections"
           >
             Profile / Connections
-          </a>{" "}
+          </a>{' '}
           to associate drafts with the correct account. No LinkedIn login is
           required for private draft preparation.
         </p>
@@ -429,11 +427,11 @@ export default function LinkedInEditorialStudio() {
           </p>
           <p className="mt-2 text-xs font-semibold">
             {oauth?.connected
-              ? "Authorized member: " + oauth.subject
-              : "Not authorized for publishing"}
+              ? 'Authorized member: ' + oauth.subject
+              : 'Not authorized for publishing'}
             {oauth?.expiresAt
-              ? " · Expires " + new Date(oauth.expiresAt).toLocaleDateString()
-              : ""}
+              ? ' · Expires ' + new Date(oauth.expiresAt).toLocaleDateString()
+              : ''}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
@@ -449,7 +447,7 @@ export default function LinkedInEditorialStudio() {
               className={button}
               onClick={() =>
                 void checkPublishingStatus(accountId).catch((e) =>
-                  setError(String(e)),
+                  setError(String(e))
                 )
               }
             >
@@ -481,8 +479,8 @@ export default function LinkedInEditorialStudio() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-sm font-bold">
             {selected
-              ? "Edit draft v" + selected.version
-              : "New evidence-backed post"}
+              ? 'Edit draft v' + selected.version
+              : 'New evidence-backed post'}
           </h2>
           <button type="button" className={button} onClick={() => choose(null)}>
             <Plus className="size-4" />
@@ -511,8 +509,8 @@ export default function LinkedInEditorialStudio() {
             Evidence from Creator Research (optional)
             <select
               className={input}
-              disabled={selected?.status === "archived"}
-              value={content.researchRunId ?? ""}
+              disabled={selected?.status === 'archived'}
+              value={content.researchRunId ?? ''}
               onChange={(e) => selectResearchEvidence(e.target.value)}
             >
               <option value="">No linked research</option>
@@ -554,7 +552,7 @@ export default function LinkedInEditorialStudio() {
           Post draft
           <textarea
             rows={8}
-            className={input + " resize-y leading-6"}
+            className={input + ' resize-y leading-6'}
             minLength={20}
             maxLength={3000}
             required
@@ -572,7 +570,7 @@ export default function LinkedInEditorialStudio() {
           Evidence links (one clean HTTPS URL per line; up to eight)
           <textarea
             rows={3}
-            className={input + " resize-y"}
+            className={input + ' resize-y'}
             value={sourcesText}
             onChange={(e) => setSourcesText(e.target.value)}
           />
@@ -585,98 +583,98 @@ export default function LinkedInEditorialStudio() {
               !accountId ||
               Boolean(
                 selected &&
-                  !["draft", "approved", "publish-failed"].includes(
-                    selected.status,
-                  ),
+                !['draft', 'approved', 'publish-failed'].includes(
+                  selected.status
+                )
               )
             }
             className={
               button +
-              " border-teal-700 bg-teal-700 text-white hover:bg-teal-800"
+              ' border-teal-700 bg-teal-700 text-white hover:bg-teal-800'
             }
           >
             <FileText className="size-4" />
             {busy
-              ? "Saving…"
+              ? 'Saving…'
               : selected
-                ? "Save revision"
-                : "Create private draft"}
+                ? 'Save revision'
+                : 'Create private draft'}
           </button>
-          {selected?.status === "approved" && (
+          {selected?.status === 'approved' && (
             <button
               type="button"
               disabled={busy || unsaved || !oauth?.connected}
               className={
                 button +
-                " border-teal-700 bg-teal-700 text-white hover:bg-teal-800"
+                ' border-teal-700 bg-teal-700 text-white hover:bg-teal-800'
               }
               onClick={() => void publish()}
             >
               Publish approved post to LinkedIn
             </button>
           )}
-          {selected?.status === "draft" && (
+          {selected?.status === 'draft' && (
             <button
               type="button"
               disabled={busy || unsaved}
               title={
-                unsaved ? "Save the revised draft before approving" : undefined
+                unsaved ? 'Save the revised draft before approving' : undefined
               }
               className={button}
-              onClick={() => void transition("approve")}
+              onClick={() => void transition('approve')}
             >
               <CheckCircle2 className="size-4" />
               Approve reviewed draft
             </button>
           )}
-          {selected?.status === "draft" && unsaved && (
+          {selected?.status === 'draft' && unsaved && (
             <span role="status" className="text-xs text-amber-700">
               Save your edits before approving this revision.
             </span>
           )}
-          {selected?.status === "approved" && (
+          {selected?.status === 'approved' && (
             <button
               type="button"
               disabled={busy || unsaved}
               className={button}
-              onClick={() => void transition("reopen")}
+              onClick={() => void transition('reopen')}
             >
               <RotateCcw className="size-4" />
               Reopen for edits
             </button>
           )}
-          {selected?.status === "archived" && (
+          {selected?.status === 'archived' && (
             <button
               type="button"
               disabled={busy}
               className={button}
-              onClick={() => void transition("restore")}
+              onClick={() => void transition('restore')}
             >
               Restore draft
             </button>
           )}
           {selected &&
-            ["draft", "approved", "publish-failed"].includes(
-              selected.status,
+            ['draft', 'approved', 'publish-failed'].includes(
+              selected.status
             ) && (
               <button
                 type="button"
                 disabled={busy}
                 className={button}
-                onClick={() => void transition("archive")}
+                onClick={() => void transition('archive')}
               >
                 Archive
               </button>
             )}
           {selected &&
-            ["draft", "approved", "archived", "publish-failed"].includes(
-              selected.status,
+            ['draft', 'approved', 'archived', 'publish-failed'].includes(
+              selected.status
             ) && (
               <button
                 type="button"
                 disabled={busy}
-                className={button + " border-rose-300 text-rose-700"}
-                onClick={() => void transition("delete")}
+                className={button + ' border-rose-300 text-rose-700'}
+                onClick={() => void transition('delete')}
               >
                 <Trash2 className="size-4" />
                 Remove
@@ -686,8 +684,8 @@ export default function LinkedInEditorialStudio() {
         {selected && (
           <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-700">
             <p>
-              Status: <strong className="capitalize">{selected.status}</strong>{" "}
-              · Revision {selected.version} · {selected.history.length}{" "}
+              Status: <strong className="capitalize">{selected.status}</strong>{' '}
+              · Revision {selected.version} · {selected.history.length}{' '}
               persisted events
             </p>
             {selected.publication?.postUrn && (
@@ -696,15 +694,15 @@ export default function LinkedInEditorialStudio() {
                 target="_blank"
                 rel="noopener noreferrer"
                 href={
-                  "https://www.linkedin.com/feed/update/" +
+                  'https://www.linkedin.com/feed/update/' +
                   selected.publication.postUrn +
-                  "/"
+                  '/'
                 }
               >
                 View published LinkedIn post
               </a>
             )}
-            {selected.status === "publication-uncertain" && (
+            {selected.status === 'publication-uncertain' && (
               <p className="mt-2 text-rose-700">
                 Publication outcome unknown. Check LinkedIn before taking any
                 further action; automatic resubmission is blocked.
@@ -742,7 +740,7 @@ export default function LinkedInEditorialStudio() {
                     {item.content.body.slice(0, 160)}
                   </span>
                 </span>
-                <span className="text-xs capitalize text-teal-800">
+                <span className="text-xs text-teal-800 capitalize">
                   {item.status} · v{item.version}
                 </span>
               </button>

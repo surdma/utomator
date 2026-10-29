@@ -1,4 +1,10 @@
-import { createCipheriv, createDecipheriv, randomBytes, hkdfSync, timingSafeEqual } from 'node:crypto';
+import {
+  createCipheriv,
+  createDecipheriv,
+  randomBytes,
+  hkdfSync,
+  timingSafeEqual,
+} from 'node:crypto';
 import type { Cookie } from 'playwright';
 import type { DocumentStore } from '../db/documents.js';
 
@@ -50,38 +56,59 @@ export class VaultDecryptError extends Error {
 /** Per-owner subkey; secrets are isolated between tenants. */
 function masterFor(documents: DocumentStore, master: Buffer | null): Buffer {
   const effective = master || loadVaultMasterKey();
-  if (!effective) throw Error('UTOMATOR_SESSION_ENCRYPTION_KEY is not configured for the session vault');
+  if (!effective)
+    throw Error(
+      'UTOMATOR_SESSION_ENCRYPTION_KEY is not configured for the session vault'
+    );
   return deriveOwnerKey(effective, documents.ownerId);
 }
 
 /** Hex keys are validated exactly like LINKEDIN_TOKEN_ENCRYPTION_KEY. */
-export function loadVaultMasterKey(env: NodeJS.ProcessEnv = process.env): Buffer | null {
+export function loadVaultMasterKey(
+  env: NodeJS.ProcessEnv = process.env
+): Buffer | null {
   const key = env.UTOMATOR_SESSION_ENCRYPTION_KEY || '';
   if (!key) return null;
-  if (!/^[a-fA-F0-9]{64}$/.test(key)) throw Error('Invalid UTOMATOR_SESSION_ENCRYPTION_KEY');
+  if (!/^[a-fA-F0-9]{64}$/.test(key))
+    throw Error('Invalid UTOMATOR_SESSION_ENCRYPTION_KEY');
   return Buffer.from(key, 'hex');
 }
 
-export function vaultKeyConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
+export function vaultKeyConfigured(
+  env: NodeJS.ProcessEnv = process.env
+): boolean {
   return loadVaultMasterKey(env) !== null;
 }
 
 /** Per-owner subkey via HKDF-SHA256; secrets are isolated between tenants. */
 export function deriveOwnerKey(master: Buffer, ownerId: string): Buffer {
-  if (!master || master.length === 0) throw Error('Session vault master key is unavailable');
+  if (!master || master.length === 0)
+    throw Error('Session vault master key is unavailable');
   if (typeof ownerId !== 'string' || !ownerId)
     throw Error('Owner ID is required for vault key derivation');
   return Buffer.from(
-    hkdfSync('sha256', master, Buffer.from(ownerId, 'utf8'), Buffer.from(KEY_INFO, 'utf8'), 32),
+    hkdfSync(
+      'sha256',
+      master,
+      Buffer.from(ownerId, 'utf8'),
+      Buffer.from(KEY_INFO, 'utf8'),
+      32
+    )
   );
 }
 
-export function encryptSession(ownerKey: Buffer, plaintext: string): VaultRecord {
+export function encryptSession(
+  ownerKey: Buffer,
+  plaintext: string
+): VaultRecord {
   if (plaintext.length > MAX_VAULT_PLAINTEXT_BYTES)
     throw Error('LinkedIn session snapshot too large to store');
   const iv = randomBytes(12),
     cipher = createCipheriv('aes-256-gcm', ownerKey, iv);
-  const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+  const ciphertext = Buffer.concat([
+    cipher.update(plaintext, 'utf8'),
+    cipher.final(),
+  ]);
   return {
     ciphertext: ciphertext.toString('base64'),
     iv: iv.toString('base64'),
@@ -95,7 +122,11 @@ export function decryptSession(ownerKey: Buffer, record: VaultRecord): string {
   try {
     if (!record || typeof record !== 'object' || record.v !== 1)
       throw new Error('Unrecognized vault record');
-    const decipher = createDecipheriv('aes-256-gcm', ownerKey, Buffer.from(record.iv, 'base64'));
+    const decipher = createDecipheriv(
+      'aes-256-gcm',
+      ownerKey,
+      Buffer.from(record.iv, 'base64')
+    );
     decipher.setAuthTag(Buffer.from(record.tag, 'base64'));
     return Buffer.concat([
       decipher.update(Buffer.from(record.ciphertext, 'base64')),
@@ -109,15 +140,20 @@ export function decryptSession(ownerKey: Buffer, record: VaultRecord): string {
 export function serializeVaultPayload(payload: VaultPayload): string {
   assertPayloadShape(payload);
   const serialized = JSON.stringify(payload);
-  if (typeof serialized !== 'string') throw Error('LinkedIn session snapshot could not be serialized');
+  if (typeof serialized !== 'string')
+    throw Error('LinkedIn session snapshot could not be serialized');
   return serialized;
 }
 
 function assertPayloadShape(payload: VaultPayload) {
-  if (!payload || typeof payload !== 'object') throw Error('Vault payload is unavailable');
-  if (!PLATFORMS.has(payload.platform)) throw Error('Unsupported vault platform');
-  if (!Array.isArray(payload.cookies)) throw Error('Vault payload has no cookies');
-  if (!Array.isArray(payload.originState)) throw Error('Vault payload has no origin state');
+  if (!payload || typeof payload !== 'object')
+    throw Error('Vault payload is unavailable');
+  if (!PLATFORMS.has(payload.platform))
+    throw Error('Unsupported vault platform');
+  if (!Array.isArray(payload.cookies))
+    throw Error('Vault payload has no cookies');
+  if (!Array.isArray(payload.originState))
+    throw Error('Vault payload has no origin state');
   const hints = payload.browserHints;
   if (
     !hints ||
@@ -133,9 +169,14 @@ function assertPayloadShape(payload: VaultPayload) {
     throw Error('Vault payload browser hints are invalid');
   const originSet = new Set<string>();
   for (const origin of payload.originState) {
-    if (!origin || typeof origin.origin !== 'string' || !/^https:\/\//.test(origin.origin))
+    if (
+      !origin ||
+      typeof origin.origin !== 'string' ||
+      !/^https:\/\//.test(origin.origin)
+    )
       throw Error('Vault origin state entries must use HTTPS origins');
-    if (originSet.has(origin.origin)) throw Error('Vault origin state contains duplicate origins');
+    if (originSet.has(origin.origin))
+      throw Error('Vault origin state contains duplicate origins');
     originSet.add(origin.origin);
     if (origin.localStorage && !Array.isArray(origin.localStorage))
       throw Error('Invalid origin storage shape');
@@ -151,7 +192,7 @@ export function saveVaultPayload(
   documents: DocumentStore,
   connectorId: string,
   payload: VaultPayload,
-  master: Buffer | null = loadVaultMasterKey(),
+  master: Buffer | null = loadVaultMasterKey()
 ): Promise<number> {
   const plaintext = serializeVaultPayload(payload);
   const ownerKey = masterFor(documents, master);
@@ -161,44 +202,66 @@ export function saveVaultPayload(
     .then(() => 1)
     .catch(() => putExisting());
   async function putExisting() {
-    const existing = await documents.get<VaultRecord>(VAULT_NAMESPACE, connectorId);
-    return documents.put(VAULT_NAMESPACE, connectorId, envelope, existing?.version ?? 0);
+    const existing = await documents.get<VaultRecord>(
+      VAULT_NAMESPACE,
+      connectorId
+    );
+    return documents.put(
+      VAULT_NAMESPACE,
+      connectorId,
+      envelope,
+      existing?.version ?? 0
+    );
   }
 }
 
 export function loadVaultPayload(
   documents: DocumentStore,
   connectorId: string,
-  master: Buffer | null = loadVaultMasterKey(),
+  master: Buffer | null = loadVaultMasterKey()
 ): Promise<VaultPayload | null> {
-  return documents.get<VaultRecord>(VAULT_NAMESPACE, connectorId).then((record) => {
-    // The version pin travels with the parsed payload so callers can still
-    // CAS-update the same record they loaded.
-    if (!record) return null;
-    const ownerKey = masterFor(documents, master);
-    let payload: VaultPayload;
-    try {
-      payload = JSON.parse(decryptSession(ownerKey, record.value)) as VaultPayload;
-    } catch (error) {
-      if (error instanceof VaultDecryptError) throw error;
-      throw new VaultDecryptError();
-    }
-    assertPayloadShape(payload);
-    return payload;
-  });
+  return documents
+    .get<VaultRecord>(VAULT_NAMESPACE, connectorId)
+    .then((record) => {
+      // The version pin travels with the parsed payload so callers can still
+      // CAS-update the same record they loaded.
+      if (!record) return null;
+      const ownerKey = masterFor(documents, master);
+      let payload: VaultPayload;
+      try {
+        payload = JSON.parse(
+          decryptSession(ownerKey, record.value)
+        ) as VaultPayload;
+      } catch (error) {
+        if (error instanceof VaultDecryptError) throw error;
+        throw new VaultDecryptError();
+      }
+      assertPayloadShape(payload);
+      return payload;
+    });
 }
 
 /** Deletes by its stored version; a concurrent vault write stops the delete. */
-export function deleteVault(documents: DocumentStore, connectorId: string): Promise<void> {
+export function deleteVault(
+  documents: DocumentStore,
+  connectorId: string
+): Promise<void> {
   return documents
     .get<VaultRecord>(VAULT_NAMESPACE, connectorId)
     .then((record) =>
-      record ? documents.remove(VAULT_NAMESPACE, connectorId, record.version) : undefined,
+      record
+        ? documents.remove(VAULT_NAMESPACE, connectorId, record.version)
+        : undefined
     );
 }
 
-export function hasVault(documents: DocumentStore, connectorId: string): Promise<boolean> {
-  return documents.get<VaultRecord>(VAULT_NAMESPACE, connectorId).then((record) => Boolean(record));
+export function hasVault(
+  documents: DocumentStore,
+  connectorId: string
+): Promise<boolean> {
+  return documents
+    .get<VaultRecord>(VAULT_NAMESPACE, connectorId)
+    .then((record) => Boolean(record));
 }
 
 export const ownerKeyMatches = (left: Buffer, right: Buffer): boolean =>

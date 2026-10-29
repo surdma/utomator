@@ -1,6 +1,6 @@
-import type { HTMLAttributes, ButtonHTMLAttributes } from "react";
+import type { HTMLAttributes, ButtonHTMLAttributes } from 'react';
 type Props = HTMLAttributes<HTMLDivElement>;
-export function Card({ className = "", ...props }: Props) {
+export function Card({ className = '', ...props }: Props) {
   return (
     <div
       data-slot="card"
@@ -9,14 +9,14 @@ export function Card({ className = "", ...props }: Props) {
     />
   );
 }
-export function CardHeader({ className = "", ...props }: Props) {
+export function CardHeader({ className = '', ...props }: Props) {
   return <div className={`px-5 pt-5 pb-3 ${className}`} {...props} />;
 }
-export function CardContent({ className = "", ...props }: Props) {
+export function CardContent({ className = '', ...props }: Props) {
   return <div className={`px-5 pb-5 ${className}`} {...props} />;
 }
 export function CardTitle({
-  className = "",
+  className = '',
   ...props
 }: HTMLAttributes<HTMLHeadingElement>) {
   return (
@@ -27,7 +27,7 @@ export function CardTitle({
   );
 }
 export function CardDescription({
-  className = "",
+  className = '',
   ...props
 }: HTMLAttributes<HTMLParagraphElement>) {
   return (
@@ -38,25 +38,25 @@ export function CardDescription({
   );
 }
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "secondary" | "ghost" | "danger";
-  size?: "sm" | "default";
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  size?: 'sm' | 'default';
 };
 export function Button({
-  className = "",
-  variant = "secondary",
-  size = "default",
+  className = '',
+  variant = 'secondary',
+  size = 'default',
   ...props
 }: ButtonProps) {
   const styles = {
-    primary: "bg-slate-900 text-white hover:bg-slate-700",
+    primary: 'bg-slate-900 text-white hover:bg-slate-700',
     secondary:
-      "border border-slate-200 bg-white text-slate-800 hover:bg-slate-100",
-    ghost: "text-slate-600 hover:bg-slate-100",
-    danger: "bg-rose-50 text-rose-700 hover:bg-rose-100",
+      'border border-slate-200 bg-white text-slate-800 hover:bg-slate-100',
+    ghost: 'text-slate-600 hover:bg-slate-100',
+    danger: 'bg-rose-50 text-rose-700 hover:bg-rose-100',
   };
   return (
     <button
-      className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-3 font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40 ${size === "sm" ? "text-xs" : "text-sm"} ${styles[variant]} ${className}`}
+      className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-3 font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40 ${size === 'sm' ? 'text-xs' : 'text-sm'} ${styles[variant]} ${className}`}
       {...props}
     />
   );

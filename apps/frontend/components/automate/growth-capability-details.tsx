@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import {
   ArrowUpRight,
@@ -6,23 +6,23 @@ import {
   CircleHelp,
   LockKeyhole,
   ShieldCheck,
-} from "lucide-react";
+} from 'lucide-react';
 import {
   growthCapabilities,
   growthGuardrails,
   growthJourneys,
   profileSections,
-} from "./linkedin-growth-capabilities";
+} from './linkedin-growth-capabilities';
 
 export function capabilityForSlug(slug: string) {
-  return growthCapabilities.find((item) => slug === "growth-" + item.id);
+  return growthCapabilities.find((item) => slug === 'growth-' + item.id);
 }
 
 export default function GrowthCapabilityDetails({ slug }: { slug: string }) {
   const capability = capabilityForSlug(slug);
   if (!capability) return null;
   const journeys = growthJourneys.filter((journey) =>
-    (journey.sequence as readonly string[]).includes(capability.id),
+    (journey.sequence as readonly string[]).includes(capability.id)
   );
   return (
     <section
@@ -39,9 +39,9 @@ export default function GrowthCapabilityDetails({ slug }: { slug: string }) {
             {capability.pillar}
           </span>
           <span className="rounded-md border border-slate-200 px-2.5 py-1">
-            {capability.status === "partial"
-              ? "Partially available"
-              : "Planned"}
+            {capability.status === 'partial'
+              ? 'Partially available'
+              : 'Planned'}
           </span>
         </div>
         <span className="text-xs text-slate-500">
@@ -71,11 +71,11 @@ export default function GrowthCapabilityDetails({ slug }: { slug: string }) {
               href={capability.route}
               className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-teal-800 underline underline-offset-4"
             >
-              Open existing supported workflow{" "}
+              Open existing supported workflow{' '}
               <ArrowUpRight className="size-4" />
             </a>
           )}
-          {capability.id === "profile" && (
+          {capability.id === 'profile' && (
             <a
               href="/dashboard/pipeline"
               className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-teal-800 underline underline-offset-4"
@@ -106,14 +106,14 @@ export default function GrowthCapabilityDetails({ slug }: { slug: string }) {
               className="flex items-start gap-3 text-sm leading-6 text-slate-700"
             >
               <span className="shrink-0 font-mono text-xs text-slate-400">
-                {String(index + 1).padStart(2, "0")}
+                {String(index + 1).padStart(2, '0')}
               </span>
               {action}
             </li>
           ))}
         </ol>
       </details>
-      {capability.id === "profile" && (
+      {capability.id === 'profile' && (
         <details open className="mt-4 rounded-xl border border-slate-200 p-4">
           <summary className="cursor-pointer text-sm font-semibold text-slate-900">
             20 profile sections requiring independent evidence and coverage
@@ -137,14 +137,14 @@ export default function GrowthCapabilityDetails({ slug }: { slug: string }) {
       )}
       <p className="mt-4 flex items-start gap-2 text-xs leading-5 text-slate-600">
         <CircleHelp className="mt-0.5 size-4 shrink-0" />
-        Modes:{" "}
-        {capability.modes.map((mode) => mode.replaceAll("-", " ")).join(" · ")}.
+        Modes:{' '}
+        {capability.modes.map((mode) => mode.replaceAll('-', ' ')).join(' · ')}.
         A visual graph never authorizes remote execution.
       </p>
       {journeys.length > 0 && (
         <p className="mt-3 text-xs leading-5 text-slate-600">
-          Related journeys:{" "}
-          {journeys.map((journey) => journey.title).join(" · ")}
+          Related journeys:{' '}
+          {journeys.map((journey) => journey.title).join(' · ')}
         </p>
       )}
       <details className="mt-5 border-t border-slate-100 pt-4">

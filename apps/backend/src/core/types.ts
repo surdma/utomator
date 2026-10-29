@@ -60,7 +60,15 @@ export interface StreamEvent {
   id: number;
   runId: string;
   time: string;
-  kind: 'status' | 'step' | 'audit' | 'approval' | 'input' | 'screenshot' | 'error' | 'result';
+  kind:
+    | 'status'
+    | 'step'
+    | 'audit'
+    | 'approval'
+    | 'input'
+    | 'screenshot'
+    | 'error'
+    | 'result';
   message: string;
   details?: unknown;
 }

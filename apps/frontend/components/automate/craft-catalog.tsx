@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useState, type ChangeEvent } from "react";
+import { useState, type ChangeEvent } from 'react';
 import {
   ArrowRight,
   ArrowUpFromLine,
@@ -8,28 +8,28 @@ import {
   Plus,
   Search,
   Target,
-} from "lucide-react";
-import { Button } from "@/components/ui/automate-card";
-import StudioDialog from "@/components/ui/studio-dialog";
+} from 'lucide-react';
+import { Button } from '@/components/ui/automate-card';
+import StudioDialog from '@/components/ui/studio-dialog';
 import {
   growthCapabilities,
   growthJourneys,
-} from "./linkedin-growth-capabilities";
-import { capabilityForSlug } from "./growth-capability-details";
-import type { Category, Craft } from "./crafts-library";
+} from './linkedin-growth-capabilities';
+import { capabilityForSlug } from './growth-capability-details';
+import type { Category, Craft } from './crafts-library';
 
 export const craftCategoryTitles: Record<Category, string> = {
-  presence: "Professional presence",
-  portfolio: "Portfolio evidence",
-  "job-hunt": "Career research",
-  applications: "Applications",
-  content: "Editorial authority",
-  engagement: "Relationships",
+  presence: 'Professional presence',
+  portfolio: 'Portfolio evidence',
+  'job-hunt': 'Career research',
+  applications: 'Applications',
+  content: 'Editorial authority',
+  engagement: 'Relationships',
 };
 type Props = {
   crafts: Craft[];
-  filter: Category | "all";
-  onFilter: (value: Category | "all") => void;
+  filter: Category | 'all';
+  onFilter: (value: Category | 'all') => void;
   search: string;
   onSearch: (value: string) => void;
   creating: boolean;
@@ -48,12 +48,12 @@ type Props = {
   onImport: (event: ChangeEvent<HTMLInputElement>) => void;
   onOpen: (id: string, slug: string) => void;
 };
-type Scope = "all" | "capabilities" | "toolkits" | "mine";
+type Scope = 'all' | 'capabilities' | 'toolkits' | 'mine';
 const scopes: { id: Scope; label: string }[] = [
-  { id: "all", label: "All experiences" },
-  { id: "capabilities", label: "LinkedIn capabilities" },
-  { id: "toolkits", label: "Growth toolkits" },
-  { id: "mine", label: "My flows" },
+  { id: 'all', label: 'All experiences' },
+  { id: 'capabilities', label: 'LinkedIn capabilities' },
+  { id: 'toolkits', label: 'Growth toolkits' },
+  { id: 'mine', label: 'My flows' },
 ];
 
 export default function CraftCatalog(props: Props) {
@@ -79,24 +79,24 @@ export default function CraftCatalog(props: Props) {
     onImport,
     onOpen,
   } = props;
-  const [scope, setScope] = useState<Scope>("all");
+  const [scope, setScope] = useState<Scope>('all');
   const displayed = crafts.filter((craft) => {
     const capability = capabilityForSlug(craft.slug);
     return (
-      scope === "all" ||
-      (scope === "capabilities" && Boolean(capability)) ||
-      (scope === "toolkits" && craft.scope === "default" && !capability) ||
-      (scope === "mine" && craft.scope === "personal")
+      scope === 'all' ||
+      (scope === 'capabilities' && Boolean(capability)) ||
+      (scope === 'toolkits' && craft.scope === 'default' && !capability) ||
+      (scope === 'mine' && craft.scope === 'personal')
     );
   });
   const available = growthCapabilities.filter(
-    (item) => item.status === "partial",
+    (item) => item.status === 'partial'
   ).length;
   return (
     <div data-testid="crafts-catalogue" className="min-w-0 space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-5 border-b border-slate-200 pb-5">
         <div className="max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-widest text-teal-800">
+          <p className="text-xs font-semibold tracking-widest text-teal-800 uppercase">
             Growth workspace
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
@@ -143,7 +143,7 @@ export default function CraftCatalog(props: Props) {
         <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {growthJourneys.map((journey) => {
             const entry = crafts.find(
-              (craft) => craft.slug === "growth-" + journey.sequence[0],
+              (craft) => craft.slug === 'growth-' + journey.sequence[0]
             );
             return (
               <button
@@ -198,10 +198,10 @@ export default function CraftCatalog(props: Props) {
               aria-pressed={scope === item.id}
               onClick={() => setScope(item.id)}
               className={
-                "min-h-10 rounded-lg px-3 text-xs font-semibold transition " +
+                'min-h-10 rounded-lg px-3 text-xs font-semibold transition ' +
                 (scope === item.id
-                  ? "bg-slate-950 text-white"
-                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50")
+                  ? 'bg-slate-950 text-white'
+                  : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50')
               }
             >
               {item.label}
@@ -210,21 +210,21 @@ export default function CraftCatalog(props: Props) {
         </div>
         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
           <label className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-3 size-4 text-slate-500" />
+            <Search className="pointer-events-none absolute top-3 left-3 size-4 text-slate-500" />
             <span className="sr-only">Search growth library</span>
             <input
               value={search}
               onChange={(e) => onSearch(e.target.value)}
               aria-label="Search crafts"
               placeholder="Search goals, actions, outcomes or evidence"
-              className="min-h-11 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-3 text-sm outline-teal-600"
+              className="min-h-11 w-full rounded-xl border border-slate-300 bg-white pr-3 pl-10 text-sm outline-teal-600"
             />
           </label>
           <select
             aria-label="Growth category"
             className="min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm outline-teal-600"
             value={filter}
-            onChange={(e) => onFilter(e.target.value as Category | "all")}
+            onChange={(e) => onFilter(e.target.value as Category | 'all')}
           >
             <option value="all">All categories</option>
             {Object.entries(craftCategoryTitles).map(([key, title]) => (
@@ -241,27 +241,27 @@ export default function CraftCatalog(props: Props) {
               <button
                 key={craft.id}
                 type="button"
-                data-testid={"craft-card-" + craft.slug}
+                data-testid={'craft-card-' + craft.slug}
                 onClick={() => onOpen(craft.id, craft.slug)}
                 className="group flex min-h-56 min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-5 text-left transition hover:border-teal-500 hover:shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
               >
                 <span className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-slate-600">
                   <span className="rounded-md border border-slate-200 px-2 py-1">
                     {capability
-                      ? capability.priority + " · " + capability.pillar
+                      ? capability.priority + ' · ' + capability.pillar
                       : craftCategoryTitles[craft.category]}
                   </span>
                   <span className="rounded-md bg-slate-100 px-2 py-1">
                     {capability
-                      ? capability.status === "partial"
-                        ? "Partially available"
-                        : "Planned"
-                      : craft.scope === "personal"
-                        ? "My workflow"
-                        : "MDX toolkit"}
+                      ? capability.status === 'partial'
+                        ? 'Partially available'
+                        : 'Planned'
+                      : craft.scope === 'personal'
+                        ? 'My workflow'
+                        : 'MDX toolkit'}
                   </span>
                 </span>
-                <h3 className="mt-4 text-base font-semibold leading-6 text-slate-950">
+                <h3 className="mt-4 text-base leading-6 font-semibold text-slate-950">
                   {craft.name}
                 </h3>
                 <p className="mt-2 line-clamp-3 text-xs leading-5 text-slate-600">
@@ -270,10 +270,10 @@ export default function CraftCatalog(props: Props) {
                 <span className="mt-auto flex items-center justify-between gap-3 border-t border-slate-100 pt-4 text-xs text-slate-500">
                   <span className="inline-flex items-center gap-1">
                     <GitBranch className="size-4" />
-                    {craft.steps.length} steps ·{" "}
+                    {craft.steps.length} steps ·{' '}
                     {capability
-                      ? capability.actions.length + " actions"
-                      : craft.links.length + " links"}
+                      ? capability.actions.length + ' actions'
+                      : craft.links.length + ' links'}
                   </span>
                   <span className="inline-flex shrink-0 items-center gap-1 font-semibold text-teal-800">
                     Explore
@@ -293,9 +293,9 @@ export default function CraftCatalog(props: Props) {
               type="button"
               className="mt-3 min-h-11 text-sm font-semibold text-teal-800 underline"
               onClick={() => {
-                setScope("all");
-                onFilter("all");
-                onSearch("");
+                setScope('all');
+                onFilter('all');
+                onSearch('');
               }}
             >
               Clear filters
@@ -385,7 +385,7 @@ export default function CraftCatalog(props: Props) {
                 !newAudience.trim()
               }
             >
-              {busy ? "Creating…" : "Create growth flow"}
+              {busy ? 'Creating…' : 'Create growth flow'}
             </Button>
           </div>
         </form>

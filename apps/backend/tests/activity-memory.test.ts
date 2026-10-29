@@ -18,12 +18,14 @@ test('conversation memory stores user messages as chat evidence, never invented 
     const records = await memory.list();
     assert(
       records.some(
-        (item) => item.id === first.id && item.text === 'Prefer concise application letters.',
-      ),
+        (item) =>
+          item.id === first.id &&
+          item.text === 'Prefer concise application letters.'
+      )
     );
     await assert.rejects(
       memory.addChat({ text: 'My password is somebody-secret' }),
-      /Do not save secrets/,
+      /Do not save secrets/
     );
     await assert.rejects(memory.addChat({ text: 'x' }), /2–2000/);
     const restarted = new ActivityMemory(root);

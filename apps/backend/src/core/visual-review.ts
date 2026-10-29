@@ -135,19 +135,24 @@ function validEditEvent(item: unknown): item is AnnotationEditEvent {
   if (!item || typeof item !== 'object') return false;
   const e = item as Partial<AnnotationEditEvent>;
   return (
-    ['draw', 'action', 'comment', 'remove', 'undo', 'tag'].includes(e.kind ?? '') &&
+    ['draw', 'action', 'comment', 'remove', 'undo', 'tag'].includes(
+      e.kind ?? ''
+    ) &&
     typeof e.annotationId === 'string' &&
     (e.annotationId === 'all' || annotationId.test(e.annotationId)) &&
     typeof e.at === 'string' &&
     !Number.isNaN(Date.parse(e.at)) &&
-    (e.annotation === undefined || e.annotation === null || validAnnotation(e.annotation))
+    (e.annotation === undefined ||
+      e.annotation === null ||
+      validAnnotation(e.annotation))
   );
 }
 // Serialize only validated, server-owned fields. Quoted scalars prevent YAML injection.
 // Output is readable YAML 1.2 without importing a new parser at runtime.
 function yamlScalar(value: unknown): string {
   if (value === null) return 'null';
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (typeof value === 'number' || typeof value === 'boolean')
+    return String(value);
   return JSON.stringify(String(value));
 }
 function yamlValue(value: unknown, indent = 0): string {
@@ -167,9 +172,14 @@ function yamlValue(value: unknown, indent = 0): string {
     return Object.entries(value as Record<string, unknown>)
       .filter(([, v]) => v !== undefined)
       .map(([key, v]) =>
-        v !== null && typeof v === 'object' && (Array.isArray(v) ? v.length > 0 : true)
+        v !== null &&
+        typeof v === 'object' &&
+        (Array.isArray(v) ? v.length > 0 : true)
           ? pad + key + ':\n' + yamlValue(v, indent + 2)
-          : pad + key + ': ' + (Array.isArray(v) && !v.length ? '[]' : yamlScalar(v)),
+          : pad +
+            key +
+            ': ' +
+            (Array.isArray(v) && !v.length ? '[]' : yamlScalar(v))
       )
       .join('\n');
   }
@@ -199,15 +209,23 @@ export function reviewYaml(record: ReviewRecord): string {
   );
 }
 
-export function normalizePageScope(platform: Platform, handle: string, raw: string): string {
-  return validatePageScope(platform, new URL(profileUrlForHandle(platform, handle)), raw).href;
+export function normalizePageScope(
+  platform: Platform,
+  handle: string,
+  raw: string
+): string {
+  return validatePageScope(
+    platform,
+    new URL(profileUrlForHandle(platform, handle)),
+    raw
+  ).href;
 }
 function validRegion(input: unknown): boolean {
   if (!input || typeof input !== 'object') return false;
   const value = input as Partial<VisualRegion>;
   return (
     [value.x, value.y, value.width, value.height].every(
-      (x) => typeof x === 'number' && Number.isFinite(x) && x >= 0 && x <= 1,
+      (x) => typeof x === 'number' && Number.isFinite(x) && x >= 0 && x <= 1
     ) &&
     (value.width ?? 0) > 0.005 &&
     (value.height ?? 0) > 0.005 &&
@@ -239,7 +257,8 @@ function parseUpload(input: unknown): Buffer {
   if (typeof input !== 'string' || input.length > 2800000)
     throw new Error('Select a PNG, JPEG or WebP image under 2 MB');
   const match = png.exec(input);
-  if (!match) throw new Error('Only PNG, JPEG and WebP image uploads are supported');
+  if (!match)
+    throw new Error('Only PNG, JPEG and WebP image uploads are supported');
   const bytes = Buffer.from(match[2] ?? '', 'base64');
   const actual = bytes.subarray(0, 8).toString('hex');
   const format = match[1];
@@ -248,13 +267,15 @@ function parseUpload(input: unknown): Buffer {
       ? actual.startsWith('89504e470d0a1a0a')
       : format === 'jpeg'
         ? actual.startsWith('ffd8ff')
-        : actual.startsWith('52494646') && bytes.toString('ascii', 8, 12) === 'WEBP';
+        : actual.startsWith('52494646') &&
+          bytes.toString('ascii', 8, 12) === 'WEBP';
   if (!valid || bytes.length === 0 || bytes.length > 2 * 1024 * 1024)
     throw new Error('Invalid or oversized image');
   return bytes;
 }
 function mimeFor(bytes: Buffer): string {
-  if (bytes.subarray(0, 4).toString('hex').startsWith('89504e47')) return 'image/png';
+  if (bytes.subarray(0, 4).toString('hex').startsWith('89504e47'))
+    return 'image/png';
   if (bytes.subarray(0, 3).toString('hex') === 'ffd8ff') return 'image/jpeg';
   return 'image/webp';
 }
@@ -264,7 +285,11 @@ function mimeFor(bytes: Buffer): string {
 export class VisualReviewStore {
   private writeQueue: Promise<unknown> = Promise.resolve();
   constructor(
-    private readonly captureAllowed: (runId: string, fileName: string, platform: Platform) => boolean,
+    private readonly captureAllowed: (
+      runId: string,
+      fileName: string,
+      platform: Platform
+    ) => boolean
   ) {}
   private serialize<T>(work: () => Promise<T>): Promise<T> {
     const result = this.writeQueue.then(work);
@@ -294,7 +319,11 @@ export class VisualReviewStore {
       typeof input.pageUrl !== 'string'
     )
       throw new Error('Valid platform, handle and page scope are required');
-    const pageUrl = normalizePageScope(input.platform, input.handle, input.pageUrl);
+    const pageUrl = normalizePageScope(
+      input.platform,
+      input.handle,
+      input.pageUrl
+    );
     const annotations = input.annotations;
     if (
       annotations !== undefined &&
@@ -304,7 +333,9 @@ export class VisualReviewStore {
         !annotations.every(validAnnotation) ||
         new Set(annotations.map((a) => a.id)).size !== annotations.length)
     ) {
-      throw new Error('Provide 1–15 distinct annotations with valid image coordinates and actions');
+      throw new Error(
+        'Provide 1–15 distinct annotations with valid image coordinates and actions'
+      );
     }
     const editEvents = input.editEvents ?? [];
     if (
@@ -333,7 +364,9 @@ export class VisualReviewStore {
       regions.length > 15 ||
       !regions.every(validRegion)
     )
-      throw new Error('Choose a graph node and at least one valid annotated region');
+      throw new Error(
+        'Choose a graph node and at least one valid annotated region'
+      );
     let image: Buffer | undefined;
     let source: ReviewRecord['source'];
     if (input.source?.kind === 'capture') {
@@ -347,7 +380,9 @@ export class VisualReviewStore {
       // Copy authorized capture bytes into the immutable review archive.
       // The original run/event journal is in-memory, but the annotated review
       // must remain viewable after restarting the engine.
-      image = await readFile(resolve(process.cwd(), '.runtime', 'evidence', runId, fileName));
+      image = await readFile(
+        resolve(process.cwd(), '.runtime', 'evidence', runId, fileName)
+      );
       if (
         image.length < 8 ||
         image.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a' ||
@@ -360,7 +395,9 @@ export class VisualReviewStore {
       source = { kind: 'upload' };
     } else if (input.source?.kind === 'review') {
       const { reviewId } = input.source;
-      const original = (await this.listReviews()).find((item) => item.id === reviewId);
+      const original = (await this.listReviews()).find(
+        (item) => item.id === reviewId
+      );
       if (
         !uuid.test(reviewId) ||
         !original ||
@@ -370,7 +407,8 @@ export class VisualReviewStore {
       )
         throw new Error('Image review does not belong to this page and owner');
       image = await readFile(resolve(root, reviewId + '.img'));
-      if (image.length > 8 * 1024 * 1024) throw new Error('Reviewed image is too large');
+      if (image.length > 8 * 1024 * 1024)
+        throw new Error('Reviewed image is too large');
       source = { kind: 'review', reviewId };
     } else throw new Error('Choose an actual run screenshot or uploaded image');
     const entry: ReviewRecord = {
@@ -389,9 +427,15 @@ export class VisualReviewStore {
     return this.serialize(async () => {
       const list = await this.listReviews();
       if (list.length >= 200)
-        throw new Error('Visual review limit reached; archive older reviews first');
+        throw new Error(
+          'Visual review limit reached; archive older reviews first'
+        );
       await mkdir(root, { recursive: true, mode: 0o700 });
-      if (image) await writeFile(resolve(root, entry.id + '.img'), image, { mode: 0o600, flag: 'wx' });
+      if (image)
+        await writeFile(resolve(root, entry.id + '.img'), image, {
+          mode: 0o600,
+          flag: 'wx',
+        });
       if (annotations)
         await writeFile(resolve(root, entry.id + '.yaml'), reviewYaml(entry), {
           mode: 0o600,
@@ -434,8 +478,16 @@ export class VisualReviewStore {
       typeof input.pageUrl !== 'string'
     )
       throw new Error('Valid owner scope required');
-    const scope = normalizePageScope(input.platform, input.handle, input.pageUrl);
-    if (typeof input.text !== 'string' || input.text.trim().length < 3 || input.text.length > 800)
+    const scope = normalizePageScope(
+      input.platform,
+      input.handle,
+      input.pageUrl
+    );
+    if (
+      typeof input.text !== 'string' ||
+      input.text.trim().length < 3 ||
+      input.text.length > 800
+    )
       throw new Error('Memory note must be 3–800 characters');
     const note: IdentityNote = {
       id: randomUUID(),

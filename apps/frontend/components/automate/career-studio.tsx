@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
-import StudioDialog from "@/components/ui/studio-dialog";
+import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import StudioDialog from '@/components/ui/studio-dialog';
 import {
   ArrowRight,
   Copy,
@@ -15,9 +15,9 @@ import {
   Search,
   ShieldCheck,
   Trash2,
-} from "lucide-react";
-import "./career-studio.css";
-import "./career-redesign.css";
+} from 'lucide-react';
+import './career-studio.css';
+import './career-redesign.css';
 
 type Role = {
   company: string;
@@ -45,7 +45,7 @@ type Resume = CareerDocument & {
   targetRole: string;
   targetCompany: string;
   jobDescription: string;
-  template: "editorial" | "classic" | "modern" | "minimal";
+  template: 'editorial' | 'classic' | 'modern' | 'minimal';
   updatedAt: string;
 };
 type CareerState = {
@@ -53,12 +53,12 @@ type CareerState = {
   profile: CareerDocument;
   resumes: Resume[];
 };
-const api = "/api/career";
+const api = '/api/career';
 const clone = <T,>(item: T): T => structuredClone(item);
 const classInput =
-  "w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-600/15";
+  'w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-600/15';
 const classButton =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 disabled:cursor-not-allowed disabled:opacity-50";
+  'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 disabled:cursor-not-allowed disabled:opacity-50';
 
 function Field({
   label,
@@ -80,7 +80,7 @@ function Field({
         <textarea
           rows={4}
           maxLength={maxLength}
-          className={classInput + " resize-y leading-6"}
+          className={classInput + ' resize-y leading-6'}
           value={value}
           onChange={(e) => onChange(e.target.value)}
         />
@@ -96,13 +96,13 @@ function Field({
   );
 }
 type SectionKey =
-  | "identity"
-  | "contacts"
-  | "experience"
-  | "education"
-  | "skills"
-  | "projects"
-  | "target"
+  | 'identity'
+  | 'contacts'
+  | 'experience'
+  | 'education'
+  | 'skills'
+  | 'projects'
+  | 'target'
   | `custom:${string}`;
 function SectionEditor({
   section,
@@ -114,109 +114,109 @@ function SectionEditor({
   value: CareerDocument;
   onChange: (next: CareerDocument) => void;
   onMeta?: (
-    key: "label" | "targetRole" | "targetCompany" | "jobDescription",
-    value: string,
+    key: 'label' | 'targetRole' | 'targetCompany' | 'jobDescription',
+    value: string
   ) => void;
 }) {
   const update = <K extends keyof CareerDocument>(
     key: K,
-    next: CareerDocument[K],
+    next: CareerDocument[K]
   ) => onChange({ ...value, [key]: next });
   const roleUpdate = (i: number, next: Role) =>
     update(
-      "experience",
-      value.experience.map((r, j) => (j === i ? next : r)),
+      'experience',
+      value.experience.map((r, j) => (j === i ? next : r))
     );
-  const customId = section.startsWith("custom:") ? section.slice(7) : null;
+  const customId = section.startsWith('custom:') ? section.slice(7) : null;
   const custom = value.customSections.find((x) => x.id === customId);
   return (
     <div className="flex flex-col gap-6" data-testid="career-section-editor">
-      {section === "target" && "targetRole" in value && onMeta && (
+      {section === 'target' && 'targetRole' in value && onMeta && (
         <div className="flex flex-col gap-4">
           <Field
             label="Résumé name"
             value={(value as Resume).label}
             maxLength={120}
-            onChange={(v) => onMeta("label", v)}
+            onChange={(v) => onMeta('label', v)}
           />
           <Field
             label="Target position"
             value={(value as Resume).targetRole}
             maxLength={180}
-            onChange={(v) => onMeta("targetRole", v)}
+            onChange={(v) => onMeta('targetRole', v)}
           />
           <Field
             label="Company (optional)"
             value={(value as Resume).targetCompany}
             maxLength={180}
-            onChange={(v) => onMeta("targetCompany", v)}
+            onChange={(v) => onMeta('targetCompany', v)}
           />
           <Field
             label="Job description (private notes, never printed)"
             value={(value as Resume).jobDescription}
             maxLength={12000}
             multiline
-            onChange={(v) => onMeta("jobDescription", v)}
+            onChange={(v) => onMeta('jobDescription', v)}
           />
         </div>
       )}
-      {section === "identity" && (
+      {section === 'identity' && (
         <div className="flex flex-col gap-4">
           <Field
             label="Full name"
             maxLength={150}
             value={value.name}
-            onChange={(v) => update("name", v)}
+            onChange={(v) => update('name', v)}
           />
           <Field
             label="Professional headline"
             maxLength={240}
             value={value.headline}
-            onChange={(v) => update("headline", v)}
+            onChange={(v) => update('headline', v)}
           />
           <Field
             label="Location"
             maxLength={180}
             value={value.location}
-            onChange={(v) => update("location", v)}
+            onChange={(v) => update('location', v)}
           />
           <Field
             label="Professional summary"
             multiline
             value={value.summary}
-            onChange={(v) => update("summary", v)}
+            onChange={(v) => update('summary', v)}
           />
         </div>
       )}
-      {section === "contacts" && (
+      {section === 'contacts' && (
         <label className="text-sm font-semibold">
           Contact methods, one per line
           <textarea
-            className={classInput + " mt-2 resize-y leading-6"}
+            className={classInput + ' mt-2 resize-y leading-6'}
             rows={5}
             maxLength={4000}
-            value={value.contacts.join("\n")}
+            value={value.contacts.join('\n')}
             onChange={(e) =>
-              update("contacts", e.target.value.split("\n").slice(0, 16))
+              update('contacts', e.target.value.split('\n').slice(0, 16))
             }
           />
         </label>
       )}
-      {section === "skills" && (
+      {section === 'skills' && (
         <label className="text-sm font-semibold">
           Skills, one per line
           <textarea
-            className={classInput + " mt-2 resize-y leading-6"}
+            className={classInput + ' mt-2 resize-y leading-6'}
             rows={7}
             maxLength={10000}
-            value={value.skills.join("\n")}
+            value={value.skills.join('\n')}
             onChange={(e) =>
-              update("skills", e.target.value.split("\n").slice(0, 80))
+              update('skills', e.target.value.split('\n').slice(0, 80))
             }
           />
         </label>
       )}
-      {section === "experience" && (
+      {section === 'experience' && (
         <>
           {value.experience.map((r, i) => (
             <div
@@ -228,11 +228,11 @@ function SectionEditor({
                 <button
                   type="button"
                   aria-label={`Remove position ${i + 1}`}
-                  className={classButton + " text-rose-700"}
+                  className={classButton + ' text-rose-700'}
                   onClick={() =>
                     update(
-                      "experience",
-                      value.experience.filter((_, j) => i !== j),
+                      'experience',
+                      value.experience.filter((_, j) => i !== j)
                     )
                   }
                 >
@@ -270,9 +270,9 @@ function SectionEditor({
                 label="Achievements, one per line"
                 maxLength={12000}
                 multiline
-                value={r.bullets.join("\n")}
+                value={r.bullets.join('\n')}
                 onChange={(v) =>
-                  roleUpdate(i, { ...r, bullets: v.split("\n").slice(0, 20) })
+                  roleUpdate(i, { ...r, bullets: v.split('\n').slice(0, 20) })
                 }
               />
             </div>
@@ -281,16 +281,16 @@ function SectionEditor({
             type="button"
             disabled={value.experience.length >= 35}
             className={
-              classButton + " self-start border border-dashed border-teal-400"
+              classButton + ' self-start border border-dashed border-teal-400'
             }
             onClick={() =>
-              update("experience", [
+              update('experience', [
                 ...value.experience,
                 {
-                  company: "",
-                  role: "",
-                  period: "",
-                  location: "",
+                  company: '',
+                  role: '',
+                  period: '',
+                  location: '',
                   bullets: [],
                 },
               ])
@@ -301,7 +301,7 @@ function SectionEditor({
           </button>
         </>
       )}
-      {section === "education" && (
+      {section === 'education' && (
         <>
           {value.education.map((e, i) => (
             <div
@@ -312,11 +312,11 @@ function SectionEditor({
                 <strong className="text-sm">Qualification {i + 1}</strong>
                 <button
                   type="button"
-                  className={classButton + " text-rose-700"}
+                  className={classButton + ' text-rose-700'}
                   onClick={() =>
                     update(
-                      "education",
-                      value.education.filter((_, j) => i !== j),
+                      'education',
+                      value.education.filter((_, j) => i !== j)
                     )
                   }
                 >
@@ -329,10 +329,10 @@ function SectionEditor({
                 value={e.institution}
                 onChange={(v) =>
                   update(
-                    "education",
+                    'education',
                     value.education.map((x, j) =>
-                      i === j ? { ...x, institution: v } : x,
-                    ),
+                      i === j ? { ...x, institution: v } : x
+                    )
                   )
                 }
               />
@@ -342,10 +342,10 @@ function SectionEditor({
                 value={e.degree}
                 onChange={(v) =>
                   update(
-                    "education",
+                    'education',
                     value.education.map((x, j) =>
-                      i === j ? { ...x, degree: v } : x,
-                    ),
+                      i === j ? { ...x, degree: v } : x
+                    )
                   )
                 }
               />
@@ -354,11 +354,11 @@ function SectionEditor({
           <button
             type="button"
             disabled={value.education.length >= 12}
-            className={classButton + " self-start"}
+            className={classButton + ' self-start'}
             onClick={() =>
-              update("education", [
+              update('education', [
                 ...value.education,
-                { institution: "", degree: "" },
+                { institution: '', degree: '' },
               ])
             }
           >
@@ -367,7 +367,7 @@ function SectionEditor({
           </button>
         </>
       )}
-      {section === "projects" && (
+      {section === 'projects' && (
         <>
           {value.projects.map((p, i) => (
             <div
@@ -378,11 +378,11 @@ function SectionEditor({
                 <strong className="text-sm">Project {i + 1}</strong>
                 <button
                   type="button"
-                  className={classButton + " text-rose-700"}
+                  className={classButton + ' text-rose-700'}
                   onClick={() =>
                     update(
-                      "projects",
-                      value.projects.filter((_, j) => i !== j),
+                      'projects',
+                      value.projects.filter((_, j) => i !== j)
                     )
                   }
                 >
@@ -395,10 +395,10 @@ function SectionEditor({
                 value={p.title}
                 onChange={(v) =>
                   update(
-                    "projects",
+                    'projects',
                     value.projects.map((x, j) =>
-                      i === j ? { ...x, title: v } : x,
-                    ),
+                      i === j ? { ...x, title: v } : x
+                    )
                   )
                 }
               />
@@ -409,10 +409,10 @@ function SectionEditor({
                 value={p.outcome}
                 onChange={(v) =>
                   update(
-                    "projects",
+                    'projects',
                     value.projects.map((x, j) =>
-                      i === j ? { ...x, outcome: v } : x,
-                    ),
+                      i === j ? { ...x, outcome: v } : x
+                    )
                   )
                 }
               />
@@ -421,11 +421,11 @@ function SectionEditor({
           <button
             type="button"
             disabled={value.projects.length >= 30}
-            className={classButton + " self-start"}
+            className={classButton + ' self-start'}
             onClick={() =>
-              update("projects", [
+              update('projects', [
                 ...value.projects,
-                { title: "", outcome: "" },
+                { title: '', outcome: '' },
               ])
             }
           >
@@ -442,40 +442,40 @@ function SectionEditor({
             value={custom.title}
             onChange={(v) =>
               update(
-                "customSections",
+                'customSections',
                 value.customSections.map((s) =>
-                  s.id === customId ? { ...s, title: v } : s,
-                ),
+                  s.id === customId ? { ...s, title: v } : s
+                )
               )
             }
           />
           <label className="text-sm font-semibold">
             Entries, one per line
             <textarea
-              className={classInput + " mt-2 resize-y"}
+              className={classInput + ' mt-2 resize-y'}
               rows={7}
               maxLength={10500}
-              value={custom.items.join("\n")}
+              value={custom.items.join('\n')}
               onChange={(e) =>
                 update(
-                  "customSections",
+                  'customSections',
                   value.customSections.map((s) =>
                     s.id === customId
-                      ? { ...s, items: e.target.value.split("\n").slice(0, 30) }
-                      : s,
-                  ),
+                      ? { ...s, items: e.target.value.split('\n').slice(0, 30) }
+                      : s
+                  )
                 )
               }
             />
           </label>
           <button
             type="button"
-            className={classButton + " self-start text-rose-700"}
+            className={classButton + ' self-start text-rose-700'}
             onClick={() => {
-              if (window.confirm("Remove this custom section?"))
+              if (window.confirm('Remove this custom section?'))
                 update(
-                  "customSections",
-                  value.customSections.filter((s) => s.id !== customId),
+                  'customSections',
+                  value.customSections.filter((s) => s.id !== customId)
                 );
             }}
           >
@@ -493,7 +493,7 @@ function ResumePaper({
   template,
 }: {
   value: CareerDocument;
-  template: Resume["template"];
+  template: Resume['template'];
 }) {
   return (
     <article
@@ -508,13 +508,13 @@ function ResumePaper({
             .split(/\s+/)
             .map((p) => p[0])
             .slice(0, 2)
-            .join("")
+            .join('')
             .toUpperCase()}
         </div>
         <div>
-          <h2>{value.name || "Your name"}</h2>
+          <h2>{value.name || 'Your name'}</h2>
           <p className="career-paper-headline">
-            {value.headline || "Professional headline"}
+            {value.headline || 'Professional headline'}
           </p>
           {value.location && (
             <p className="career-paper-location">{value.location}</p>
@@ -568,7 +568,7 @@ function ResumePaper({
               {value.experience.map((job, i) => (
                 <div className="career-paper-entry" key={i}>
                   <div className="career-paper-job">
-                    <strong>{job.role || "Job title"}</strong>
+                    <strong>{job.role || 'Job title'}</strong>
                     <span>{job.period}</span>
                   </div>
                   <p className="career-paper-company">
@@ -619,63 +619,63 @@ function ResumePaper({
 
 const templateOptions = [
   {
-    id: "editorial",
-    name: "Editorial",
-    description: "Two-column layout with an expressive heading.",
+    id: 'editorial',
+    name: 'Editorial',
+    description: 'Two-column layout with an expressive heading.',
   },
   {
-    id: "classic",
-    name: "Classic",
-    description: "Straightforward, single-column ATS-friendly document.",
+    id: 'classic',
+    name: 'Classic',
+    description: 'Straightforward, single-column ATS-friendly document.',
   },
   {
-    id: "modern",
-    name: "Modern",
-    description: "Contemporary typography with structured experience.",
+    id: 'modern',
+    name: 'Modern',
+    description: 'Contemporary typography with structured experience.',
   },
   {
-    id: "minimal",
-    name: "Minimal",
-    description: "An understated, compact, single-column design.",
+    id: 'minimal',
+    name: 'Minimal',
+    description: 'An understated, compact, single-column design.',
   },
 ] as const;
 export default function CareerStudio({
   mode,
   onNavigate,
 }: {
-  mode: "profile" | "resumes";
+  mode: 'profile' | 'resumes';
   onNavigate: (path: string) => void;
 }) {
   const pathname = usePathname();
-  const sourceView = mode === "profile";
-  const galleryView = !sourceView && pathname.endsWith("/templates");
+  const sourceView = mode === 'profile';
+  const galleryView = !sourceView && pathname.endsWith('/templates');
   const detailId =
-    !sourceView && !galleryView && pathname !== "/dashboard/resumes"
-      ? pathname.split("/")[3] || null
+    !sourceView && !galleryView && pathname !== '/dashboard/resumes'
+      ? pathname.split('/')[3] || null
       : null;
   const [state, setState] = useState<CareerState | null>(null),
     [draft, setDraft] = useState<CareerDocument | Resume | null>(null);
   const [dirty, setDirty] = useState(false),
     [saving, setSaving] = useState(false),
-    [error, setError] = useState(""),
-    [notice, setNotice] = useState("");
-  const [search, setSearch] = useState(""),
-    [tab, setTab] = useState<"sections" | "preview">("sections");
+    [error, setError] = useState(''),
+    [notice, setNotice] = useState('');
+  const [search, setSearch] = useState(''),
+    [tab, setTab] = useState<'sections' | 'preview'>('sections');
   const [section, setSection] = useState<SectionKey | null>(null),
     [showAdd, setShowAdd] = useState(false),
     [showTemplate, setShowTemplate] = useState(false);
-  const [newSectionName, setNewSectionName] = useState("");
+  const [newSectionName, setNewSectionName] = useState('');
   useEffect(() => {
     let mounted = true;
-    void fetch(api, { cache: "no-store" })
+    void fetch(api, { cache: 'no-store' })
       .then(async (r) => {
         const data = await r.json();
-        if (!r.ok) throw Error(data.error || "Career records unavailable");
+        if (!r.ok) throw Error(data.error || 'Career records unavailable');
         if (mounted) setState(data as CareerState);
       })
       .catch((e) => {
         if (mounted)
-          setError(e instanceof Error ? e.message : "Could not load résumés");
+          setError(e instanceof Error ? e.message : 'Could not load résumés');
       });
     return () => {
       mounted = false;
@@ -688,69 +688,69 @@ export default function CareerStudio({
       : state.resumes.find((r) => r.id === detailId);
     setDraft(doc ? clone(doc) : null);
     setDirty(false);
-    setTab("sections");
+    setTab('sections');
     setSection(null);
   }, [state, sourceView, detailId]);
   useEffect(() => {
     if (!dirty) return;
     const warn = (e: BeforeUnloadEvent) => {
       e.preventDefault();
-      e.returnValue = "";
+      e.returnValue = '';
     };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
   function go(path: string) {
-    if (dirty && !window.confirm("Discard unsaved résumé changes?")) return;
+    if (dirty && !window.confirm('Discard unsaved résumé changes?')) return;
     onNavigate(path);
   }
   function update(next: CareerDocument) {
     setDraft(next);
     setDirty(true);
-    setNotice("");
+    setNotice('');
   }
   function meta(
-    key: "label" | "targetRole" | "targetCompany" | "jobDescription",
-    value: string,
+    key: 'label' | 'targetRole' | 'targetCompany' | 'jobDescription',
+    value: string
   ) {
     if (!draft) return;
     setDraft({ ...draft, [key]: value });
     setDirty(true);
-    setNotice("");
+    setNotice('');
   }
   async function request(
     path: string,
-    method: "POST" | "PUT" | "DELETE",
-    body: Record<string, unknown>,
+    method: 'POST' | 'PUT' | 'DELETE',
+    body: Record<string, unknown>
   ) {
     const result = await fetch(api + path, {
       method,
-      headers: { "content-type": "application/json" },
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
     });
     const next = (await result.json()) as CareerState & { error?: string };
-    if (!result.ok) throw Error(next.error || "Changes were not saved");
+    if (!result.ok) throw Error(next.error || 'Changes were not saved');
     setState(next);
     return next;
   }
   async function save() {
     if (!state || !draft) return false;
     setSaving(true);
-    setError("");
-    setNotice("");
+    setError('');
+    setNotice('');
     try {
       await request(
         sourceView
-          ? "/profile"
-          : "/resumes/" + encodeURIComponent(detailId || ""),
-        "PUT",
-        { expectedRevision: state.revision, document: draft },
+          ? '/profile'
+          : '/resumes/' + encodeURIComponent(detailId || ''),
+        'PUT',
+        { expectedRevision: state.revision, document: draft }
       );
       setDirty(false);
-      setNotice("Saved to your personal career library.");
+      setNotice('Saved to your personal career library.');
       return true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Cannot save résumé");
+      setError(e instanceof Error ? e.message : 'Cannot save résumé');
       return false;
     } finally {
       setSaving(false);
@@ -758,20 +758,20 @@ export default function CareerStudio({
   }
   async function create(fromId?: string) {
     if (!state || saving) return;
-    if (dirty && !window.confirm("Discard unsaved changes?")) return;
+    if (dirty && !window.confirm('Discard unsaved changes?')) return;
     setSaving(true);
-    setError("");
+    setError('');
     try {
-      const next = await request("/resumes", "POST", {
+      const next = await request('/resumes', 'POST', {
         expectedRevision: state.revision,
         fromId,
       });
       const added = next.resumes.find(
-        (r) => !state.resumes.some((old) => old.id === r.id),
+        (r) => !state.resumes.some((old) => old.id === r.id)
       );
-      if (added) onNavigate("/dashboard/resumes/" + added.id);
+      if (added) onNavigate('/dashboard/resumes/' + added.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not create résumé");
+      setError(e instanceof Error ? e.message : 'Could not create résumé');
     } finally {
       setSaving(false);
     }
@@ -781,18 +781,18 @@ export default function CareerStudio({
       !state ||
       !detailId ||
       saving ||
-      !window.confirm("Delete this résumé? This cannot be undone.")
+      !window.confirm('Delete this résumé? This cannot be undone.')
     )
       return;
     setSaving(true);
-    setError("");
+    setError('');
     try {
-      await request("/resumes/" + encodeURIComponent(detailId), "DELETE", {
+      await request('/resumes/' + encodeURIComponent(detailId), 'DELETE', {
         expectedRevision: state.revision,
       });
-      onNavigate("/dashboard/resumes");
+      onNavigate('/dashboard/resumes');
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not delete résumé");
+      setError(e instanceof Error ? e.message : 'Could not delete résumé');
     } finally {
       setSaving(false);
     }
@@ -807,49 +807,49 @@ export default function CareerStudio({
       customSections: [...draft.customSections, { id, title, items: [] }],
     });
     setShowAdd(false);
-    setNewSectionName("");
+    setNewSectionName('');
     setSection(`custom:${id}`);
   }
   const versions =
     state?.resumes.filter((r) =>
       [r.label, r.targetRole, r.targetCompany].some((s) =>
-        s.toLowerCase().includes(search.toLowerCase()),
-      ),
+        s.toLowerCase().includes(search.toLowerCase())
+      )
     ) || [];
   const detail = detailId && state?.resumes.find((r) => r.id === detailId);
   const currentTemplate = (
-    !sourceView && draft && "template" in draft ? draft.template : "editorial"
-  ) as Resume["template"];
+    !sourceView && draft && 'template' in draft ? draft.template : 'editorial'
+  ) as Resume['template'];
   const sections: { key: SectionKey; title: string; detail: string }[] = draft
     ? [
         {
-          key: "identity",
-          title: "Professional summary",
-          detail: draft.headline || "Name, headline and summary",
+          key: 'identity',
+          title: 'Professional summary',
+          detail: draft.headline || 'Name, headline and summary',
         },
         {
-          key: "experience",
-          title: "Experience",
+          key: 'experience',
+          title: 'Experience',
           detail: `${draft.experience.length} positions · individual achievements`,
         },
         {
-          key: "skills",
-          title: "Skills",
+          key: 'skills',
+          title: 'Skills',
           detail: `${draft.skills.length} capabilities`,
         },
         {
-          key: "education",
-          title: "Education",
+          key: 'education',
+          title: 'Education',
           detail: `${draft.education.length} qualifications`,
         },
         {
-          key: "projects",
-          title: "Projects",
+          key: 'projects',
+          title: 'Projects',
           detail: `${draft.projects.length} selected projects`,
         },
         {
-          key: "contacts",
-          title: "Contact details",
+          key: 'contacts',
+          title: 'Contact details',
           detail: `${draft.contacts.length} contact methods`,
         },
         ...draft.customSections.map((s) => ({
@@ -862,31 +862,31 @@ export default function CareerStudio({
   return (
     <div
       data-career-studio
-      data-career-dirty={dirty ? "true" : "false"}
-      data-testid={sourceView ? "career-source-page" : "resume-library-page"}
+      data-career-dirty={dirty ? 'true' : 'false'}
+      data-testid={sourceView ? 'career-source-page' : 'resume-library-page'}
       className="career-studio mx-auto flex max-w-6xl flex-col gap-7 pb-14"
     >
       <header className="flex flex-col gap-2">
-        <p className="text-xs font-bold uppercase tracking-widest text-teal-700">
+        <p className="text-xs font-bold tracking-widest text-teal-700 uppercase">
           Résumé studio
         </p>
         <h1 className="font-serif text-3xl tracking-tight text-slate-900">
           {sourceView
-            ? "Career source"
+            ? 'Career source'
             : galleryView
-              ? "Document templates"
+              ? 'Document templates'
               : detail
-                ? "Edit your résumé"
-                : "Your résumé library"}
+                ? 'Edit your résumé'
+                : 'Your résumé library'}
         </h1>
         <p className="max-w-2xl text-sm leading-6 text-slate-600">
           {sourceView
-            ? "Career information you enter and review is used to start new résumés."
+            ? 'Career information you enter and review is used to start new résumés.'
             : galleryView
-              ? "Compare document styles for different job applications."
+              ? 'Compare document styles for different job applications.'
               : detail
-                ? "Edit individual sections without a crowded form."
-                : "Manage separate résumé versions for different roles and companies."}
+                ? 'Edit individual sections without a crowded form.'
+                : 'Manage separate résumé versions for different roles and companies.'}
         </p>
       </header>
 
@@ -895,19 +895,19 @@ export default function CareerStudio({
         className="flex flex-wrap gap-2 border-b border-slate-200 pb-4"
       >
         {[
-          ["Library", "/dashboard/resumes"],
-          ["Career source", "/dashboard/resumes/profile"],
-          ["Templates", "/dashboard/resumes/templates"],
+          ['Library', '/dashboard/resumes'],
+          ['Career source', '/dashboard/resumes/profile'],
+          ['Templates', '/dashboard/resumes/templates'],
         ].map(([name, path]) => (
           <button
             key={path}
             type="button"
             onClick={() => go(path)}
             className={
-              "rounded-xl px-4 py-3 text-sm font-semibold " +
+              'rounded-xl px-4 py-3 text-sm font-semibold ' +
               (pathname === path
-                ? "bg-teal-700 text-white"
-                : "bg-white text-slate-700 hover:bg-slate-100")
+                ? 'bg-teal-700 text-white'
+                : 'bg-white text-slate-700 hover:bg-slate-100')
             }
           >
             {name}
@@ -924,8 +924,8 @@ export default function CareerStudio({
           role="alert"
           className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"
         >
-          {error}{" "}
-          {error.includes("changed") && (
+          {error}{' '}
+          {error.includes('changed') && (
             <button
               type="button"
               className="ml-2 underline"
@@ -950,8 +950,8 @@ export default function CareerStudio({
           className="rounded-2xl bg-white p-8 text-sm text-slate-600"
         >
           {error
-            ? "Start the local Utomator engine to load your résumés."
-            : "Loading résumé library…"}
+            ? 'Start the local Utomator engine to load your résumés.'
+            : 'Loading résumé library…'}
         </p>
       ) : (
         <>
@@ -966,7 +966,7 @@ export default function CareerStudio({
                 </div>
                 <button
                   className={
-                    classButton + " bg-teal-700 text-white hover:bg-teal-800"
+                    classButton + ' bg-teal-700 text-white hover:bg-teal-800'
                   }
                   disabled={
                     saving ||
@@ -982,9 +982,9 @@ export default function CareerStudio({
               <label className="block">
                 <span className="sr-only">Search résumés</span>
                 <span className="relative block">
-                  <Search className="absolute left-4 top-3.5 size-4 text-slate-400" />
+                  <Search className="absolute top-3.5 left-4 size-4 text-slate-400" />
                   <input
-                    className={classInput + " pl-11"}
+                    className={classInput + ' pl-11'}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Search by role, company or version"
@@ -996,7 +996,7 @@ export default function CareerStudio({
                   <button
                     type="button"
                     key={r.id}
-                    onClick={() => go("/dashboard/resumes/" + r.id)}
+                    onClick={() => go('/dashboard/resumes/' + r.id)}
                     className="group rounded-3xl border border-slate-200 bg-white p-7 text-left shadow-sm transition hover:border-teal-300 hover:shadow-lg"
                   >
                     <div className="flex items-start justify-between gap-4">
@@ -1007,8 +1007,8 @@ export default function CareerStudio({
                       {r.label}
                     </h3>
                     <p className="mt-2 text-sm text-slate-600">
-                      {r.targetRole || "General résumé"}
-                      {r.targetCompany ? " · " + r.targetCompany : ""}
+                      {r.targetRole || 'General résumé'}
+                      {r.targetCompany ? ' · ' + r.targetCompany : ''}
                     </p>
                     <div className="mt-6 flex flex-wrap gap-2 text-xs text-slate-500">
                       <span className="rounded-full bg-slate-100 px-3 py-1">
@@ -1024,8 +1024,8 @@ export default function CareerStudio({
               {versions.length === 0 && (
                 <p className="rounded-2xl bg-white p-10 text-center text-sm text-slate-600">
                   {state.resumes.length === 0
-                    ? "No résumés yet. Add your name and professional headline in Career source, then create a résumé."
-                    : "No matching résumés. Try another search or create a new version."}
+                    ? 'No résumés yet. Add your name and professional headline in Career source, then create a résumé.'
+                    : 'No matching résumés. Try another search or create a new version.'}
                 </p>
               )}
             </section>
@@ -1062,35 +1062,35 @@ export default function CareerStudio({
                 <div>
                   <h2 className="font-serif text-xl text-slate-900">
                     {sourceView
-                      ? "Master career source"
+                      ? 'Master career source'
                       : (draft as Resume).label}
                   </h2>
                   <p className="mt-2 text-sm text-slate-500">
-                    {dirty ? "Unsaved changes" : "All changes saved"} ·{" "}
+                    {dirty ? 'Unsaved changes' : 'All changes saved'} ·{' '}
                     {sourceView
-                      ? "Used when creating new résumés"
-                      : (draft as Resume).targetRole || "General résumé"}
+                      ? 'Used when creating new résumés'
+                      : (draft as Resume).targetRole || 'General résumé'}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button
                     className={
-                      classButton + " bg-teal-700 text-white hover:bg-teal-800"
+                      classButton + ' bg-teal-700 text-white hover:bg-teal-800'
                     }
                     disabled={saving || !dirty}
                     onClick={() => void save()}
                   >
                     <Save className="size-4" />
-                    {saving ? "Saving…" : "Save"}
+                    {saving ? 'Saving…' : 'Save'}
                   </button>
                   {!sourceView && (
                     <button
                       className={classButton}
                       onClick={() =>
-                        setTab(tab === "preview" ? "sections" : "preview")
+                        setTab(tab === 'preview' ? 'sections' : 'preview')
                       }
                     >
-                      {tab === "preview" ? "Edit sections" : "Preview document"}
+                      {tab === 'preview' ? 'Edit sections' : 'Preview document'}
                     </button>
                   )}
                 </div>
@@ -1098,25 +1098,25 @@ export default function CareerStudio({
               {!sourceView && (
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-teal-50 p-5">
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wide text-teal-800">
+                    <p className="text-xs font-bold tracking-wide text-teal-800 uppercase">
                       Application target
                     </p>
                     <p className="mt-1 text-sm text-slate-800">
-                      {(draft as Resume).targetRole || "Not specified"}
+                      {(draft as Resume).targetRole || 'Not specified'}
                       {(draft as Resume).targetCompany
-                        ? " at " + (draft as Resume).targetCompany
-                        : ""}
+                        ? ' at ' + (draft as Resume).targetCompany
+                        : ''}
                     </p>
                   </div>
                   <button
                     className={classButton}
-                    onClick={() => setSection("target")}
+                    onClick={() => setSection('target')}
                   >
                     Edit target
                   </button>
                 </div>
               )}
-              {tab === "sections" && (
+              {tab === 'sections' && (
                 <>
                   <div className="grid gap-4 md:grid-cols-2">
                     {sections.map((s) => (
@@ -1133,7 +1133,7 @@ export default function CareerStudio({
                         <button
                           type="button"
                           onClick={() => setSection(s.key)}
-                          className={classButton + " mt-4"}
+                          className={classButton + ' mt-4'}
                         >
                           <Pencil className="size-4" />
                           Edit section
@@ -1145,7 +1145,7 @@ export default function CareerStudio({
                     {draft.customSections.length < 12 && (
                       <button
                         className={
-                          classButton + " border-dashed border-teal-500"
+                          classButton + ' border-dashed border-teal-500'
                         }
                         onClick={() => setShowAdd(true)}
                       >
@@ -1174,7 +1174,7 @@ export default function CareerStudio({
                         Duplicate
                       </button>
                       <button
-                        className={classButton + " text-rose-700"}
+                        className={classButton + ' text-rose-700'}
                         disabled={saving || state.resumes.length <= 1}
                         onClick={() => void remove()}
                       >
@@ -1185,7 +1185,7 @@ export default function CareerStudio({
                   )}
                 </>
               )}
-              {!sourceView && tab === "preview" && (
+              {!sourceView && tab === 'preview' && (
                 <div className="mx-auto w-full max-w-[850px]">
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <h2 className="font-serif text-xl">Live résumé preview</h2>
@@ -1223,7 +1223,7 @@ export default function CareerStudio({
                   résumé or your Utomator owner profile.
                 </p>
               )}
-              {!sourceView && tab === "sections" && (
+              {!sourceView && tab === 'sections' && (
                 <div className="career-print-standby">
                   <ResumePaper value={draft} template={currentTemplate} />
                 </div>
@@ -1236,8 +1236,8 @@ export default function CareerStudio({
                 This résumé does not exist in the local library.
               </p>
               <button
-                className={classButton + " mt-4"}
-                onClick={() => go("/dashboard/resumes")}
+                className={classButton + ' mt-4'}
+                onClick={() => go('/dashboard/resumes')}
               >
                 Back to library
               </button>
@@ -1248,12 +1248,12 @@ export default function CareerStudio({
       <StudioDialog
         open={Boolean(section)}
         title={
-          section === "target"
-            ? "Tailor this application"
-            : section?.startsWith("custom:")
-              ? "Edit custom section"
-              : "Edit " +
-                (sections.find((s) => s.key === section)?.title || "section")
+          section === 'target'
+            ? 'Tailor this application'
+            : section?.startsWith('custom:')
+              ? 'Edit custom section'
+              : 'Edit ' +
+                (sections.find((s) => s.key === section)?.title || 'section')
         }
         description="Only this section is editable. Save to persist your changes locally."
         size="wide"
@@ -1283,7 +1283,7 @@ export default function CareerStudio({
               </button>
               <button
                 className={
-                  classButton + " bg-teal-700 text-white hover:bg-teal-800"
+                  classButton + ' bg-teal-700 text-white hover:bg-teal-800'
                 }
                 disabled={saving}
                 onClick={() => {
@@ -1293,7 +1293,7 @@ export default function CareerStudio({
                 }}
               >
                 <Save className="size-4" />
-                {saving ? "Saving…" : "Save section"}
+                {saving ? 'Saving…' : 'Save section'}
               </button>
             </div>
           </div>
@@ -1310,7 +1310,7 @@ export default function CareerStudio({
           <label className="text-sm font-semibold text-slate-700">
             Section title
             <input
-              className={classInput + " mt-2"}
+              className={classInput + ' mt-2'}
               maxLength={100}
               value={newSectionName}
               onChange={(e) => setNewSectionName(e.target.value)}
@@ -1318,7 +1318,7 @@ export default function CareerStudio({
             />
           </label>
           <div className="flex flex-wrap gap-2">
-            {["Certifications", "Awards", "Publications", "Volunteering"].map(
+            {['Certifications', 'Awards', 'Publications', 'Volunteering'].map(
               (x) => (
                 <button
                   className={classButton}
@@ -1327,11 +1327,11 @@ export default function CareerStudio({
                 >
                   {x}
                 </button>
-              ),
+              )
             )}
           </div>
           <button
-            className={classButton + " self-end bg-teal-700 text-white"}
+            className={classButton + ' self-end bg-teal-700 text-white'}
             disabled={!newSectionName.trim() || newSectionName.length > 100}
             onClick={addCustom}
           >
@@ -1354,17 +1354,17 @@ export default function CareerStudio({
               type="button"
               key={t.id}
               onClick={() => {
-                meta("label", (draft as Resume).label);
+                meta('label', (draft as Resume).label);
                 setDraft((d) => (d ? { ...d, template: t.id } : d));
                 setDirty(true);
                 setShowTemplate(false);
-                setTab("preview");
+                setTab('preview');
               }}
               className={
-                "rounded-2xl border p-5 text-left hover:border-teal-400 " +
+                'rounded-2xl border p-5 text-left hover:border-teal-400 ' +
                 (currentTemplate === t.id
-                  ? "border-teal-600 bg-teal-50"
-                  : "border-slate-200")
+                  ? 'border-teal-600 bg-teal-50'
+                  : 'border-slate-200')
               }
             >
               <div

@@ -89,7 +89,8 @@ const coverage: Coverage[] = [
     label: 'Education and credentials',
     platform: 'linkedin',
     status: 'manual',
-    source: 'apps/backend/data/seed-profile/docs/linkedin-profile-optimization.md',
+    source:
+      'apps/backend/data/seed-profile/docs/linkedin-profile-optimization.md',
     note: 'Dates and credentials need owner confirmation; no writer exists',
   },
   {
@@ -184,22 +185,33 @@ const coverage: Coverage[] = [
 
 export async function loadAutomationPlaybook() {
   const root = fileURLToPath(new URL('../../../../', import.meta.url));
-  const docRoot = fileURLToPath(new URL('../../data/seed-profile/docs/', import.meta.url));
-  const guide = await readFile(resolve(docRoot, 'linkedin-profile-optimization.md'), 'utf8');
+  const docRoot = fileURLToPath(
+    new URL('../../data/seed-profile/docs/', import.meta.url)
+  );
+  const guide = await readFile(
+    resolve(docRoot, 'linkedin-profile-optimization.md'),
+    'utf8'
+  );
   const [allArtifacts, rootEntries] = await Promise.all([
-    readdir(resolve(root, '.playwright-cli'), { withFileTypes: true }).catch((error: unknown) => {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
-      throw error;
-    }),
+    readdir(resolve(root, '.playwright-cli'), { withFileTypes: true }).catch(
+      (error: unknown) => {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+        throw error;
+      }
+    ),
     readdir(root, { withFileTypes: true }),
   ]);
   const artifacts = allArtifacts.filter((f) => f.isFile());
   const rootSnapshots = rootEntries.filter(
-    (f) => f.isFile() && /\.(ya?ml|png)$/i.test(f.name) && f.name !== 'pnpm-workspace.yaml',
+    (f) =>
+      f.isFile() &&
+      /\.(ya?ml|png)$/i.test(f.name) &&
+      f.name !== 'pnpm-workspace.yaml'
   );
   const sections = [...guide.matchAll(/^##\s+(.+)$/gm)].map((m) => m[1]);
   return {
-    source: 'apps/backend/data/seed-profile/docs/linkedin-profile-optimization.md',
+    source:
+      'apps/backend/data/seed-profile/docs/linkedin-profile-optimization.md',
     reviewed: '2026-10-22',
     stages: [
       'Evidence and attribution',

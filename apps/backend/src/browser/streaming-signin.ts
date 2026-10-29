@@ -1,7 +1,12 @@
 import { mkdir, rm } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
-import { chromium, type BrowserContext, type CDPSession, type Page } from 'playwright';
+import {
+  chromium,
+  type BrowserContext,
+  type CDPSession,
+  type Page,
+} from 'playwright';
 import { classifyProviderAuth } from './vault-probe.js';
 import { navigateWithRetry, streamSignInUrl } from './navigation.js';
 
@@ -20,7 +25,8 @@ export const STREAM_VIEWPORT = { width: 1280, height: 800 } as const;
 export const INPUT_PACING_MS = 16;
 const COMPLETION_POLL_MS = 1200;
 
-export type BrokerState = 'launching' | 'streaming' | 'authenticated' | 'closed';
+export type BrokerState =
+  'launching' | 'streaming' | 'authenticated' | 'closed';
 
 /** Raw input relay events. Coordinates are in the streamed viewport space. */
 export type BrokerInput =
@@ -39,7 +45,11 @@ export type BrokerInput =
 // touchPoints land here when the frontend exposes real gesture tracking.
 
 export type FrameEvent = { base64: string; sessionId: number };
-export type CompletionContext = { page: Page; context: BrowserContext; platform: 'linkedin' | 'x' };
+export type CompletionContext = {
+  page: Page;
+  context: BrowserContext;
+  platform: 'linkedin' | 'x';
+};
 export type CdpCommand = { method: string; params: Record<string, unknown> };
 
 /** Common keyboard codes; printable text is carried verbatim. */
@@ -85,7 +95,11 @@ const virtualKey = (code: string): number | undefined => {
   if (letter) return letter[1]!.charCodeAt(0);
   return undefined;
 };
-const POINTER_BUTTON = { left: 'left', right: 'right', middle: 'middle' } as const;
+const POINTER_BUTTON = {
+  left: 'left',
+  right: 'right',
+  middle: 'middle',
+} as const;
 
 /**
  * Pure input → CDP command mapping. The broker applies whatever these return;
@@ -95,7 +109,11 @@ const POINTER_BUTTON = { left: 'left', right: 'right', middle: 'middle' } as con
 export function mapBrokerInput(event: BrokerInput): CdpCommand[] {
   if (event.kind === 'pointer') {
     const type =
-      event.phase === 'down' ? 'mousePressed' : event.phase === 'up' ? 'mouseReleased' : 'mouseMoved';
+      event.phase === 'down'
+        ? 'mousePressed'
+        : event.phase === 'up'
+          ? 'mouseReleased'
+          : 'mouseMoved';
     return [
       {
         method: 'Input.dispatchMouseEvent',
@@ -106,9 +124,13 @@ export function mapBrokerInput(event: BrokerInput): CdpCommand[] {
           button:
             event.phase === 'move'
               ? 'none'
-              : POINTER_BUTTON[(event.button || 'left') as keyof typeof POINTER_BUTTON] || 'left',
+              : POINTER_BUTTON[
+                  (event.button || 'left') as keyof typeof POINTER_BUTTON
+                ] || 'left',
           buttons: event.buttons ?? 1,
-          ...(event.phase === 'down' || event.phase === 'up' ? { clickCount: 1 } : {}),
+          ...(event.phase === 'down' || event.phase === 'up'
+            ? { clickCount: 1 }
+            : {}),
         },
       },
     ];
@@ -129,7 +151,10 @@ export function mapBrokerInput(event: BrokerInput): CdpCommand[] {
     ];
   }
   if (event.kind === 'key') {
-    const text = typeof event.text === 'string' && event.text.length === 1 ? event.text : undefined;
+    const text =
+      typeof event.text === 'string' && event.text.length === 1
+        ? event.text
+        : undefined;
     return [
       {
         method: 'Input.dispatchKeyEvent',
@@ -157,13 +182,18 @@ export function mapBrokerInput(event: BrokerInput): CdpCommand[] {
 
 /** Production browser: throwaway scratch persistent context, strictly headless. */
 export const defaultLaunch = async (
-  platform: 'linkedin' | 'x',
+  platform: 'linkedin' | 'x'
 ): Promise<{
   page: Page;
   context: BrowserContext;
   dispose: () => Promise<void>;
 }> => {
-  const dir = resolve('.runtime', 'chrome', 'scratch', randomUUID() + '-' + platform);
+  const dir = resolve(
+    '.runtime',
+    'chrome',
+    'scratch',
+    randomUUID() + '-' + platform
+  );
   await mkdir(dir, { recursive: true, mode: 0o700 });
   const context = await chromium.launchPersistentContext(dir, {
     headless: true,
@@ -174,7 +204,10 @@ export const defaultLaunch = async (
   return {
     page,
     context,
-    dispose: () => context.close().then(() => rm(dir, { recursive: true, force: true }).catch(() => {})),
+    dispose: () =>
+      context
+        .close()
+        .then(() => rm(dir, { recursive: true, force: true }).catch(() => {})),
   };
 };
 
@@ -210,7 +243,7 @@ export class SignInBroker {
   constructor(
     readonly platform: 'linkedin' | 'x' = 'linkedin',
     private readonly deps: BrokerDeps = {},
-    private readonly ttlMs = 10 * 60 * 1000,
+    private readonly ttlMs = 10 * 60 * 1000
   ) {}
 
   onFrame(listener: (frame: FrameEvent) => void): () => void {
@@ -245,7 +278,9 @@ export class SignInBroker {
       maxAttempts: 2,
       baseDelayMs: 400,
     });
-    this.cdp.on('Page.screencastFrame', (frame: unknown) => this.handleFrame(frame as ScreencastFrame));
+    this.cdp.on('Page.screencastFrame', (frame: unknown) =>
+      this.handleFrame(frame as ScreencastFrame)
+    );
     await this.cdp.send('Page.startScreencast', {
       format: 'jpeg',
       quality: 55,
@@ -270,7 +305,10 @@ export class SignInBroker {
     )
       return;
     this.frames += 1;
-    const event: FrameEvent = { base64: frame.data, sessionId: frame.sessionId };
+    const event: FrameEvent = {
+      base64: frame.data,
+      sessionId: frame.sessionId,
+    };
     for (const listener of this.frameListeners) {
       try {
         listener(event);
@@ -291,13 +329,20 @@ export class SignInBroker {
     // Require the URL to settle so mid-navigation probes do not race.
     await new Promise((resolve) => setTimeout(resolve, 600));
     if (this.state !== 'streaming' || !this.page) return;
-    if (classifyProviderAuth(this.page.url(), this.platform) !== 'authenticated') return;
+    if (
+      classifyProviderAuth(this.page.url(), this.platform) !== 'authenticated'
+    )
+      return;
     if (this.completion) return;
     this.completion = new Promise<CompletionContext>((resolve, reject) => {
       this.completionResolve = resolve;
       this.completionReject = reject;
     });
-    this.completionResolve?.({ page: this.page, context: this.context!, platform: this.platform });
+    this.completionResolve?.({
+      page: this.page,
+      context: this.context!,
+      platform: this.platform,
+    });
     this.state = 'authenticated';
     if (this.poller) clearInterval(this.poller);
     this.poller = undefined;
@@ -343,7 +388,8 @@ export class SignInBroker {
     this.timer = undefined;
     if (this.poller) clearInterval(this.poller);
     this.poller = undefined;
-    const teardown = this.disposeContext?.().catch(() => undefined) ?? Promise.resolve();
+    const teardown =
+      this.disposeContext?.().catch(() => undefined) ?? Promise.resolve();
     for (const listener of this.closeListeners) {
       try {
         listener(reason);
@@ -352,7 +398,9 @@ export class SignInBroker {
       }
     }
     await teardown;
-    this.completionReject?.(new Error('Stream closed before sign-in completed'));
+    this.completionReject?.(
+      new Error('Stream closed before sign-in completed')
+    );
   }
 
   framesDelivered(): number {

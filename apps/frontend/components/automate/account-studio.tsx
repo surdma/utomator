@@ -1,5 +1,5 @@
-"use client";
-import { useEffect, useState } from "react";
+'use client';
+import { useEffect, useState } from 'react';
 import {
   ArrowRight,
   ExternalLink,
@@ -7,11 +7,11 @@ import {
   ShieldCheck,
   Trash2,
   UserRound,
-} from "lucide-react";
-import StudioDialog from "@/components/ui/studio-dialog";
+} from 'lucide-react';
+import StudioDialog from '@/components/ui/studio-dialog';
 export type SocialAccount = {
   id: string;
-  platform: "linkedin" | "x" | "instagram" | "github" | "devto";
+  platform: 'linkedin' | 'x' | 'instagram' | 'github' | 'devto';
   label: string;
   handle: string;
   profileUrl: string;
@@ -27,15 +27,15 @@ type State = {
   profile: Profile;
   socialAccounts: SocialAccount[];
 };
-type View = "overview" | "details" | "connections";
-const endpoint = "/api/account";
+type View = 'overview' | 'details' | 'connections';
+const endpoint = '/api/account';
 const btn =
-  "inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-teal-300 hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-teal-700 disabled:opacity-50";
+  'inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-teal-300 hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-teal-700 disabled:opacity-50';
 const input =
-  "mt-2 block min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20";
+  'mt-2 block min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20';
 type Connection = {
   id: string;
-  status: "connected" | "disconnected" | "sign-in-open" | "api-required";
+  status: 'connected' | 'disconnected' | 'sign-in-open' | 'api-required';
   verifiedAt: string | null;
 };
 function Field({
@@ -60,7 +60,7 @@ function Field({
           maxLength={max}
           value={value}
           onChange={(e) => change(e.target.value)}
-          className={input + " resize-y"}
+          className={input + ' resize-y'}
         />
       ) : (
         <input
@@ -88,16 +88,16 @@ export default function AccountStudio({
 }) {
   const [data, setData] = useState<State | null>(null),
     [profile, setProfile] = useState<Profile | null>(null);
-  const [modal, setModal] = useState<"profile" | null>(null);
-  const [error, setError] = useState(""),
+  const [modal, setModal] = useState<'profile' | null>(null);
+  const [error, setError] = useState(''),
     [saving, setSaving] = useState(false),
-    [notice, setNotice] = useState("");
+    [notice, setNotice] = useState('');
   const [connections, setConnections] = useState<Connection[]>([]);
   useEffect(() => {
     let alive = true;
     const check = async () => {
       try {
-        const res = await fetch("/api/connectors", { cache: "no-store" });
+        const res = await fetch('/api/connectors', { cache: 'no-store' });
         if (!res.ok) return;
         const rows = (await res.json()) as Connection[];
         if (alive && Array.isArray(rows)) setConnections(rows);
@@ -114,10 +114,10 @@ export default function AccountStudio({
   }, []);
   useEffect(() => {
     let active = true;
-    void fetch(endpoint, { cache: "no-store" })
+    void fetch(endpoint, { cache: 'no-store' })
       .then(async (r) => {
         const value = await r.json();
-        if (!r.ok) throw Error(value.error || "Account unavailable");
+        if (!r.ok) throw Error(value.error || 'Account unavailable');
         if (active) setData(value as State);
       })
       .catch((e) => {
@@ -129,37 +129,37 @@ export default function AccountStudio({
   }, [linkedAccountId]);
   async function save(
     path: string,
-    method: "PUT" | "POST" | "DELETE",
-    document?: unknown,
+    method: 'PUT' | 'POST' | 'DELETE',
+    document?: unknown
   ) {
     if (!data) return;
     setSaving(true);
-    setError("");
-    setNotice("");
+    setError('');
+    setNotice('');
     try {
       const r = await fetch(endpoint + path, {
         method,
-        headers: { "content-type": "application/json" },
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           expectedRevision: data.revision,
           ...(document === undefined ? {} : { document }),
         }),
       });
       const result = (await r.json()) as State & { error?: string };
-      if (!r.ok) throw Error(result.error || "Could not save");
+      if (!r.ok) throw Error(result.error || 'Could not save');
       setData(result);
       setModal(null);
-      setNotice("Saved locally.");
+      setNotice('Saved locally.');
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not save account");
+      setError(e instanceof Error ? e.message : 'Could not save account');
     } finally {
       setSaving(false);
     }
   }
   const pages = [
-    ["overview", "Overview", "/dashboard/profile"],
-    ["details", "Personal details", "/dashboard/profile/details"],
-    ["connections", "Social accounts", "/dashboard/profile/connections"],
+    ['overview', 'Overview', '/dashboard/profile'],
+    ['details', 'Personal details', '/dashboard/profile/details'],
+    ['connections', 'Social accounts', '/dashboard/profile/connections'],
   ] as const;
   return (
     <div
@@ -167,7 +167,7 @@ export default function AccountStudio({
       className="mx-auto flex max-w-5xl flex-col gap-8 pb-12"
     >
       <header className="flex flex-col gap-2">
-        <p className="text-xs font-bold uppercase tracking-widest text-teal-700">
+        <p className="text-xs font-bold tracking-widest text-teal-700 uppercase">
           Utomator account
         </p>
         <h1 className="font-serif text-3xl tracking-tight text-slate-900">
@@ -186,12 +186,12 @@ export default function AccountStudio({
           <button
             key={id}
             type="button"
-            aria-current={id === view ? "page" : undefined}
+            aria-current={id === view ? 'page' : undefined}
             className={
-              "rounded-xl px-4 py-3 text-sm font-semibold " +
+              'rounded-xl px-4 py-3 text-sm font-semibold ' +
               (id === view
-                ? "bg-teal-700 text-white"
-                : "bg-white text-slate-700 hover:bg-slate-100")
+                ? 'bg-teal-700 text-white'
+                : 'bg-white text-slate-700 hover:bg-slate-100')
             }
             onClick={() => onNavigate(path)}
           >
@@ -218,12 +218,12 @@ export default function AccountStudio({
       {!data ? (
         <p className="rounded-2xl bg-white p-8 text-sm">
           {error
-            ? "Start the local Utomator engine to load account details."
-            : "Loading account…"}
+            ? 'Start the local Utomator engine to load account details.'
+            : 'Loading account…'}
         </p>
       ) : (
         <>
-          {view === "overview" && (
+          {view === 'overview' && (
             <div className="grid gap-6 lg:grid-cols-2">
               <article className="rounded-3xl border border-slate-200 bg-white p-8">
                 <div className="flex items-center gap-4">
@@ -231,7 +231,7 @@ export default function AccountStudio({
                     <UserRound className="size-8" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">
                       Workspace owner
                     </p>
                     <h2 className="mt-2 font-serif text-2xl">
@@ -244,30 +244,30 @@ export default function AccountStudio({
                 </div>
                 <p className="mt-7 text-sm leading-7 text-slate-600">
                   {data.profile.about ||
-                    "Add a short description in Personal details."}
+                    'Add a short description in Personal details.'}
                 </p>
                 <button
-                  className={btn + " mt-7"}
-                  onClick={() => onNavigate("/dashboard/profile/details")}
+                  className={btn + ' mt-7'}
+                  onClick={() => onNavigate('/dashboard/profile/details')}
                 >
                   Personal details
                   <ArrowRight className="size-4" />
                 </button>
               </article>
               <article className="rounded-3xl border border-slate-200 bg-white p-8">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">
                   Verified social connections
                 </p>
                 <strong className="mt-4 block font-serif text-5xl text-slate-900">
-                  {connections.filter((s) => s.status === "connected").length}
+                  {connections.filter((s) => s.status === 'connected').length}
                 </strong>
                 <p className="mt-4 text-sm leading-7 text-slate-600">
                   Connect your accounts securely. Each platform supports a
                   single linked identity.
                 </p>
                 <button
-                  className={btn + " mt-7"}
-                  onClick={() => onNavigate("/dashboard/profile/connections")}
+                  className={btn + ' mt-7'}
+                  onClick={() => onNavigate('/dashboard/profile/connections')}
                 >
                   Manage accounts
                   <ArrowRight className="size-4" />
@@ -282,8 +282,8 @@ export default function AccountStudio({
                   are not account settings.
                 </p>
                 <button
-                  className={btn + " mt-5"}
-                  onClick={() => onNavigate("/dashboard/resumes/profile")}
+                  className={btn + ' mt-5'}
+                  onClick={() => onNavigate('/dashboard/resumes/profile')}
                 >
                   Open career source
                   <ArrowRight className="size-4" />
@@ -291,7 +291,7 @@ export default function AccountStudio({
               </article>
             </div>
           )}
-          {view === "details" && (
+          {view === 'details' && (
             <section className="rounded-3xl border border-slate-200 bg-white p-8">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
@@ -304,8 +304,8 @@ export default function AccountStudio({
                   className={btn}
                   onClick={() => {
                     setProfile({ ...data.profile });
-                    setError("");
-                    setModal("profile");
+                    setError('');
+                    setModal('profile');
                   }}
                 >
                   <Pencil className="size-4" />
@@ -320,18 +320,18 @@ export default function AccountStudio({
                   About: data.profile.about,
                 }).map(([k, v]) => (
                   <div key={k}>
-                    <dt className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    <dt className="text-xs font-semibold tracking-wider text-slate-500 uppercase">
                       {k}
                     </dt>
-                    <dd className="mt-2 break-words text-base leading-7">
-                      {v || "Not provided"}
+                    <dd className="mt-2 text-base leading-7 break-words">
+                      {v || 'Not provided'}
                     </dd>
                   </div>
                 ))}
               </dl>
             </section>
           )}
-          {view === "connections" && (
+          {view === 'connections' && (
             <section className="rounded-3xl border border-slate-200 bg-white p-8">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
@@ -348,7 +348,7 @@ export default function AccountStudio({
                   type="button"
                   className={
                     btn +
-                    " border-teal-700 bg-teal-700 text-white hover:bg-teal-800"
+                    ' border-teal-700 bg-teal-700 text-white hover:bg-teal-800'
                   }
                   onClick={onConnect}
                 >
@@ -358,24 +358,24 @@ export default function AccountStudio({
               </div>
               <div className="mt-8 grid gap-4 xl:grid-cols-2">
                 {(
-                  ["linkedin", "x", "instagram", "github", "devto"] as const
+                  ['linkedin', 'x', 'instagram', 'github', 'devto'] as const
                 ).map((platform) => {
                   const rows = data.socialAccounts.filter(
-                    (row) => row.platform === platform,
+                    (row) => row.platform === platform
                   );
                   const title = {
-                    linkedin: "LinkedIn",
-                    x: "X",
-                    instagram: "Instagram",
-                    github: "GitHub",
-                    devto: "Dev.to",
+                    linkedin: 'LinkedIn',
+                    x: 'X',
+                    instagram: 'Instagram',
+                    github: 'GitHub',
+                    devto: 'Dev.to',
                   }[platform];
                   return (
                     <article
                       key={platform}
                       className="min-w-0 rounded-2xl border border-slate-200 p-5"
                     >
-                      <p className="text-xs font-bold uppercase tracking-widest text-teal-700">
+                      <p className="text-xs font-bold tracking-widest text-teal-700 uppercase">
                         {title}
                       </p>
                       {rows.length === 0 ? (
@@ -385,7 +385,7 @@ export default function AccountStudio({
                           </p>
                           <button
                             type="button"
-                            className={btn + " mt-5"}
+                            className={btn + ' mt-5'}
                             onClick={onConnect}
                           >
                             View connector
@@ -395,7 +395,7 @@ export default function AccountStudio({
                       ) : (
                         rows.map((row) => {
                           const status = connections.find(
-                            (connection) => connection.id === row.id,
+                            (connection) => connection.id === row.id
                           )?.status;
                           return (
                             <div
@@ -411,16 +411,16 @@ export default function AccountStudio({
                               <p
                                 className="mt-2 text-xs font-semibold text-slate-600"
                                 data-testid={
-                                  "profile-connection-status-" + row.id
+                                  'profile-connection-status-' + row.id
                                 }
                               >
-                                {status === "connected"
-                                  ? "Connected to Utomator"
-                                  : status === "sign-in-open"
-                                    ? "Sign-in in progress"
-                                    : status === "api-required"
-                                      ? "API connector unavailable"
-                                      : "Not connected"}
+                                {status === 'connected'
+                                  ? 'Connected to Utomator'
+                                  : status === 'sign-in-open'
+                                    ? 'Sign-in in progress'
+                                    : status === 'api-required'
+                                      ? 'API connector unavailable'
+                                      : 'Not connected'}
                               </p>
                               <div className="mt-4 flex flex-wrap items-center gap-2">
                                 <button
@@ -428,9 +428,9 @@ export default function AccountStudio({
                                   className={btn}
                                   onClick={() => onSelectAccount(row)}
                                 >
-                                  {status === "connected"
-                                    ? "Manage connection"
-                                    : "Reconnect"}
+                                  {status === 'connected'
+                                    ? 'Manage connection'
+                                    : 'Reconnect'}
                                   <ArrowRight className="size-4" />
                                 </button>
                                 <button
@@ -439,10 +439,10 @@ export default function AccountStudio({
                                   onClick={() => {
                                     if (
                                       window.confirm(
-                                        "Disconnect and permanently remove this linked account?",
+                                        'Disconnect and permanently remove this linked account?'
                                       )
                                     )
-                                      void save("/social/" + row.id, "DELETE");
+                                      void save('/social/' + row.id, 'DELETE');
                                   }}
                                 >
                                   <Trash2 className="size-4" />
@@ -453,7 +453,7 @@ export default function AccountStudio({
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className={btn}
-                                  aria-label={"Open " + row.label}
+                                  aria-label={'Open ' + row.label}
                                 >
                                   <ExternalLink className="size-4" />
                                 </a>
@@ -483,7 +483,7 @@ export default function AccountStudio({
         </>
       )}
       <StudioDialog
-        open={modal === "profile"}
+        open={modal === 'profile'}
         title="Edit personal details"
         onDismiss={() => !saving && setModal(null)}
         testId="account-profile-dialog"
@@ -523,10 +523,10 @@ export default function AccountStudio({
             )}
             <button
               disabled={saving}
-              className={btn + " self-end bg-teal-700 text-white"}
-              onClick={() => void save("/profile", "PUT", profile)}
+              className={btn + ' self-end bg-teal-700 text-white'}
+              onClick={() => void save('/profile', 'PUT', profile)}
             >
-              {saving ? "Saving…" : "Save details"}
+              {saving ? 'Saving…' : 'Save details'}
             </button>
           </div>
         )}

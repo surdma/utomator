@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from 'react';
 import {
   Background,
   BackgroundVariant,
@@ -13,9 +13,9 @@ import {
   type Edge,
   type Node,
   type NodeProps,
-} from "@xyflow/react";
-import { ArrowLeft, AlertCircle, GitBranch, ShieldCheck } from "lucide-react";
-import type { WorkflowPlan } from "./workflow-plan-editor";
+} from '@xyflow/react';
+import { ArrowLeft, AlertCircle, GitBranch, ShieldCheck } from 'lucide-react';
+import type { WorkflowPlan } from './workflow-plan-editor';
 
 type Stage = {
   id: string;
@@ -51,33 +51,33 @@ type GraphData = Record<string, unknown> & {
   subtitle: string;
   state: string;
   nodeId: string;
-  kind: "pipeline" | "task";
+  kind: 'pipeline' | 'task';
   failure?: string;
 };
-type GraphNode = Node<GraphData, "growthNode">;
+type GraphNode = Node<GraphData, 'growthNode'>;
 const statuses = {
-  failed: "border-rose-600 bg-rose-50 ring-2 ring-rose-200",
-  blocked: "border-rose-500 bg-rose-50 ring-2 ring-rose-100",
-  cancelled: "border-slate-400 bg-slate-100",
-  completed: "border-emerald-500 bg-emerald-50",
-  running: "border-sky-500 bg-sky-50",
-  paused: "border-amber-400 bg-amber-50",
-  "approval-needed": "border-amber-500 bg-amber-50",
-  "input-needed": "border-amber-500 bg-amber-50",
+  failed: 'border-rose-600 bg-rose-50 ring-2 ring-rose-200',
+  blocked: 'border-rose-500 bg-rose-50 ring-2 ring-rose-100',
+  cancelled: 'border-slate-400 bg-slate-100',
+  completed: 'border-emerald-500 bg-emerald-50',
+  running: 'border-sky-500 bg-sky-50',
+  paused: 'border-amber-400 bg-amber-50',
+  'approval-needed': 'border-amber-500 bg-amber-50',
+  'input-needed': 'border-amber-500 bg-amber-50',
 } as Record<string, string>;
 function GraphNodeCard({ data, selected }: NodeProps<GraphNode>) {
-  const failed = data.state === "failed" || data.state === "blocked";
+  const failed = data.state === 'failed' || data.state === 'blocked';
   return (
     <div
       data-testid={
-        data.kind === "pipeline"
-          ? "growth-pipeline-node-" + data.nodeId
-          : "growth-task-node-" + data.nodeId
+        data.kind === 'pipeline'
+          ? 'growth-pipeline-node-' + data.nodeId
+          : 'growth-task-node-' + data.nodeId
       }
       className={
-        "w-[245px] rounded-xl border-2 p-3 text-left shadow-sm transition " +
-        (statuses[data.state] ?? "border-slate-200 bg-white") +
-        (selected ? " outline outline-2 outline-offset-2 outline-teal-700" : "")
+        'w-[245px] rounded-xl border-2 p-3 text-left shadow-sm transition ' +
+        (statuses[data.state] ?? 'border-slate-200 bg-white') +
+        (selected ? ' outline outline-2 outline-offset-2 outline-teal-700' : '')
       }
     >
       <Handle
@@ -86,19 +86,19 @@ function GraphNodeCard({ data, selected }: NodeProps<GraphNode>) {
         className="!size-2.5 !border-white !bg-slate-600"
       />
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] font-bold uppercase tracking-[.1em] text-slate-500">
-          {data.kind === "pipeline" ? "Pipeline" : "Task"}
+        <span className="text-[10px] font-bold tracking-[.1em] text-slate-500 uppercase">
+          {data.kind === 'pipeline' ? 'Pipeline' : 'Task'}
         </span>
         <span
           className={
-            "text-[10px] font-semibold capitalize " +
-            (failed ? "text-rose-800" : "text-slate-600")
+            'text-[10px] font-semibold capitalize ' +
+            (failed ? 'text-rose-800' : 'text-slate-600')
           }
         >
           {data.state}
         </span>
       </div>
-      <p className="mt-2 text-sm font-semibold leading-snug text-slate-950">
+      <p className="mt-2 text-sm leading-snug font-semibold text-slate-950">
         {data.label}
       </p>
       <p className="mt-1 text-[11px] leading-5 text-slate-600">
@@ -131,40 +131,40 @@ function GraphContent({
     runId: string;
     entries: JournalEvent[];
     error: string;
-  }>({ runId: "", entries: [], error: "" });
+  }>({ runId: '', entries: [], error: '' });
   const selected =
     program.stages.find((stage) => stage.id === selectedId) ?? null;
   const live = run?.pipelineRuns.find((item) => item.id === selectedId);
   const childRunId = live?.childRunId ?? null;
   const journal = useMemo(
     () => (childRunId === journalResult.runId ? journalResult.entries : []),
-    [childRunId, journalResult],
+    [childRunId, journalResult]
   );
   const logError =
-    childRunId === journalResult.runId ? journalResult.error : "";
+    childRunId === journalResult.runId ? journalResult.error : '';
 
   useEffect(() => {
     if (!childRunId) return;
     let mounted = true;
     const refresh = async () => {
       const response = await fetch(
-        "/api/runs/" + encodeURIComponent(childRunId) + "/logs",
-        { cache: "no-store" },
+        '/api/runs/' + encodeURIComponent(childRunId) + '/logs',
+        { cache: 'no-store' }
       );
       if (!response.ok)
         throw Error(
-          "Runner event journal unavailable (HTTP " + response.status + ")",
+          'Runner event journal unavailable (HTTP ' + response.status + ')'
         );
       const entries = (await response.json()) as JournalEvent[];
-      if (!Array.isArray(entries)) throw Error("Invalid Runner journal");
-      if (mounted) setJournalResult({ runId: childRunId, entries, error: "" });
+      if (!Array.isArray(entries)) throw Error('Invalid Runner journal');
+      if (mounted) setJournalResult({ runId: childRunId, entries, error: '' });
     };
     const recordError = (error: unknown) => {
       if (mounted)
         setJournalResult({
           runId: childRunId,
           entries: [],
-          error: error instanceof Error ? error.message : "Journal unavailable",
+          error: error instanceof Error ? error.message : 'Journal unavailable',
         });
     };
     void refresh().catch(recordError);
@@ -181,44 +181,44 @@ function GraphContent({
     for (const entry of journal) {
       const id = entry.details?.stepId,
         stage = entry.details?.stage;
-      if (id && stage && ["started", "completed", "failed"].includes(stage))
+      if (id && stage && ['started', 'completed', 'failed'].includes(stage))
         states.set(id, stage);
     }
     if (
       live &&
-      ["failed", "blocked"].includes(live.state) &&
+      ['failed', 'blocked'].includes(live.state) &&
       live.currentStepId
     )
-      states.set(live.currentStepId, "failed");
+      states.set(live.currentStepId, 'failed');
     return states;
   }, [journal, live]);
   const { nodes, edges } = useMemo(() => {
     if (selected) {
       const nodes: GraphNode[] = selected.plan.steps.map((step, i) => ({
         id: step.id,
-        type: "growthNode",
+        type: 'growthNode',
         position: step.position ?? {
           x: 35 + (i % 4) * 295,
           y: 50 + Math.floor(i / 4) * 205,
         },
         data: {
-          kind: "task",
+          kind: 'task',
           nodeId: step.id,
           label: step.title,
           subtitle:
             step.kind +
-            " · " +
+            ' · ' +
             String(i + 1) +
-            " of " +
+            ' of ' +
             selected.plan.steps.length,
-          state: taskStates.get(step.id) ?? "waiting",
+          state: taskStates.get(step.id) ?? 'waiting',
           failure:
-            taskStates.get(step.id) === "failed"
+            taskStates.get(step.id) === 'failed'
               ? (journal
                   .filter(
                     (e) =>
                       e.details?.stepId === step.id &&
-                      e.details?.stage === "failed",
+                      e.details?.stage === 'failed'
                   )
                   .at(-1)?.details?.reason ??
                 live?.error ??
@@ -227,13 +227,13 @@ function GraphContent({
         },
       }));
       const edges: Edge[] = selected.plan.links.map((link) => ({
-        id: link.source + "-" + link.target,
+        id: link.source + '-' + link.target,
         source: link.source,
         target: link.target,
-        type: "smoothstep",
+        type: 'smoothstep',
         markerEnd: { type: MarkerType.ArrowClosed },
-        style: { stroke: "#64748b", strokeWidth: 2 },
-        animated: taskStates.get(link.target) === "started",
+        style: { stroke: '#64748b', strokeWidth: 2 },
+        animated: taskStates.get(link.target) === 'started',
       }));
       return { nodes, edges };
     }
@@ -241,34 +241,34 @@ function GraphContent({
       const state = run?.pipelineRuns.find((item) => item.id === stage.id);
       return {
         id: stage.id,
-        type: "growthNode",
+        type: 'growthNode',
         position: { x: 40 + (i % 3) * 315, y: 55 + Math.floor(i / 3) * 250 },
         data: {
-          kind: "pipeline",
+          kind: 'pipeline',
           nodeId: stage.id,
           label: stage.title,
           subtitle:
             stage.stepCount +
-            " connected tasks · " +
+            ' connected tasks · ' +
             stage.sectionIds.length +
-            " coverage requirements",
-          state: state?.state ?? "waiting",
+            ' coverage requirements',
+          state: state?.state ?? 'waiting',
           failure: state?.error ?? undefined,
         },
       };
     });
     const edges: Edge[] = program.stages
-      .filter((stage) => stage.dependsOn !== "none")
+      .filter((stage) => stage.dependsOn !== 'none')
       .map((stage) => ({
-        id: stage.dependsOn + "-" + stage.id,
+        id: stage.dependsOn + '-' + stage.id,
         source: stage.dependsOn,
         target: stage.id,
-        type: "smoothstep",
+        type: 'smoothstep',
         markerEnd: { type: MarkerType.ArrowClosed },
-        style: { stroke: "#64748b", strokeWidth: 2 },
+        style: { stroke: '#64748b', strokeWidth: 2 },
         animated:
           run?.pipelineRuns.find((item) => item.id === stage.id)?.state ===
-          "running",
+          'running',
       }));
     return { nodes, edges };
   }, [selected, program, run, taskStates, journal, live]);
@@ -290,24 +290,24 @@ function GraphContent({
             </button>
           )}
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-teal-800">
+            <p className="text-xs font-bold tracking-wider text-teal-800 uppercase">
               {selected
-                ? "Pipeline tasks"
-                : "Growth workflow · connected pipelines"}
+                ? 'Pipeline tasks'
+                : 'Growth workflow · connected pipelines'}
             </p>
             <h3 className="mt-1 text-base font-bold text-slate-950">
               {selected?.title ?? program.title}
             </h3>
             <p className="text-[11px] text-slate-500">
               {selected
-                ? "Real task chain from the validated Runner plan. Red identifies the exact failed task."
-                : "Select a pipeline to inspect session, authentication, actions, verification and approval tasks."}
+                ? 'Real task chain from the validated Runner plan. Red identifies the exact failed task.'
+                : 'Select a pipeline to inspect session, authentication, actions, verification and approval tasks.'}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
           <GitBranch className="size-4" />
-          {nodes.length} {selected ? "tasks" : "pipelines"}
+          {nodes.length} {selected ? 'tasks' : 'pipelines'}
         </div>
       </div>
       <div
@@ -315,7 +315,7 @@ function GraphContent({
         data-testid="growth-workflow-graph"
       >
         <ReactFlow<GraphNode, Edge>
-          key={program.id + "/" + (selected?.id ?? "pipelines")}
+          key={program.id + '/' + (selected?.id ?? 'pipelines')}
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
@@ -344,13 +344,12 @@ function GraphContent({
           <div className="flex items-start gap-2 text-xs text-slate-600">
             <ShieldCheck className="mt-0.5 size-4 shrink-0 text-teal-700" />
             <span>
-              Coverage:{" "}
+              Coverage:{' '}
               {selected.sectionIds
                 .map(
-                  (id) =>
-                    program.coverage.find((x) => x.id === id)?.label ?? id,
+                  (id) => program.coverage.find((x) => x.id === id)?.label ?? id
                 )
-                .join(" · ")}
+                .join(' · ')}
             </span>
           </div>
           {live?.error && (
@@ -370,7 +369,7 @@ function GraphContent({
           {childRunId && (
             <a
               className="text-xs font-semibold text-teal-800 underline"
-              href={"/api/runs/" + childRunId + "/logs"}
+              href={'/api/runs/' + childRunId + '/logs'}
               target="_blank"
               rel="noopener noreferrer"
             >

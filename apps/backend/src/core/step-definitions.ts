@@ -76,7 +76,7 @@ function fields(
   value: unknown,
   accepted: readonly string[],
   required: readonly string[],
-  label: string,
+  label: string
 ): asserts value is Record<string, unknown> {
   if (
     !plainRecord(value) ||
@@ -127,9 +127,16 @@ export function parseRestrictedYaml(yaml: string): unknown {
       parent[key] = child;
       parents.push({ indent, object: child });
     } else {
-      if (!/^"(?:\\.|[^"\\])*"$/.test(rawValue) && !/^(0|[1-9][0-9]*)$/.test(rawValue))
-        throw Error('YAML scalar must be a JSON-quoted string or unsigned integer');
-      parent[key] = rawValue.startsWith('"') ? (JSON.parse(rawValue) as unknown) : Number(rawValue);
+      if (
+        !/^"(?:\\.|[^"\\])*"$/.test(rawValue) &&
+        !/^(0|[1-9][0-9]*)$/.test(rawValue)
+      )
+        throw Error(
+          'YAML scalar must be a JSON-quoted string or unsigned integer'
+        );
+      parent[key] = rawValue.startsWith('"')
+        ? (JSON.parse(rawValue) as unknown)
+        : Number(rawValue);
     }
     previousIndent = indent;
   }
@@ -141,14 +148,19 @@ export function parseStepDefinition(yaml: string): AuthoredStepDefinition {
     raw,
     ['apiVersion', 'kind', 'metadata', 'spec'],
     ['apiVersion', 'kind', 'metadata', 'spec'],
-    'definition',
+    'definition'
   );
-  fields(raw.metadata, ['id', 'version', 'title'], ['id', 'version', 'title'], 'metadata');
+  fields(
+    raw.metadata,
+    ['id', 'version', 'title'],
+    ['id', 'version', 'title'],
+    'metadata'
+  );
   fields(
     raw.spec,
     ['stepKind', 'operation', 'outputs', 'config'],
     ['stepKind', 'operation', 'outputs', 'config'],
-    'spec',
+    'spec'
   );
   fields(raw.spec.config, ['message', 'delayMs', 'expectedText'], [], 'config');
   const meta = raw.metadata,
@@ -191,13 +203,19 @@ export function parseStepDefinition(yaml: string): AuthoredStepDefinition {
       config.expectedText.length > 120)
   )
     throw Error('Invalid YAML assessment expectation');
-  if (config.message !== undefined && !['note', 'stop', 'pause'].includes(spec.stepKind as string))
+  if (
+    config.message !== undefined &&
+    !['note', 'stop', 'pause'].includes(spec.stepKind as string)
+  )
     throw Error('Message is not configurable for this YAML operation');
   if (config.delayMs !== undefined && spec.stepKind !== 'delay')
     throw Error('Delay is not configurable for this YAML operation');
   return raw as unknown as AuthoredStepDefinition;
 }
-export function instantiateStep(step: WorkflowStep, definition: AuthoredStepDefinition): WorkflowStep {
+export function instantiateStep(
+  step: WorkflowStep,
+  definition: AuthoredStepDefinition
+): WorkflowStep {
   if (
     !step.definition ||
     step.definition.id !== definition.metadata.id ||
@@ -216,9 +234,20 @@ export function instantiateStep(step: WorkflowStep, definition: AuthoredStepDefi
  * previous version to exist. Workflow references always pin a specific version. */
 export class StepDefinitionStore {
   private queue: Promise<unknown> = Promise.resolve();
-  constructor(private readonly root = resolve(process.cwd(), '.runtime', 'step-definitions')) {}
+  constructor(
+    private readonly root = resolve(
+      process.cwd(),
+      '.runtime',
+      'step-definitions'
+    )
+  ) {}
   private file(id: string, version: number): string {
-    if (!idPattern.test(id) || !Number.isSafeInteger(version) || version < 1 || version > 100000)
+    if (
+      !idPattern.test(id) ||
+      !Number.isSafeInteger(version) ||
+      version < 1 ||
+      version > 100000
+    )
       throw Error('Invalid step definition reference');
     return resolve(this.root, id, version + '.yaml');
   }
@@ -229,7 +258,7 @@ export class StepDefinitionStore {
       (error) => {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
         throw error;
-      },
+      }
     );
   }
   async create(yaml: string): Promise<AuthoredStepDefinition> {
@@ -239,21 +268,33 @@ export class StepDefinitionStore {
       if (version > 1 && !(await this.get(id, version - 1)))
         throw Error('Previous definition version missing');
       await mkdir(resolve(this.root, id), { recursive: true, mode: 0o700 });
-      await writeFile(this.file(id, version), yaml.endsWith('\n') ? yaml : yaml + '\n', {
-        flag: 'wx',
-        mode: 0o600,
-      });
+      await writeFile(
+        this.file(id, version),
+        yaml.endsWith('\n') ? yaml : yaml + '\n',
+        {
+          flag: 'wx',
+          mode: 0o600,
+        }
+      );
       return definition;
     });
     this.queue = operation.catch(() => undefined);
     return operation;
   }
-  async resolve(plan: WorkflowPlan): Promise<Map<string, AuthoredStepDefinition>> {
+  async resolve(
+    plan: WorkflowPlan
+  ): Promise<Map<string, AuthoredStepDefinition>> {
     const resolved = new Map<string, AuthoredStepDefinition>();
     for (const step of plan.steps) {
       if (!step.definition) continue;
-      const definition = await this.get(step.definition.id, step.definition.version);
-      if (!definition) throw Error('Authored YAML step definition not found: ' + step.definition.id);
+      const definition = await this.get(
+        step.definition.id,
+        step.definition.version
+      );
+      if (!definition)
+        throw Error(
+          'Authored YAML step definition not found: ' + step.definition.id
+        );
       instantiateStep(step, definition);
       resolved.set(step.id, definition);
     }
@@ -278,7 +319,9 @@ export class StepDefinitionStore {
       }
     }
     return definitions.sort(
-      (a, b) => a.metadata.id.localeCompare(b.metadata.id) || a.metadata.version - b.metadata.version,
+      (a, b) =>
+        a.metadata.id.localeCompare(b.metadata.id) ||
+        a.metadata.version - b.metadata.version
     );
   }
 }

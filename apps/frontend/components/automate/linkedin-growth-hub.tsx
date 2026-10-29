@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useMemo, useState } from "react";
+import { useMemo, useState } from 'react';
 import {
   ArrowRight,
   BookOpenCheck,
@@ -13,7 +13,7 @@ import {
   ShieldAlert,
   Target,
   Workflow,
-} from "lucide-react";
+} from 'lucide-react';
 import {
   growthCapabilities,
   growthGuardrails,
@@ -22,31 +22,31 @@ import {
   type GrowthCapability,
   type GrowthPillar,
   type GrowthPriority,
-} from "./linkedin-growth-capabilities";
+} from './linkedin-growth-capabilities';
 
-const pillars: readonly { id: "all" | GrowthPillar; label: string }[] = [
-  { id: "all", label: "All capabilities" },
-  { id: "research", label: "Research & intelligence" },
-  { id: "execution", label: "Optimization & execution" },
-  { id: "measurement", label: "Measurement" },
+const pillars: readonly { id: 'all' | GrowthPillar; label: string }[] = [
+  { id: 'all', label: 'All capabilities' },
+  { id: 'research', label: 'Research & intelligence' },
+  { id: 'execution', label: 'Optimization & execution' },
+  { id: 'measurement', label: 'Measurement' },
 ];
-const priorities: readonly { id: "all" | GrowthPriority; label: string }[] = [
-  { id: "all", label: "All priorities" },
-  { id: "P0", label: "P0 - Foundations" },
-  { id: "P1", label: "P1 - Expansion" },
-  { id: "P2", label: "P2 - Advanced" },
+const priorities: readonly { id: 'all' | GrowthPriority; label: string }[] = [
+  { id: 'all', label: 'All priorities' },
+  { id: 'P0', label: 'P0 - Foundations' },
+  { id: 'P1', label: 'P1 - Expansion' },
+  { id: 'P2', label: 'P2 - Advanced' },
 ];
 const badge = (item: GrowthCapability) =>
-  item.status === "partial"
-    ? "border-teal-200 bg-teal-50 text-teal-800"
-    : "border-slate-200 bg-slate-100 text-slate-600";
+  item.status === 'partial'
+    ? 'border-teal-200 bg-teal-50 text-teal-800'
+    : 'border-slate-200 bg-slate-100 text-slate-600';
 const control =
-  "min-h-11 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-offset-2 focus-visible:outline-teal-700";
+  'min-h-11 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-offset-2 focus-visible:outline-teal-700';
 export default function LinkedInGrowthHub() {
-  const [query, setQuery] = useState("");
-  const [pillar, setPillar] = useState<"all" | GrowthPillar>("all");
-  const [priority, setPriority] = useState<"all" | GrowthPriority>("all");
-  const [selectedId, setSelectedId] = useState<string>("profile");
+  const [query, setQuery] = useState('');
+  const [pillar, setPillar] = useState<'all' | GrowthPillar>('all');
+  const [priority, setPriority] = useState<'all' | GrowthPriority>('all');
+  const [selectedId, setSelectedId] = useState<string>('profile');
   const [expanded, setExpanded] = useState(true);
   const selected =
     growthCapabilities.find((x) => x.id === selectedId) ??
@@ -54,17 +54,17 @@ export default function LinkedInGrowthHub() {
   const filtered = useMemo(
     () =>
       growthCapabilities.filter((row) => {
-        if (pillar !== "all" && row.pillar !== pillar) return false;
-        if (priority !== "all" && row.priority !== priority) return false;
+        if (pillar !== 'all' && row.pillar !== pillar) return false;
+        if (priority !== 'all' && row.priority !== priority) return false;
         const q = query.toLowerCase().trim();
         return (
           !q ||
           [row.title, row.summary, ...row.actions].some((x) =>
-            x.toLowerCase().includes(q),
+            x.toLowerCase().includes(q)
           )
         );
       }),
-    [pillar, priority, query],
+    [pillar, priority, query]
   );
   function choose(id: string) {
     setSelectedId(id);
@@ -73,7 +73,7 @@ export default function LinkedInGrowthHub() {
   return (
     <div data-testid="linkedin-growth-hub" className="space-y-5 pb-8">
       <header className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 px-5 py-6 text-white shadow-sm sm:px-7 sm:py-8">
-        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[.18em] text-teal-300">
+        <p className="flex items-center gap-2 text-xs font-semibold tracking-[.18em] text-teal-300 uppercase">
           <Compass className="size-4" />
           LinkedIn growth system
         </p>
@@ -102,7 +102,7 @@ export default function LinkedInGrowthHub() {
               </p>
               <strong className="mt-1 block text-2xl tabular-nums">
                 {
-                  growthCapabilities.filter((x) => x.status === "partial")
+                  growthCapabilities.filter((x) => x.status === 'partial')
                     .length
                 }
               </strong>
@@ -137,10 +137,10 @@ export default function LinkedInGrowthHub() {
               type="button"
               onClick={() => choose(journey.sequence[0])}
               className={
-                "group min-h-28 rounded-xl border p-4 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 " +
+                'group min-h-28 rounded-xl border p-4 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 ' +
                 (selectedId === journey.sequence[0]
-                  ? "border-teal-600 bg-teal-50"
-                  : "border-slate-200 bg-slate-50 hover:border-teal-400")
+                  ? 'border-teal-600 bg-teal-50'
+                  : 'border-slate-200 bg-slate-50 hover:border-teal-400')
               }
             >
               <span className="flex items-center justify-between gap-2 text-sm font-semibold text-slate-900">
@@ -195,7 +195,7 @@ export default function LinkedInGrowthHub() {
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search goals, modules or actions"
               aria-label="Search capabilities"
-              className={control + " w-full pl-10"}
+              className={control + ' w-full pl-10'}
             />
           </label>
           <label className="block">
@@ -204,7 +204,7 @@ export default function LinkedInGrowthHub() {
               aria-label="Capability pillar"
               value={pillar}
               onChange={(e) => setPillar(e.target.value as typeof pillar)}
-              className={control + " w-full"}
+              className={control + ' w-full'}
             >
               {pillars.map((item) => (
                 <option value={item.id} key={item.id}>
@@ -219,7 +219,7 @@ export default function LinkedInGrowthHub() {
               aria-label="Delivery priority"
               value={priority}
               onChange={(e) => setPriority(e.target.value as typeof priority)}
-              className={control + " w-full"}
+              className={control + ' w-full'}
             >
               {priorities.map((item) => (
                 <option value={item.id} key={item.id}>
@@ -242,32 +242,32 @@ export default function LinkedInGrowthHub() {
                   onClick={() => choose(item.id)}
                   aria-pressed={selected.id === item.id}
                   className={
-                    "flex w-full min-w-0 items-start justify-between gap-4 rounded-2xl border p-4 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 " +
+                    'flex w-full min-w-0 items-start justify-between gap-4 rounded-2xl border p-4 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 ' +
                     (selected.id === item.id
-                      ? "border-teal-600 bg-teal-50 shadow-sm"
-                      : "border-slate-200 bg-white hover:border-teal-400")
+                      ? 'border-teal-600 bg-teal-50 shadow-sm'
+                      : 'border-slate-200 bg-white hover:border-teal-400')
                   }
                 >
                   <span className="min-w-0">
-                    <span className="block text-sm font-semibold leading-5 text-slate-900">
+                    <span className="block text-sm leading-5 font-semibold text-slate-900">
                       {item.title}
                     </span>
                     <span className="mt-1 block text-xs leading-5 text-slate-600">
                       {item.summary}
                     </span>
-                    <span className="mt-2 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                    <span className="mt-2 block text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
                       {item.priority} · {item.pillar}
                     </span>
                   </span>
                   <span
                     className={
-                      "shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold " +
+                      'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold ' +
                       badge(item)
                     }
                   >
-                    {item.status === "partial"
-                      ? "Partially available"
-                      : "Planned"}
+                    {item.status === 'partial'
+                      ? 'Partially available'
+                      : 'Planned'}
                   </span>
                 </button>
               </div>
@@ -282,9 +282,9 @@ export default function LinkedInGrowthHub() {
                   type="button"
                   className="mt-2 min-h-11 text-sm font-semibold text-teal-700 underline"
                   onClick={() => {
-                    setQuery("");
-                    setPillar("all");
-                    setPriority("all");
+                    setQuery('');
+                    setPillar('all');
+                    setPriority('all');
                   }}
                 >
                   Clear filters
@@ -303,13 +303,13 @@ export default function LinkedInGrowthHub() {
               </span>
               <span
                 className={
-                  "rounded-full border px-2.5 py-1 text-xs font-semibold " +
+                  'rounded-full border px-2.5 py-1 text-xs font-semibold ' +
                   badge(selected)
                 }
               >
-                {selected.status === "partial"
-                  ? "Partially available"
-                  : "Not implemented"}
+                {selected.status === 'partial'
+                  ? 'Partially available'
+                  : 'Not implemented'}
               </span>
             </div>
             <h3
@@ -322,7 +322,7 @@ export default function LinkedInGrowthHub() {
               {selected.summary}
             </p>
             <div className="mt-5 rounded-xl bg-slate-50 p-4">
-              <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-700">
+              <p className="flex items-center gap-2 text-xs font-bold tracking-wide text-slate-700 uppercase">
                 <CheckCircle2 className="size-4" />
                 Available today
               </p>
@@ -339,7 +339,7 @@ export default function LinkedInGrowthHub() {
               )}
             </div>
             <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-              <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-amber-900">
+              <p className="flex items-center gap-2 text-xs font-bold tracking-wide text-amber-900 uppercase">
                 <LockKeyhole className="size-4" />
                 Before full delivery
               </p>
@@ -355,10 +355,10 @@ export default function LinkedInGrowthHub() {
                 aria-controls="growth-action-inventory"
                 onClick={() => setExpanded((x) => !x)}
               >
-                Proposed action inventory{" "}
+                Proposed action inventory{' '}
                 <span className="text-xs text-slate-500">
-                  {selected.actions.length} actions ·{" "}
-                  {expanded ? "Hide" : "Show"}
+                  {selected.actions.length} actions ·{' '}
+                  {expanded ? 'Hide' : 'Show'}
                 </span>
               </button>
               {expanded && (
@@ -378,7 +378,7 @@ export default function LinkedInGrowthHub() {
                 </ul>
               )}
             </div>
-            {selected.id === "profile" && (
+            {selected.id === 'profile' && (
               <div className="mt-5 border-t border-slate-200 pt-4">
                 <p className="text-sm font-bold text-slate-900">
                   20 sections in the target audit

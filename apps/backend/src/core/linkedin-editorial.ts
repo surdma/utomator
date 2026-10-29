@@ -1,13 +1,24 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdir, readFile, readdir, rename, writeFile, unlink } from 'node:fs/promises';
+import {
+  mkdir,
+  readFile,
+  readdir,
+  rename,
+  writeFile,
+  unlink,
+} from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { DocumentStore } from '../db/documents.js';
 
 type EditorialAccounts = {
-  get(): Promise<{ socialAccounts: Array<{ id: string; platform: string; profileUrl: string }> }>;
+  get(): Promise<{
+    socialAccounts: Array<{ id: string; platform: string; profileUrl: string }>;
+  }>;
 };
 type EditorialResearch = {
-  get(id: string): Promise<{ ownerId: string; sources: Array<{ url: string }> } | null>;
+  get(
+    id: string
+  ): Promise<{ ownerId: string; sources: Array<{ url: string }> } | null>;
 };
 export type EditorialStatus =
   | 'draft'
@@ -39,7 +50,8 @@ export type EditorialDraft = {
   content: EditorialContent;
   publication?: {
     attemptId: string;
-    status: 'pending' | 'published' | 'publish-failed' | 'publication-uncertain';
+    status:
+      'pending' | 'published' | 'publish-failed' | 'publication-uncertain';
     requestedAt: string;
     postUrn?: string;
   };
@@ -62,9 +74,19 @@ export type EditorialDraft = {
   }>;
 };
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const digest = (data: unknown) => createHash('sha256').update(JSON.stringify(data)).digest('hex');
-const field = (value: unknown, label: string, min: number, max: number): string => {
-  if (typeof value !== 'string' || value.trim().length < min || value.length > max)
+const digest = (data: unknown) =>
+  createHash('sha256').update(JSON.stringify(data)).digest('hex');
+const field = (
+  value: unknown,
+  label: string,
+  min: number,
+  max: number
+): string => {
+  if (
+    typeof value !== 'string' ||
+    value.trim().length < min ||
+    value.length > max
+  )
     throw Error(label + ' must contain ' + min + '–' + max + ' characters');
   return value.trim();
 };
@@ -76,8 +98,17 @@ const exactUrl = (value: unknown): string => {
   } catch {
     throw Error('Evidence URL must use HTTPS');
   }
-  if (u.protocol !== 'https:' || u.username || u.password || u.port || u.search || u.hash)
-    throw Error('Evidence URL must use HTTPS without credentials, ports or parameters');
+  if (
+    u.protocol !== 'https:' ||
+    u.username ||
+    u.password ||
+    u.port ||
+    u.search ||
+    u.hash
+  )
+    throw Error(
+      'Evidence URL must use HTTPS without credentials, ports or parameters'
+    );
   return u.href;
 };
 const shape = (raw: unknown): EditorialContent => {
@@ -85,16 +116,21 @@ const shape = (raw: unknown): EditorialContent => {
     throw Error('Draft content must be an object');
   const value = raw as Record<string, unknown>;
   const allowed = ['goal', 'pillar', 'body', 'sourceUrls', 'researchRunId'];
-  if (Object.keys(value).some((k) => !allowed.includes(k))) throw Error('Unknown draft content field');
+  if (Object.keys(value).some((k) => !allowed.includes(k)))
+    throw Error('Unknown draft content field');
   if (!Array.isArray(value.sourceUrls) || value.sourceUrls.length > 8)
     throw Error('Supply 0–8 evidence links');
   const sourceUrls = value.sourceUrls.map(exactUrl);
-  if (new Set(sourceUrls).size !== sourceUrls.length) throw Error('Duplicate evidence URL');
+  if (new Set(sourceUrls).size !== sourceUrls.length)
+    throw Error('Duplicate evidence URL');
   const researchRunId =
-    value.researchRunId === undefined || value.researchRunId === null || value.researchRunId === ''
+    value.researchRunId === undefined ||
+    value.researchRunId === null ||
+    value.researchRunId === ''
       ? null
       : field(value.researchRunId, 'Research run ID', 36, 36);
-  if (researchRunId !== null && !uuid.test(researchRunId)) throw Error('Invalid research run ID');
+  if (researchRunId !== null && !uuid.test(researchRunId))
+    throw Error('Invalid research run ID');
   return {
     goal: field(value.goal, 'Goal', 8, 220),
     pillar: field(value.pillar, 'Content pillar', 3, 100),
@@ -104,7 +140,8 @@ const shape = (raw: unknown): EditorialContent => {
   };
 };
 export function editorialYaml(draft: EditorialDraft): string {
-  const line = (key: string, value: string | number) => '    ' + key + ': ' + JSON.stringify(value);
+  const line = (key: string, value: string | number) =>
+    '    ' + key + ': ' + JSON.stringify(value);
   return [
     'apiVersion: "utomator.dev/v1"',
     'kind: "LinkedInEditorialDraft"',
@@ -119,11 +156,12 @@ export function editorialYaml(draft: EditorialDraft): string {
       JSON.stringify(
         draft.status === 'published'
           ? 'confirmed'
-          : draft.status === 'publication-uncertain' || draft.status === 'publishing'
+          : draft.status === 'publication-uncertain' ||
+              draft.status === 'publishing'
             ? 'submitted-unconfirmed'
             : draft.status === 'publish-failed'
               ? 'rejected'
-              : 'not-performed',
+              : 'not-performed'
       ),
     ...(draft.publication?.postUrn
       ? ['  providerPostUrn: ' + JSON.stringify(draft.publication.postUrn)]
@@ -151,7 +189,7 @@ export class LinkedInEditorialStore {
   constructor(
     accounts: EditorialAccounts,
     research: EditorialResearch,
-    root = resolve(process.cwd(), '.runtime', 'linkedin-drafts'),
+    root = resolve(process.cwd(), '.runtime', 'linkedin-drafts')
   ) {
     this.root = root;
     this.accounts = accounts;
@@ -172,7 +210,7 @@ export class LinkedInEditorialStore {
   private async account(accountId: string) {
     if (!uuid.test(accountId)) throw Error('Invalid LinkedIn account ID');
     const item = (await this.accounts.get()).socialAccounts.find(
-      (row) => row.id === accountId && row.platform === 'linkedin',
+      (row) => row.id === accountId && row.platform === 'linkedin'
     );
     if (!item) throw Error('LinkedIn account is not saved in this workspace');
     return item;
@@ -186,7 +224,9 @@ export class LinkedInEditorialStore {
         throw Error('Research report belongs to another owner');
       if (
         !data.sourceUrls.length ||
-        data.sourceUrls.some((url) => !run.sources.some((source) => source.url === url))
+        data.sourceUrls.some(
+          (url) => !run.sources.some((source) => source.url === url)
+        )
       )
         throw Error('Evidence links must match the selected research report');
     }
@@ -195,9 +235,14 @@ export class LinkedInEditorialStore {
   private async read(id: string): Promise<EditorialDraft | null> {
     this.path(id);
     if (this.documents)
-      return (await this.documents.get<EditorialDraft>('linkedin-drafts', id))?.value ?? null;
+      return (
+        (await this.documents.get<EditorialDraft>('linkedin-drafts', id))
+          ?.value ?? null
+      );
     try {
-      return JSON.parse(await readFile(this.path(id), 'utf8')) as EditorialDraft;
+      return JSON.parse(
+        await readFile(this.path(id), 'utf8')
+      ) as EditorialDraft;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
       throw error;
@@ -210,7 +255,9 @@ export class LinkedInEditorialStore {
     if (accountId) await this.account(accountId);
     let drafts: EditorialDraft[];
     if (this.documents)
-      drafts = (await this.documents.list<EditorialDraft>('linkedin-drafts')).map((row) => row.value);
+      drafts = (
+        await this.documents.list<EditorialDraft>('linkedin-drafts')
+      ).map((row) => row.value);
     else {
       let filenames: string[];
       try {
@@ -221,25 +268,43 @@ export class LinkedInEditorialStore {
       }
       const rows = await Promise.all(
         filenames
-          .filter((name) => uuid.test(name.replace(/\.json$/, '')) && name.endsWith('.json'))
-          .map((name) => this.read(name.slice(0, -5))),
+          .filter(
+            (name) =>
+              uuid.test(name.replace(/\.json$/, '')) && name.endsWith('.json')
+          )
+          .map((name) => this.read(name.slice(0, -5)))
       );
       drafts = rows.filter((row): row is EditorialDraft => row !== null);
     }
     return drafts
-      .filter((row) => row.status !== 'deleted' && (!accountId || row.accountId === accountId))
+      .filter(
+        (row) =>
+          row.status !== 'deleted' &&
+          (!accountId || row.accountId === accountId)
+      )
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .slice(0, 100);
   }
-  private async persist(draft: EditorialDraft, expectedVersion: number): Promise<void> {
+  private async persist(
+    draft: EditorialDraft,
+    expectedVersion: number
+  ): Promise<void> {
     if (this.documents) {
-      await this.documents.put('linkedin-drafts', draft.id, draft, expectedVersion);
+      await this.documents.put(
+        'linkedin-drafts',
+        draft.id,
+        draft,
+        expectedVersion
+      );
       return;
     }
     await mkdir(this.root, { recursive: true, mode: 0o700 });
     const destination = this.path(draft.id),
       temporary = destination + '.' + randomUUID();
-    await writeFile(temporary, JSON.stringify(draft) + '\n', { flag: 'wx', mode: 0o600 });
+    await writeFile(temporary, JSON.stringify(draft) + '\n', {
+      flag: 'wx',
+      mode: 0o600,
+    });
     try {
       await rename(temporary, destination);
     } catch (error) {
@@ -264,7 +329,14 @@ export class LinkedInEditorialStore {
         updatedAt: now,
         reviewedAt: null,
         content,
-        history: [{ version: 1, event: 'created', timestamp: now, contentSha256: digest(content) }],
+        history: [
+          {
+            version: 1,
+            event: 'created',
+            timestamp: now,
+            contentSha256: digest(content),
+          },
+        ],
       };
       await this.persist(draft, 0);
       return draft;
@@ -274,7 +346,7 @@ export class LinkedInEditorialStore {
     id: string,
     expectedVersion: number,
     operation: (item: EditorialDraft) => void,
-    event: EditorialDraft['history'][number]['event'],
+    event: EditorialDraft['history'][number]['event']
   ): Promise<EditorialDraft> {
     if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1)
       throw Error('Expected draft version required');
@@ -285,7 +357,9 @@ export class LinkedInEditorialStore {
       if (existing.version !== expectedVersion)
         throw Error('Draft version conflict; reload before updating');
       if (existing.history.length >= 100)
-        throw Error('Revision history capacity reached; archive this draft and create a new one');
+        throw Error(
+          'Revision history capacity reached; archive this draft and create a new one'
+        );
       if (event === 'publication-requested' && existing.history.length >= 99)
         throw Error('Draft needs room for both publication audit events');
       const next: EditorialDraft = {
@@ -306,31 +380,43 @@ export class LinkedInEditorialStore {
       return next;
     });
   }
-  async update(id: string, expectedVersion: number, raw: unknown): Promise<EditorialDraft> {
+  async update(
+    id: string,
+    expectedVersion: number,
+    raw: unknown
+  ): Promise<EditorialDraft> {
     const content = await this.checkedContent(raw);
     return this.mutate(
       id,
       expectedVersion,
       (item) => {
-        if (item.status === 'archived') throw Error('Restore an archived draft before editing');
+        if (item.status === 'archived')
+          throw Error('Restore an archived draft before editing');
         if (!['draft', 'approved', 'publish-failed'].includes(item.status))
-          throw Error('Only editable or failed-publication drafts can be revised');
+          throw Error(
+            'Only editable or failed-publication drafts can be revised'
+          );
         item.content = content;
         item.status = 'draft';
         item.reviewedAt = null;
         item.publication = undefined;
       },
-      'edited',
+      'edited'
     );
   }
 
-  async beginPublication(id: string, expectedVersion: number): Promise<EditorialDraft> {
+  async beginPublication(
+    id: string,
+    expectedVersion: number
+  ): Promise<EditorialDraft> {
     return this.mutate(
       id,
       expectedVersion,
       (item) => {
         if (item.status !== 'approved' || !item.reviewedAt || item.publication)
-          throw Error('Publication requires an approved, never-submitted draft');
+          throw Error(
+            'Publication requires an approved, never-submitted draft'
+          );
         item.status = 'publishing';
         item.publication = {
           attemptId: randomUUID(),
@@ -338,7 +424,7 @@ export class LinkedInEditorialStore {
           requestedAt: new Date().toISOString(),
         };
       },
-      'publication-requested',
+      'publication-requested'
     );
   }
   async finishPublication(
@@ -346,13 +432,18 @@ export class LinkedInEditorialStore {
     attemptId: string,
     result:
       | { status: 'published'; postUrn: string }
-      | { status: 'publish-failed' | 'publication-uncertain' },
+      | { status: 'publish-failed' | 'publication-uncertain' }
   ): Promise<EditorialDraft> {
     return this.serialize(async () => {
       const current = await this.read(id);
-      if (!current || current.status !== 'publishing' || current.publication?.attemptId !== attemptId)
+      if (
+        !current ||
+        current.status !== 'publishing' ||
+        current.publication?.attemptId !== attemptId
+      )
         throw Error('Publishing attempt does not match the current draft');
-      if (current.history.length >= 100) throw Error('Publication audit history exhausted');
+      if (current.history.length >= 100)
+        throw Error('Publication audit history exhausted');
       const next: EditorialDraft = {
         ...current,
         history: [...current.history],
@@ -367,7 +458,10 @@ export class LinkedInEditorialStore {
       next.updatedAt = new Date().toISOString();
       next.history.push({
         version: next.version,
-        event: result.status === 'publish-failed' ? 'publication-failed' : result.status,
+        event:
+          result.status === 'publish-failed'
+            ? 'publication-failed'
+            : result.status,
         timestamp: next.updatedAt,
         contentSha256: digest(next.content),
       });
@@ -380,7 +474,7 @@ export class LinkedInEditorialStore {
     id: string,
     expectedVersion: number,
     action: 'approve' | 'reopen' | 'archive' | 'delete' | 'restore',
-    confirm = false,
+    confirm = false
   ): Promise<EditorialDraft> {
     if (!['approve', 'reopen', 'archive', 'delete', 'restore'].includes(action))
       throw Error('Invalid draft transition');
@@ -389,11 +483,13 @@ export class LinkedInEditorialStore {
       expectedVersion,
       (item) => {
         if (action === 'approve') {
-          if (item.status !== 'draft') throw Error('Only a draft can be approved');
+          if (item.status !== 'draft')
+            throw Error('Only a draft can be approved');
           item.status = 'approved';
           item.reviewedAt = new Date().toISOString();
         } else if (action === 'reopen') {
-          if (item.status !== 'approved') throw Error('Only approved content can be reopened');
+          if (item.status !== 'approved')
+            throw Error('Only approved content can be reopened');
           item.status = 'draft';
           item.reviewedAt = null;
         } else if (action === 'archive') {
@@ -402,7 +498,11 @@ export class LinkedInEditorialStore {
           item.status = 'archived';
         } else if (action === 'delete') {
           if (!confirm) throw Error('Deletion requires explicit confirmation');
-          if (!['draft', 'approved', 'archived', 'publish-failed'].includes(item.status))
+          if (
+            !['draft', 'approved', 'archived', 'publish-failed'].includes(
+              item.status
+            )
+          )
             throw Error('Published or in-flight drafts cannot be deleted');
           item.status = 'deleted';
         } else {
@@ -420,7 +520,7 @@ export class LinkedInEditorialStore {
             ? 'archived'
             : action === 'delete'
               ? 'deleted'
-              : 'restored',
+              : 'restored'
     );
   }
 }

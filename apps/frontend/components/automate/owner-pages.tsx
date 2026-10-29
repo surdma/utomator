@@ -1,22 +1,22 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { ArrowRight, Settings2, ShieldCheck, LogOut } from "lucide-react";
+import { useEffect, useState } from 'react';
+import { ArrowRight, Settings2, ShieldCheck, LogOut } from 'lucide-react';
 import {
   Card,
   CardHeader,
   CardContent,
   CardTitle,
   CardDescription,
-} from "@/components/ui/automate-card";
+} from '@/components/ui/automate-card';
 
 export function AutomationSettingsPage({
   available,
   platform,
   selectedAccount,
 }: {
-  available: "checking" | "ready" | "offline";
-  platform: "linkedin" | "x";
+  available: 'checking' | 'ready' | 'offline';
+  platform: 'linkedin' | 'x';
   selectedAccount: {
     platform: string;
     label: string;
@@ -33,7 +33,7 @@ export function AutomationSettingsPage({
     // The original local-only Next app has no application-auth endpoint.
     if (/^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)) return;
     let current = true;
-    fetch("/auth/me", { cache: "no-store" })
+    fetch('/auth/me', { cache: 'no-store' })
       .then((response) => {
         if (current && response.ok) setHosted(true);
       })
@@ -49,7 +49,7 @@ export function AutomationSettingsPage({
           <CardTitle>
             <span className="flex items-center gap-2">
               <Settings2 className="size-4" />
-              {hosted ? "Hosted account settings" : "Local automation settings"}
+              {hosted ? 'Hosted account settings' : 'Local automation settings'}
             </span>
           </CardTitle>
           <CardDescription>
@@ -68,12 +68,12 @@ export function AutomationSettingsPage({
           </div>
           <div className="flex justify-between gap-3 border-b border-slate-100 pb-3">
             <span>Social account</span>
-            <strong>{selected ? selected.label : "Not selected"}</strong>
+            <strong>{selected ? selected.label : 'Not selected'}</strong>
           </div>
           <div className="flex justify-between gap-3 border-b border-slate-100 pb-3">
             <span>Session</span>
             <strong className="capitalize">
-              {selected?.status.replaceAll("-", " ") || "Not connected"}
+              {selected?.status.replaceAll('-', ' ') || 'Not connected'}
             </strong>
           </div>
           <div className="flex justify-between gap-3">
@@ -123,14 +123,14 @@ export function AutomationSettingsPage({
           {selected ? (
             <>
               <p className="text-sm font-semibold">@{selected.handle}</p>
-              <p className="break-all text-xs text-slate-600">
+              <p className="text-xs break-all text-slate-600">
                 {selected.profileUrl}
               </p>
               <p className="text-xs text-slate-500">
                 {selected.verifiedAt
-                  ? "Last verified: " +
+                  ? 'Last verified: ' +
                     new Date(selected.verifiedAt).toLocaleString()
-                  : "Not verified yet"}
+                  : 'Not verified yet'}
               </p>
             </>
           ) : (

@@ -17,12 +17,22 @@ export interface DocumentStore {
   get<T>(namespace: string, key: string): Promise<DocumentRecord<T> | null>;
   list<T>(namespace: string): Promise<Array<DocumentRecord<T>>>;
   /** expectedVersion=0 inserts only; >0 is compare-and-swap update. */
-  put<T>(namespace: string, key: string, value: T, expectedVersion: number): Promise<number>;
-  remove(namespace: string, key: string, expectedVersion: number): Promise<void>;
+  put<T>(
+    namespace: string,
+    key: string,
+    value: T,
+    expectedVersion: number
+  ): Promise<number>;
+  remove(
+    namespace: string,
+    key: string,
+    expectedVersion: number
+  ): Promise<void>;
   close(): Promise<void>;
 }
 export const LOCAL_OWNER_ID = 'local-owner';
-const tenantIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const tenantIdPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 /** Never accept a tenant ID from a request body, URL, or unverified header. */
 export function checkedOwnerId(value: string): string {
   if (value === LOCAL_OWNER_ID) return value;
@@ -31,7 +41,12 @@ export function checkedOwnerId(value: string): string {
   return value.toLowerCase();
 }
 const formatKey = (value: string) => {
-  if (typeof value !== 'string' || !value || value.length > 160 || !/^[-a-zA-Z0-9_:]+$/.test(value))
+  if (
+    typeof value !== 'string' ||
+    !value ||
+    value.length > 160 ||
+    !/^[-a-zA-Z0-9_:]+$/.test(value)
+  )
     throw Error('Invalid database document key');
   return value;
 };
@@ -57,7 +72,11 @@ const validated = (namespace: string, key: string) => {
     throw Error('Unknown database document namespace');
   return [namespace, formatKey(key)] as const;
 };
-const decode = <T>(row: { key: string; version: number; payload: string }): DocumentRecord<T> => ({
+const decode = <T>(row: {
+  key: string;
+  version: number;
+  payload: string;
+}): DocumentRecord<T> => ({
   key: row.key,
   version: row.version,
   value: JSON.parse(row.payload) as T,
@@ -69,17 +88,20 @@ const payload = (value: unknown) => {
   return serialized;
 };
 function checkRevision(expected: number) {
-  if (!Number.isSafeInteger(expected) || expected < 0) throw Error('Invalid database revision');
+  if (!Number.isSafeInteger(expected) || expected < 0)
+    throw Error('Invalid database revision');
 }
-const conflict = () => Error('Database document changed. Reload before saving.');
+const conflict = () =>
+  Error('Database document changed. Reload before saving.');
 export async function createDocumentStore(
   environment: NodeJS.ProcessEnv = process.env,
-  authenticatedOwnerId: string = LOCAL_OWNER_ID,
+  authenticatedOwnerId: string = LOCAL_OWNER_ID
 ): Promise<DocumentStore> {
   const owner = checkedOwnerId(authenticatedOwnerId);
   const url = environment.DATABASE_URL?.trim();
   if (url) {
-    if (!/^postgres(?:ql)?:\/\//i.test(url)) throw Error('DATABASE_URL must be PostgreSQL');
+    if (!/^postgres(?:ql)?:\/\//i.test(url))
+      throw Error('DATABASE_URL must be PostgreSQL');
     const client = postgres(url, { max: 10, connect_timeout: 10 });
     const db = postgresDrizzle({ client });
     try {
@@ -88,7 +110,7 @@ export async function createDocumentStore(
       await client.end().catch(() => {});
       throw Error(
         'PostgreSQL schema unavailable. Apply Drizzle migrations with pnpm db:migrate or pnpm db:push before starting.',
-        { cause: error },
+        { cause: error }
       );
     }
     return {
@@ -97,14 +119,18 @@ export async function createDocumentStore(
       async get<T>(namespace: string, key: string) {
         validated(namespace, key);
         const rows = await db
-          .select({ key: pgDocuments.key, version: pgDocuments.version, payload: pgDocuments.payload })
+          .select({
+            key: pgDocuments.key,
+            version: pgDocuments.version,
+            payload: pgDocuments.payload,
+          })
           .from(pgDocuments)
           .where(
             and(
               eq(pgDocuments.ownerId, owner),
               eq(pgDocuments.namespace, namespace),
-              eq(pgDocuments.key, key),
-            ),
+              eq(pgDocuments.key, key)
+            )
           )
           .limit(1);
         return rows[0] ? decode<T>(rows[0]) : null;
@@ -112,12 +138,26 @@ export async function createDocumentStore(
       async list<T>(namespace: string) {
         validated(namespace, 'list');
         const rows = await db
-          .select({ key: pgDocuments.key, version: pgDocuments.version, payload: pgDocuments.payload })
+          .select({
+            key: pgDocuments.key,
+            version: pgDocuments.version,
+            payload: pgDocuments.payload,
+          })
           .from(pgDocuments)
-          .where(and(eq(pgDocuments.ownerId, owner), eq(pgDocuments.namespace, namespace)));
+          .where(
+            and(
+              eq(pgDocuments.ownerId, owner),
+              eq(pgDocuments.namespace, namespace)
+            )
+          );
         return rows.map((row) => decode<T>(row));
       },
-      async put<T>(namespace: string, key: string, value: T, expectedVersion: number) {
+      async put<T>(
+        namespace: string,
+        key: string,
+        value: T,
+        expectedVersion: number
+      ) {
         validated(namespace, key);
         checkRevision(expectedVersion);
         const now = new Date().toISOString(),
@@ -125,7 +165,14 @@ export async function createDocumentStore(
         if (!expectedVersion) {
           const rows = await db
             .insert(pgDocuments)
-            .values({ ownerId: owner, namespace, key, version: 1, payload: serialized, updatedAt: now })
+            .values({
+              ownerId: owner,
+              namespace,
+              key,
+              version: 1,
+              payload: serialized,
+              updatedAt: now,
+            })
             .onConflictDoNothing()
             .returning({ version: pgDocuments.version });
           if (!rows.length) throw conflict();
@@ -133,14 +180,18 @@ export async function createDocumentStore(
         }
         const rows = await db
           .update(pgDocuments)
-          .set({ payload: serialized, version: expectedVersion + 1, updatedAt: now })
+          .set({
+            payload: serialized,
+            version: expectedVersion + 1,
+            updatedAt: now,
+          })
           .where(
             and(
               eq(pgDocuments.ownerId, owner),
               eq(pgDocuments.namespace, namespace),
               eq(pgDocuments.key, key),
-              eq(pgDocuments.version, expectedVersion),
-            ),
+              eq(pgDocuments.version, expectedVersion)
+            )
           )
           .returning({ version: pgDocuments.version });
         if (!rows.length) throw conflict();
@@ -156,8 +207,8 @@ export async function createDocumentStore(
               eq(pgDocuments.ownerId, owner),
               eq(pgDocuments.namespace, namespace),
               eq(pgDocuments.key, key),
-              eq(pgDocuments.version, expectedVersion),
-            ),
+              eq(pgDocuments.version, expectedVersion)
+            )
           )
           .returning({ key: pgDocuments.key });
         if (!rows.length) throw conflict();
@@ -179,12 +230,15 @@ export async function createDocumentStore(
   const client = createClient({ url: file });
   const db = sqliteDrizzle({ client });
   try {
-    await db.select({ key: sqliteDocuments.key }).from(sqliteDocuments).limit(1);
+    await db
+      .select({ key: sqliteDocuments.key })
+      .from(sqliteDocuments)
+      .limit(1);
   } catch (error) {
     client.close();
     throw Error(
       'SQLite schema unavailable. Apply Drizzle migrations with pnpm db:migrate or pnpm db:push before starting.',
-      { cause: error },
+      { cause: error }
     );
   }
   return {
@@ -203,8 +257,8 @@ export async function createDocumentStore(
           and(
             eq(sqliteDocuments.ownerId, owner),
             eq(sqliteDocuments.namespace, namespace),
-            eq(sqliteDocuments.key, key),
-          ),
+            eq(sqliteDocuments.key, key)
+          )
         )
         .limit(1);
       return rows[0] ? decode<T>(rows[0]) : null;
@@ -218,10 +272,20 @@ export async function createDocumentStore(
           payload: sqliteDocuments.payload,
         })
         .from(sqliteDocuments)
-        .where(and(eq(sqliteDocuments.ownerId, owner), eq(sqliteDocuments.namespace, namespace)));
+        .where(
+          and(
+            eq(sqliteDocuments.ownerId, owner),
+            eq(sqliteDocuments.namespace, namespace)
+          )
+        );
       return rows.map((row) => decode<T>(row));
     },
-    async put<T>(namespace: string, key: string, value: T, expectedVersion: number) {
+    async put<T>(
+      namespace: string,
+      key: string,
+      value: T,
+      expectedVersion: number
+    ) {
       validated(namespace, key);
       checkRevision(expectedVersion);
       const now = new Date().toISOString(),
@@ -229,7 +293,14 @@ export async function createDocumentStore(
       if (!expectedVersion) {
         const rows = await db
           .insert(sqliteDocuments)
-          .values({ ownerId: owner, namespace, key, version: 1, payload: serialized, updatedAt: now })
+          .values({
+            ownerId: owner,
+            namespace,
+            key,
+            version: 1,
+            payload: serialized,
+            updatedAt: now,
+          })
           .onConflictDoNothing()
           .returning({ version: sqliteDocuments.version });
         if (!rows.length) throw conflict();
@@ -237,14 +308,18 @@ export async function createDocumentStore(
       }
       const rows = await db
         .update(sqliteDocuments)
-        .set({ payload: serialized, version: expectedVersion + 1, updatedAt: now })
+        .set({
+          payload: serialized,
+          version: expectedVersion + 1,
+          updatedAt: now,
+        })
         .where(
           and(
             eq(sqliteDocuments.ownerId, owner),
             eq(sqliteDocuments.namespace, namespace),
             eq(sqliteDocuments.key, key),
-            eq(sqliteDocuments.version, expectedVersion),
-          ),
+            eq(sqliteDocuments.version, expectedVersion)
+          )
         )
         .returning({ version: sqliteDocuments.version });
       if (!rows.length) throw conflict();
@@ -260,8 +335,8 @@ export async function createDocumentStore(
             eq(sqliteDocuments.ownerId, owner),
             eq(sqliteDocuments.namespace, namespace),
             eq(sqliteDocuments.key, key),
-            eq(sqliteDocuments.version, expectedVersion),
-          ),
+            eq(sqliteDocuments.version, expectedVersion)
+          )
         )
         .returning({ key: sqliteDocuments.key });
       if (!rows.length) throw conflict();

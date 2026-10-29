@@ -1,5 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync, unlinkSync } from 'node:fs';
+import {
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  writeFileSync,
+  unlinkSync,
+} from 'node:fs';
 import { resolve } from 'node:path';
 import type { RunSummary } from './types.js';
 
@@ -7,7 +14,8 @@ export interface ArchivedRun {
   summary: RunSummary;
   stepIds: string[];
 }
-const runIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const runIdPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const stepIdPattern = /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/;
 const states = new Set([
   'running',
@@ -37,7 +45,8 @@ const actions = new Set([
 ]);
 
 function checkedRunId(id: string): string {
-  if (typeof id !== 'string' || !runIdPattern.test(id)) throw Error('Invalid run identifier');
+  if (typeof id !== 'string' || !runIdPattern.test(id))
+    throw Error('Invalid run identifier');
   return id.toLowerCase();
 }
 function parsedEntry(raw: unknown, id: string): ArchivedRun | null {
@@ -54,7 +63,9 @@ function parsedEntry(raw: unknown, id: string): ArchivedRun | null {
     !Number.isFinite(Date.parse(s.createdAt)) ||
     !Array.isArray(entry.stepIds) ||
     entry.stepIds.length > 24 ||
-    !entry.stepIds.every((v) => typeof v === 'string' && stepIdPattern.test(v)) ||
+    !entry.stepIds.every(
+      (v) => typeof v === 'string' && stepIdPattern.test(v)
+    ) ||
     new Set(entry.stepIds).size !== entry.stepIds.length ||
     (s.completedStepIds !== undefined &&
       (!Array.isArray(s.completedStepIds) ||
@@ -83,7 +94,10 @@ export class RunArchive {
     mkdirSync(this.pathFor(id), { recursive: true, mode: 0o700 });
     const dest = resolve(this.pathFor(id), 'summary.json');
     const temp = dest + '.' + randomUUID();
-    writeFileSync(temp, JSON.stringify(entry) + '\n', { mode: 0o600, flag: 'wx' });
+    writeFileSync(temp, JSON.stringify(entry) + '\n', {
+      mode: 0o600,
+      flag: 'wx',
+    });
     try {
       renameSync(temp, dest);
     } catch (error) {
@@ -110,19 +124,24 @@ export class RunArchive {
     for (const name of names) {
       try {
         const entry = parsedEntry(
-          JSON.parse(readFileSync(resolve(this.pathFor(name), 'summary.json'), 'utf8')) as unknown,
-          name,
+          JSON.parse(
+            readFileSync(resolve(this.pathFor(name), 'summary.json'), 'utf8')
+          ) as unknown,
+          name
         );
         if (entry) records.push(entry);
       } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'ENOENT' && !(error instanceof SyntaxError))
+        if (
+          (error as NodeJS.ErrnoException).code !== 'ENOENT' &&
+          !(error instanceof SyntaxError)
+        )
           throw error;
       }
     }
     records.sort(
       (a, b) =>
         b.summary.createdAt.localeCompare(a.summary.createdAt) ||
-        b.summary.id.localeCompare(a.summary.id),
+        b.summary.id.localeCompare(a.summary.id)
     );
     this.entries.clear();
     for (const record of records.slice(0, limit)) {
@@ -145,11 +164,12 @@ export class RunArchive {
   readArtifact(
     runId: string,
     stepId?: string,
-    extension: 'yaml' | 'output.json' = 'yaml',
+    extension: 'yaml' | 'output.json' = 'yaml'
   ): string | null {
     if (!runIdPattern.test(runId) || !this.entries.has(runId)) return null;
     if (stepId !== undefined && !this.hasStep(runId, stepId)) return null;
-    const filename = stepId === undefined ? 'workflow.yaml' : stepId + '.' + extension;
+    const filename =
+      stepId === undefined ? 'workflow.yaml' : stepId + '.' + extension;
     try {
       return readFileSync(resolve(this.pathFor(runId), filename), 'utf8');
     } catch (error) {

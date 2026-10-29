@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import {
   useCallback,
@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
   type MouseEvent,
-} from "react";
+} from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -23,9 +23,9 @@ import {
   type Node,
   type Edge,
   type NodeProps,
-} from "@xyflow/react";
-import StudioDialog from "@/components/ui/studio-dialog";
-import Image from "next/image";
+} from '@xyflow/react';
+import StudioDialog from '@/components/ui/studio-dialog';
+import Image from 'next/image';
 import {
   Activity,
   Check,
@@ -44,7 +44,7 @@ import {
   ShieldCheck,
   Waypoints,
   Zap,
-} from "lucide-react";
+} from 'lucide-react';
 
 export type CanvasEvent = {
   kind: string;
@@ -69,15 +69,15 @@ export type TaggedAnnotationReview = {
 };
 export type CanvasWorkflow = { id: string; title: string; category: string };
 type Phase =
-  | "start"
-  | "session"
-  | "inspect"
-  | "annotation"
-  | "action"
-  | "approval"
-  | "verify"
-  | "finish";
-type PhaseStatus = "idle" | "active" | "done" | "blocked" | "failed";
+  | 'start'
+  | 'session'
+  | 'inspect'
+  | 'annotation'
+  | 'action'
+  | 'approval'
+  | 'verify'
+  | 'finish';
+type PhaseStatus = 'idle' | 'active' | 'done' | 'blocked' | 'failed';
 interface StudioData extends Record<string, unknown> {
   title: string;
   caption: string;
@@ -89,9 +89,9 @@ interface StudioData extends Record<string, unknown> {
   from: Position;
   to: Position;
 }
-type StudioNode = Node<StudioData, "studio">;
+type StudioNode = Node<StudioData, 'studio'>;
 type StudioEdge = Edge;
-type Popup = { kind: "node" | "edge"; id: string; x: number; y: number } | null;
+type Popup = { kind: 'node' | 'edge'; id: string; x: number; y: number } | null;
 
 const phaseIcon = {
   start: Compass,
@@ -105,61 +105,61 @@ const phaseIcon = {
 };
 
 const descriptions: Record<Phase, string> = {
-  start: "Single account and one declared task",
-  session: "Signed-in Chrome session; manual challenge if required",
-  inspect: "Live profile and selectors, not archived HTML",
+  start: 'Single account and one declared task',
+  session: 'Signed-in Chrome session; manual challenge if required',
+  inspect: 'Live profile and selectors, not archived HTML',
   annotation:
-    "Operator-tagged image geometry and YAML instructions; not executed browser clicks",
-  action: "Only the selected Fastify/Playwright handler runs",
-  approval: "Mandatory operator decision before mutation",
-  verify: "Re-read the changed value or saved evidence",
-  finish: "Terminal result and event journal",
+    'Operator-tagged image geometry and YAML instructions; not executed browser clicks',
+  action: 'Only the selected Fastify/Playwright handler runs',
+  approval: 'Mandatory operator decision before mutation',
+  verify: 'Re-read the changed value or saved evidence',
+  finish: 'Terminal result and event journal',
 };
 
 function phaseState(
   phase: Phase,
   runState: string | undefined,
-  history: CanvasEvent[],
+  history: CanvasEvent[]
 ): PhaseStatus {
-  if (phase === "annotation") return "done";
-  if (!runState) return "idle";
+  if (phase === 'annotation') return 'done';
+  if (!runState) return 'idle';
   const messages = history.map((entry) => entry.message.toLowerCase());
   const has = (word: string) => messages.some((text) => text.includes(word));
-  if (phase === "start") return "done";
-  if (phase === "session")
-    return has("browser session connected") ? "done" : "active";
-  if (runState === "completed") return "done";
-  if (phase === "finish")
-    return runState === "failed"
-      ? "failed"
-      : runState === "blocked" || runState === "cancelled"
-        ? "blocked"
-        : "idle";
+  if (phase === 'start') return 'done';
+  if (phase === 'session')
+    return has('browser session connected') ? 'done' : 'active';
+  if (runState === 'completed') return 'done';
+  if (phase === 'finish')
+    return runState === 'failed'
+      ? 'failed'
+      : runState === 'blocked' || runState === 'cancelled'
+        ? 'blocked'
+        : 'idle';
   if (
-    runState === "failed" &&
-    phase === "inspect" &&
-    !has("profile ui observed") &&
-    !has("save clicked")
+    runState === 'failed' &&
+    phase === 'inspect' &&
+    !has('profile ui observed') &&
+    !has('save clicked')
   )
-    return "failed";
-  if (phase === "inspect")
-    return has("profile ui observed") || has("review") || has("save clicked")
-      ? "done"
-      : "active";
-  if (phase === "action")
-    return has("save clicked") || has("verified")
-      ? "done"
-      : has("approval") || has("review")
-        ? "active"
-        : "idle";
-  if (phase === "approval")
-    return has("operator approved")
-      ? "done"
-      : runState === "approval-needed" || runState === "input-needed"
-        ? "active"
-        : "idle";
-  if (phase === "verify") return has("verified") ? "done" : "idle";
-  return "idle";
+    return 'failed';
+  if (phase === 'inspect')
+    return has('profile ui observed') || has('review') || has('save clicked')
+      ? 'done'
+      : 'active';
+  if (phase === 'action')
+    return has('save clicked') || has('verified')
+      ? 'done'
+      : has('approval') || has('review')
+        ? 'active'
+        : 'idle';
+  if (phase === 'approval')
+    return has('operator approved')
+      ? 'done'
+      : runState === 'approval-needed' || runState === 'input-needed'
+        ? 'active'
+        : 'idle';
+  if (phase === 'verify') return has('verified') ? 'done' : 'idle';
+  return 'idle';
 }
 
 function buildGraph(
@@ -167,9 +167,9 @@ function buildGraph(
   actionLabel: string,
   runState: string | undefined,
   events: CanvasEvent[],
-  hasAnnotations: boolean,
+  hasAnnotations: boolean
 ): { nodes: StudioNode[]; edges: StudioEdge[] } {
-  const isAudit = action === "audit" || action === "audit-page";
+  const isAudit = action === 'audit' || action === 'audit-page';
   const phases: Array<{
     id: Phase;
     title: string;
@@ -181,51 +181,51 @@ function buildGraph(
   }> = isAudit
     ? [
         {
-          id: "start",
-          title: "Run trigger",
-          caption: "Manual start",
+          id: 'start',
+          title: 'Run trigger',
+          caption: 'Manual start',
           x: 60,
           y: 135,
           from: Position.Right,
           to: Position.Left,
         },
         {
-          id: "session",
-          title: "Browser session",
-          caption: "Chrome / authentication",
+          id: 'session',
+          title: 'Browser session',
+          caption: 'Chrome / authentication',
           x: 350,
           y: 135,
           from: Position.Right,
           to: Position.Left,
         },
         {
-          id: "inspect",
+          id: 'inspect',
           title:
-            action === "audit-page"
-              ? "Scoped page inspection"
-              : "Profile inspection",
+            action === 'audit-page'
+              ? 'Scoped page inspection'
+              : 'Profile inspection',
           caption:
-            action === "audit-page"
-              ? "One selected page · read-only"
-              : "Live DOM observation",
+            action === 'audit-page'
+              ? 'One selected page · read-only'
+              : 'Live DOM observation',
           x: 640,
           y: 135,
           from: Position.Bottom,
           to: Position.Left,
         },
         {
-          id: "verify",
-          title: "Capture evidence",
-          caption: "Screenshot + accessibility",
+          id: 'verify',
+          title: 'Capture evidence',
+          caption: 'Screenshot + accessibility',
           x: 640,
           y: 380,
           from: Position.Left,
           to: Position.Top,
         },
         {
-          id: "finish",
-          title: "Audit output",
-          caption: "Read-only results",
+          id: 'finish',
+          title: 'Audit output',
+          caption: 'Read-only results',
           x: 350,
           y: 380,
           from: Position.Left,
@@ -234,63 +234,63 @@ function buildGraph(
       ]
     : [
         {
-          id: "start",
-          title: "Run trigger",
-          caption: "Manual start",
+          id: 'start',
+          title: 'Run trigger',
+          caption: 'Manual start',
           x: 30,
           y: 100,
           from: Position.Right,
           to: Position.Left,
         },
         {
-          id: "session",
-          title: "Browser session",
-          caption: "Chrome / authentication",
+          id: 'session',
+          title: 'Browser session',
+          caption: 'Chrome / authentication',
           x: 325,
           y: 100,
           from: Position.Right,
           to: Position.Left,
         },
         {
-          id: "inspect",
-          title: "Inspect owned profile",
-          caption: "Live UI guard",
+          id: 'inspect',
+          title: 'Inspect owned profile',
+          caption: 'Live UI guard',
           x: 620,
           y: 100,
           from: Position.Right,
           to: Position.Left,
         },
         {
-          id: "action",
+          id: 'action',
           title: actionLabel,
-          caption: "Selected executable action",
+          caption: 'Selected executable action',
           x: 915,
           y: 100,
           from: Position.Bottom,
           to: Position.Left,
         },
         {
-          id: "approval",
-          title: "Human approval",
-          caption: "Mandatory review",
+          id: 'approval',
+          title: 'Human approval',
+          caption: 'Mandatory review',
           x: 915,
           y: 370,
           from: Position.Left,
           to: Position.Top,
         },
         {
-          id: "verify",
-          title: "Verify persisted value",
-          caption: "Fresh UI observation",
+          id: 'verify',
+          title: 'Verify persisted value',
+          caption: 'Fresh UI observation',
           x: 620,
           y: 370,
           from: Position.Left,
           to: Position.Right,
         },
         {
-          id: "finish",
-          title: "Result journal",
-          caption: "Terminal state + evidence",
+          id: 'finish',
+          title: 'Result journal',
+          caption: 'Terminal state + evidence',
           x: 325,
           y: 370,
           from: Position.Left,
@@ -300,18 +300,18 @@ function buildGraph(
   if (hasAnnotations) {
     const place = isAudit
       ? {
-          id: "annotation" as const,
-          title: "Image annotation",
-          caption: "Tagged YAML instruction bridge",
+          id: 'annotation' as const,
+          title: 'Image annotation',
+          caption: 'Tagged YAML instruction bridge',
           x: 930,
           y: 135,
           from: Position.Bottom,
           to: Position.Left,
         }
       : {
-          id: "annotation" as const,
-          title: "Image annotation",
-          caption: "Tagged YAML instruction bridge",
+          id: 'annotation' as const,
+          title: 'Image annotation',
+          caption: 'Tagged YAML instruction bridge',
           x: 915,
           y: 100,
           from: Position.Right,
@@ -327,7 +327,7 @@ function buildGraph(
   }
   const nodes: StudioNode[] = phases.map((phase, i) => ({
     id: phase.id,
-    type: "studio",
+    type: 'studio',
     position: { x: phase.x, y: phase.y },
     width: 240,
     height: 137,
@@ -340,10 +340,10 @@ function buildGraph(
       phase: phase.id,
       title: phase.title,
       caption: phase.caption,
-      step: String(i + 1).padStart(2, "0"),
+      step: String(i + 1).padStart(2, '0'),
       status: phaseState(phase.id, runState, events),
-      locked: phase.id !== "action",
-      selectedAction: phase.id === "action",
+      locked: phase.id !== 'action',
+      selectedAction: phase.id === 'action',
       from: phase.from,
       to: phase.to,
     },
@@ -351,21 +351,21 @@ function buildGraph(
   const edges: StudioEdge[] = phases.slice(1).map((target, i) => {
     const previous = phases[i];
     return {
-      id: previous.id + "-to-" + target.id,
+      id: previous.id + '-to-' + target.id,
       source: previous.id,
       target: target.id,
-      type: "smoothstep",
+      type: 'smoothstep',
       animated:
-        runState === "running" &&
-        (target.id === "inspect" || target.id === "action"),
+        runState === 'running' &&
+        (target.id === 'inspect' || target.id === 'action'),
       selectable: true,
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        color: "#0f766e",
+        color: '#0f766e',
         width: 16,
         height: 16,
       },
-      style: { stroke: "#0f766e", strokeWidth: 2.1 },
+      style: { stroke: '#0f766e', strokeWidth: 2.1 },
     };
   });
   return { nodes, edges };
@@ -374,23 +374,23 @@ function buildGraph(
 function StageNode({ data, selected }: NodeProps<StudioNode>) {
   const Icon = phaseIcon[data.phase];
   const stateTone =
-    data.status === "done"
-      ? "bg-emerald-100 text-emerald-700"
-      : data.status === "active"
-        ? "bg-sky-100 text-sky-700"
-        : data.status === "failed"
-          ? "bg-rose-100 text-rose-700"
-          : data.status === "blocked"
-            ? "bg-amber-100 text-amber-800"
-            : "bg-slate-100 text-slate-500";
+    data.status === 'done'
+      ? 'bg-emerald-100 text-emerald-700'
+      : data.status === 'active'
+        ? 'bg-sky-100 text-sky-700'
+        : data.status === 'failed'
+          ? 'bg-rose-100 text-rose-700'
+          : data.status === 'blocked'
+            ? 'bg-amber-100 text-amber-800'
+            : 'bg-slate-100 text-slate-500';
   return (
     <div
-      data-testid={"workflow-node-" + data.phase}
+      data-testid={'workflow-node-' + data.phase}
       className={
-        "group w-[240px] overflow-hidden rounded-[18px] border bg-white shadow-[0_16px_50px_-25px_rgba(15,23,42,.6)] transition " +
+        'group w-[240px] overflow-hidden rounded-[18px] border bg-white shadow-[0_16px_50px_-25px_rgba(15,23,42,.6)] transition ' +
         (selected
-          ? "border-teal-500 ring-[3px] ring-teal-500/20"
-          : "border-slate-200 hover:border-slate-400")
+          ? 'border-teal-500 ring-[3px] ring-teal-500/20'
+          : 'border-slate-200 hover:border-slate-400')
       }
     >
       <Handle
@@ -404,7 +404,7 @@ function StageNode({ data, selected }: NodeProps<StudioNode>) {
         </span>
         <span
           className={
-            "rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize " +
+            'rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ' +
             stateTone
           }
         >
@@ -414,10 +414,10 @@ function StageNode({ data, selected }: NodeProps<StudioNode>) {
       <div className="flex gap-3 px-3 py-4">
         <span
           className={
-            "flex size-10 shrink-0 items-center justify-center rounded-xl " +
-            (data.phase === "action"
-              ? "bg-teal-900 text-white"
-              : "bg-slate-100 text-slate-700")
+            'flex size-10 shrink-0 items-center justify-center rounded-xl ' +
+            (data.phase === 'action'
+              ? 'bg-teal-900 text-white'
+              : 'bg-slate-100 text-slate-700')
           }
         >
           <Icon className="size-5" />
@@ -433,7 +433,7 @@ function StageNode({ data, selected }: NodeProps<StudioNode>) {
       </div>
       <div className="flex items-center justify-between border-t border-slate-100 px-3 py-2">
         <span className="text-[10px] text-slate-400">
-          {data.phase === "action" ? "RUNNABLE ACTION" : "REQUIRED STAGE"}
+          {data.phase === 'action' ? 'RUNNABLE ACTION' : 'REQUIRED STAGE'}
         </span>
         <MoreHorizontal className="size-4 text-slate-400" />
       </div>
@@ -448,7 +448,7 @@ function StageNode({ data, selected }: NodeProps<StudioNode>) {
 const nodeTypes = { studio: StageNode };
 
 interface Props {
-  platform: "linkedin" | "x";
+  platform: 'linkedin' | 'x';
   action: string;
   actionLabel: string;
   actions: CanvasWorkflow[];
@@ -486,22 +486,22 @@ function CanvasInner({
   const graph = useMemo(
     () =>
       buildGraph(action, actionLabel, state, events, taggedReviews.length > 0),
-    [action, actionLabel, state, events, taggedReviews.length],
+    [action, actionLabel, state, events, taggedReviews.length]
   );
   const { fitView } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState<StudioNode>(
-    graph.nodes,
+    graph.nodes
   );
   const [edges, setEdges, onEdgesChange] = useEdgesState<StudioEdge>(
-    graph.edges,
+    graph.edges
   );
-  const [focused, setFocused] = useState<string | null>("inspect");
+  const [focused, setFocused] = useState<string | null>('inspect');
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
   const [popup, setPopup] = useState<Popup>(null);
   const [showActions, setShowActions] = useState(false);
   const [inspector, setInspector] = useState(false);
   const [detail, setDetail] = useState<
-    "output" | "annotation" | "stage" | null
+    'output' | 'annotation' | 'stage' | null
   >(null);
   useEffect(() => {
     if (inspectorRequest <= 0) return;
@@ -514,15 +514,15 @@ function CanvasInner({
     return () => cancelAnimationFrame(frame);
   }, [runId]);
   const [notice, setNotice] = useState(
-    "Select nodes or right-click a connection to inspect it.",
+    'Select nodes or right-click a connection to inspect it.'
   );
   useEffect(() => {
     // Apply graph telemetry after paint so interaction state is not updated during effect setup.
     const frame = requestAnimationFrame(() => {
       setNodes((previous) => {
         const structureChanged =
-          previous.some((item) => item.id === "annotation") !==
-          graph.nodes.some((item) => item.id === "annotation");
+          previous.some((item) => item.id === 'annotation') !==
+          graph.nodes.some((item) => item.id === 'annotation');
         return graph.nodes.map((node) => ({
           ...node,
           position: structureChanged
@@ -544,66 +544,66 @@ function CanvasInner({
   }, [taggedReviews.length, fitView]);
   const selectedNode = nodes.find((node) => node.id === focused);
   const activeEdge = edges.find((edge) => edge.id === selectedEdge);
-  const resultEvents = events.filter((item) => item.kind === "result");
+  const resultEvents = events.filter((item) => item.kind === 'result');
   const screenshots = events.filter(
     (item) =>
-      item.kind === "screenshot" &&
-      /^[a-zA-Z0-9_-]+\.png$/.test(item.details?.fileName ?? ""),
+      item.kind === 'screenshot' &&
+      /^[a-zA-Z0-9_-]+\.png$/.test(item.details?.fileName ?? '')
   );
   const observation = [...events]
     .reverse()
     .find(
       (item) =>
-        item.kind === "audit" &&
+        item.kind === 'audit' &&
         (item.details?.headline ||
           item.details?.bio ||
           item.details?.xName ||
-          item.details?.excerpt),
+          item.details?.excerpt)
     );
 
   const showNodeMenu = useCallback(
     (event: MouseEvent, node: StudioNode) => {
       event.preventDefault();
       setFocused(node.id);
-      if (node.id !== "finish" && node.id !== "verify") onNodeFocus?.(node.id);
+      if (node.id !== 'finish' && node.id !== 'verify') onNodeFocus?.(node.id);
       setSelectedEdge(null);
       const container = (event.currentTarget as HTMLElement).closest(
-        "[data-workflow-canvas]",
+        '[data-workflow-canvas]'
       );
       const rect = container?.getBoundingClientRect();
       setPopup({
-        kind: "node",
+        kind: 'node',
         id: node.id,
         x: Math.min(
           Math.max(8, event.clientX - (rect?.left ?? 0)),
-          Math.max(8, (rect?.width ?? 300) - 215),
+          Math.max(8, (rect?.width ?? 300) - 215)
         ),
         y: Math.min(
           Math.max(8, event.clientY - (rect?.top ?? 0)),
-          Math.max(8, (rect?.height ?? 450) - 200),
+          Math.max(8, (rect?.height ?? 450) - 200)
         ),
       });
     },
-    [onNodeFocus],
+    [onNodeFocus]
   );
   const showEdgeMenu = useCallback((event: MouseEvent, edge: StudioEdge) => {
     event.preventDefault();
     setSelectedEdge(edge.id);
     setFocused(null);
     const container = (event.currentTarget as HTMLElement).closest(
-      "[data-workflow-canvas]",
+      '[data-workflow-canvas]'
     );
     const rect = container?.getBoundingClientRect();
     setPopup({
-      kind: "edge",
+      kind: 'edge',
       id: edge.id,
       x: Math.min(
         Math.max(8, event.clientX - (rect?.left ?? 0)),
-        Math.max(8, (rect?.width ?? 300) - 215),
+        Math.max(8, (rect?.width ?? 300) - 215)
       ),
       y: Math.min(
         Math.max(8, event.clientY - (rect?.top ?? 0)),
-        Math.max(8, (rect?.height ?? 450) - 200),
+        Math.max(8, (rect?.height ?? 450) - 200)
       ),
     });
   }, []);
@@ -623,7 +623,7 @@ function CanvasInner({
               Workflow artboard
             </h2>
             <p className="text-[11px] text-slate-500">
-              {platform === "linkedin" ? "LinkedIn" : "X"} · Connected execution
+              {platform === 'linkedin' ? 'LinkedIn' : 'X'} · Connected execution
               trace · {nodes.length} nodes
             </p>
           </div>
@@ -645,7 +645,7 @@ function CanvasInner({
               <div
                 role="menu"
                 aria-label="Runnable actions"
-                className="absolute right-0 top-full z-40 mt-2 max-h-72 w-64 overflow-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl"
+                className="absolute top-full right-0 z-40 mt-2 max-h-72 w-64 overflow-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl"
               >
                 {actions.map((item) => (
                   <button
@@ -655,7 +655,7 @@ function CanvasInner({
                     aria-checked={item.id === action}
                     onClick={() => {
                       if (item.id !== action) onActionChange(item.id);
-                      setFocused(item.id === "audit" ? "inspect" : "action");
+                      setFocused(item.id === 'audit' ? 'inspect' : 'action');
                       setShowActions(false);
                     }}
                     className="flex min-h-10 w-full items-center justify-between rounded-lg px-3 text-left text-xs font-semibold hover:bg-slate-50"
@@ -700,13 +700,13 @@ function CanvasInner({
               setFocused(node.id);
               setSelectedEdge(null);
               setInspector(false);
-              if (node.id === "finish" || node.id === "verify")
-                setDetail("output");
-              else if (node.id === "annotation") setDetail("annotation");
-              else if (node.id === "action") {
+              if (node.id === 'finish' || node.id === 'verify')
+                setDetail('output');
+              else if (node.id === 'annotation') setDetail('annotation');
+              else if (node.id === 'action') {
                 setInspector(true);
                 onNodeFocus?.(node.id);
-              } else setDetail("stage");
+              } else setDetail('stage');
             }}
             onEdgeClick={(_, edge) => {
               setSelectedEdge(edge.id);
@@ -740,7 +740,7 @@ function CanvasInner({
               className="!rounded-xl !border-slate-200 !bg-white !shadow-sm"
             />
           </ReactFlow>
-          <div className="pointer-events-none absolute left-4 top-4 flex flex-wrap gap-2">
+          <div className="pointer-events-none absolute top-4 left-4 flex flex-wrap gap-2">
             <span className="rounded-full border border-slate-200 bg-white/95 px-2.5 py-1 text-[10px] font-bold text-slate-600">
               LIVE GRAPH
             </span>
@@ -765,45 +765,45 @@ function CanvasInner({
               style={{ left: popup.x, top: popup.y }}
               onClick={(event) => event.stopPropagation()}
             >
-              <p className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                {popup.kind === "node" ? "Step actions" : "Connector actions"}
+              <p className="px-3 py-2 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                {popup.kind === 'node' ? 'Step actions' : 'Connector actions'}
               </p>
               <button
                 type="button"
                 onClick={() => {
-                  if (popup.kind === "node") {
+                  if (popup.kind === 'node') {
                     setFocused(popup.id);
-                    setInspector(popup.id === "action");
+                    setInspector(popup.id === 'action');
                     setDetail(
-                      popup.id === "finish" || popup.id === "verify"
-                        ? "output"
-                        : popup.id === "annotation"
-                          ? "annotation"
-                          : popup.id === "action"
+                      popup.id === 'finish' || popup.id === 'verify'
+                        ? 'output'
+                        : popup.id === 'annotation'
+                          ? 'annotation'
+                          : popup.id === 'action'
                             ? null
-                            : "stage",
+                            : 'stage'
                     );
-                    setNotice("Inspecting " + popup.id + " stage");
+                    setNotice('Inspecting ' + popup.id + ' stage');
                   } else {
                     setSelectedEdge(popup.id);
                     setInspector(true);
-                    setNotice("Active trace: " + popup.id);
+                    setNotice('Active trace: ' + popup.id);
                   }
                   setPopup(null);
                 }}
                 className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-xs font-semibold hover:bg-slate-100"
               >
-                <Eye className="size-4" />{" "}
-                {popup.kind === "node" ? "Inspect step" : "Activate trace"}
+                <Eye className="size-4" />{' '}
+                {popup.kind === 'node' ? 'Inspect step' : 'Activate trace'}
               </button>
-              {popup.kind === "node" && popup.id === "action" && (
+              {popup.kind === 'node' && popup.id === 'action' && (
                 <button
                   type="button"
                   onClick={() => {
-                    setFocused("action");
+                    setFocused('action');
                     setInspector(true);
                     setPopup(null);
-                    setNotice("Action selected for review: " + actionLabel);
+                    setNotice('Action selected for review: ' + actionLabel);
                   }}
                   className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-xs font-semibold hover:bg-teal-50 hover:text-teal-800"
                 >
@@ -818,12 +818,12 @@ function CanvasInner({
           )}
         </div>
         <StudioDialog
-          open={detail === "output"}
+          open={detail === 'output'}
           onDismiss={() => setDetail(null)}
           title={
-            focused === "verify"
-              ? "Verification evidence"
-              : "Final workflow output"
+            focused === 'verify'
+              ? 'Verification evidence'
+              : 'Final workflow output'
           }
           description="Actual run results and captured evidence. Screenshots are labeled as captured, not fabricated after-state previews."
           size="wide"
@@ -832,20 +832,20 @@ function CanvasInner({
           <div data-testid="workflow-output" className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-950 p-4 text-white">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
                   Execution status
                 </p>
                 <p className="mt-1 text-base font-bold capitalize">
-                  {state?.replaceAll("-", " ") ?? "No run selected"}
+                  {state?.replaceAll('-', ' ') ?? 'No run selected'}
                 </p>
               </div>
-              <p className="max-w-[260px] break-all text-right font-mono text-[10px] text-slate-300">
-                {runId ?? "Run the workflow to see its actual output"}
+              <p className="max-w-[260px] text-right font-mono text-[10px] break-all text-slate-300">
+                {runId ?? 'Run the workflow to see its actual output'}
               </p>
             </div>
             {resultEvents.length > 0 ? (
               <div className="space-y-2">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                <h3 className="text-xs font-bold tracking-wider text-slate-500 uppercase">
                   Verified outcome journal
                 </h3>
                 {resultEvents.map((item, index) => (
@@ -868,13 +868,13 @@ function CanvasInner({
                 className="rounded-xl border border-slate-200 bg-white p-4"
                 data-testid="observed-profile-preview"
               >
-                <p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-teal-700">
+                <p className="mb-3 text-[10px] font-bold tracking-wider text-teal-700 uppercase">
                   Observed profile preview · source DOM
                 </p>
                 <h3 className="text-base font-bold text-slate-900">
                   {observation.details.xName ||
                     observation.details.title ||
-                    "Observed profile"}
+                    'Observed profile'}
                 </h3>
                 {observation.details.headline && (
                   <p className="mt-1 text-sm text-slate-700">
@@ -882,17 +882,17 @@ function CanvasInner({
                   </p>
                 )}
                 {observation.details.bio && (
-                  <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
+                  <p className="mt-1 text-sm whitespace-pre-wrap text-slate-700">
                     {observation.details.bio}
                   </p>
                 )}
                 {observation.details.url && (
-                  <p className="mt-2 break-all text-xs text-slate-500">
+                  <p className="mt-2 text-xs break-all text-slate-500">
                     {observation.details.url}
                   </p>
                 )}
                 {observation.details.excerpt && (
-                  <p className="mt-3 max-h-40 overflow-y-auto whitespace-pre-wrap border-t border-slate-100 pt-3 text-xs leading-5 text-slate-600">
+                  <p className="mt-3 max-h-40 overflow-y-auto border-t border-slate-100 pt-3 text-xs leading-5 whitespace-pre-wrap text-slate-600">
                     {observation.details.excerpt}
                   </p>
                 )}
@@ -904,7 +904,7 @@ function CanvasInner({
             )}
             {screenshots.length > 0 ? (
               <div className="space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                <h3 className="text-xs font-bold tracking-wider text-slate-500 uppercase">
                   Captured browser evidence
                 </h3>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -921,7 +921,7 @@ function CanvasInner({
                             onEvidenceOpen(runId, item.details!.fileName!);
                           }}
                           aria-label={
-                            "Annotate output capture: " +
+                            'Annotate output capture: ' +
                             item.details!.fileName!
                           }
                           className="block w-full text-left hover:opacity-90"
@@ -931,7 +931,7 @@ function CanvasInner({
                             src={evidenceRoot + item.details!.fileName!}
                             width={860}
                             height={540}
-                            alt={"Recorded screenshot: " + item.message}
+                            alt={'Recorded screenshot: ' + item.message}
                             className="h-auto w-full object-contain"
                           />
                         </button>
@@ -942,7 +942,7 @@ function CanvasInner({
                             src={evidenceRoot + item.details!.fileName!}
                             width={860}
                             height={540}
-                            alt={"Recorded screenshot: " + item.message}
+                            alt={'Recorded screenshot: ' + item.message}
                             className="h-auto w-full object-contain"
                           />
                         )
@@ -966,7 +966,7 @@ function CanvasInner({
           </div>
         </StudioDialog>
         <StudioDialog
-          open={detail === "annotation"}
+          open={detail === 'annotation'}
           onDismiss={() => setDetail(null)}
           title="Tagged image instructions"
           description="Image-position instructions linked to this workflow. They do not bypass selectors, inspection, or approval."
@@ -988,13 +988,13 @@ function CanvasInner({
                   className="w-full"
                 />
                 <div className="space-y-2 p-3">
-                  <p className="break-all text-xs text-slate-600">
+                  <p className="text-xs break-all text-slate-600">
                     {review.pageUrl}
                   </p>
                   {review.annotations.map((a, i) => (
                     <p key={a.id} className="text-xs text-slate-700">
-                      {i + 1}. {a.action.replaceAll("-", " ")}
-                      {a.comment ? " · " + a.comment : ""}
+                      {i + 1}. {a.action.replaceAll('-', ' ')}
+                      {a.comment ? ' · ' + a.comment : ''}
                     </p>
                   ))}
                   <a
@@ -1011,13 +1011,13 @@ function CanvasInner({
           </div>
         </StudioDialog>
         <StudioDialog
-          open={detail === "stage"}
+          open={detail === 'stage'}
           onDismiss={() => setDetail(null)}
           title="Workflow stage details"
           description={
             focused
               ? descriptions[focused as Phase]
-              : "Recorded engine events, not editable configuration."
+              : 'Recorded engine events, not editable configuration.'
           }
           testId="workflow-stage-dialog"
         >
@@ -1055,19 +1055,19 @@ function CanvasInner({
             <div className="sticky top-0 z-10 border-b border-slate-100 bg-white px-4 py-3">
               <div className="flex items-center gap-2">
                 <CircleDot className="size-4 text-teal-700" />
-                <h3 className="text-xs font-bold uppercase tracking-[.08em] text-slate-900">
+                <h3 className="text-xs font-bold tracking-[.08em] text-slate-900 uppercase">
                   Node inspector
                 </h3>
               </div>
               <p className="mt-1 text-[11px] leading-4 text-slate-500">
                 {activeEdge
                   ? activeEdge.source +
-                    " → " +
+                    ' → ' +
                     activeEdge.target +
-                    " · fixed connection"
+                    ' · fixed connection'
                   : selectedNode
                     ? descriptions[selectedNode.data.phase]
-                    : "Select a stage to see its behavior."}
+                    : 'Select a stage to see its behavior.'}
               </p>
             </div>
             <div className="px-4 py-4">
@@ -1082,8 +1082,8 @@ function CanvasInner({
                     </p>
                     <p className="mt-1 text-[11px] leading-4 text-slate-500">
                       {selectedNode.data.locked
-                        ? "Required stage, locked for safe execution"
-                        : "Configurable action; execution needs Start and approval"}
+                        ? 'Required stage, locked for safe execution'
+                        : 'Configurable action; execution needs Start and approval'}
                     </p>
                   </div>
                 </div>

@@ -20,25 +20,33 @@ import type { DocumentStore, DocumentRecord } from '../src/db/documents.js';
 import type { Cookie } from 'playwright';
 import type { VaultPayload } from '../src/core/session-vault.js';
 
-const MASTER = Buffer.from(createHash('sha256').update('test-master').digest().slice(0, 32)).subarray(
-  0,
-  32,
-);
+const MASTER = Buffer.from(
+  createHash('sha256').update('test-master').digest().slice(0, 32)
+).subarray(0, 32);
 const hex = (buffer: Buffer) => buffer.toString('hex');
 type Row = { version: number; value: unknown };
 class FakeDocuments implements DocumentStore {
   readonly dialect = 'sqlite' as const;
   readonly rows = new Map<string, Row>();
   constructor(readonly ownerId: string) {}
-  async get<T>(namespace: string, key: string): Promise<DocumentRecord<T> | null> {
+  async get<T>(
+    namespace: string,
+    key: string
+  ): Promise<DocumentRecord<T> | null> {
     const row = this.rows.get(namespace + ':' + key);
     return row ? { key, version: row.version, value: row.value as T } : null;
   }
-  async put<T>(namespace: string, key: string, value: T, expectedVersion: number) {
+  async put<T>(
+    namespace: string,
+    key: string,
+    value: T,
+    expectedVersion: number
+  ) {
     const id = namespace + ':' + key,
       existing = this.rows.get(id);
     if (!expectedVersion) {
-      if (existing) throw Error('Database document changed. Reload before saving.');
+      if (existing)
+        throw Error('Database document changed. Reload before saving.');
       this.rows.set(id, { version: 1, value });
       return 1;
     }
@@ -82,7 +90,10 @@ const samplePayload = (): VaultPayload => ({
   capturedAt: new Date(0).toISOString(),
   cookies: [cookie('li_at'), cookie('bcookie')],
   originState: [
-    { origin: 'https://www.linkedin.com', localStorage: [{ name: 'theme', value: 'dark' }] },
+    {
+      origin: 'https://www.linkedin.com',
+      localStorage: [{ name: 'theme', value: 'dark' }],
+    },
   ],
   browserHints: {
     userAgent: 'UA-TEST',
@@ -98,13 +109,18 @@ test('vault key loading validates 64-hex and reports configurability', () => {
   assert.equal(loadVaultMasterKey({}), null);
   assert.equal(vaultKeyConfigured({}), false);
   assert.equal(
-    loadVaultMasterKey({ UTOMATOR_SESSION_ENCRYPTION_KEY: hex(MASTER) })?.equals(MASTER),
-    true,
+    loadVaultMasterKey({
+      UTOMATOR_SESSION_ENCRYPTION_KEY: hex(MASTER),
+    })?.equals(MASTER),
+    true
   );
-  assert.equal(vaultKeyConfigured({ UTOMATOR_SESSION_ENCRYPTION_KEY: hex(MASTER) }), true);
+  assert.equal(
+    vaultKeyConfigured({ UTOMATOR_SESSION_ENCRYPTION_KEY: hex(MASTER) }),
+    true
+  );
   assert.throws(
     () => loadVaultMasterKey({ UTOMATOR_SESSION_ENCRYPTION_KEY: 'nothex' }),
-    /Invalid UTOMATOR_SESSION_ENCRYPTION_KEY/,
+    /Invalid UTOMATOR_SESSION_ENCRYPTION_KEY/
   );
 });
 
@@ -130,28 +146,42 @@ test('session envelope roundtrips and a foreign owner key cannot decrypt it', ()
 
 test('oversized plaintext is rejected before encryption', () => {
   const owner = deriveOwnerKey(MASTER, 'cccccccc-3333-4111-8111-111111111111');
-  assert.throws(() => encryptSession(owner, 'x'.repeat(MAX_VAULT_PLAINTEXT_BYTES + 1)), /too large/);
+  assert.throws(
+    () => encryptSession(owner, 'x'.repeat(MAX_VAULT_PLAINTEXT_BYTES + 1)),
+    /too large/
+  );
   assert.doesNotThrow(() => encryptSession(owner, 'ok'));
 });
 
 test('payload shape validation rejects malformed captures', () => {
   const valid = samplePayload();
-  assert.equal(serializeVaultPayload(valid).startsWith('{"platform":"linkedin"'), true);
-  assert.throws(
-    () => serializeVaultPayload({ ...valid, platform: 'instagram' as unknown as 'linkedin' }),
-    /Unsupported vault platform/,
-  );
-  assert.throws(
-    () => serializeVaultPayload({ ...valid, cookies: null as unknown as Cookie[] }),
-    /no cookies/,
+  assert.equal(
+    serializeVaultPayload(valid).startsWith('{"platform":"linkedin"'),
+    true
   );
   assert.throws(
     () =>
       serializeVaultPayload({
         ...valid,
-        browserHints: { ...valid.browserHints, viewport: { width: 0, height: 850 } },
+        platform: 'instagram' as unknown as 'linkedin',
       }),
-    /hints are invalid/,
+    /Unsupported vault platform/
+  );
+  assert.throws(
+    () =>
+      serializeVaultPayload({ ...valid, cookies: null as unknown as Cookie[] }),
+    /no cookies/
+  );
+  assert.throws(
+    () =>
+      serializeVaultPayload({
+        ...valid,
+        browserHints: {
+          ...valid.browserHints,
+          viewport: { width: 0, height: 850 },
+        },
+      }),
+    /hints are invalid/
   );
   assert.throws(
     () =>
@@ -159,7 +189,7 @@ test('payload shape validation rejects malformed captures', () => {
         ...valid,
         originState: [{ origin: 'http://insecure.com', localStorage: [] }],
       }),
-    /HTTPS origins/,
+    /HTTPS origins/
   );
   assert.throws(
     () =>
@@ -170,7 +200,7 @@ test('payload shape validation rejects malformed captures', () => {
           method: 'api-required' as unknown as 'owner-control',
         },
       }),
-    /owner-control verification/,
+    /owner-control verification/
   );
 });
 
@@ -187,7 +217,12 @@ test('storage adapter roundtrips through the document store and deletes cleanly'
   assert.equal(await loadVaultPayload(documents, 'conn-1', MASTER), null);
   // A missing master key is a configuration failure, not a silent plaintext write.
   await assert.rejects(async () => {
-    await saveVaultPayload(documents, 'conn-1', payload, null as unknown as Buffer);
+    await saveVaultPayload(
+      documents,
+      'conn-1',
+      payload,
+      null as unknown as Buffer
+    );
   }, /not configured/);
 });
 
@@ -197,11 +232,17 @@ test('vault records stored for one owner are unreadable under another owner stor
   // Simulate a cross-tenant leak: owner B's store somehow holds A's envelope.
   const leaked = encryptSession(
     deriveOwnerKey(MASTER, ownerA.ownerId),
-    serializeVaultPayload(samplePayload()),
+    serializeVaultPayload(samplePayload())
   );
   ownerB.rows.set(VAULT_NAMESPACE + ':conn-1', { version: 1, value: leaked });
-  await assert.rejects(() => loadVaultPayload(ownerB, 'conn-1', MASTER), VaultDecryptError);
+  await assert.rejects(
+    () => loadVaultPayload(ownerB, 'conn-1', MASTER),
+    VaultDecryptError
+  );
   // And the real owner still decrypts the same envelope without change.
   ownerA.rows.set(VAULT_NAMESPACE + ':conn-1', { version: 1, value: leaked });
-  assert.equal((await loadVaultPayload(ownerA, 'conn-1', MASTER))?.platform, 'linkedin');
+  assert.equal(
+    (await loadVaultPayload(ownerA, 'conn-1', MASTER))?.platform,
+    'linkedin'
+  );
 });

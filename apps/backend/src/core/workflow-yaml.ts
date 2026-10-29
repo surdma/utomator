@@ -1,5 +1,9 @@
 import { createHash } from 'node:crypto';
-import type { WorkflowPlan, WorkflowStep, StepInputBinding } from './workflow-plan.js';
+import type {
+  WorkflowPlan,
+  WorkflowStep,
+  StepInputBinding,
+} from './workflow-plan.js';
 import { validatePlan } from './workflow-plan.js';
 import {
   instantiateStep,
@@ -44,7 +48,10 @@ export interface StepDocument {
     config: { message?: string; delayMs?: number; expectedText?: string };
     policy: {
       requiresAuthentication: boolean;
-      humanApproval: 'enforced-by-provider-handler' | 'required-at-evidence-step' | 'not-required';
+      humanApproval:
+        | 'enforced-by-provider-handler'
+        | 'required-at-evidence-step'
+        | 'not-required';
       allowUnrestrictedCode: false;
       verifyRealBrowserState: boolean;
     };
@@ -74,24 +81,35 @@ const block = (record: object, spaces: number): string =>
   Object.entries(record)
     .map(
       ([key, value]) =>
-        ' '.repeat(spaces) + key + ': ' + stringValue(value as string | number | boolean | null),
+        ' '.repeat(spaces) +
+        key +
+        ': ' +
+        stringValue(value as string | number | boolean | null)
     )
     .join('\n');
 
 export function compileWorkflow(
   raw: WorkflowPlan,
-  authored: ReadonlyMap<string, AuthoredStepDefinition> = new Map(),
+  authored: ReadonlyMap<string, AuthoredStepDefinition> = new Map()
 ): CompiledWorkflow {
   const plan = validatePlan(raw, raw.platform, raw.action);
   const mutating = plan.action !== 'audit' && plan.action !== 'audit-page';
   const steps = plan.steps.map((original, index): CompiledStep => {
-    const definition = original.definition ? authored.get(original.id) : undefined;
+    const definition = original.definition
+      ? authored.get(original.id)
+      : undefined;
     if (original.definition && !definition)
       throw Error(
-        'Authored YAML definition must be resolved before compilation: ' + original.definition.id,
+        'Authored YAML definition must be resolved before compilation: ' +
+          original.definition.id
       );
-    const source = definition ? instantiateStep(original, definition) : original;
-    if (source.kind === 'assess' && (!source.expectedText || !source.inputBindings?.text))
+    const source = definition
+      ? instantiateStep(original, definition)
+      : original;
+    if (
+      source.kind === 'assess' &&
+      (!source.expectedText || !source.inputBindings?.text)
+    )
       throw Error('Assessment requires expectedText and a typed text binding');
     if (source.kind === 'evidence' && !source.inputBindings?.observation)
       throw Error('Evidence step requires an earlier observation binding');
@@ -105,9 +123,11 @@ export function compileWorkflow(
     const bindings = source.inputBindings
       ? (Object.fromEntries(
           Object.entries(source.inputBindings).map(([target, reference]) => {
-            const producer = plan.steps.find((step) => step.id === reference.stepId)!;
+            const producer = plan.steps.find(
+              (step) => step.id === reference.stepId
+            )!;
             return [target, { ...reference, schema: outputFor(producer.kind) }];
-          }),
+          })
         ) as StepDocument['spec']['inputs']['bindings'])
       : undefined;
     const document: StepDocument = {
@@ -119,7 +139,10 @@ export function compileWorkflow(
         workflow: plan.name,
         platform: plan.platform,
         ...(definition
-          ? { definitionId: definition.metadata.id, definitionVersion: definition.metadata.version }
+          ? {
+              definitionId: definition.metadata.id,
+              definitionVersion: definition.metadata.version,
+            }
           : {}),
       },
       spec: {
@@ -136,7 +159,9 @@ export function compileWorkflow(
         config: {
           ...(source.message === undefined ? {} : { message: source.message }),
           ...(source.delayMs === undefined ? {} : { delayMs: source.delayMs }),
-          ...(source.expectedText === undefined ? {} : { expectedText: source.expectedText }),
+          ...(source.expectedText === undefined
+            ? {}
+            : { expectedText: source.expectedText }),
         },
         policy: {
           requiresAuthentication: !['start', 'finish'].includes(source.kind),
@@ -159,23 +184,32 @@ export function compileWorkflow(
       'spec:',
       '  operation: ' + stringValue(document.spec.operation),
       '  inputs:',
-      block({ from: document.spec.inputs.from, scope: document.spec.inputs.scope }, 4),
+      block(
+        { from: document.spec.inputs.from, scope: document.spec.inputs.scope },
+        4
+      ),
       ...(document.spec.inputs.bindings
         ? [
             '    bindings:',
-            ...Object.entries(document.spec.inputs.bindings).flatMap(([target, reference]) => [
-              '      ' + target + ':',
-              '        stepId: ' + stringValue(reference.stepId),
-              '        field: ' + stringValue(reference.field),
-              '        schema: ' + stringValue(reference.schema),
-            ]),
+            ...Object.entries(document.spec.inputs.bindings).flatMap(
+              ([target, reference]) => [
+                '      ' + target + ':',
+                '        stepId: ' + stringValue(reference.stepId),
+                '        field: ' + stringValue(reference.field),
+                '        schema: ' + stringValue(reference.schema),
+              ]
+            ),
           ]
         : []),
       '  outputs:',
       block(document.spec.outputs, 4),
       '  config:',
-      ...(source.message !== undefined ? ['    message: ' + stringValue(source.message)] : []),
-      ...(source.delayMs !== undefined ? ['    delayMs: ' + stringValue(source.delayMs)] : []),
+      ...(source.message !== undefined
+        ? ['    message: ' + stringValue(source.message)]
+        : []),
+      ...(source.delayMs !== undefined
+        ? ['    delayMs: ' + stringValue(source.delayMs)]
+        : []),
       ...(source.expectedText !== undefined
         ? ['    expectedText: ' + stringValue(source.expectedText)]
         : []),
@@ -188,8 +222,14 @@ export function compileWorkflow(
       block(document.spec.policy, 4),
     ];
     // Empty mappings must use YAML's explicit {} form.
-    const yaml = lines.join('\n').replace('  config:\n    {}', '  config: {}') + '\n';
-    return { source, document, yaml, digest: createHash('sha256').update(yaml).digest('hex') };
+    const yaml =
+      lines.join('\n').replace('  config:\n    {}', '  config: {}') + '\n';
+    return {
+      source,
+      document,
+      yaml,
+      digest: createHash('sha256').update(yaml).digest('hex'),
+    };
   });
   const manifest =
     [
@@ -208,7 +248,7 @@ export function compileWorkflow(
           '    - id: ' + stringValue(step.source.id),
           '      document: ' + stringValue(step.source.id + '.yaml'),
           '      sha256: ' + stringValue(step.digest),
-        ].join('\n'),
+        ].join('\n')
       ),
     ].join('\n') + '\n';
   return { plan, yaml: manifest, steps };

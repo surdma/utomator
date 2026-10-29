@@ -2,9 +2,7 @@
   "version": "7",
   "dialect": "sqlite",
   "id": "df3e1658-d7b0-43fd-b0ac-aeeb5c7d97c9",
-  "prevIds": [
-    "00000000-0000-0000-0000-000000000000"
-  ],
+  "prevIds": ["00000000-0000-0000-0000-000000000000"],
   "ddl": [
     {
       "name": "utomator_documents",
@@ -73,11 +71,7 @@
     {
       "table": "utomator_documents",
       "name": "utomator_documents_pk",
-      "columns": [
-        "owner_id",
-        "namespace",
-        "record_key"
-      ],
+      "columns": ["owner_id", "namespace", "record_key"],
       "nameExplicit": false,
       "entityType": "pks"
     }

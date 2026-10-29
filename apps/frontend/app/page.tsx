@@ -1,6 +1,6 @@
-import PageTransition from "@/components/page-transistion";
-import HeroText from "@/components/home/hero-text";
-import HeroButton from "@/components/home/hero-button";
+import PageTransition from '@/components/page-transistion';
+import HeroText from '@/components/home/hero-text';
+import HeroButton from '@/components/home/hero-button';
 
 export default function Home() {
   return (
@@ -11,21 +11,21 @@ export default function Home() {
       <section className="relative flex w-full grow items-center overflow-x-clip py-6 sm:py-8 md:py-10 lg:py-6">
         {/* Background radial */}
         <div
-          className="absolute top-1/4 -left-32 w-[600px] h-[600px] pointer-events-none"
+          className="pointer-events-none absolute top-1/4 -left-32 h-[600px] w-[600px]"
           style={{
             background:
-              "radial-gradient(circle, rgba(6,182,212,0.08) 0%, transparent 70%)",
+              'radial-gradient(circle, rgba(6,182,212,0.08) 0%, transparent 70%)',
           }}
         />
         <div
-          className="absolute bottom-0 right-0 w-[600px] h-[600px] pointer-events-none"
+          className="pointer-events-none absolute right-0 bottom-0 h-[600px] w-[600px]"
           style={{
             background:
-              "radial-gradient(circle, rgba(139,92,246,0.06) 0%, transparent 70%)",
+              'radial-gradient(circle, rgba(139,92,246,0.06) 0%, transparent 70%)',
           }}
         />
 
-        <div className="max-w-7xl mx-auto px-6 md:px-8 w-full">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-8">
           <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-5 md:gap-6 lg:gap-12">
             {/* Text: 3 of 5 columns */}
             <div className="flex flex-col gap-5 md:col-span-3 md:gap-6 lg:gap-8">
@@ -34,7 +34,7 @@ export default function Home() {
             </div>
 
             {/* Image: 2 of 5 columns */}
-            <div className="hidden md:flex justify-center md:col-span-2 md:justify-end">
+            <div className="hidden justify-center md:col-span-2 md:flex md:justify-end">
               <div
                 className="relative mx-auto w-full max-w-sm overflow-hidden rounded-3xl border border-cyan-500/20 bg-slate-950 p-6 text-slate-50 shadow-2xl shadow-cyan-900/20"
                 aria-label="Utomator automation workflow preview"
@@ -49,7 +49,7 @@ export default function Home() {
                 </div>
                 <div className="space-y-3">
                   <div className="rounded-2xl border border-slate-700 bg-slate-900 p-4">
-                    <div className="text-xs uppercase tracking-wide text-slate-400">
+                    <div className="text-xs tracking-wide text-slate-400 uppercase">
                       01 · Inspect
                     </div>
                     <div className="mt-2 font-semibold">
@@ -58,7 +58,7 @@ export default function Home() {
                   </div>
                   <div className="ml-6 h-6 w-px bg-cyan-500/50" />
                   <div className="rounded-2xl border border-cyan-500/50 bg-slate-900 p-4">
-                    <div className="text-xs uppercase tracking-wide text-cyan-300">
+                    <div className="text-xs tracking-wide text-cyan-300 uppercase">
                       02 · Approve
                     </div>
                     <div className="mt-2 font-semibold">
@@ -67,7 +67,7 @@ export default function Home() {
                   </div>
                   <div className="ml-6 h-6 w-px bg-cyan-500/50" />
                   <div className="rounded-2xl border border-slate-700 bg-slate-900 p-4">
-                    <div className="text-xs uppercase tracking-wide text-slate-400">
+                    <div className="text-xs tracking-wide text-slate-400 uppercase">
                       03 · Verify
                     </div>
                     <div className="mt-2 font-semibold">

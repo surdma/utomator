@@ -6,7 +6,13 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createClient } from '@libsql/client';
 import { createDocumentStore } from '../src/db/documents.js';
-import { CraftLibrary, parseMdx, toMdx, craftArchive, type Craft } from '../src/crafts/library.js';
+import {
+  CraftLibrary,
+  parseMdx,
+  toMdx,
+  craftArchive,
+  type Craft,
+} from '../src/crafts/library.js';
 import {
   growthCapabilities,
   profileSections,
@@ -19,7 +25,7 @@ await client.execute(
   'CREATE TABLE IF NOT EXISTS utomator_documents(' +
     'owner_id TEXT NOT NULL,namespace TEXT NOT NULL,record_key TEXT NOT NULL,' +
     'version INTEGER NOT NULL,payload TEXT NOT NULL,updated_at TEXT NOT NULL,' +
-    'PRIMARY KEY(owner_id,namespace,record_key))',
+    'PRIMARY KEY(owner_id,namespace,record_key))'
 );
 client.close();
 process.env.NODE_ENV = 'test';
@@ -32,7 +38,8 @@ const request = {
   name: 'Content review',
   category: 'content' as const,
   enabled: true,
-  description: 'Evaluates verified writing. Use when reviewing an attributed social post.',
+  description:
+    'Evaluates verified writing. Use when reviewing an attributed social post.',
   steps: [
     {
       id: 'research',
@@ -87,19 +94,30 @@ test('predefined crafts are database-backed and immutable; clones and MDX edits 
     const defaults = catalog.filter((c) => c.scope === 'default');
     assert.equal(defaults.length, 21);
     const expectedIds = new Set(
-      growthCapabilities.map((capability) => 'default-growth-' + capability.id),
+      growthCapabilities.map((capability) => 'default-growth-' + capability.id)
     );
     assert.equal(expectedIds.size, 15);
     for (const capability of growthCapabilities) {
-      const flow = defaults.find((candidate) => candidate.id === 'default-growth-' + capability.id);
+      const flow = defaults.find(
+        (candidate) => candidate.id === 'default-growth-' + capability.id
+      );
       assert.ok(flow, 'Missing growth flow for ' + capability.id);
       assert.equal(flow.steps.length, 5, capability.id);
       assert.equal(flow.links.length, 4, capability.id);
       const source = toMdx(flow);
       for (const action of capability.actions)
-        assert.ok(source.includes(action), 'Action omitted: ' + capability.id + ' / ' + action);
-      assert.ok(source.includes(capability.availableNow), 'Availability omitted: ' + capability.id);
-      assert.ok(source.includes(capability.requires), 'Prerequisites omitted: ' + capability.id);
+        assert.ok(
+          source.includes(action),
+          'Action omitted: ' + capability.id + ' / ' + action
+        );
+      assert.ok(
+        source.includes(capability.availableNow),
+        'Availability omitted: ' + capability.id
+      );
+      assert.ok(
+        source.includes(capability.requires),
+        'Prerequisites omitted: ' + capability.id
+      );
       assert.deepEqual(parseMdx(source, flow).steps, flow.steps);
       assert.deepEqual(parseMdx(source, flow).links, flow.links);
       const response = await app.inject('/crafts/' + flow.id + '/mdx');
@@ -107,7 +125,10 @@ test('predefined crafts are database-backed and immutable; clones and MDX edits 
       assert.equal(response.body, source, capability.id);
       if (capability.id === 'profile')
         for (const section of profileSections)
-          assert.ok(source.includes(section), 'Profile section missing: ' + section);
+          assert.ok(
+            source.includes(section),
+            'Profile section missing: ' + section
+          );
     }
     const originalDefaults = [
       'personal-brand-positioning',
@@ -118,12 +139,16 @@ test('predefined crafts are database-backed and immutable; clones and MDX edits 
       'thoughtful-social-engagement',
     ];
     for (const slug of originalDefaults) {
-      const flow = defaults.find((candidate) => candidate.id === 'default-' + slug);
+      const flow = defaults.find(
+        (candidate) => candidate.id === 'default-' + slug
+      );
       assert.ok(flow, 'Original toolkit lost: ' + slug);
       assert.equal(flow.steps.length, 5, slug);
       assert.deepEqual(parseMdx(toMdx(flow), flow).links, flow.links);
     }
-    const predefined = defaults.find((c) => c.slug === 'content-series-planning')!;
+    const predefined = defaults.find(
+      (c) => c.slug === 'content-series-planning'
+    )!;
     assert.equal(predefined.id, 'default-content-series-planning');
     const originalMdx = toMdx(predefined);
     assert.match(originalMdx, /<CraftNode/);
@@ -131,7 +156,10 @@ test('predefined crafts are database-backed and immutable; clones and MDX edits 
     const protectedUpdate = await app.inject({
       method: 'PUT',
       url: '/crafts/' + predefined.id,
-      payload: { expectedVersion: predefined.version, craft: { ...request, slug: predefined.slug } },
+      payload: {
+        expectedVersion: predefined.version,
+        craft: { ...request, slug: predefined.slug },
+      },
     });
     assert.equal(protectedUpdate.statusCode, 403);
     const protectedDelete = await app.inject({
@@ -140,13 +168,19 @@ test('predefined crafts are database-backed and immutable; clones and MDX edits 
       payload: { expectedVersion: predefined.version },
     });
     assert.equal(protectedDelete.statusCode, 403);
-    const cloned = await app.inject({ method: 'POST', url: '/crafts/' + predefined.id + '/clone' });
+    const cloned = await app.inject({
+      method: 'POST',
+      url: '/crafts/' + predefined.id + '/clone',
+    });
     assert.equal(cloned.statusCode, 201, cloned.body);
     const personal = cloned.json() as Craft;
     assert.equal(personal.scope, 'personal');
     assert.equal(personal.sourceCraftId, predefined.id);
     assert.notEqual(personal.id, predefined.id);
-    const revised = { ...personal, description: personal.description + ' Revised privately.' };
+    const revised = {
+      ...personal,
+      description: personal.description + ' Revised privately.',
+    };
     const updated = await app.inject({
       method: 'PUT',
       url: '/crafts/' + personal.id,
@@ -155,7 +189,10 @@ test('predefined crafts are database-backed and immutable; clones and MDX edits 
     assert.equal(updated.statusCode, 200, updated.body);
     const now = updated.json() as Craft;
     assert.equal(now.version, 2);
-    assert.equal((await app.inject('/crafts/' + predefined.id + '/mdx')).body, originalMdx);
+    assert.equal(
+      (await app.inject('/crafts/' + predefined.id + '/mdx')).body,
+      originalMdx
+    );
     const source = await app.inject('/crafts/' + now.id + '/mdx');
     assert.equal(source.statusCode, 200);
     assert.match(source.body, /Revised privately/);
@@ -164,7 +201,10 @@ test('predefined crafts are database-backed and immutable; clones and MDX edits 
       url: '/crafts/' + now.id,
       payload: {
         expectedVersion: now.version,
-        mdx: source.body.replace('**Next:** [evidence](#step-evidence)', '**Next:** End'),
+        mdx: source.body.replace(
+          '**Next:** [evidence](#step-evidence)',
+          '**Next:** End'
+        ),
       },
     });
     assert.equal(fromSource.statusCode, 200, fromSource.body);
@@ -189,9 +229,14 @@ test('predefined crafts are database-backed and immutable; clones and MDX edits 
     }
     assert.equal((await app.inject('/skills')).statusCode, 404);
     assert.equal(
-      (await app.inject({ method: 'DELETE', url: '/crafts/' + now.id, payload: { expectedVersion: 3 } }))
-        .statusCode,
-      200,
+      (
+        await app.inject({
+          method: 'DELETE',
+          url: '/crafts/' + now.id,
+          payload: { expectedVersion: 3 },
+        })
+      ).statusCode,
+      200
     );
     assert.equal((await app.inject('/crafts/' + now.id)).statusCode, 404);
   } finally {
@@ -206,11 +251,11 @@ test('MDX graph conversion rejects malformed input and preserves portable archiv
   assert.deepEqual(parseMdx(old).links, parseMdx(mdx).links);
   assert.throws(
     () => parseMdx(mdx.replace('name: ' + request.slug, 'name: ../../escape')),
-    /frontmatter/,
+    /frontmatter/
   );
   assert.throws(
     () => parseMdx(mdx.replace('Review source facts.', '## Step: fake | Fake')),
-    /Invalid MDX/,
+    /Invalid MDX/
   );
   assert.throws(
     () =>
@@ -221,13 +266,19 @@ test('MDX graph conversion rejects malformed input and preserves portable archiv
           { id: 'draft-to-research', source: 'draft', target: 'research' },
         ],
       }),
-    /cycle/,
+    /cycle/
   );
 });
 
 test('tenant identities isolate personal crafts but expose the same read-only defaults', async () => {
-  const a = await createDocumentStore({ DB_FILE_NAME: databaseFile }, randomUUID());
-  const b = await createDocumentStore({ DB_FILE_NAME: databaseFile }, randomUUID());
+  const a = await createDocumentStore(
+    { DB_FILE_NAME: databaseFile },
+    randomUUID()
+  );
+  const b = await createDocumentStore(
+    { DB_FILE_NAME: databaseFile },
+    randomUUID()
+  );
   const one = new CraftLibrary(join(root, 'missing-one.json'));
   const two = new CraftLibrary(join(root, 'missing-two.json'));
   one.setDocuments(a);
@@ -250,7 +301,7 @@ test('tenant identities isolate personal crafts but expose the same read-only de
     await assert.rejects(() => two.update(first.id, request, 1), /not found/);
     await assert.rejects(
       () => one.remove('default-personal-brand-positioning', baseA!.version),
-      /read-only/,
+      /read-only/
     );
   } finally {
     await a.close();
@@ -260,25 +311,54 @@ test('tenant identities isolate personal crafts but expose the same read-only de
 
 test('legacy JSON migrates once as private crafts without replacing predefined copies', async () => {
   const owner = randomUUID();
-  const store = await createDocumentStore({ DB_FILE_NAME: databaseFile }, owner);
+  const store = await createDocumentStore(
+    { DB_FILE_NAME: databaseFile },
+    owner
+  );
   const path = join(root, 'previous-library.json');
-  const baseline = { ...request, id: randomUUID(), version: 4, updatedAt: new Date().toISOString() };
-  const modified = { ...baseline, slug: 'content-series-planning', name: 'My changed default' };
+  const baseline = {
+    ...request,
+    id: randomUUID(),
+    version: 4,
+    updatedAt: new Date().toISOString(),
+  };
+  const modified = {
+    ...baseline,
+    slug: 'content-series-planning',
+    name: 'My changed default',
+  };
   await writeFile(path, JSON.stringify([baseline, modified]));
   const library = new CraftLibrary(path);
   library.setDocuments(store);
   try {
     await library.initialize();
     const initial = await library.list();
-    assert(initial.some((c) => c.slug === baseline.slug && c.scope === 'personal'));
-    assert(initial.some((c) => c.slug === 'content-series-planning-imported' && c.scope === 'personal'));
-    assert(initial.some((c) => c.slug === 'content-series-planning' && c.scope === 'default'));
+    assert(
+      initial.some((c) => c.slug === baseline.slug && c.scope === 'personal')
+    );
+    assert(
+      initial.some(
+        (c) =>
+          c.slug === 'content-series-planning-imported' &&
+          c.scope === 'personal'
+      )
+    );
+    assert(
+      initial.some(
+        (c) => c.slug === 'content-series-planning' && c.scope === 'default'
+      )
+    );
     const count = initial.length;
     await library.initialize();
     assert.equal((await library.list()).length, count);
     assert.equal(
-      (await store.get<{ result: string }>('craft-migrations', 'legacy-json-v1'))?.value?.result,
-      'imported',
+      (
+        await store.get<{ result: string }>(
+          'craft-migrations',
+          'legacy-json-v1'
+        )
+      )?.value?.result,
+      'imported'
     );
   } finally {
     await store.close();
@@ -298,10 +378,16 @@ test('releasing a new default MDX revision does not alter personal clones', asyn
   const dir = join(root, 'default-update');
   await mkdir(dir, { recursive: true });
   for (const slug of originals) {
-    const original = await readFile(resolve(process.cwd(), 'crafts', 'default', slug + '.mdx'), 'utf8');
+    const original = await readFile(
+      resolve(process.cwd(), 'crafts', 'default', slug + '.mdx'),
+      'utf8'
+    );
     await writeFile(join(dir, slug + '.mdx'), original);
   }
-  const store = await createDocumentStore({ DB_FILE_NAME: databaseFile }, randomUUID());
+  const store = await createDocumentStore(
+    { DB_FILE_NAME: databaseFile },
+    randomUUID()
+  );
   const library = new CraftLibrary(join(root, 'no-legacy-update.json'), dir);
   library.setDocuments(store);
   try {
@@ -309,15 +395,18 @@ test('releasing a new default MDX revision does not alter personal clones', asyn
     const before = await library.get('default-content-series-planning');
     const clone = await library.clone(before!.id);
     const userVersion = toMdx(clone);
-    const existingDefault = await readFile(join(dir, 'content-series-planning.mdx'), 'utf8');
+    const existingDefault = await readFile(
+      join(dir, 'content-series-planning.mdx'),
+      'utf8'
+    );
     const updatedDefault = existingDefault.replace(
       'Use when designing a source-backed series of professional LinkedIn posts',
-      'Use when planning a source-backed series of professional LinkedIn posts',
+      'Use when planning a source-backed series of professional LinkedIn posts'
     );
     assert.notEqual(
       updatedDefault,
       existingDefault,
-      'Revision fixture must actually change default MDX',
+      'Revision fixture must actually change default MDX'
     );
     await writeFile(join(dir, 'content-series-planning.mdx'), updatedDefault);
     await library.initialize();

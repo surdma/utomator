@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import {
   useEffect,
@@ -6,8 +6,8 @@ import {
   useRef,
   type ReactNode,
   type MouseEvent,
-} from "react";
-import { X } from "lucide-react";
+} from 'react';
+import { X } from 'lucide-react';
 
 type Props = {
   open: boolean;
@@ -16,10 +16,10 @@ type Props = {
   children: ReactNode;
   onDismiss: () => void;
   dismissible?: boolean;
-  size?: "default" | "wide";
-  titleSize?: "default" | "prominent";
+  size?: 'default' | 'wide';
+  titleSize?: 'default' | 'prominent';
   testId?: string;
-  scrollMode?: "page" | "contained";
+  scrollMode?: 'page' | 'contained';
 };
 
 export default function StudioDialog({
@@ -29,10 +29,10 @@ export default function StudioDialog({
   children,
   onDismiss,
   dismissible = true,
-  size = "default",
-  titleSize = "default",
+  size = 'default',
+  titleSize = 'default',
   testId,
-  scrollMode = "page",
+  scrollMode = 'page',
 }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -53,11 +53,11 @@ export default function StudioDialog({
     if (!dialog) return;
 
     const trapFocus = (event: KeyboardEvent) => {
-      if (event.key !== "Tab" || !dialog.open) return;
+      if (event.key !== 'Tab' || !dialog.open) return;
       const candidates = Array.from(
         dialog.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])',
-        ),
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
+        )
       ).filter((element) => element.getClientRects().length > 0);
       const first = candidates[0];
       const last = candidates[candidates.length - 1];
@@ -78,8 +78,8 @@ export default function StudioDialog({
         first.focus();
       }
     };
-    document.addEventListener("keydown", trapFocus, true);
-    return () => document.removeEventListener("keydown", trapFocus, true);
+    document.addEventListener('keydown', trapFocus, true);
+    return () => document.removeEventListener('keydown', trapFocus, true);
   }, [open]);
 
   function backdropClick(event: MouseEvent<HTMLDialogElement>) {
@@ -107,11 +107,11 @@ export default function StudioDialog({
       }}
       onClick={backdropClick}
       className={
-        "fixed inset-0 m-auto max-h-[min(90dvh,960px)] w-[calc(100%-2rem)] rounded-2xl border border-slate-200 bg-white p-0 text-slate-900 shadow-2xl backdrop:bg-slate-950/55 backdrop:backdrop-blur-md " +
-        (scrollMode === "contained"
-          ? "h-[min(90dvh,960px)] open:flex flex-col overflow-hidden "
-          : "overflow-y-auto ") +
-        (size === "wide" ? "max-w-5xl" : "max-w-2xl")
+        'fixed inset-0 m-auto max-h-[min(90dvh,960px)] w-[calc(100%-2rem)] rounded-2xl border border-slate-200 bg-white p-0 text-slate-900 shadow-2xl backdrop:bg-slate-950/55 backdrop:backdrop-blur-md ' +
+        (scrollMode === 'contained'
+          ? 'h-[min(90dvh,960px)] flex-col overflow-hidden open:flex '
+          : 'overflow-y-auto ') +
+        (size === 'wide' ? 'max-w-5xl' : 'max-w-2xl')
       }
     >
       <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-200 bg-white/95 px-5 py-4 backdrop-blur">
@@ -119,9 +119,9 @@ export default function StudioDialog({
           <h2
             id={titleId}
             className={
-              (titleSize === "prominent"
-                ? "text-xl leading-7 "
-                : "text-base ") + "font-bold tracking-tight text-slate-950"
+              (titleSize === 'prominent'
+                ? 'text-xl leading-7 '
+                : 'text-base ') + 'font-bold tracking-tight text-slate-950'
             }
           >
             {title}
@@ -130,9 +130,9 @@ export default function StudioDialog({
             <p
               id={descriptionId}
               className={
-                titleSize === "prominent"
-                  ? "mt-1 text-sm leading-5 text-slate-600"
-                  : "mt-1 text-xs leading-5 text-slate-500"
+                titleSize === 'prominent'
+                  ? 'mt-1 text-sm leading-5 text-slate-600'
+                  : 'mt-1 text-xs leading-5 text-slate-500'
               }
             >
               {description}
@@ -143,7 +143,7 @@ export default function StudioDialog({
           <button
             type="button"
             onClick={onDismiss}
-            aria-label={"Close " + title}
+            aria-label={'Close ' + title}
             className="flex size-11 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-teal-600"
           >
             <X className="size-5" />
@@ -152,9 +152,9 @@ export default function StudioDialog({
       </div>
       <div
         className={
-          scrollMode === "contained"
-            ? "min-h-0 flex-1 overflow-hidden p-3 sm:p-5"
-            : "p-5"
+          scrollMode === 'contained'
+            ? 'min-h-0 flex-1 overflow-hidden p-3 sm:p-5'
+            : 'p-5'
         }
       >
         {children}

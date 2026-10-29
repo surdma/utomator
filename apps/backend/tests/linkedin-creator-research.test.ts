@@ -40,10 +40,14 @@ test('LinkedIn creator research executes five typed steps with source-bound obse
   assert.equal(run.stages.length, 5);
   assert.equal(run.sources.length, 2);
   assert.equal(run.sources[0]?.digest.length, 64);
-  assert.ok(run.output.profiles[0]?.topics.some((topic) => topic.word === 'technical'));
+  assert.ok(
+    run.output.profiles[0]?.topics.some((topic) => topic.word === 'technical')
+  );
   assert.ok(run.output.gaps.some((gap) => gap.topic === 'technical'));
   assert.ok(
-    run.output.experiments[0]?.evidenceUrls.some((value) => value.includes('linkedin.com/posts')),
+    run.output.experiments[0]?.evidenceUrls.some((value) =>
+      value.includes('linkedin.com/posts')
+    )
   );
   assert.match(run.output.limitation, /does not verify live LinkedIn pages/);
   const yaml = researchYaml(run);
@@ -59,15 +63,22 @@ test('Creator research refuses unsafe input and invented URLs', () => {
     'https://www.linkedin.com/in/sample-creator/?x=y',
     'https://www.linkedin.com.evil.test/in/sample-creator/',
   ]) {
-    assert.throws(() => executeResearch({ ...fixture, creators: [{ ...creator, profileUrl: value }] }));
+    assert.throws(() =>
+      executeResearch({
+        ...fixture,
+        creators: [{ ...creator, profileUrl: value }],
+      })
+    );
   }
   assert.throws(() => executeResearch({ ...fixture, creators: [] }));
-  assert.throws(() => executeResearch({ ...fixture, creators: [{ ...creator, posts: [] }] }));
+  assert.throws(() =>
+    executeResearch({ ...fixture, creators: [{ ...creator, posts: [] }] })
+  );
   assert.throws(() =>
     executeResearch({
       ...fixture,
       creators: [{ ...creator, posts: [creator.posts[0], creator.posts[0]] }],
-    }),
+    })
   );
 });
 test('Research receipts persist and reload without relying on memory', async () => {
@@ -75,7 +86,10 @@ test('Research receipts persist and reload without relying on memory', async () 
   try {
     const one = new CreatorResearchStore(directory);
     const run = await one.create(fixture);
-    assert.equal((await new CreatorResearchStore(directory).get(run.id))?.id, run.id);
+    assert.equal(
+      (await new CreatorResearchStore(directory).get(run.id))?.id,
+      run.id
+    );
     assert.equal((await one.list()).length, 1);
     assert.equal(await one.get('00000000-0000-0000-0000-000000000000'), null);
   } finally {
@@ -91,11 +105,20 @@ test('Fastify validates research and returns persisted report and YAML', async (
       url: '/linkedin/research',
       payload: {
         ...fixture,
-        creators: [{ ...fixture.creators[0], profileUrl: 'https://evil.test/in/sample-creator' }],
+        creators: [
+          {
+            ...fixture.creators[0],
+            profileUrl: 'https://evil.test/in/sample-creator',
+          },
+        ],
       },
     });
     assert.equal(rejected.statusCode, 400);
-    const response = await app.inject({ method: 'POST', url: '/linkedin/research', payload: fixture });
+    const response = await app.inject({
+      method: 'POST',
+      url: '/linkedin/research',
+      payload: fixture,
+    });
     assert.equal(response.statusCode, 201, response.body);
     const created = response.json();
     assert.equal(created.output.profiles.length, 1);
@@ -109,7 +132,10 @@ test('Fastify validates research and returns persisted report and YAML', async (
     assert.equal(yaml.statusCode, 200);
     assert.match(yaml.headers['content-type'] as string, /yaml/);
     assert.match(yaml.body, /outputSha256/);
-    assert.equal((await app.inject('/linkedin/research/invalid')).statusCode, 400);
+    assert.equal(
+      (await app.inject('/linkedin/research/invalid')).statusCode,
+      400
+    );
   } finally {
     await app.close();
   }

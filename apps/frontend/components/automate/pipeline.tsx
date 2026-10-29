@@ -1,15 +1,15 @@
-"use client";
+'use client';
 
-import Link from "next/link";
+import Link from 'next/link';
 import {
   useCallback,
   useEffect,
   useRef,
   useState,
   type FormEvent,
-} from "react";
-import Image from "next/image";
-import { usePathname } from "next/navigation";
+} from 'react';
+import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import {
   Activity,
   AlertCircle,
@@ -36,15 +36,15 @@ import {
   Crosshair,
   Focus,
   NotebookPen,
-} from "lucide-react";
+} from 'lucide-react';
 import {
   Message,
   MessageAvatar,
   MessageContent,
   MessageFooter,
   MessageHeader,
-} from "@/components/ui/message";
-import { Bubble, BubbleContent } from "@/components/ui/bubble";
+} from '@/components/ui/message';
+import { Bubble, BubbleContent } from '@/components/ui/bubble';
 import {
   Button,
   Card,
@@ -52,38 +52,38 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/automate-card";
-import StudioDialog from "@/components/ui/studio-dialog";
+} from '@/components/ui/automate-card';
+import StudioDialog from '@/components/ui/studio-dialog';
 import WorkflowPlanEditor, {
   type WorkflowPlan,
-} from "@/components/automate/workflow-plan-editor";
+} from '@/components/automate/workflow-plan-editor';
 import CraftsLibrary, {
   type Craft as AgentCraft,
-} from "@/components/automate/crafts-library";
+} from '@/components/automate/crafts-library';
 import VisualReviewPanel, {
   type ImageSource,
   type VisualReviewDraft,
   type Region,
   type VisualAnnotation,
-} from "@/components/automate/visual-review-panel";
-import { AutomationSettingsPage } from "@/components/automate/owner-pages";
-import CareerStudio from "@/components/automate/career-studio";
+} from '@/components/automate/visual-review-panel';
+import { AutomationSettingsPage } from '@/components/automate/owner-pages';
+import CareerStudio from '@/components/automate/career-studio';
 import AccountStudio, {
   type SocialAccount,
-} from "@/components/automate/account-studio";
-import ActivityIntelligence from "@/components/automate/activity-intelligence";
-import LinkedInResearchStudio from "@/components/automate/linkedin-research-studio";
-import LinkedInEditorialStudio from "@/components/automate/linkedin-editorial-studio";
+} from '@/components/automate/account-studio';
+import ActivityIntelligence from '@/components/automate/activity-intelligence';
+import LinkedInResearchStudio from '@/components/automate/linkedin-research-studio';
+import LinkedInEditorialStudio from '@/components/automate/linkedin-editorial-studio';
 
 import ConnectorOnboarding, {
   type Connector,
-} from "@/components/automate/connector-onboarding";
-import { LinkedInIcon, TwitterIcon } from "@/components/svgs";
+} from '@/components/automate/connector-onboarding';
+import { LinkedInIcon, TwitterIcon } from '@/components/svgs';
 
-type Platform = "linkedin" | "x";
+type Platform = 'linkedin' | 'x';
 type WorkflowRecord = {
   id: string;
-  ownerId: "local-owner";
+  ownerId: 'local-owner';
   templateId: string | null;
   revision: number;
   createdAt: string;
@@ -91,14 +91,14 @@ type WorkflowRecord = {
   plan: WorkflowPlan;
 };
 type State =
-  | "running"
-  | "paused"
-  | "approval-needed"
-  | "input-needed"
-  | "completed"
-  | "blocked"
-  | "failed"
-  | "cancelled";
+  | 'running'
+  | 'paused'
+  | 'approval-needed'
+  | 'input-needed'
+  | 'completed'
+  | 'blocked'
+  | 'failed'
+  | 'cancelled';
 type Event = {
   id: number;
   runId: string;
@@ -143,7 +143,7 @@ type Coverage = {
   id: string;
   label: string;
   platform: Platform;
-  status: "implemented" | "manual" | "reference";
+  status: 'implemented' | 'manual' | 'reference';
   source: string;
   note: string;
 };
@@ -183,141 +183,141 @@ type Review = {
   regions: Region[];
   annotations?: VisualAnnotation[];
   source:
-    | { kind: "capture"; runId: string; fileName: string }
-    | { kind: "upload" }
-    | { kind: "review"; reviewId: string };
+    | { kind: 'capture'; runId: string; fileName: string }
+    | { kind: 'upload' }
+    | { kind: 'review'; reviewId: string };
 };
 
 const workflows: Record<Platform, Workflow[]> = {
   linkedin: [
-    { id: "audit", title: "Profile audit", category: "Inspect", fields: [] },
+    { id: 'audit', title: 'Profile audit', category: 'Inspect', fields: [] },
     {
-      id: "audit-page",
-      title: "Inspect selected page",
-      category: "Inspect",
+      id: 'audit-page',
+      title: 'Inspect selected page',
+      category: 'Inspect',
       fields: [],
     },
     {
-      id: "edit-profile",
-      title: "Headline & About",
-      category: "Profile",
+      id: 'edit-profile',
+      title: 'Headline & About',
+      category: 'Profile',
       fields: [
-        { key: "headline", label: "Headline", max: 220 },
-        { key: "about", label: "About", multiline: true, max: 2600 },
+        { key: 'headline', label: 'Headline', max: 220 },
+        { key: 'about', label: 'About', multiline: true, max: 2600 },
       ],
     },
     {
-      id: "edit-experience",
-      title: "Experience",
-      category: "Profile",
+      id: 'edit-experience',
+      title: 'Experience',
+      category: 'Profile',
       fields: [
         {
-          key: "positionId",
-          label: "Existing LinkedIn position ID",
+          key: 'positionId',
+          label: 'Existing LinkedIn position ID',
           required: true,
         },
         {
-          key: "description",
-          label: "Experience description",
+          key: 'description',
+          label: 'Experience description',
           multiline: true,
           required: true,
         },
-        { key: "startMonth", label: "Start month (optional)" },
-        { key: "startYear", label: "Start year (optional)" },
+        { key: 'startMonth', label: 'Start month (optional)' },
+        { key: 'startYear', label: 'Start year (optional)' },
       ],
     },
     {
-      id: "add-skill",
-      title: "Add skill",
-      category: "Profile",
-      fields: [{ key: "skill", label: "Exact skill", required: true }],
+      id: 'add-skill',
+      title: 'Add skill',
+      category: 'Profile',
+      fields: [{ key: 'skill', label: 'Exact skill', required: true }],
     },
     {
-      id: "edit-website",
-      title: "Contact website",
-      category: "Profile",
+      id: 'edit-website',
+      title: 'Contact website',
+      category: 'Profile',
       fields: [
-        { key: "website", label: "HTTPS website", required: true },
-        { key: "websiteIndex", label: "Row index (0–9)", placeholder: "0" },
-        { key: "websiteType", label: "Website type (optional)" },
+        { key: 'website', label: 'HTTPS website', required: true },
+        { key: 'websiteIndex', label: 'Row index (0–9)', placeholder: '0' },
+        { key: 'websiteType', label: 'Website type (optional)' },
       ],
     },
     {
-      id: "edit-services",
-      title: "Services",
-      category: "Profile",
+      id: 'edit-services',
+      title: 'Services',
+      category: 'Profile',
       fields: [
         {
-          key: "description",
-          label: "Services description",
+          key: 'description',
+          label: 'Services description',
           multiline: true,
           required: true,
         },
       ],
     },
     {
-      id: "add-project",
-      title: "Add project",
-      category: "Showcase",
+      id: 'add-project',
+      title: 'Add project',
+      category: 'Showcase',
       fields: [
-        { key: "projectName", label: "Project name", required: true },
+        { key: 'projectName', label: 'Project name', required: true },
         {
-          key: "description",
-          label: "Contribution and outcome",
+          key: 'description',
+          label: 'Contribution and outcome',
           required: true,
           multiline: true,
         },
-        { key: "projectUrl", label: "Optional media URL" },
+        { key: 'projectUrl', label: 'Optional media URL' },
       ],
     },
     {
-      id: "add-featured",
-      title: "Featured link",
-      category: "Showcase",
+      id: 'add-featured',
+      title: 'Featured link',
+      category: 'Showcase',
       fields: [
-        { key: "projectUrl", label: "HTTPS destination", required: true },
-        { key: "featuredTitle", label: "Featured title", required: true },
+        { key: 'projectUrl', label: 'HTTPS destination', required: true },
+        { key: 'featuredTitle', label: 'Featured title', required: true },
       ],
     },
   ],
   x: [
-    { id: "audit", title: "Profile audit", category: "Inspect", fields: [] },
+    { id: 'audit', title: 'Profile audit', category: 'Inspect', fields: [] },
     {
-      id: "audit-page",
-      title: "Inspect selected page",
-      category: "Inspect",
+      id: 'audit-page',
+      title: 'Inspect selected page',
+      category: 'Inspect',
       fields: [],
     },
     {
-      id: "edit-profile",
-      title: "Bio & contact",
-      category: "Profile",
+      id: 'edit-profile',
+      title: 'Bio & contact',
+      category: 'Profile',
       fields: [
-        { key: "bio", label: "Bio", multiline: true, max: 160 },
-        { key: "location", label: "Location" },
-        { key: "website", label: "HTTPS website" },
+        { key: 'bio', label: 'Bio', multiline: true, max: 160 },
+        { key: 'location', label: 'Location' },
+        { key: 'website', label: 'HTTPS website' },
       ],
     },
     {
-      id: "upload-banner",
-      title: "Upload banner",
-      category: "Profile",
+      id: 'upload-banner',
+      title: 'Upload banner',
+      category: 'Profile',
       fields: [
         {
-          key: "bannerPath",
-          label: "Local image in apps/backend/assets",
+          key: 'bannerPath',
+          label: 'Local image in apps/backend/assets',
           required: true,
         },
       ],
     },
     {
-      id: "compose-post",
-      title: "Publish one post",
-      category: "Content",
+      id: 'compose-post',
+      title: 'Publish one post',
+      category: 'Content',
       fields: [
         {
-          key: "postText",
-          label: "Post text",
+          key: 'postText',
+          label: 'Post text',
           required: true,
           multiline: true,
           max: 280,
@@ -325,111 +325,111 @@ const workflows: Record<Platform, Workflow[]> = {
       ],
     },
     {
-      id: "pin-post",
-      title: "Pin post",
-      category: "Content",
-      fields: [{ key: "postUrl", label: "Exact post URL", required: true }],
+      id: 'pin-post',
+      title: 'Pin post',
+      category: 'Content',
+      fields: [{ key: 'postUrl', label: 'Exact post URL', required: true }],
     },
     {
-      id: "delete-post",
-      title: "Delete one post",
-      category: "Content",
+      id: 'delete-post',
+      title: 'Delete one post',
+      category: 'Content',
       fields: [
-        { key: "postUrl", label: "Exact authored post URL", required: true },
+        { key: 'postUrl', label: 'Exact authored post URL', required: true },
       ],
     },
   ],
 };
-const getApi = (path: string) => "/api/" + path;
+const getApi = (path: string) => '/api/' + path;
 function stateLabel(state: string) {
-  return state.replaceAll("-", " ");
+  return state.replaceAll('-', ' ');
 }
 function timeLabel(time: string) {
   return new Date(time).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
   });
 }
 function short(id: string) {
   return id.slice(0, 8);
 }
 function explainCommand(
-  value: string,
+  value: string
 ): { action: string; fields: Record<string, string>; note: string } | null {
   const text = value.trim();
   if (/^(audit|inspect|review)(?:\s+(?:my\s+)?profile)?[.!]?$/i.test(text)) {
     return {
-      action: "audit",
+      action: 'audit',
       fields: {},
-      note: "Read-only audit prepared. Start the run to collect current profile evidence.",
+      note: 'Read-only audit prepared. Start the run to collect current profile evidence.',
     };
   }
   const headline = text.match(
-    /^(?:set|update|draft)\s+(?:my\s+)?headline\s*:\s*([\s\S]+)$/i,
+    /^(?:set|update|draft)\s+(?:my\s+)?headline\s*:\s*([\s\S]+)$/i
   );
   if (headline)
     return {
-      action: "edit-profile",
+      action: 'edit-profile',
       fields: { headline: headline[1].trim() },
-      note: "Headline staged for review. No change has been published.",
+      note: 'Headline staged for review. No change has been published.',
     };
   const skill = text.match(/^(?:add)\s+(?:the\s+)?skill\s*:\s*([\s\S]+)$/i);
   if (skill)
     return {
-      action: "add-skill",
+      action: 'add-skill',
       fields: { skill: skill[1].trim() },
-      note: "Skill selected. LinkedIn will confirm the exact catalog entry.",
+      note: 'Skill selected. LinkedIn will confirm the exact catalog entry.',
     };
   const post = text.match(
-    /^(?:draft|compose)\s+(?:a\s+)?post\s*:\s*([\s\S]+)$/i,
+    /^(?:draft|compose)\s+(?:a\s+)?post\s*:\s*([\s\S]+)$/i
   );
   if (post)
     return {
-      action: "compose-post",
+      action: 'compose-post',
       fields: { postText: post[1].trim() },
-      note: "Post staged. Publishing still requires your explicit approval.",
+      note: 'Post staged. Publishing still requires your explicit approval.',
     };
   return null;
 }
 
 export default function AutomationPipeline({
-  initialPane = "pipeline",
+  initialPane = 'pipeline',
 }: {
   initialPane?:
-    | "pipeline"
-    | "history"
-    | "profile"
-    | "resumes"
-    | "observer"
-    | "memory"
-    | "research"
-    | "editorial"
-    | "growth"
-    | "settings"
-    | "crafts";
+    | 'pipeline'
+    | 'history'
+    | 'profile'
+    | 'resumes'
+    | 'observer'
+    | 'memory'
+    | 'research'
+    | 'editorial'
+    | 'growth'
+    | 'settings'
+    | 'crafts';
 }) {
-  const [platform, setPlatform] = useState<Platform>("linkedin");
-  const [action, setAction] = useState("audit");
-  const [handle, setHandle] = useState("");
+  const [platform, setPlatform] = useState<Platform>('linkedin');
+  const [action, setAction] = useState('audit');
+  const [handle, setHandle] = useState('');
   const [form, setForm] = useState<Record<string, string>>({});
   const [activeConnector, setActiveConnector] = useState<Connector | null>(
-    null,
+    null
   );
   const [connectorRequest, setConnectorRequest] = useState<string | null>(null);
   const [connectorOpenSignal, setConnectorOpenSignal] = useState(0);
   const [pane, setPane] = useState<
-    | "pipeline"
-    | "history"
-    | "crafts"
-    | "profile"
-    | "resumes"
-    | "observer"
-    | "memory"
-    | "research"
-    | "editorial"
-    | "growth"
-    | "settings"
+    | 'pipeline'
+    | 'history'
+    | 'crafts'
+    | 'profile'
+    | 'resumes'
+    | 'observer'
+    | 'memory'
+    | 'research'
+    | 'editorial'
+    | 'growth'
+    | 'settings'
   >(initialPane);
   const pathname = usePathname();
   const [trackingOpen, setTrackingOpen] = useState(false);
@@ -437,23 +437,23 @@ export default function AutomationPipeline({
   const [configRequest, setConfigRequest] = useState(0);
   const [workflowPlan, setWorkflowPlan] = useState<WorkflowPlan>(() => ({
     version: 1,
-    platform: "linkedin",
-    action: "audit",
-    name: "Profile audit",
+    platform: 'linkedin',
+    action: 'audit',
+    name: 'Profile audit',
     steps: [
-      { id: "start", kind: "start", title: "Start run" },
-      { id: "session", kind: "session", title: "Authenticated browser" },
-      { id: "inspect", kind: "inspect", title: "Inspect current page" },
-      { id: "action", kind: "action", title: "Inspect page" },
-      { id: "verify", kind: "verify", title: "Observe final page" },
-      { id: "finish", kind: "finish", title: "Final output" },
+      { id: 'start', kind: 'start', title: 'Start run' },
+      { id: 'session', kind: 'session', title: 'Authenticated browser' },
+      { id: 'inspect', kind: 'inspect', title: 'Inspect current page' },
+      { id: 'action', kind: 'action', title: 'Inspect page' },
+      { id: 'verify', kind: 'verify', title: 'Observe final page' },
+      { id: 'finish', kind: 'finish', title: 'Final output' },
     ],
     links: [
-      { source: "start", target: "session" },
-      { source: "session", target: "inspect" },
-      { source: "inspect", target: "action" },
-      { source: "action", target: "verify" },
-      { source: "verify", target: "finish" },
+      { source: 'start', target: 'session' },
+      { source: 'session', target: 'inspect' },
+      { source: 'inspect', target: 'action' },
+      { source: 'action', target: 'verify' },
+      { source: 'verify', target: 'finish' },
     ],
   }));
   const [templatePlans, setTemplatePlans] = useState<WorkflowPlan[]>([]);
@@ -462,7 +462,7 @@ export default function AutomationPipeline({
   >(null);
   const [savedWorkflows, setSavedWorkflows] = useState<WorkflowRecord[]>([]);
   const [activeWorkflow, setActiveWorkflow] = useState<WorkflowRecord | null>(
-    null,
+    null
   );
   const [loadingWorkflow, setLoadingWorkflow] = useState(false);
   const workflowSelectionEpoch = useRef(0);
@@ -472,18 +472,18 @@ export default function AutomationPipeline({
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
   const [selectedCraftId, setSelectedCraftId] = useState<string | null>(null);
   const [selectedCraftSlug, setSelectedCraftSlug] = useState<string | null>(
-    null,
+    null
   );
   const [craftsRevision, setCraftsRevision] = useState(0);
-  const [, setSelectedNode] = useState("inspect");
-  const [scopeSection, setScopeSection] = useState("profile");
+  const [, setSelectedNode] = useState('inspect');
+  const [scopeSection, setScopeSection] = useState('profile');
   const [reviews, setReviews] = useState<Review[]>([]);
   const [imageDraft, setImageDraft] = useState<ImageSource | null>(null);
-  const [imageError, setImageError] = useState("");
+  const [imageError, setImageError] = useState('');
 
   const [mobileMenu, setMobileMenu] = useState(false);
-  const [available, setAvailable] = useState<"checking" | "ready" | "offline">(
-    "checking",
+  const [available, setAvailable] = useState<'checking' | 'ready' | 'offline'>(
+    'checking'
   );
   const [playbook, setPlaybook] = useState<Playbook | null>(null);
   const [assessment, setAssessment] = useState<Assessment | null>(null);
@@ -491,94 +491,94 @@ export default function AutomationPipeline({
   const [active, setActive] = useState<Run | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [checkpoint, setCheckpoint] = useState<{
-    kind: "approval" | "input";
+    kind: 'approval' | 'input';
     id: string;
     message: string;
   } | null>(null);
-  const [checkpointError, setCheckpointError] = useState("");
-  const [runFormError, setRunFormError] = useState("");
-  const [inputReply, setInputReply] = useState("");
-  const [message, setMessage] = useState("");
+  const [checkpointError, setCheckpointError] = useState('');
+  const [runFormError, setRunFormError] = useState('');
+  const [inputReply, setInputReply] = useState('');
+  const [message, setMessage] = useState('');
   const [conversation, setConversation] = useState<
-    Array<{ id: number; sender: "user" | "assistant"; text: string }>
+    Array<{ id: number; sender: 'user' | 'assistant'; text: string }>
   >([
     {
       id: 1,
-      sender: "assistant",
-      text: "Your automation pipeline is ready. Choose a workflow, or type a structured command. I can stage approved actions and explain the run, but no AI model is connected.",
+      sender: 'assistant',
+      text: 'Your automation pipeline is ready. Choose a workflow, or type a structured command. I can stage approved actions and explain the run, but no AI model is connected.',
     },
   ]);
   const streamRef = useRef<EventSource | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const currentRunRef = useRef<string | null>(null);
-  const libraryView = pathname.endsWith("/source")
-    ? "source"
-    : pathname.startsWith("/growth/") ||
-        pathname.startsWith("/dashboard/growth/") ||
-        pathname.startsWith("/dashboard/crafts/")
-      ? "visual"
-      : "catalog";
+  const libraryView = pathname.endsWith('/source')
+    ? 'source'
+    : pathname.startsWith('/growth/') ||
+        pathname.startsWith('/dashboard/growth/') ||
+        pathname.startsWith('/dashboard/crafts/')
+      ? 'visual'
+      : 'catalog';
   useEffect(() => {
-    if (pathname === "/growth/default-growth-profile") {
-      setPane("growth");
-      setSelectedCraftId("default-growth-profile");
+    if (pathname === '/growth/default-growth-profile') {
+      setPane('growth');
+      setSelectedCraftId('default-growth-profile');
     } else if (
-      pathname.startsWith("/dashboard/growth/") ||
-      pathname.startsWith("/dashboard/crafts/")
+      pathname.startsWith('/dashboard/growth/') ||
+      pathname.startsWith('/dashboard/crafts/')
     ) {
-      const id = pathname.split("/")[3];
-      setPane("growth");
+      const id = pathname.split('/')[3];
+      setPane('growth');
       setSelectedCraftId(id || null);
-    } else if (pathname === "/dashboard/crafts") setPane("growth");
-    else if (pathname === "/dashboard/history") setPane("history");
-    else if (pathname.startsWith("/dashboard/profile")) setPane("profile");
-    else if (pathname.startsWith("/dashboard/resumes")) setPane("resumes");
-    else if (pathname === "/dashboard/observer") setPane("observer");
-    else if (pathname === "/dashboard/memory") setPane("memory");
-    else if (pathname === "/dashboard/research") setPane("research");
-    else if (pathname === "/dashboard/editorial") setPane("editorial");
-    else if (pathname === "/dashboard/growth") setPane("growth");
-    else if (pathname === "/dashboard/settings") setPane("settings");
-    else if (pathname === "/dashboard/pipeline") setPane("pipeline");
+    } else if (pathname === '/dashboard/crafts') setPane('growth');
+    else if (pathname === '/dashboard/history') setPane('history');
+    else if (pathname.startsWith('/dashboard/profile')) setPane('profile');
+    else if (pathname.startsWith('/dashboard/resumes')) setPane('resumes');
+    else if (pathname === '/dashboard/observer') setPane('observer');
+    else if (pathname === '/dashboard/memory') setPane('memory');
+    else if (pathname === '/dashboard/research') setPane('research');
+    else if (pathname === '/dashboard/editorial') setPane('editorial');
+    else if (pathname === '/dashboard/growth') setPane('growth');
+    else if (pathname === '/dashboard/settings') setPane('settings');
+    else if (pathname === '/dashboard/pipeline') setPane('pipeline');
   }, [pathname]);
   function navigate(path: string) {
-    if (typeof window !== "undefined" && window.location.pathname !== path)
-      window.history.pushState(null, "", path);
+    if (typeof window !== 'undefined' && window.location.pathname !== path)
+      window.history.pushState(null, '', path);
   }
   function navigatePane(
     next:
-      | "pipeline"
-      | "history"
-      | "crafts"
-      | "profile"
-      | "resumes"
-      | "observer"
-      | "memory"
-      | "research"
-      | "editorial"
-      | "growth"
-      | "settings",
+      | 'pipeline'
+      | 'history'
+      | 'crafts'
+      | 'profile'
+      | 'resumes'
+      | 'observer'
+      | 'memory'
+      | 'research'
+      | 'editorial'
+      | 'growth'
+      | 'settings'
   ) {
     if (
       next !== pane &&
-      typeof document !== "undefined" &&
+      typeof document !== 'undefined' &&
       document.querySelector('[data-career-dirty="true"]') &&
-      !window.confirm("Discard unsaved career edits?")
+      !window.confirm('Discard unsaved career edits?')
     )
       return;
     setPane(next);
     navigate(
-      next === "pipeline" ? "/dashboard/pipeline" : "/dashboard/" + next,
+      next === 'pipeline' ? '/dashboard/pipeline' : '/dashboard/' + next
     );
   }
   function navigateSubpage(path: string) {
     if (
-      typeof document !== "undefined" &&
+      typeof document !== 'undefined' &&
       document.querySelector('[data-career-dirty="true"]') &&
-      !window.confirm("Discard unsaved career edits?")
+      !window.confirm('Discard unsaved career edits?')
     )
       return;
-    setPane(path.startsWith("/dashboard/resumes") ? "resumes" : "profile");
+    setPane(path.startsWith('/dashboard/resumes') ? 'resumes' : 'profile');
     navigate(path);
   }
   function selectSocialAccount(account: SocialAccount) {
@@ -587,61 +587,61 @@ export default function AutomationPipeline({
     setMobileMenu(false);
   }
   function navigateCraft(id: string | null, slug?: string) {
-    setPane("growth");
+    setPane('growth');
     setSelectedCraftId(id);
     if (id && slug) setSelectedCraftSlug(slug);
     if (!id) setSelectedCraftSlug(null);
     const target = id
-      ? "/dashboard/growth/" + encodeURIComponent(id)
-      : "/dashboard/growth";
-    navigate(id && pathname === target + "/source" ? pathname : target);
+      ? '/dashboard/growth/' + encodeURIComponent(id)
+      : '/dashboard/growth';
+    navigate(id && pathname === target + '/source' ? pathname : target);
   }
-  function navigateCraftView(next: "visual" | "source") {
+  function navigateCraftView(next: 'visual' | 'source') {
     if (!selectedCraftId) return;
     navigate(
-      "/dashboard/growth/" +
+      '/dashboard/growth/' +
         encodeURIComponent(selectedCraftId) +
-        (next === "source" ? "/source" : ""),
+        (next === 'source' ? '/source' : '')
     );
   }
 
   const selected =
     workflows[platform].find((workflow) => workflow.id === action) ||
     workflows[platform][0];
-  const normalizedHandle = handle.trim().replace(/^@/, "");
+  const normalizedHandle = handle.trim().replace(/^@/, '');
   const profilePage =
     activeConnector?.platform === platform &&
     activeConnector.handle.toLowerCase() === normalizedHandle.toLowerCase()
       ? activeConnector.profileUrl
-      : "";
+      : '';
   const selectedPage =
-    profilePage && platform === "linkedin" && scopeSection !== "profile"
-      ? profilePage.replace(/\/$/, "") + "/details/" + scopeSection + "/"
+    profilePage && platform === 'linkedin' && scopeSection !== 'profile'
+      ? profilePage.replace(/\/$/, '') + '/details/' + scopeSection + '/'
       : profilePage;
   const pageOptions =
-    platform === "linkedin"
-      ? ["profile", "experience", "skills", "projects", "featured"]
-      : ["profile"];
+    platform === 'linkedin'
+      ? ['profile', 'experience', 'skills', 'projects', 'featured']
+      : ['profile'];
 
   const busy = Boolean(
     active &&
-      ["running", "paused", "input-needed", "approval-needed"].includes(
-        active.state,
-      ),
+    ['running', 'paused', 'input-needed', 'approval-needed'].includes(
+      active.state
+    )
   );
   const connectorReady =
     activeConnector?.platform === platform &&
-    activeConnector.status === "connected";
-  const PlatformIcon = platform === "linkedin" ? LinkedInIcon : TwitterIcon;
-  const platformLabel = platform === "linkedin" ? "LinkedIn" : "X";
+    activeConnector.status === 'connected';
+  const PlatformIcon = platform === 'linkedin' ? LinkedInIcon : TwitterIcon;
+  const platformLabel = platform === 'linkedin' ? 'LinkedIn' : 'X';
   const formDirty =
     JSON.stringify(form) !== JSON.stringify(workflowPlan.parameters ?? {});
   useEffect(() => {
     let live = true;
     const generation = savedListEpoch.current;
-    void fetch(getApi("workflows"), { cache: "no-store" })
+    void fetch(getApi('workflows'), { cache: 'no-store' })
       .then(async (response) => {
-        if (!response.ok) throw Error("Saved workflows unavailable");
+        if (!response.ok) throw Error('Saved workflows unavailable');
         const records = (await response.json()) as WorkflowRecord[];
         if (live && savedListEpoch.current === generation)
           setSavedWorkflows(records);
@@ -649,7 +649,7 @@ export default function AutomationPipeline({
       .catch(() => {
         if (live)
           setRunFormError(
-            "Saved workflows unavailable. Check the local automation API.",
+            'Saved workflows unavailable. Check the local automation API.'
           );
       });
     return () => {
@@ -660,12 +660,12 @@ export default function AutomationPipeline({
     let live = true;
     setTemplatePlans([]);
     const controller = new AbortController();
-    void fetch(getApi("workflow-templates/" + platform), {
-      cache: "no-store",
+    void fetch(getApi('workflow-templates/' + platform), {
+      cache: 'no-store',
       signal: controller.signal,
     })
       .then(async (result) => {
-        if (!result.ok) throw Error("Template catalogue not available");
+        if (!result.ok) throw Error('Template catalogue not available');
         const plans = (await result.json()) as WorkflowPlan[];
         if (live) setTemplatePlans(plans);
       })
@@ -685,12 +685,12 @@ export default function AutomationPipeline({
     setLoadingWorkflow(true);
     let live = true;
     const controller = new AbortController();
-    void fetch(getApi("workflow-plans/" + platform + "/" + action), {
-      cache: "no-store",
+    void fetch(getApi('workflow-plans/' + platform + '/' + action), {
+      cache: 'no-store',
       signal: controller.signal,
     })
       .then(async (response) => {
-        if (!response.ok) throw Error("Saved workflow could not be loaded");
+        if (!response.ok) throw Error('Saved workflow could not be loaded');
         const plan = (await response.json()) as WorkflowPlan;
         if (live) {
           setWorkflowPlan(plan);
@@ -702,10 +702,10 @@ export default function AutomationPipeline({
       .catch((error) => {
         if (
           live &&
-          !(error instanceof DOMException && error.name === "AbortError")
+          !(error instanceof DOMException && error.name === 'AbortError')
         ) {
           setRunFormError(
-            "Saved workflow unavailable. Check the local automation API.",
+            'Saved workflow unavailable. Check the local automation API.'
           );
           setLoadingWorkflow(false);
         }
@@ -716,30 +716,30 @@ export default function AutomationPipeline({
     };
   }, [platform, action, activeWorkflow]);
   async function saveWorkflowPlan(): Promise<void> {
-    if (busy) throw Error("Stop the active workflow before saving");
+    if (busy) throw Error('Stop the active workflow before saving');
     if (loadingWorkflow)
-      throw Error("Wait until the selected workflow finishes loading");
-    if (planSaving) throw Error("A workflow save is already running");
+      throw Error('Wait until the selected workflow finishes loading');
+    if (planSaving) throw Error('A workflow save is already running');
     const selection = workflowSelectionEpoch.current;
     setPlanSaving(true);
     try {
       const value = { ...workflowPlan, parameters: { ...form } };
       const response = await fetch(
-        getApi(activeWorkflow ? "workflows/" + activeWorkflow.id : "workflows"),
+        getApi(activeWorkflow ? 'workflows/' + activeWorkflow.id : 'workflows'),
         {
-          method: activeWorkflow ? "PUT" : "POST",
-          headers: { "content-type": "application/json" },
+          method: activeWorkflow ? 'PUT' : 'POST',
+          headers: { 'content-type': 'application/json' },
           body: JSON.stringify(
             activeWorkflow
               ? { plan: value, expectedRevision: activeWorkflow.revision }
-              : { plan: value },
+              : { plan: value }
           ),
-        },
+        }
       );
       const json = (await response.json()) as WorkflowRecord & {
         error?: string;
       };
-      if (!response.ok) throw Error(json.error ?? "Could not save workflow");
+      if (!response.ok) throw Error(json.error ?? 'Could not save workflow');
       savedListEpoch.current++;
       setSavedWorkflows((previous) => [
         ...previous.filter((item) => item.id !== json.id),
@@ -749,11 +749,11 @@ export default function AutomationPipeline({
         setActiveWorkflow(json);
         setWorkflowPlan(json.plan);
         setPlanDirty(false);
-        setRunFormError("");
+        setRunFormError('');
       }
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Workflow save failed";
+        error instanceof Error ? error.message : 'Workflow save failed';
       setRunFormError(message);
       throw Error(message);
     } finally {
@@ -763,13 +763,13 @@ export default function AutomationPipeline({
   async function applyGrowthTemplate(id: string): Promise<void> {
     if (busy)
       throw Error(
-        "Stop the current Runner workflow before loading a Growth template",
+        'Stop the current Runner workflow before loading a Growth template'
       );
-    if (platform !== "linkedin")
-      throw Error("Growth template requires LinkedIn");
+    if (platform !== 'linkedin')
+      throw Error('Growth template requires LinkedIn');
     const response = await fetch(
-      getApi("growth/templates/" + encodeURIComponent(id)),
-      { cache: "no-store" },
+      getApi('growth/templates/' + encodeURIComponent(id)),
+      { cache: 'no-store' }
     );
     const program = (await response.json()) as {
       id?: string;
@@ -784,38 +784,38 @@ export default function AutomationPipeline({
     )
       throw Error(
         program.error ||
-          "Growth YAML did not compile into a connected pipeline graph",
+          'Growth YAML did not compile into a connected pipeline graph'
       );
     setSelectedGrowthTemplateId(id);
   }
   async function applyTemplate(
     plan: WorkflowPlan,
-    templateId: string,
+    templateId: string
   ): Promise<void> {
     setSelectedGrowthTemplateId(null);
     if (busy)
       throw Error(
-        "Stop or finish the active workflow before changing templates",
+        'Stop or finish the active workflow before changing templates'
       );
     if (plan.platform !== platform)
       throw Error(
-        "Select the matching studio account before applying this template",
+        'Select the matching studio account before applying this template'
       );
-    if (planSaving) throw Error("A workflow save is already running");
+    if (planSaving) throw Error('A workflow save is already running');
     const selection = ++workflowSelectionEpoch.current;
     setPlanSaving(true);
-    setRunFormError("");
+    setRunFormError('');
     try {
-      const response = await fetch(getApi("workflows"), {
-        method: "POST",
-        headers: { "content-type": "application/json" },
+      const response = await fetch(getApi('workflows'), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ plan, templateId }),
       });
       const saved = (await response.json()) as WorkflowRecord & {
         error?: string;
       };
       if (!response.ok)
-        throw Error(saved.error || "The selected workflow could not be saved");
+        throw Error(saved.error || 'The selected workflow could not be saved');
       savedListEpoch.current++;
       setSavedWorkflows((previous) => [
         ...previous.filter((item) => item.id !== saved.id),
@@ -839,7 +839,7 @@ export default function AutomationPipeline({
     if (id === null) {
       setActiveWorkflow(null);
       setPlanDirty(false);
-      setRunFormError("");
+      setRunFormError('');
       return;
     }
     const selected = savedWorkflows.find((item) => item.id === id);
@@ -851,19 +851,19 @@ export default function AutomationPipeline({
     setWorkflowPlan(selected.plan);
     setForm(selected.plan.parameters ?? {});
     setPlanDirty(false);
-    setRunFormError("");
+    setRunFormError('');
   }
 
   const refresh = useCallback(async () => {
     try {
       const [health, recent, rules, savedReviews] = await Promise.all([
-        fetch(getApi("health"), { cache: "no-store" }),
-        fetch(getApi("runs"), { cache: "no-store" }),
-        fetch(getApi("playbook"), { cache: "no-store" }),
-        fetch(getApi("visual-reviews"), { cache: "no-store" }),
+        fetch(getApi('health'), { cache: 'no-store' }),
+        fetch(getApi('runs'), { cache: 'no-store' }),
+        fetch(getApi('playbook'), { cache: 'no-store' }),
+        fetch(getApi('visual-reviews'), { cache: 'no-store' }),
       ]);
-      if (!health.ok) throw new Error("Engine health request failed");
-      setAvailable("ready");
+      if (!health.ok) throw new Error('Engine health request failed');
+      setAvailable('ready');
       if (recent.ok) {
         const list = (await recent.json()) as Run[];
         setRuns(list);
@@ -876,20 +876,20 @@ export default function AutomationPipeline({
       if (savedReviews.ok) setReviews((await savedReviews.json()) as Review[]);
       if (currentRunRef.current) {
         const current = (await (
-          await fetch(getApi("runs/" + currentRunRef.current), {
-            cache: "no-store",
+          await fetch(getApi('runs/' + currentRunRef.current), {
+            cache: 'no-store',
           })
         ).json()) as Run;
-        if (current.action === "audit") {
+        if (current.action === 'audit') {
           const report = await fetch(
-            getApi("runs/" + current.id + "/assessment"),
-            { cache: "no-store" },
+            getApi('runs/' + current.id + '/assessment'),
+            { cache: 'no-store' }
           );
           if (report.ok) setAssessment((await report.json()) as Assessment);
         }
       }
     } catch {
-      setAvailable("offline");
+      setAvailable('offline');
     }
   }, []);
   useEffect(() => {
@@ -905,17 +905,17 @@ export default function AutomationPipeline({
   useEffect(() => {
     logRef.current?.scrollTo({
       top: logRef.current.scrollHeight,
-      behavior: "smooth",
+      behavior: 'smooth',
     });
   }, [events, conversation, checkpoint]);
 
   const onConnectorSelect = useCallback(
     (account: Connector) => {
-      if (account.platform !== "linkedin") return;
+      if (account.platform !== 'linkedin') return;
       // Connecting or resyncing the same account must not discard a template
       // that the user already loaded and configured offline.
       const switchingAccount = Boolean(
-        activeConnector?.id && activeConnector.id !== account.id,
+        activeConnector?.id && activeConnector.id !== account.id
       );
       const switchingPlatform = platform !== account.platform;
       setActiveConnector(account);
@@ -925,22 +925,22 @@ export default function AutomationPipeline({
       // Switching identities or platforms intentionally resets any account-specific form.
       workflowSelectionEpoch.current++;
       setActiveWorkflow(null);
-      setAction("audit");
+      setAction('audit');
       setForm({});
-      setScopeSection("profile");
+      setScopeSection('profile');
       setConnectorRequest(null);
     },
-    [activeConnector?.id, platform],
+    [activeConnector?.id, platform]
   );
   function choosePlatform(next: Platform) {
     workflowSelectionEpoch.current++;
     setActiveWorkflow(null);
     setPlatform(next);
-    setAction("audit");
+    setAction('audit');
     setForm({});
-    setScopeSection("profile");
+    setScopeSection('profile');
     setActiveConnector(null);
-    setHandle("");
+    setHandle('');
   }
   function chooseAction(next: string) {
     setSelectedGrowthTemplateId(null);
@@ -948,58 +948,58 @@ export default function AutomationPipeline({
     setActiveWorkflow(null);
     setAction(next);
     setForm({});
-    setRunFormError("");
-    navigatePane("pipeline");
+    setRunFormError('');
+    navigatePane('pipeline');
     setMobileMenu(false);
   }
   async function apiPost(path: string, data: Record<string, unknown> = {}) {
     const response = await fetch(getApi(path), {
-      method: "POST",
-      headers: { "content-type": "application/json" },
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify(data),
     });
     const body = (await response.json()) as { error?: string; id?: string };
-    if (!response.ok) throw new Error(body.error || "Unable to submit request");
+    if (!response.ok) throw new Error(body.error || 'Unable to submit request');
     return body;
   }
   function connect(runId: string) {
     streamRef.current?.close();
-    const source = new EventSource(getApi("events/" + runId));
+    const source = new EventSource(getApi('events/' + runId));
     streamRef.current = source;
     const kinds = [
-      "status",
-      "step",
-      "audit",
-      "approval",
-      "input",
-      "screenshot",
-      "error",
-      "result",
+      'status',
+      'step',
+      'audit',
+      'approval',
+      'input',
+      'screenshot',
+      'error',
+      'result',
     ];
     const consume = (incoming: MessageEvent) => {
       const item = JSON.parse(incoming.data) as Event;
       if (item.runId !== currentRunRef.current) return;
       setEvents((prev) =>
-        prev.some((entry) => entry.id === item.id) ? prev : [...prev, item],
+        prev.some((entry) => entry.id === item.id) ? prev : [...prev, item]
       );
-      if (item.kind === "approval" || item.kind === "input") {
-        setCheckpointError("");
+      if (item.kind === 'approval' || item.kind === 'input') {
+        setCheckpointError('');
         setCheckpoint({
           kind: item.kind,
-          id: item.details?.checkpointId || "",
+          id: item.details?.checkpointId || '',
           message: item.message,
         });
       }
       if (
-        item.kind === "status" &&
-        (item.message.startsWith("Run paused") ||
-          item.message.startsWith("Run resumed"))
+        item.kind === 'status' &&
+        (item.message.startsWith('Run paused') ||
+          item.message.startsWith('Run resumed'))
       )
         void refresh();
       if (
-        item.kind === "status" &&
-        (item.message.startsWith("Run ended:") ||
-          item.message.includes("Run finished"))
+        item.kind === 'status' &&
+        (item.message.startsWith('Run ended:') ||
+          item.message.includes('Run finished'))
       ) {
         setCheckpoint(null);
         void refresh();
@@ -1008,21 +1008,21 @@ export default function AutomationPipeline({
     for (const kind of kinds)
       source.addEventListener(kind, consume as EventListener);
     source.onerror = () => {
-      setAvailable("offline");
+      setAvailable('offline');
     }; // EventSource retries automatically.
   }
   async function startRun() {
     if (loadingWorkflow)
-      throw Error("Selected workflow has not finished loading");
+      throw Error('Selected workflow has not finished loading');
     if (activeWorkflow && (planDirty || formDirty))
-      throw Error("Save workflow changes before starting this revision");
+      throw Error('Save workflow changes before starting this revision');
     if (
       !activeConnector ||
-      activeConnector.status !== "connected" ||
+      activeConnector.status !== 'connected' ||
       activeConnector.platform !== platform
     )
       throw Error(
-        "Select and verify the social account before starting a workflow",
+        'Select and verify the social account before starting a workflow'
       );
     const payload: Record<string, unknown> = {
       platform,
@@ -1034,23 +1034,23 @@ export default function AutomationPipeline({
       payload.workflowId = activeWorkflow.id;
       payload.workflowRevision = activeWorkflow.revision;
     } else payload.workflow = { ...workflowPlan, parameters: { ...form } };
-    if (action === "audit-page") payload.pageUrl = selectedPage;
+    if (action === 'audit-page') payload.pageUrl = selectedPage;
     for (const field of selected.fields) {
       const value = form[field.key]?.trim();
       if (field.required && !value)
-        throw new Error(field.label + " is required");
+        throw new Error(field.label + ' is required');
       if (value)
         payload[field.key] =
-          field.key === "websiteIndex" ? Number(value) : value;
+          field.key === 'websiteIndex' ? Number(value) : value;
     }
-    const result = await apiPost("runs", payload);
-    if (!result.id) throw new Error("Server did not return a run ID");
+    const result = await apiPost('runs', payload);
+    if (!result.id) throw new Error('Server did not return a run ID');
     currentRunRef.current = result.id;
     setActive({
       id: result.id,
       action,
       platform,
-      state: "running",
+      state: 'running',
       createdAt: new Date().toISOString(),
     });
     setEvents([]);
@@ -1061,115 +1061,115 @@ export default function AutomationPipeline({
     void refresh();
   }
   async function launchRun() {
-    setRunFormError("");
+    setRunFormError('');
     try {
       await startRun();
     } catch (error) {
       const detail =
-        error instanceof Error ? error.message : "Unable to start run";
+        error instanceof Error ? error.message : 'Unable to start run';
       setRunFormError(detail);
       setConversation((prev) => [
         ...prev,
-        { id: Date.now(), sender: "assistant", text: detail },
+        { id: Date.now(), sender: 'assistant', text: detail },
       ]);
     }
   }
   async function pauseRun() {
     if (!active) return;
     try {
-      await apiPost("runs/" + active.id + "/pause");
+      await apiPost('runs/' + active.id + '/pause');
       void refresh();
     } catch (e) {
-      setRunFormError(e instanceof Error ? e.message : "Could not pause");
+      setRunFormError(e instanceof Error ? e.message : 'Could not pause');
     }
   }
   async function resumeRun() {
     if (!active) return;
     try {
-      await apiPost("runs/" + active.id + "/resume");
+      await apiPost('runs/' + active.id + '/resume');
       void refresh();
     } catch (e) {
-      setRunFormError(e instanceof Error ? e.message : "Could not resume");
+      setRunFormError(e instanceof Error ? e.message : 'Could not resume');
     }
   }
   async function act(approve: boolean, text?: string) {
     if (!active || !checkpoint) return;
-    setCheckpointError("");
+    setCheckpointError('');
     try {
-      if (checkpoint.kind === "approval")
-        await apiPost("runs/" + active.id + "/decision", {
+      if (checkpoint.kind === 'approval')
+        await apiPost('runs/' + active.id + '/decision', {
           checkpointId: checkpoint.id,
           approved: approve,
         });
       else
-        await apiPost("runs/" + active.id + "/input", {
+        await apiPost('runs/' + active.id + '/input', {
           checkpointId: checkpoint.id,
-          value: text || "",
+          value: text || '',
         });
       setCheckpoint(null);
-      setInputReply("");
+      setInputReply('');
     } catch (error) {
-      const detail = error instanceof Error ? error.message : "Action failed";
+      const detail = error instanceof Error ? error.message : 'Action failed';
       setCheckpointError(detail);
       setConversation((prev) => [
         ...prev,
-        { id: Date.now(), sender: "assistant", text: detail },
+        { id: Date.now(), sender: 'assistant', text: detail },
       ]);
     }
   }
   async function cancelRun() {
     if (!active) return;
     try {
-      await apiPost("runs/" + active.id + "/cancel");
+      await apiPost('runs/' + active.id + '/cancel');
       void refresh();
     } catch (error) {
       setConversation((prev) => [
         ...prev,
-        { id: Date.now(), sender: "assistant", text: String(error) },
+        { id: Date.now(), sender: 'assistant', text: String(error) },
       ]);
     }
   }
   function chatNotice(text: string) {
     setConversation((previous) => [
       ...previous,
-      { id: Date.now() + Math.random(), sender: "assistant", text },
+      { id: Date.now() + Math.random(), sender: 'assistant', text },
     ]);
   }
   async function handleCraftCommand(text: string) {
     const command = text
       .trim()
-      .replace(/^\/?craft\s*/i, "")
+      .replace(/^\/?craft\s*/i, '')
       .trim();
 
     try {
-      const response = await fetch(getApi("crafts"), { cache: "no-store" });
+      const response = await fetch(getApi('crafts'), { cache: 'no-store' });
       if (!response.ok)
-        throw Error("Craft library is unavailable; start the local API");
+        throw Error('Craft library is unavailable; start the local API');
       const library = (await response.json()) as AgentCraft[];
       if (/^(?:crafts|list|help)?$/i.test(command)) {
-        navigatePane("growth");
+        navigatePane('growth');
         chatNotice(
-          "Crafts opened. Commands: /craft open <slug>; /craft add <title> | <instructions>; /craft link <from> -> <to>; /craft unlink <from> -> <to>; /craft rename <name>; /craft enable; /craft disable. You can also edit visually or in MDX.",
+          'Crafts opened. Commands: /craft open <slug>; /craft add <title> | <instructions>; /craft link <from> -> <to>; /craft unlink <from> -> <to>; /craft rename <name>; /craft enable; /craft disable. You can also edit visually or in MDX.'
         );
         return;
       }
       const opening = command.match(/^open\s+([a-z0-9-]+)$/i);
       if (opening) {
         const wanted = library.find((item) => item.slug === opening[1]);
-        if (!wanted) throw Error("No craft matches the slug " + opening[1]);
+        if (!wanted) throw Error('No craft matches the slug ' + opening[1]);
         navigateCraft(wanted.id, wanted.slug);
         chatNotice(
-          "Opened " +
+          'Opened ' +
             wanted.name +
-            " in the craft editor. Select nodes or drag handles to rewire, then save.",
+            ' in the craft editor. Select nodes or drag handles to rewire, then save.'
         );
         return;
       }
       const chosen = library.find((item) => item.id === selectedCraftId);
-      if (!chosen) throw Error("Select a craft in Crafts first.");
-      if (chosen.scope === "default")
+      if (!chosen) throw Error('Select a craft in Crafts first.');
+      if (chosen.scope === 'default')
         throw Error(
-          "This shared craft is read-only. Clone it to create your own editable version.",
+          'This shared craft is read-only. Clone it to create your own editable version.'
         );
       const draft = {
         slug: chosen.slug,
@@ -1182,7 +1182,7 @@ export default function AutomationPipeline({
       };
       const addition = command.match(/^add\s+([^|]+)\|\s*([\s\S]+)$/i);
       const link = command.match(
-        /^(link|unlink)\s+([a-z0-9-]+)\s*->\s*([a-z0-9-]+)$/i,
+        /^(link|unlink)\s+([a-z0-9-]+)\s*->\s*([a-z0-9-]+)$/i
       );
       const rename = command.match(/^rename\s+(.+)$/i);
       const description = command.match(/^description\s+([\s\S]+)$/i);
@@ -1190,18 +1190,18 @@ export default function AutomationPipeline({
         const title = addition[1]!.trim().slice(0, 100);
         const idBase = title
           .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-|-$/g, "")
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '')
           .slice(0, 45);
-        if (!idBase) throw Error("Specify an alphanumeric step title.");
+        if (!idBase) throw Error('Specify an alphanumeric step title.');
         let id = idBase,
           number = 2;
         while (draft.steps.some((item) => item.id === id))
-          id = idBase + "-" + number++;
+          id = idBase + '-' + number++;
         draft.steps.push({
           id,
           title,
-          kind: "draft",
+          kind: 'draft',
           body: addition[2]!.trim().slice(0, 8000),
           position: {
             x: 70 + draft.steps.length * 180,
@@ -1211,19 +1211,19 @@ export default function AutomationPipeline({
       } else if (link) {
         const source = link[2]!,
           target = link[3]!,
-          id = source + "-to-" + target;
+          id = source + '-to-' + target;
         if (
           !draft.steps.some((item) => item.id === source) ||
           !draft.steps.some((item) => item.id === target)
         )
-          throw Error("Both step IDs must exist in the selected craft.");
-        if (link[1]!.toLowerCase() === "link") {
+          throw Error('Both step IDs must exist in the selected craft.');
+        if (link[1]!.toLowerCase() === 'link') {
           if (draft.links.some((item) => item.id === id))
-            throw Error("These steps are already connected.");
+            throw Error('These steps are already connected.');
           draft.links.push({ id, source, target });
         } else {
           if (!draft.links.some((item) => item.id === id))
-            throw Error("The connection does not exist.");
+            throw Error('The connection does not exist.');
           draft.links = draft.links.filter((item) => item.id !== id);
         }
       } else if (rename) {
@@ -1231,31 +1231,31 @@ export default function AutomationPipeline({
       } else if (description) {
         draft.description = description[1]!.trim().slice(0, 1023);
       } else if (/^(enable|disable)$/i.test(command)) {
-        draft.enabled = command.toLowerCase() === "enable";
+        draft.enabled = command.toLowerCase() === 'enable';
       } else
-        throw Error("Unknown command. Try /craft help to see supported edits.");
-      const responseSave = await fetch(getApi("crafts/" + chosen.id), {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
+        throw Error('Unknown command. Try /craft help to see supported edits.');
+      const responseSave = await fetch(getApi('crafts/' + chosen.id), {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ expectedVersion: chosen.version, craft: draft }),
       });
       const saved = (await responseSave.json()) as AgentCraft & {
         error?: string;
       };
       if (!responseSave.ok)
-        throw Error(saved.error || "Craft edit was rejected");
+        throw Error(saved.error || 'Craft edit was rejected');
       setCraftsRevision((v) => v + 1);
       navigateCraft(saved.id, saved.slug);
       chatNotice(
-        "Updated " +
+        'Updated ' +
           saved.name +
-          " · v" +
+          ' · v' +
           saved.version +
-          ". The graph and MDX source now share this revision.",
+          '. The graph and MDX source now share this revision.'
       );
     } catch (error) {
       chatNotice(
-        error instanceof Error ? error.message : "Unable to edit craft",
+        error instanceof Error ? error.message : 'Unable to edit craft'
       );
     }
   }
@@ -1263,59 +1263,59 @@ export default function AutomationPipeline({
     event.preventDefault();
     if (!message.trim()) return;
     const request = message.trim();
-    setMessage("");
+    setMessage('');
     setConversation((prev) => [
       ...prev,
-      { id: Date.now(), sender: "user", text: request },
+      { id: Date.now(), sender: 'user', text: request },
     ]);
-    void apiPost("intelligence/chat", {
+    void apiPost('intelligence/chat', {
       text: request,
       platform,
       ...(activeConnector?.id ? { accountId: activeConnector.id } : {}),
     }).catch((error) =>
       chatNotice(
-        "This message was not stored in memory: " +
-          (error instanceof Error ? error.message : "Storage unavailable"),
-      ),
+        'This message was not stored in memory: ' +
+          (error instanceof Error ? error.message : 'Storage unavailable')
+      )
     );
     if (/^(?:\/?craft(?:\s|$)|crafts$)/i.test(request)) {
-      void handleCraftCommand(request === "crafts" ? "/craft help" : request);
+      void handleCraftCommand(request === 'crafts' ? '/craft help' : request);
       return;
     }
     const parsed = explainCommand(request);
     if (/^(what do you remember\??|show memory|memory)$/i.test(request)) {
-      void fetch(getApi("intelligence"), { cache: "no-store" })
+      void fetch(getApi('intelligence'), { cache: 'no-store' })
         .then(async (response) => {
-          if (!response.ok) throw Error("Memory unavailable");
+          if (!response.ok) throw Error('Memory unavailable');
           const entries = (await response.json()) as Array<{
             source: string;
             text: string;
           }>;
           const summary = entries
-            .filter((item) => item.source === "chat")
+            .filter((item) => item.source === 'chat')
             .slice(0, 5)
-            .map((item) => "• " + item.text)
-            .join("\n");
-          chatNotice(summary || "No chat-origin memory has been saved yet.");
+            .map((item) => '• ' + item.text)
+            .join('\n');
+          chatNotice(summary || 'No chat-origin memory has been saved yet.');
         })
-        .catch(() => chatNotice("Could not load local conversation memory."));
+        .catch(() => chatNotice('Could not load local conversation memory.'));
       return;
     }
     if (/^(inspect this page|audit this page)$/i.test(request)) {
       workflowSelectionEpoch.current++;
       setActiveWorkflow(null);
-      setAction("audit-page");
-      navigatePane("pipeline");
-      setSelectedNode("inspect");
+      setAction('audit-page');
+      navigatePane('pipeline');
+      setSelectedNode('inspect');
       setConversation((prev) => [
         ...prev,
         {
           id: Date.now() + 1,
-          sender: "assistant",
+          sender: 'assistant',
           text:
-            "Scoped read-only inspection staged for " +
+            'Scoped read-only inspection staged for ' +
             selectedPage +
-            ". Use Start Inspect selected page in the artboard to open the real page.",
+            '. Use Start Inspect selected page in the artboard to open the real page.',
         },
       ]);
       return;
@@ -1328,58 +1328,58 @@ export default function AutomationPipeline({
       !workflows[platform].some((workflow) => workflow.id === parsed.action)
     ) {
       answer =
-        "That operation is not supported on " +
-        (platform === "x" ? "X" : "LinkedIn") +
-        ". Choose another platform or supported workflow.";
+        'That operation is not supported on ' +
+        (platform === 'x' ? 'X' : 'LinkedIn') +
+        '. Choose another platform or supported workflow.';
     } else {
       workflowSelectionEpoch.current++;
       setActiveWorkflow(null);
       setAction(parsed.action);
       setForm(parsed.fields);
-      navigatePane("pipeline");
+      navigatePane('pipeline');
       answer = parsed.note;
     }
     setConversation((prev) => [
       ...prev,
-      { id: Date.now() + 1, sender: "assistant", text: answer },
+      { id: Date.now() + 1, sender: 'assistant', text: answer },
     ]);
   }
   async function attachImage(file?: File) {
     if (!file) return;
     if (
       file.size > 2 * 1024 * 1024 ||
-      !["image/png", "image/jpeg", "image/webp"].includes(file.type)
+      !['image/png', 'image/jpeg', 'image/webp'].includes(file.type)
     ) {
-      setImageError("Choose a PNG, JPEG or WebP file under 2 MB.");
+      setImageError('Choose a PNG, JPEG or WebP file under 2 MB.');
       return;
     }
     const reader = new FileReader();
     reader.onload = () => {
-      if (typeof reader.result === "string") {
+      if (typeof reader.result === 'string') {
         setImageDraft({
-          kind: "upload",
+          kind: 'upload',
           src: reader.result,
           imageData: reader.result,
         });
-        setImageError("");
+        setImageError('');
       }
     };
-    reader.onerror = () => setImageError("Could not read the selected image");
+    reader.onerror = () => setImageError('Could not read the selected image');
     reader.readAsDataURL(file);
   }
   function annotateCapture(runId: string, fileName: string) {
     const section = /^audit-(experience|skills|projects|featured)\.png$/.exec(
-      fileName,
+      fileName
     )?.[1];
-    if (section && platform === "linkedin") setScopeSection(section);
-    const src = getApi("runs/" + runId + "/evidence/" + fileName);
-    setSelectedNode("annotation");
-    setImageDraft({ kind: "capture", src, runId, fileName });
+    if (section && platform === 'linkedin') setScopeSection(section);
+    const src = getApi('runs/' + runId + '/evidence/' + fileName);
+    setSelectedNode('annotation');
+    setImageDraft({ kind: 'capture', src, runId, fileName });
   }
   async function saveVisualReview(draft: VisualReviewDraft) {
-    const response = await fetch(getApi("visual-reviews"), {
-      method: "POST",
-      headers: { "content-type": "application/json" },
+    const response = await fetch(getApi('visual-reviews'), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify(draft),
     });
     const json = (await response.json()) as {
@@ -1388,25 +1388,25 @@ export default function AutomationPipeline({
       annotations?: VisualAnnotation[];
     };
     if (!response.ok || !json.id)
-      throw new Error(json.error || "Could not save visual review");
+      throw new Error(json.error || 'Could not save visual review');
     setImageDraft(null);
-    setSelectedNode("annotation");
+    setSelectedNode('annotation');
     setPlanDirty(true);
     setWorkflowPlan((previous) => {
-      const id = "review-" + json.id!.slice(0, 8);
+      const id = 'review-' + json.id!.slice(0, 8);
       if (previous.steps.some((step) => step.id === id)) return previous;
       const steps = [...previous.steps];
-      const idx = steps.findIndex((step) => step.id === "action");
+      const idx = steps.findIndex((step) => step.id === 'action');
       steps.splice(idx, 0, {
         id,
-        kind: "note",
-        title: "Tagged image instruction",
+        kind: 'note',
+        title: 'Tagged image instruction',
         message:
-          "Image review " +
+          'Image review ' +
           json.id +
-          " · " +
+          ' · ' +
           draft.annotations.length +
-          " location actions; approval still required",
+          ' location actions; approval still required',
       });
       return {
         ...previous,
@@ -1421,13 +1421,13 @@ export default function AutomationPipeline({
       ...previous,
       {
         id: Date.now(),
-        sender: "assistant",
+        sender: 'assistant',
         text:
-          "Tagged " +
+          'Tagged ' +
           draft.annotations.length +
-          " annotation(s) to this image and workflow. Review " +
+          ' annotation(s) to this image and workflow. Review ' +
           json.id +
-          " links each location to its selected action and optional comment. This is an operator-authored plan; no AI model or website action has run. Inspect the live page and explicitly approve any supported edit.",
+          ' links each location to its selected action and optional comment. This is an operator-authored plan; no AI model or website action has run. Inspect the live page and explicitly approve any supported edit.',
       },
     ]);
     await refresh();
@@ -1435,42 +1435,42 @@ export default function AutomationPipeline({
   function inspectReview(review: Review) {
     choosePlatform(review.platform);
     const part = review.pageUrl.match(
-      /\/details\/(experience|skills|projects|featured)\/?$/,
+      /\/details\/(experience|skills|projects|featured)\/?$/
     );
     setHandle(review.handle);
-    setScopeSection(part?.[1] || "profile");
+    setScopeSection(part?.[1] || 'profile');
     workflowSelectionEpoch.current++;
     setActiveWorkflow(null);
-    setAction("audit-page");
-    setSelectedNode("inspect");
+    setAction('audit-page');
+    setSelectedNode('inspect');
     setConfigRequest((value) => value + 1);
-    navigatePane("pipeline");
+    navigatePane('pipeline');
   }
   const reviewImage = (review: Review) =>
-    getApi("visual-reviews/" + review.id + "/image");
+    getApi('visual-reviews/' + review.id + '/image');
   const tagExistingReview = (review: Review) => {
     choosePlatform(review.platform);
     setHandle(review.handle);
     setScopeSection(
       review.pageUrl.match(
-        /\/details\/(experience|skills|projects|featured)\/?$/,
-      )?.[1] ?? "profile",
+        /\/details\/(experience|skills|projects|featured)\/?$/
+      )?.[1] ?? 'profile'
     );
     setImageDraft({
-      kind: "review",
+      kind: 'review',
       src: reviewImage(review),
       reviewId: review.id,
       initialAnnotations: review.annotations,
     });
-    setSelectedNode("annotation");
+    setSelectedNode('annotation');
   };
   const latest = events.at(-1);
-  const checkpointNeeded = checkpoint?.kind === "approval";
+  const checkpointNeeded = checkpoint?.kind === 'approval';
   const showChat =
     chatVisible &&
-    pane !== "profile" &&
-    pane !== "resumes" &&
-    (pane !== "growth" || libraryView !== "catalog");
+    pane !== 'profile' &&
+    pane !== 'resumes' &&
+    (pane !== 'growth' || libraryView !== 'catalog');
   return (
     <div
       data-automate
@@ -1496,8 +1496,8 @@ export default function AutomationPipeline({
               <Workflow className="size-5" />
             </div>
             <div>
-              <p className="text-sm font-extrabold leading-tight tracking-[-.02em]">
-                Utomator{" "}
+              <p className="text-sm leading-tight font-extrabold tracking-[-.02em]">
+                Utomator{' '}
                 <span className="font-medium text-slate-400">/ Studio</span>
               </p>
               <p className="text-[11px] text-slate-500">
@@ -1508,23 +1508,23 @@ export default function AutomationPipeline({
           <div className="flex items-center gap-3">
             <span
               className={
-                "hidden items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold sm:inline-flex " +
-                (available === "ready"
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                  : "border-amber-200 bg-amber-50 text-amber-800")
+                'hidden items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold sm:inline-flex ' +
+                (available === 'ready'
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                  : 'border-amber-200 bg-amber-50 text-amber-800')
               }
             >
               <span
                 className={
-                  "size-2 rounded-full " +
-                  (available === "ready" ? "bg-emerald-500" : "bg-amber-500")
+                  'size-2 rounded-full ' +
+                  (available === 'ready' ? 'bg-emerald-500' : 'bg-amber-500')
                 }
               />
-              {available === "ready"
-                ? "Engine connected"
-                : available === "checking"
-                  ? "Connecting"
-                  : "Engine offline"}
+              {available === 'ready'
+                ? 'Engine connected'
+                : available === 'checking'
+                  ? 'Connecting'
+                  : 'Engine offline'}
             </span>
 
             <Button
@@ -1538,7 +1538,7 @@ export default function AutomationPipeline({
               <span className="hidden sm:inline">Tracking</span>
             </Button>
             <Button variant="ghost" size="sm" onClick={() => void refresh()}>
-              <RotateCcw className="size-4" />{" "}
+              <RotateCcw className="size-4" />{' '}
               <span className="hidden sm:inline">Refresh</span>
             </Button>
             <Link
@@ -1563,19 +1563,19 @@ export default function AutomationPipeline({
       )}
       <div
         className={
-          "mx-auto grid w-full max-w-[1920px] grid-cols-1 gap-4 px-4 py-4 md:px-5 lg:min-h-0 lg:flex-1 lg:overflow-hidden " +
+          'mx-auto grid w-full max-w-[1920px] grid-cols-1 gap-4 px-4 py-4 md:px-5 lg:min-h-0 lg:flex-1 lg:overflow-hidden ' +
           (showChat
-            ? "lg:grid-cols-[190px_minmax(0,1fr)_300px] 2xl:grid-cols-[220px_minmax(0,1fr)_360px]"
-            : "lg:grid-cols-[190px_minmax(0,1fr)] 2xl:grid-cols-[220px_minmax(0,1fr)]")
+            ? 'lg:grid-cols-[190px_minmax(0,1fr)_300px] 2xl:grid-cols-[220px_minmax(0,1fr)_360px]'
+            : 'lg:grid-cols-[190px_minmax(0,1fr)] 2xl:grid-cols-[220px_minmax(0,1fr)]')
         }
       >
         <aside
           data-testid="automation-navigation-sidebar"
           className={
             (mobileMenu
-              ? "fixed inset-y-0 left-0 z-50 block w-[min(85vw,290px)] p-3"
-              : "hidden") +
-            " min-w-0 lg:static lg:block lg:h-full lg:w-auto lg:overflow-hidden lg:p-0"
+              ? 'fixed inset-y-0 left-0 z-50 block w-[min(85vw,290px)] p-3'
+              : 'hidden') +
+            ' min-w-0 lg:static lg:block lg:h-full lg:w-auto lg:overflow-hidden lg:p-0'
           }
         >
           <div className="h-full rounded-2xl bg-[#111a25] p-4 text-white shadow-xl shadow-slate-900/10 lg:overflow-hidden">
@@ -1591,8 +1591,8 @@ export default function AutomationPipeline({
 
             {(
               [
-                { id: "pipeline", label: "Pipeline", icon: Activity },
-                { id: "history", label: "Run history", icon: History },
+                { id: 'pipeline', label: 'Pipeline', icon: Activity },
+                { id: 'history', label: 'Run history', icon: History },
               ] as const
             ).map((item) => (
               <button
@@ -1603,10 +1603,10 @@ export default function AutomationPipeline({
                   setMobileMenu(false);
                 }}
                 className={
-                  "flex min-h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-xs font-semibold transition " +
+                  'flex min-h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-xs font-semibold transition ' +
                   (pane === item.id
-                    ? "bg-teal-500/15 text-teal-200"
-                    : "text-slate-300 hover:bg-slate-800")
+                    ? 'bg-teal-500/15 text-teal-200'
+                    : 'text-slate-300 hover:bg-slate-800')
                 }
               >
                 <item.icon className="size-4" />
@@ -1615,12 +1615,12 @@ export default function AutomationPipeline({
             ))}
             {(
               [
-                { id: "profile", label: "Profile", icon: UserRound },
-                { id: "resumes", label: "Résumés", icon: FileText },
-                { id: "memory", label: "Intelligence", icon: NotebookPen },
-                { id: "research", label: "Creator research", icon: Crosshair },
-                { id: "editorial", label: "Editorial drafts", icon: FileText },
-                { id: "growth", label: "Growth", icon: Compass },
+                { id: 'profile', label: 'Profile', icon: UserRound },
+                { id: 'resumes', label: 'Résumés', icon: FileText },
+                { id: 'memory', label: 'Intelligence', icon: NotebookPen },
+                { id: 'research', label: 'Creator research', icon: Crosshair },
+                { id: 'editorial', label: 'Editorial drafts', icon: FileText },
+                { id: 'growth', label: 'Growth', icon: Compass },
               ] as const
             ).map((item) => (
               <button
@@ -1630,12 +1630,12 @@ export default function AutomationPipeline({
                   navigatePane(item.id);
                   setMobileMenu(false);
                 }}
-                aria-current={pane === item.id ? "page" : undefined}
+                aria-current={pane === item.id ? 'page' : undefined}
                 className={
-                  "flex min-h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-xs font-semibold transition " +
+                  'flex min-h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-xs font-semibold transition ' +
                   (pane === item.id
-                    ? "bg-teal-500/15 text-teal-200"
-                    : "text-slate-300 hover:bg-slate-800")
+                    ? 'bg-teal-500/15 text-teal-200'
+                    : 'text-slate-300 hover:bg-slate-800')
                 }
               >
                 <item.icon className="size-4" />
@@ -1645,15 +1645,15 @@ export default function AutomationPipeline({
             <button
               type="button"
               onClick={() => {
-                navigatePane("settings");
+                navigatePane('settings');
                 setMobileMenu(false);
               }}
-              aria-current={pane === "settings" ? "page" : undefined}
+              aria-current={pane === 'settings' ? 'page' : undefined}
               className={
-                "flex min-h-10 w-full items-center gap-2.5 rounded-xl px-3 text-xs font-semibold transition " +
-                (pane === "settings"
-                  ? "bg-teal-500/15 text-teal-200"
-                  : "text-slate-300 hover:bg-slate-800")
+                'flex min-h-10 w-full items-center gap-2.5 rounded-xl px-3 text-xs font-semibold transition ' +
+                (pane === 'settings'
+                  ? 'bg-teal-500/15 text-teal-200'
+                  : 'text-slate-300 hover:bg-slate-800')
               }
             >
               <Settings2 className="size-4" />
@@ -1670,12 +1670,12 @@ export default function AutomationPipeline({
             onSelect={onConnectorSelect}
             requestedId={connectorRequest}
             onManageProfile={() =>
-              navigateSubpage("/dashboard/profile/connections")
+              navigateSubpage('/dashboard/profile/connections')
             }
             hideTrigger
             openSignal={connectorOpenSignal}
           />
-          {pane === "pipeline" && (
+          {pane === 'pipeline' && (
             <>
               <WorkflowPlanEditor
                 plan={workflowPlan}
@@ -1688,8 +1688,8 @@ export default function AutomationPipeline({
                 onClearGrowth={() => setSelectedGrowthTemplateId(null)}
                 onGrowthActionSelect={chooseAction}
                 connected={
-                  activeConnector?.platform === "linkedin" &&
-                  activeConnector?.status === "connected"
+                  activeConnector?.platform === 'linkedin' &&
+                  activeConnector?.status === 'connected'
                 }
                 accountLabel={
                   activeConnector?.platform === platform
@@ -1730,7 +1730,7 @@ export default function AutomationPipeline({
                 runError={runFormError}
                 evidenceRoot={
                   active
-                    ? getApi("runs/" + active.id + "/evidence/")
+                    ? getApi('runs/' + active.id + '/evidence/')
                     : undefined
                 }
                 onEvidenceOpen={annotateCapture}
@@ -1787,22 +1787,22 @@ export default function AutomationPipeline({
                     >
                       {pageOptions.map((part) => (
                         <option key={part} value={part}>
-                          {part === "profile"
-                            ? "Main profile"
+                          {part === 'profile'
+                            ? 'Main profile'
                             : part[0].toUpperCase() + part.slice(1)}
                         </option>
                       ))}
                     </select>
-                    <p className="mt-2 break-all font-mono text-[10px] text-teal-800">
+                    <p className="mt-2 font-mono text-[10px] break-all text-teal-800">
                       {selectedPage ||
-                        "Select a saved social profile to set the inspection target."}
+                        'Select a saved social profile to set the inspection target.'}
                     </p>
                     <button
                       type="button"
                       disabled={!profilePage}
                       onClick={() => {
-                        chooseAction("audit-page");
-                        setSelectedNode("inspect");
+                        chooseAction('audit-page');
+                        setSelectedNode('inspect');
                       }}
                       className="mt-2 inline-flex items-center gap-2 text-xs font-bold text-teal-900 hover:underline"
                     >
@@ -1816,7 +1816,7 @@ export default function AutomationPipeline({
                         <div key={field.key}>
                           <label
                             className="mb-1 block text-xs font-semibold"
-                            htmlFor={"automation-" + field.key}
+                            htmlFor={'automation-' + field.key}
                           >
                             {field.label}
                             {field.required && (
@@ -1825,11 +1825,11 @@ export default function AutomationPipeline({
                           </label>
                           {field.multiline ? (
                             <textarea
-                              id={"automation-" + field.key}
+                              id={'automation-' + field.key}
                               className="min-h-24 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-teal-600"
                               maxLength={field.max || 3000}
                               required={field.required}
-                              value={form[field.key] || ""}
+                              value={form[field.key] || ''}
                               onChange={(event) =>
                                 setForm((prev) => ({
                                   ...prev,
@@ -1839,12 +1839,12 @@ export default function AutomationPipeline({
                             />
                           ) : (
                             <input
-                              id={"automation-" + field.key}
+                              id={'automation-' + field.key}
                               className="min-h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-teal-600"
                               maxLength={field.max || 500}
                               placeholder={field.placeholder}
                               required={field.required}
-                              value={form[field.key] || ""}
+                              value={form[field.key] || ''}
                               onChange={(event) =>
                                 setForm((prev) => ({
                                   ...prev,
@@ -1857,7 +1857,7 @@ export default function AutomationPipeline({
                       ))}
                     </div>
                   )}
-                  {platform === "linkedin" && action === "edit-profile" && (
+                  {platform === 'linkedin' && action === 'edit-profile' && (
                     <p className="text-xs leading-5 text-slate-500">
                       Use details reviewed for this LinkedIn account. Content
                       from another identity is not auto-filled.
@@ -1872,7 +1872,7 @@ export default function AutomationPipeline({
               </WorkflowPlanEditor>
             </>
           )}
-          {pane === "pipeline" && (
+          {pane === 'pipeline' && (
             <div
               className="pointer-events-none fixed bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/30 bg-[#111e2b] p-1.5 shadow-2xl"
               data-testid="floating-workflow-controls"
@@ -1881,19 +1881,19 @@ export default function AutomationPipeline({
                 <button
                   type="button"
                   aria-label={
-                    active?.state === "paused"
-                      ? "Resume workflow"
-                      : active?.state === "running"
-                        ? "Pause workflow"
-                        : "Start workflow"
+                    active?.state === 'paused'
+                      ? 'Resume workflow'
+                      : active?.state === 'running'
+                        ? 'Pause workflow'
+                        : 'Start workflow'
                   }
                   disabled={
-                    active?.state === "paused"
+                    active?.state === 'paused'
                       ? false
-                      : active?.state === "running"
+                      : active?.state === 'running'
                         ? false
                         : busy ||
-                          available !== "ready" ||
+                          available !== 'ready' ||
                           !connectorReady ||
                           loadingWorkflow ||
                           workflowPlan.platform !== platform ||
@@ -1901,37 +1901,37 @@ export default function AutomationPipeline({
                           (Boolean(activeWorkflow) && (planDirty || formDirty))
                   }
                   onClick={() => {
-                    if (active?.state === "paused") void resumeRun();
-                    else if (active?.state === "running") void pauseRun();
+                    if (active?.state === 'paused') void resumeRun();
+                    else if (active?.state === 'running') void pauseRun();
                     else void launchRun();
                   }}
                   className="pointer-events-auto inline-flex min-h-12 items-center justify-center gap-3 rounded-full bg-white px-6 text-sm font-bold text-slate-950 transition hover:bg-teal-50 disabled:opacity-50"
                 >
-                  {active?.state === "running" ? (
+                  {active?.state === 'running' ? (
                     <Pause className="size-5" />
                   ) : (
                     <Play className="size-5" />
                   )}
-                  {active?.state === "paused"
-                    ? "Resume"
-                    : active?.state === "running"
-                      ? "Pause"
-                      : "Run workflow"}
+                  {active?.state === 'paused'
+                    ? 'Resume'
+                    : active?.state === 'running'
+                      ? 'Pause'
+                      : 'Run workflow'}
                 </button>
               )}
               <button
                 type="button"
                 onClick={() => setConnectorOpenSignal((value) => value + 1)}
                 aria-label={
-                  (connectorReady ? "Manage " : "Connect ") +
+                  (connectorReady ? 'Manage ' : 'Connect ') +
                   platformLabel +
-                  " account"
+                  ' account'
                 }
                 aria-haspopup="dialog"
                 title={
                   connectorReady
-                    ? platformLabel + " connected · Manage or sync"
-                    : "Connect " + platformLabel + " account"
+                    ? platformLabel + ' connected · Manage or sync'
+                    : 'Connect ' + platformLabel + ' account'
                 }
                 data-testid="floating-connector-button"
                 className="pointer-events-auto relative inline-flex size-12 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-400"
@@ -1942,8 +1942,8 @@ export default function AutomationPipeline({
                 <span
                   aria-hidden="true"
                   className={
-                    "absolute -right-1 -top-1 grid size-4 place-items-center rounded-full text-slate-950 ring-2 ring-[#111e2b] " +
-                    (connectorReady ? "bg-emerald-400" : "bg-amber-400")
+                    'absolute -top-1 -right-1 grid size-4 place-items-center rounded-full text-slate-950 ring-2 ring-[#111e2b] ' +
+                    (connectorReady ? 'bg-emerald-400' : 'bg-amber-400')
                   }
                 >
                   {connectorReady ? (
@@ -1955,7 +1955,7 @@ export default function AutomationPipeline({
               </button>
             </div>
           )}
-          {pane === "history" && (
+          {pane === 'history' && (
             <Card>
               <CardHeader>
                 <CardTitle>Recent executions</CardTitle>
@@ -1981,20 +1981,20 @@ export default function AutomationPipeline({
                         setActive(run);
                         setEvents([]);
                         connect(run.id);
-                        navigatePane("pipeline");
+                        navigatePane('pipeline');
                       }}
                     >
                       <span>
                         <span className="block text-sm font-semibold capitalize">
-                          {run.platform} / {run.action.replaceAll("-", " ")}
+                          {run.platform} / {run.action.replaceAll('-', ' ')}
                         </span>
                         <span className="text-xs text-slate-500">
-                          {short(run.id)} ·{" "}
+                          {short(run.id)} ·{' '}
                           {new Date(run.createdAt).toLocaleString()}
                         </span>
                       </span>
-                      <span className="text-xs font-semibold capitalize text-slate-500">
-                        {stateLabel(run.state)}{" "}
+                      <span className="text-xs font-semibold text-slate-500 capitalize">
+                        {stateLabel(run.state)}{' '}
                         <ArrowRight className="ml-1 inline size-3" />
                       </span>
                     </button>
@@ -2003,29 +2003,29 @@ export default function AutomationPipeline({
               </CardContent>
             </Card>
           )}
-          {pane === "growth" && (
+          {pane === 'growth' && (
             <CraftsLibrary
               selectedId={selectedCraftId}
               onSelected={navigateCraft}
               view={libraryView}
               onView={navigateCraftView}
-              onBack={() => navigatePane("growth")}
+              onBack={() => navigatePane('growth')}
               onChat={(text) => {
-                if (text.startsWith("/craft")) {
+                if (text.startsWith('/craft')) {
                   void handleCraftCommand(text);
                 } else chatNotice(text);
               }}
               revision={craftsRevision}
             />
           )}
-          {pane === "profile" && (
+          {pane === 'profile' && (
             <AccountStudio
               view={
-                pathname.endsWith("/details")
-                  ? "details"
-                  : pathname.endsWith("/connections")
-                    ? "connections"
-                    : "overview"
+                pathname.endsWith('/details')
+                  ? 'details'
+                  : pathname.endsWith('/connections')
+                    ? 'connections'
+                    : 'overview'
               }
               onNavigate={navigateSubpage}
               onSelectAccount={selectSocialAccount}
@@ -2036,31 +2036,31 @@ export default function AutomationPipeline({
               }}
             />
           )}
-          {pane === "resumes" && (
+          {pane === 'resumes' && (
             <CareerStudio
               mode={
-                pathname === "/dashboard/resumes/profile"
-                  ? "profile"
-                  : "resumes"
+                pathname === '/dashboard/resumes/profile'
+                  ? 'profile'
+                  : 'resumes'
               }
               onNavigate={navigateSubpage}
             />
           )}
-          {(pane === "memory" || pane === "observer") && (
+          {(pane === 'memory' || pane === 'observer') && (
             <ActivityIntelligence
               initialView={pane}
               onNavigate={(path) => {
                 navigate(path);
                 setPane(
-                  path.endsWith("/dashboard/observer") ? "observer" : "memory",
+                  path.endsWith('/dashboard/observer') ? 'observer' : 'memory'
                 );
               }}
             />
           )}
-          {pane === "research" && <LinkedInResearchStudio />}
-          {pane === "editorial" && <LinkedInEditorialStudio />}
+          {pane === 'research' && <LinkedInResearchStudio />}
+          {pane === 'editorial' && <LinkedInEditorialStudio />}
 
-          {pane === "settings" && (
+          {pane === 'settings' && (
             <AutomationSettingsPage
               available={available}
               platform={platform}
@@ -2072,12 +2072,12 @@ export default function AutomationPipeline({
           data-testid="automation-right-sidebar"
           className={
             (mobileChatOpen
-              ? "fixed inset-y-0 right-0 z-50 flex w-[min(92vw,390px)] bg-[#f5f7f8] p-3 shadow-2xl"
-              : "hidden") +
+              ? 'fixed inset-y-0 right-0 z-50 flex w-[min(92vw,390px)] bg-[#f5f7f8] p-3 shadow-2xl'
+              : 'hidden') +
             (showChat
-              ? " lg:static lg:flex lg:h-full lg:w-auto lg:min-h-0 lg:overflow-hidden lg:bg-transparent lg:p-0 lg:shadow-none"
-              : " lg:hidden") +
-            " min-w-0 flex-col"
+              ? ' lg:static lg:flex lg:h-full lg:min-h-0 lg:w-auto lg:overflow-hidden lg:bg-transparent lg:p-0 lg:shadow-none'
+              : ' lg:hidden') +
+            ' min-w-0 flex-col'
           }
         >
           <button
@@ -2125,13 +2125,13 @@ export default function AutomationPipeline({
               </div>
             </CardHeader>
             <CardContent className="flex min-h-0 flex-1 flex-col pt-3">
-              {pane === "growth" && selectedCraftSlug && (
+              {pane === 'growth' && selectedCraftSlug && (
                 <div
                   data-testid="active-craft-context"
                   className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-teal-200 bg-teal-50 p-3"
                 >
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-teal-800">
+                    <p className="text-[10px] font-bold tracking-wider text-teal-800 uppercase">
                       Active craft
                     </p>
                     <p className="mt-0.5 truncate font-mono text-[11px] text-teal-950">
@@ -2140,7 +2140,7 @@ export default function AutomationPipeline({
                   </div>
                   <button
                     type="button"
-                    onClick={() => setMessage("/craft help")}
+                    onClick={() => setMessage('/craft help')}
                     className="rounded-lg bg-white px-2.5 py-2 text-[11px] font-semibold text-teal-800 hover:bg-teal-100"
                   >
                     Commands
@@ -2156,41 +2156,41 @@ export default function AutomationPipeline({
                 {conversation.map((item) => (
                   <Message
                     key={item.id}
-                    align={item.sender === "user" ? "end" : "start"}
+                    align={item.sender === 'user' ? 'end' : 'start'}
                   >
                     <MessageAvatar
                       className={
-                        item.sender === "assistant"
-                          ? "bg-teal-700"
-                          : "bg-slate-800"
+                        item.sender === 'assistant'
+                          ? 'bg-teal-700'
+                          : 'bg-slate-800'
                       }
                     >
-                      {item.sender === "assistant" ? (
+                      {item.sender === 'assistant' ? (
                         <Workflow className="size-4" />
                       ) : (
-                        "ME"
+                        'ME'
                       )}
                     </MessageAvatar>
                     <MessageContent>
                       <MessageHeader>
-                        {item.sender === "assistant"
-                          ? "Utomator · Local assistant"
-                          : "You"}
+                        {item.sender === 'assistant'
+                          ? 'Utomator · Local assistant'
+                          : 'You'}
                       </MessageHeader>
-                      <Bubble muted={item.sender === "user"}>
+                      <Bubble muted={item.sender === 'user'}>
                         <BubbleContent>{item.text}</BubbleContent>
                       </Bubble>
                     </MessageContent>
                   </Message>
                 ))}
                 {events.map((event) => (
-                  <Message key={"event-" + event.id}>
+                  <Message key={'event-' + event.id}>
                     <MessageAvatar
                       className={
-                        event.kind === "error" ? "bg-rose-700" : "bg-slate-700"
+                        event.kind === 'error' ? 'bg-rose-700' : 'bg-slate-700'
                       }
                     >
-                      {event.kind === "error" ? (
+                      {event.kind === 'error' ? (
                         <AlertCircle className="size-4" />
                       ) : (
                         <Activity className="size-4" />
@@ -2203,8 +2203,8 @@ export default function AutomationPipeline({
                       <Bubble>
                         <BubbleContent>{event.message}</BubbleContent>
                       </Bubble>
-                      {event.kind === "screenshot" &&
-                        typeof event.details?.fileName === "string" &&
+                      {event.kind === 'screenshot' &&
+                        typeof event.details?.fileName === 'string' &&
                         /^[a-zA-Z0-9_-]+\.png$/.test(event.details.fileName) &&
                         event.runId === currentRunRef.current && (
                           <button
@@ -2213,32 +2213,32 @@ export default function AutomationPipeline({
                             onClick={() =>
                               annotateCapture(
                                 event.runId,
-                                event.details!.fileName!,
+                                event.details!.fileName!
                               )
                             }
                             data-evidence-url={getApi(
-                              "runs/" +
+                              'runs/' +
                                 event.runId +
-                                "/evidence/" +
-                                event.details.fileName,
+                                '/evidence/' +
+                                event.details.fileName
                             )}
                             className="mt-2 block w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-left hover:border-teal-400 focus-visible:outline-2 focus-visible:outline-teal-600"
                             aria-label={
-                              "Annotate captured image: " +
+                              'Annotate captured image: ' +
                               event.details.fileName
                             }
                           >
                             <Image
                               unoptimized
                               src={getApi(
-                                "runs/" +
+                                'runs/' +
                                   event.runId +
-                                  "/evidence/" +
-                                  event.details.fileName,
+                                  '/evidence/' +
+                                  event.details.fileName
                               )}
                               width={640}
                               height={400}
-                              alt={"Actual browser capture: " + event.message}
+                              alt={'Actual browser capture: ' + event.message}
                               className="h-auto w-full object-contain"
                             />
                             <div className="flex items-center gap-2 px-3 py-2 text-[11px] text-slate-500">
@@ -2257,10 +2257,10 @@ export default function AutomationPipeline({
                   .filter(
                     (r) =>
                       r.platform === platform &&
-                      r.handle.toLowerCase() === normalizedHandle.toLowerCase(),
+                      r.handle.toLowerCase() === normalizedHandle.toLowerCase()
                   )
                   .map((review) => (
-                    <Message key={"review-" + review.id}>
+                    <Message key={'review-' + review.id}>
                       <MessageAvatar className="bg-teal-800">
                         <Crosshair className="size-4" />
                       </MessageAvatar>
@@ -2275,7 +2275,7 @@ export default function AutomationPipeline({
                           <button
                             type="button"
                             onClick={() => tagExistingReview(review)}
-                            aria-label={"Edit annotated image " + review.id}
+                            aria-label={'Edit annotated image ' + review.id}
                             className="relative block w-full overflow-hidden bg-slate-50 text-left"
                           >
                             <Image
@@ -2283,7 +2283,7 @@ export default function AutomationPipeline({
                               src={reviewImage(review)}
                               width={640}
                               height={400}
-                              alt={"Annotated " + review.pageUrl}
+                              alt={'Annotated ' + review.pageUrl}
                               className="pointer-events-none h-auto w-full"
                             />
                             <svg
@@ -2294,18 +2294,18 @@ export default function AutomationPipeline({
                             >
                               {(review.annotations ?? []).map((a, index) => (
                                 <g key={a.id}>
-                                  {a.shape === "freehand" ? (
+                                  {a.shape === 'freehand' ? (
                                     <polyline
                                       fill="none"
                                       stroke="#0f766e"
                                       strokeWidth="5"
                                       points={(a.points ?? [])
                                         .map(
-                                          (p) => p.x * 1000 + "," + p.y * 1000,
+                                          (p) => p.x * 1000 + ',' + p.y * 1000
                                         )
-                                        .join(" ")}
+                                        .join(' ')}
                                     />
-                                  ) : a.shape === "ellipse" ? (
+                                  ) : a.shape === 'ellipse' ? (
                                     <ellipse
                                       cx={(a.x + a.width / 2) * 1000}
                                       cy={(a.y + a.height / 2) * 1000}
@@ -2353,7 +2353,7 @@ export default function AutomationPipeline({
                                 {i + 1}. {r.label}: {r.request}
                               </p>
                             ))}
-                            <p className="break-all font-mono text-[10px] text-slate-500">
+                            <p className="font-mono text-[10px] break-all text-slate-500">
                               {review.pageUrl}
                             </p>
                             <button
@@ -2373,10 +2373,10 @@ export default function AutomationPipeline({
                                       className="text-[11px] text-slate-700"
                                     >
                                       <strong>
-                                        {index + 1}.{" "}
-                                        {a.action.replaceAll("-", " ")}
+                                        {index + 1}.{' '}
+                                        {a.action.replaceAll('-', ' ')}
                                       </strong>
-                                      {a.comment ? " · " + a.comment : ""}
+                                      {a.comment ? ' · ' + a.comment : ''}
                                     </p>
                                   ))}
                                 </div>
@@ -2412,13 +2412,13 @@ export default function AutomationPipeline({
                 </label>
                 <textarea
                   id="operatorMessage"
-                  className="min-h-[46px] max-h-28 flex-1 resize-y bg-transparent px-2 py-2 text-sm outline-none placeholder:text-slate-400"
+                  className="max-h-28 min-h-[46px] flex-1 resize-y bg-transparent px-2 py-2 text-sm outline-none placeholder:text-slate-400"
                   rows={1}
                   placeholder="Try: audit · set headline: ... · add skill: ..."
                   value={message}
                   onChange={(event) => setMessage(event.target.value)}
                   onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey) {
+                    if (event.key === 'Enter' && !event.shiftKey) {
                       event.preventDefault();
                       event.currentTarget.form?.requestSubmit();
                     }
@@ -2436,7 +2436,7 @@ export default function AutomationPipeline({
                     className="sr-only"
                     onChange={(e) => {
                       void attachImage(e.target.files?.[0]);
-                      e.currentTarget.value = "";
+                      e.currentTarget.value = '';
                     }}
                   />
                 </label>
@@ -2475,25 +2475,25 @@ export default function AutomationPipeline({
             <CardContent>
               <div className="space-y-4">
                 <div className="rounded-xl bg-slate-950 p-4 text-white">
-                  <p className="text-[10px] uppercase tracking-[.15em] text-slate-400">
+                  <p className="text-[10px] tracking-[.15em] text-slate-400 uppercase">
                     Current state
                   </p>
                   <p className="mt-2 flex items-center gap-2 text-base font-bold capitalize">
                     <Activity className="size-4 text-teal-300" />
-                    {active ? stateLabel(active.state) : "Waiting for a run"}
+                    {active ? stateLabel(active.state) : 'Waiting for a run'}
                   </p>
                   <p className="mt-2 truncate font-mono text-[10px] text-slate-400">
-                    {active?.id || "–"}
+                    {active?.id || '–'}
                   </p>
                 </div>
                 {playbook?.stages.map((stage, index) => (
                   <div key={stage} className="flex gap-3">
                     <span
                       className={
-                        "flex size-7 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold " +
+                        'flex size-7 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold ' +
                         (index === 0 && active
-                          ? "border-teal-200 bg-teal-50 text-teal-700"
-                          : "border-slate-200 text-slate-400")
+                          ? 'border-teal-200 bg-teal-50 text-teal-700'
+                          : 'border-slate-200 text-slate-400')
                       }
                     >
                       {index + 1}
@@ -2502,8 +2502,8 @@ export default function AutomationPipeline({
                       <p className="text-xs font-semibold">{stage}</p>
                       <p className="text-[10px] text-slate-400">
                         {index === 0 && active
-                          ? "Run started"
-                          : "Reference sequence · not a progress claim"}
+                          ? 'Run started'
+                          : 'Reference sequence · not a progress claim'}
                       </p>
                     </div>
                   </div>
@@ -2524,16 +2524,16 @@ export default function AutomationPipeline({
                 {assessment.comparisons.map((check) => (
                   <div key={check.field} className="space-y-2 text-xs">
                     <p className="font-bold capitalize">
-                      {check.field} ·{" "}
+                      {check.field} ·{' '}
                       <span className="font-medium text-slate-500">
-                        {check.status.replaceAll("-", " ")}
+                        {check.status.replaceAll('-', ' ')}
                       </span>
                     </p>
                     <p className="rounded-lg bg-slate-50 p-2 text-slate-600">
-                      Observed: {check.observed || "Not observed"}
+                      Observed: {check.observed || 'Not observed'}
                     </p>
                     <p className="rounded-lg bg-teal-50 p-2 text-teal-900">
-                      Source draft: {check.proposed || "No draft available"}
+                      Source draft: {check.proposed || 'No draft available'}
                     </p>
                   </div>
                 ))}
@@ -2549,9 +2549,9 @@ export default function AutomationPipeline({
               <CardDescription>Not a model confidence score.</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="break-words text-xs leading-5 text-slate-600">
+              <p className="text-xs leading-5 break-words text-slate-600">
                 {latest?.message ||
-                  "An audit will record profile observations and review evidence."}
+                  'An audit will record profile observations and review evidence.'}
               </p>
             </CardContent>
           </Card>
@@ -2562,7 +2562,7 @@ export default function AutomationPipeline({
         onDismiss={() => {}}
         dismissible={false}
         title={
-          checkpointNeeded ? "Approval required" : "Operator input required"
+          checkpointNeeded ? 'Approval required' : 'Operator input required'
         }
         description={checkpoint?.message}
         testId="checkpoint-dialog"
@@ -2616,7 +2616,7 @@ export default function AutomationPipeline({
           </div>
         )}
       </StudioDialog>
-      {pane !== "profile" && pane !== "resumes" && (
+      {pane !== 'profile' && pane !== 'resumes' && (
         <button
           type="button"
           aria-label="Open Mator"
@@ -2625,9 +2625,9 @@ export default function AutomationPipeline({
             setMobileChatOpen(true);
           }}
           className={
-            "fixed right-5 bottom-24 lg:bottom-5 z-30 inline-flex min-h-12 items-center gap-2 rounded-full bg-slate-950 px-5 text-sm font-bold text-white shadow-2xl ring-2 ring-white/80 hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-teal-600 " +
-            (chatVisible ? "lg:hidden" : "") +
-            (mobileChatOpen ? " hidden" : "")
+            'fixed right-5 bottom-24 z-30 inline-flex min-h-12 items-center gap-2 rounded-full bg-slate-950 px-5 text-sm font-bold text-white shadow-2xl ring-2 ring-white/80 hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-teal-600 lg:bottom-5 ' +
+            (chatVisible ? 'lg:hidden' : '') +
+            (mobileChatOpen ? ' hidden' : '')
           }
         >
           <MessageSquareText className="size-5" />

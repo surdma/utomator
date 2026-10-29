@@ -13,5 +13,12 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "exclude": ["node_modules", "dist", ".next", "apps/*/node_modules", "apps/*/dist", "apps/*/.next"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".next",
+    "apps/*/node_modules",
+    "apps/*/dist",
+    "apps/*/.next"
+  ]
 }

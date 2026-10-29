@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import Image from "next/image";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import Image from 'next/image';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -16,7 +16,7 @@ import {
   type NodeProps,
   type Edge,
   type Connection,
-} from "@xyflow/react";
+} from '@xyflow/react';
 import {
   Activity,
   Check,
@@ -36,25 +36,25 @@ import {
   Zap,
   ArrowUp,
   ArrowDown,
-} from "lucide-react";
-import StudioDialog from "@/components/ui/studio-dialog";
-import TemplateBrowser from "./template-browser";
-import GrowthProfilePipelines from "./growth-profile-pipelines";
+} from 'lucide-react';
+import StudioDialog from '@/components/ui/studio-dialog';
+import TemplateBrowser from './template-browser';
+import GrowthProfilePipelines from './growth-profile-pipelines';
 
 export type StepKind =
-  | "start"
-  | "session"
-  | "inspect"
-  | "action"
-  | "verify"
-  | "note"
-  | "delay"
-  | "assess"
-  | "evidence"
-  | "approve"
-  | "pause"
-  | "stop"
-  | "finish";
+  | 'start'
+  | 'session'
+  | 'inspect'
+  | 'action'
+  | 'verify'
+  | 'note'
+  | 'delay'
+  | 'assess'
+  | 'evidence'
+  | 'approve'
+  | 'pause'
+  | 'stop'
+  | 'finish';
 export type WorkflowStep = {
   id: string;
   kind: StepKind;
@@ -66,60 +66,60 @@ export type WorkflowStep = {
     message?: {
       stepId: string;
       field:
-        | "url"
-        | "excerpt"
-        | "status"
-        | "message"
-        | "durationMs"
-        | "matched"
-        | "summary"
-        | "digest"
-        | "approved"
-        | "evidenceDigest";
+        | 'url'
+        | 'excerpt'
+        | 'status'
+        | 'message'
+        | 'durationMs'
+        | 'matched'
+        | 'summary'
+        | 'digest'
+        | 'approved'
+        | 'evidenceDigest';
     };
     delayMs?: {
       stepId: string;
       field:
-        | "url"
-        | "excerpt"
-        | "status"
-        | "message"
-        | "durationMs"
-        | "matched"
-        | "summary"
-        | "digest"
-        | "approved"
-        | "evidenceDigest";
+        | 'url'
+        | 'excerpt'
+        | 'status'
+        | 'message'
+        | 'durationMs'
+        | 'matched'
+        | 'summary'
+        | 'digest'
+        | 'approved'
+        | 'evidenceDigest';
     };
     text?: {
       stepId: string;
       field:
-        | "url"
-        | "excerpt"
-        | "status"
-        | "message"
-        | "durationMs"
-        | "matched"
-        | "summary"
-        | "digest"
-        | "approved"
-        | "evidenceDigest";
+        | 'url'
+        | 'excerpt'
+        | 'status'
+        | 'message'
+        | 'durationMs'
+        | 'matched'
+        | 'summary'
+        | 'digest'
+        | 'approved'
+        | 'evidenceDigest';
     };
-    observation?: { stepId: string; field: "excerpt" };
-    evidence?: { stepId: string; field: "digest" };
+    observation?: { stepId: string; field: 'excerpt' };
+    evidence?: { stepId: string; field: 'digest' };
     expectedMatch?: {
       stepId: string;
       field:
-        | "url"
-        | "excerpt"
-        | "status"
-        | "message"
-        | "durationMs"
-        | "matched"
-        | "summary"
-        | "digest"
-        | "approved"
-        | "evidenceDigest";
+        | 'url'
+        | 'excerpt'
+        | 'status'
+        | 'message'
+        | 'durationMs'
+        | 'matched'
+        | 'summary'
+        | 'digest'
+        | 'approved'
+        | 'evidenceDigest';
     };
   };
   definition?: { id: string; version: number };
@@ -127,7 +127,7 @@ export type WorkflowStep = {
 };
 export type WorkflowPlan = {
   version: 1;
-  platform: "linkedin" | "x";
+  platform: 'linkedin' | 'x';
   action: string;
   name: string;
   parameters?: Record<string, string>;
@@ -155,7 +155,7 @@ type Data = Record<string, unknown> & {
   index: number;
   status: string;
 };
-type FlowNode = Node<Data, "step">;
+type FlowNode = Node<Data, 'step'>;
 type Props = {
   plan: WorkflowPlan;
   templates: WorkflowPlan[];
@@ -186,9 +186,9 @@ type Props = {
   onGrowthActionSelect?: (action: string) => void;
 };
 type StepFormField = {
-  key: "message" | "delayMs" | "expectedText";
+  key: 'message' | 'delayMs' | 'expectedText';
   label: string;
-  control: "text" | "textarea" | "number";
+  control: 'text' | 'textarea' | 'number';
   min?: number;
   max?: number;
 };
@@ -198,43 +198,43 @@ type StepForm = {
   summary: string;
   fields: StepFormField[];
 };
-const fixed = new Set(["start", "session", "action", "finish"]);
+const fixed = new Set(['start', 'session', 'action', 'finish']);
 const choices: Array<{ kind: StepKind; name: string; help: string }> = [
   {
-    kind: "inspect",
-    name: "Inspect browser page",
-    help: "Read actual browser DOM and emit evidence",
+    kind: 'inspect',
+    name: 'Inspect browser page',
+    help: 'Read actual browser DOM and emit evidence',
   },
   {
-    kind: "note",
-    name: "Record event",
-    help: "Write a user-defined entry to the run journal",
+    kind: 'note',
+    name: 'Record event',
+    help: 'Write a user-defined entry to the run journal',
   },
   {
-    kind: "evidence",
-    name: "Capture evidence",
-    help: "Bind to a prior read-only observation",
+    kind: 'evidence',
+    name: 'Capture evidence',
+    help: 'Bind to a prior read-only observation',
   },
   {
-    kind: "approve",
-    name: "Review evidence",
-    help: "Require explicit operator approval of captured evidence",
+    kind: 'approve',
+    name: 'Review evidence',
+    help: 'Require explicit operator approval of captured evidence',
   },
-  { kind: "delay", name: "Wait", help: "Cancellable delay, up to 30 seconds" },
+  { kind: 'delay', name: 'Wait', help: 'Cancellable delay, up to 30 seconds' },
   {
-    kind: "pause",
-    name: "Wait for operator",
-    help: "Pause execution until Resume is selected",
-  },
-  {
-    kind: "stop",
-    name: "End workflow early",
-    help: "Stop before executing later stages",
+    kind: 'pause',
+    name: 'Wait for operator',
+    help: 'Pause execution until Resume is selected',
   },
   {
-    kind: "verify",
-    name: "Observe browser result",
-    help: "Read the real page after earlier steps",
+    kind: 'stop',
+    name: 'End workflow early',
+    help: 'Stop before executing later stages',
+  },
+  {
+    kind: 'verify',
+    name: 'Observe browser result',
+    help: 'Read the real page after earlier steps',
   },
 ];
 const iconFor: Record<StepKind, typeof Workflow> = {
@@ -258,14 +258,14 @@ function StepCard({ data, selected }: NodeProps<FlowNode>) {
     status = data.status;
   return (
     <div
-      data-testid={"workflow-node-" + step.id}
+      data-testid={'workflow-node-' + step.id}
       className={
-        "w-[228px] overflow-hidden rounded-2xl border bg-white shadow-lg " +
-        (status === "failed"
-          ? "border-rose-600 ring-2 ring-rose-300 shadow-rose-200"
+        'w-[228px] overflow-hidden rounded-2xl border bg-white shadow-lg ' +
+        (status === 'failed'
+          ? 'border-rose-600 ring-2 shadow-rose-200 ring-rose-300'
           : selected
-            ? "border-teal-600 ring-2 ring-teal-300"
-            : "border-slate-200")
+            ? 'border-teal-600 ring-2 ring-teal-300'
+            : 'border-slate-200')
       }
     >
       <Handle
@@ -275,18 +275,18 @@ function StepCard({ data, selected }: NodeProps<FlowNode>) {
       />
       <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-3 py-2">
         <span className="font-mono text-[10px] font-bold text-slate-500">
-          STEP {String(data.index).padStart(2, "0")}
+          STEP {String(data.index).padStart(2, '0')}
         </span>
         <span
           className={
-            "rounded-full px-2 py-0.5 text-[10px] font-semibold " +
-            (status === "completed"
-              ? "bg-emerald-100 text-emerald-800"
-              : status === "started"
-                ? "bg-sky-100 text-sky-800"
-                : status === "failed"
-                  ? "bg-rose-100 text-rose-800"
-                  : "bg-slate-200 text-slate-600")
+            'rounded-full px-2 py-0.5 text-[10px] font-semibold ' +
+            (status === 'completed'
+              ? 'bg-emerald-100 text-emerald-800'
+              : status === 'started'
+                ? 'bg-sky-100 text-sky-800'
+                : status === 'failed'
+                  ? 'bg-rose-100 text-rose-800'
+                  : 'bg-slate-200 text-slate-600')
           }
         >
           {status}
@@ -298,18 +298,18 @@ function StepCard({ data, selected }: NodeProps<FlowNode>) {
         </span>
         <div className="min-w-0">
           <p className="truncate text-xs font-extrabold">{step.title}</p>
-          <p className="mt-1 text-[11px] capitalize text-slate-500">
-            {step.kind.replaceAll("-", " ")} step
+          <p className="mt-1 text-[11px] text-slate-500 capitalize">
+            {step.kind.replaceAll('-', ' ')} step
           </p>
         </div>
       </div>
       <div className="flex items-center justify-between border-t border-slate-100 px-3 py-2 text-[10px]">
         <span
-          className={fixed.has(step.kind) ? "text-slate-500" : "text-teal-700"}
+          className={fixed.has(step.kind) ? 'text-slate-500' : 'text-teal-700'}
         >
           {fixed.has(step.kind)
-            ? "REQUIRED · PROTECTED"
-            : "EDITABLE · CONNECTABLE"}
+            ? 'REQUIRED · PROTECTED'
+            : 'EDITABLE · CONNECTABLE'}
         </span>
         <Settings2 className="size-3.5 text-slate-400" />
       </div>
@@ -371,16 +371,16 @@ function EditorBody(props: Props) {
   const [addOpen, setAddOpen] = useState(false);
   const [stepDraft, setStepDraft] = useState<WorkflowStep | null>(null);
   const [outputOpen, setOutputOpen] = useState(false);
-  const [editorError, setEditorError] = useState("");
+  const [editorError, setEditorError] = useState('');
   const [stepForms, setStepForms] = useState<
     Partial<Record<StepKind, StepForm>>
   >({});
-  const [stepFormsError, setStepFormsError] = useState("");
+  const [stepFormsError, setStepFormsError] = useState('');
   const [stepFormsRequest, setStepFormsRequest] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
-    void fetch("/api/step-forms", {
-      cache: "no-store",
+    void fetch('/api/step-forms', {
+      cache: 'no-store',
       signal: controller.signal,
     })
       .then(async (response) => {
@@ -390,7 +390,7 @@ function EditorBody(props: Props) {
           };
           throw Error(
             result.error ||
-              "Step fields unavailable (HTTP " + response.status + ").",
+              'Step fields unavailable (HTTP ' + response.status + ').'
           );
         }
         const data = (await response.json()) as Partial<
@@ -398,19 +398,19 @@ function EditorBody(props: Props) {
         >;
         if (
           !data ||
-          typeof data !== "object" ||
+          typeof data !== 'object' ||
           !Array.isArray(data.start?.fields)
         )
-          throw Error("Step forms returned an invalid response.");
+          throw Error('Step forms returned an invalid response.');
         if (!controller.signal.aborted) {
           setStepForms(data);
-          setStepFormsError("");
+          setStepFormsError('');
         }
       })
       .catch((error) => {
         if (!controller.signal.aborted)
           setStepFormsError(
-            error instanceof Error ? error.message : "Step fields unavailable",
+            error instanceof Error ? error.message : 'Step fields unavailable'
           );
       });
     return () => controller.abort();
@@ -424,41 +424,36 @@ function EditorBody(props: Props) {
   }, [events]);
   const data = useMemo(
     () => ({
-      nodes: plan.steps.map(
-        (step, i): FlowNode => ({
-          id: step.id,
-          type: "step",
-          position: step.position ?? {
-            x: 50 + (i % 4) * 290,
-            y: 70 + Math.floor(i / 4) * 230,
-          },
-          data: { step, index: i + 1, status: latest.get(step.id) ?? "idle" },
-          sourcePosition: Position.Right,
-          targetPosition: Position.Left,
-        }),
-      ),
-      edges: plan.links.map(
-        (link): Edge => ({
-          id: link.source + "-to-" + link.target,
-          source: link.source,
-          target: link.target,
-          type: "smoothstep",
-          markerEnd: { type: MarkerType.ArrowClosed, color: "#0f766e" },
-          style: { stroke: "#0f766e", strokeWidth: 2 },
-          animated:
-            state === "running" && latest.get(link.target) === "started",
-        }),
-      ),
+      nodes: plan.steps.map((step, i): FlowNode => ({
+        id: step.id,
+        type: 'step',
+        position: step.position ?? {
+          x: 50 + (i % 4) * 290,
+          y: 70 + Math.floor(i / 4) * 230,
+        },
+        data: { step, index: i + 1, status: latest.get(step.id) ?? 'idle' },
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+      })),
+      edges: plan.links.map((link): Edge => ({
+        id: link.source + '-to-' + link.target,
+        source: link.source,
+        target: link.target,
+        type: 'smoothstep',
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#0f766e' },
+        style: { stroke: '#0f766e', strokeWidth: 2 },
+        animated: state === 'running' && latest.get(link.target) === 'started',
+      })),
     }),
-    [plan, latest, state],
+    [plan, latest, state]
   );
   const [nodes, setNodes, onNodesChange] = useNodesState(data.nodes);
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       setNodes((previous) => {
         const changed =
-          previous.map((node) => node.id).join("|") !==
-          data.nodes.map((node) => node.id).join("|");
+          previous.map((node) => node.id).join('|') !==
+          data.nodes.map((node) => node.id).join('|');
         return data.nodes.map((node) => ({
           ...node,
           position: changed
@@ -473,7 +468,7 @@ function EditorBody(props: Props) {
   const canEdit = !busy;
   function update(next: WorkflowPlan) {
     if (!canEdit) return;
-    setEditorError("");
+    setEditorError('');
     onPlanChange(next);
   }
   function reorder(source: string, target: string) {
@@ -481,7 +476,7 @@ function EditorBody(props: Props) {
     const ordered = [...plan.steps];
     if (fixed.has(target)) {
       setEditorError(
-        "Required core nodes cannot be moved. Connect an optional step instead.",
+        'Required core nodes cannot be moved. Connect an optional step instead.'
       );
       return;
     }
@@ -491,11 +486,11 @@ function EditorBody(props: Props) {
     const [step] = ordered.splice(from, 1);
     ordered.splice(ordered.findIndex((s) => s.id === source) + 1, 0, step!);
     if (
-      ordered[0]?.id !== "start" ||
-      ordered[1]?.id !== "session" ||
-      ordered.at(-1)?.id !== "finish"
+      ordered[0]?.id !== 'start' ||
+      ordered[1]?.id !== 'session' ||
+      ordered.at(-1)?.id !== 'finish'
     ) {
-      setEditorError("Start, Browser and Final output are protected.");
+      setEditorError('Start, Browser and Final output are protected.');
       return;
     }
     update(chain(plan, ordered));
@@ -511,43 +506,43 @@ function EditorBody(props: Props) {
   }
   function add(kind: StepKind) {
     const order = [...plan.steps],
-      index = order.findIndex((s) => s.id === "action");
+      index = order.findIndex((s) => s.id === 'action');
     const earlier = order.slice(0, index);
     const observation = [...earlier]
       .reverse()
-      .find((step) => step.kind === "inspect" || step.kind === "verify");
+      .find((step) => step.kind === 'inspect' || step.kind === 'verify');
     const evidence = [...earlier]
       .reverse()
-      .find((step) => step.kind === "evidence");
-    if (kind === "evidence" && !observation) {
-      setEditorError("Add an observation before capturing evidence.");
+      .find((step) => step.kind === 'evidence');
+    if (kind === 'evidence' && !observation) {
+      setEditorError('Add an observation before capturing evidence.');
       return;
     }
-    if (kind === "approve" && !evidence) {
+    if (kind === 'approve' && !evidence) {
       setEditorError(
-        "Add a connected evidence step before requesting approval.",
+        'Add a connected evidence step before requesting approval.'
       );
       return;
     }
     const step: WorkflowStep = {
-      id: "step-" + crypto.randomUUID().slice(0, 8),
+      id: 'step-' + crypto.randomUUID().slice(0, 8),
       kind,
       title: choices.find((c) => c.kind === kind)?.name ?? kind,
-      ...(kind === "delay" ? { delayMs: 1000 } : {}),
-      ...(kind === "evidence" && observation
+      ...(kind === 'delay' ? { delayMs: 1000 } : {}),
+      ...(kind === 'evidence' && observation
         ? {
             inputBindings: {
               observation: {
                 stepId: observation.id,
-                field: "excerpt" as const,
+                field: 'excerpt' as const,
               },
             },
           }
         : {}),
-      ...(kind === "approve" && evidence
+      ...(kind === 'approve' && evidence
         ? {
             inputBindings: {
-              evidence: { stepId: evidence.id, field: "digest" as const },
+              evidence: { stepId: evidence.id, field: 'digest' as const },
             },
           }
         : {}),
@@ -562,24 +557,24 @@ function EditorBody(props: Props) {
     update(
       chain(
         plan,
-        plan.steps.filter((s) => s.id !== stepDraft.id),
-      ),
+        plan.steps.filter((s) => s.id !== stepDraft.id)
+      )
     );
     setStepDraft(null);
   }
   const images = events.filter(
     (e) =>
-      e.kind === "screenshot" &&
-      /^[a-zA-Z0-9_-]+\.png$/.test(e.details?.fileName ?? ""),
+      e.kind === 'screenshot' &&
+      /^[a-zA-Z0-9_-]+\.png$/.test(e.details?.fileName ?? '')
   );
   const observed = [...events]
     .reverse()
     .find(
       (e) =>
-        e.kind === "audit" &&
-        (e.details?.headline || e.details?.bio || e.details?.excerpt),
+        e.kind === 'audit' &&
+        (e.details?.headline || e.details?.bio || e.details?.excerpt)
     );
-  const result = events.filter((e) => e.kind === "result");
+  const result = events.filter((e) => e.kind === 'result');
   return (
     <section
       data-testid="workflow-artboard"
@@ -590,31 +585,31 @@ function EditorBody(props: Props) {
           <h2 className="text-sm font-extrabold">Workflow artboard</h2>
           <p className="mt-1 text-[11px] text-slate-500">
             {growthTemplateId
-              ? "Growth · connected pipelines with nested executable tasks"
-              : plan.name + " · " + plan.steps.length + " pipeline tasks"}
+              ? 'Growth · connected pipelines with nested executable tasks'
+              : plan.name + ' · ' + plan.steps.length + ' pipeline tasks'}
           </p>
           <p
             role="status"
             data-testid="workflow-run-readiness"
             className={
-              "mt-1 text-[11px] " +
-              (connected ? "text-teal-800" : "text-amber-800")
+              'mt-1 text-[11px] ' +
+              (connected ? 'text-teal-800' : 'text-amber-800')
             }
           >
-            {plan.platform === "linkedin"
+            {plan.platform === 'linkedin'
               ? connected
-                ? "Execution target: " +
-                  (accountLabel || "Selected LinkedIn account") +
-                  ". The server verifies this account when you run."
-                : "You can edit this workflow now. Connect and sync the selected LinkedIn account to run it."
-              : "A supported, verified account connection is required to run this workflow."}
+                ? 'Execution target: ' +
+                  (accountLabel || 'Selected LinkedIn account') +
+                  '. The server verifies this account when you run.'
+                : 'You can edit this workflow now. Connect and sync the selected LinkedIn account to run it.'
+              : 'A supported, verified account connection is required to run this workflow.'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {!growthTemplateId && (
             <select
               aria-label="Saved workflow"
-              value={workflowId ?? ""}
+              value={workflowId ?? ''}
               disabled={busy || saving || dirty}
               onChange={(event) => onWorkflowSelect(event.target.value || null)}
               className="min-h-10 max-w-[220px] rounded-xl border border-slate-200 bg-white px-2 text-xs font-bold disabled:opacity-40"
@@ -669,14 +664,14 @@ function EditorBody(props: Props) {
                   setEditorError(
                     error instanceof Error
                       ? error.message
-                      : "Could not save workflow",
-                  ),
+                      : 'Could not save workflow'
+                  )
                 );
               }}
               className="flex min-h-10 items-center gap-1 rounded-xl border border-slate-200 px-3 text-xs font-bold disabled:opacity-40"
             >
               <Save className="size-4" />
-              {saving ? "Saving…" : dirty ? "Save changes" : "Saved"}
+              {saving ? 'Saving…' : dirty ? 'Save changes' : 'Saved'}
             </button>
           )}
           {!growthTemplateId && (
@@ -743,17 +738,17 @@ function EditorBody(props: Props) {
                 update({
                   ...plan,
                   steps: plan.steps.map((s) =>
-                    s.id === node.id ? { ...s, position: node.position } : s,
+                    s.id === node.id ? { ...s, position: node.position } : s
                   ),
                 });
             }}
             onNodeClick={(_, node) => {
               const step = plan.steps.find((s) => s.id === node.id)!;
-              if (step.kind === "finish" || step.kind === "verify") {
+              if (step.kind === 'finish' || step.kind === 'verify') {
                 setOutputOpen(true);
                 return;
               }
-              if (step.kind === "action") {
+              if (step.kind === 'action') {
                 setConfigOpen(true);
                 return;
               }
@@ -777,7 +772,7 @@ function EditorBody(props: Props) {
           </ReactFlow>
         )}
         {!growthTemplateId && (
-          <div className="pointer-events-none absolute left-3 top-3 rounded-lg bg-white/90 px-2.5 py-1.5 text-[11px] text-slate-600 shadow">
+          <div className="pointer-events-none absolute top-3 left-3 rounded-lg bg-white/90 px-2.5 py-1.5 text-[11px] text-slate-600 shadow">
             Drag nodes to arrange · Drag connector to insert/reorder optional
             tasks · Click to edit
           </div>
@@ -786,9 +781,9 @@ function EditorBody(props: Props) {
       {!growthTemplateId && (
         <div className="flex flex-wrap justify-between gap-2 border-t border-slate-200 px-4 py-3 text-xs text-slate-600">
           <span>
-            Live status:{" "}
-            <strong className="capitalize">{state ?? "idle"}</strong>
-            {runId ? " · " + runId.slice(0, 8) : ""}
+            Live status:{' '}
+            <strong className="capitalize">{state ?? 'idle'}</strong>
+            {runId ? ' · ' + runId.slice(0, 8) : ''}
           </span>
           <button
             type="button"
@@ -820,15 +815,15 @@ function EditorBody(props: Props) {
           <button
             type="button"
             onClick={() => {
-              setEditorError("");
+              setEditorError('');
               void onSave()
                 .then(() => setConfigOpen(false))
                 .catch((error) =>
                   setEditorError(
                     error instanceof Error
                       ? error.message
-                      : "Could not save workflow",
-                  ),
+                      : 'Could not save workflow'
+                  )
                 );
             }}
             disabled={saving || busy}
@@ -883,24 +878,24 @@ function EditorBody(props: Props) {
         onDismiss={() => setStepDraft(null)}
         title={
           stepDraft
-            ? (stepForms[stepDraft.kind]?.title ?? "Edit workflow step")
-            : "Edit workflow step"
+            ? (stepForms[stepDraft.kind]?.title ?? 'Edit workflow step')
+            : 'Edit workflow step'
         }
         description={
           stepDraft
             ? (stepForms[stepDraft.kind]?.summary ??
-              "Changes to this step are saved as part of your workflow.")
-            : "Changes to this step are saved as part of your workflow."
+              'Changes to this step are saved as part of your workflow.')
+            : 'Changes to this step are saved as part of your workflow.'
         }
         testId="workflow-step-dialog"
       >
         {stepDraft && (
           <div className="space-y-4">
             <p className="text-xs font-semibold text-slate-500">
-              Type: {stepDraft.kind} ·{" "}
+              Type: {stepDraft.kind} ·{' '}
               {fixed.has(stepDraft.kind)
-                ? "Required core stage"
-                : "Optional editable stage"}
+                ? 'Required core stage'
+                : 'Optional editable stage'}
             </p>
             <label className="block text-xs font-bold">
               Step title
@@ -925,57 +920,56 @@ function EditorBody(props: Props) {
                     setStepDraft({
                       ...stepDraft,
                       kind,
-                      ...(kind === "delay"
+                      ...(kind === 'delay'
                         ? { delayMs: stepDraft.delayMs ?? 1000 }
                         : { delayMs: undefined }),
-                      ...(kind === "note" || kind === "stop"
-                        ? { message: stepDraft.message ?? "" }
+                      ...(kind === 'note' || kind === 'stop'
+                        ? { message: stepDraft.message ?? '' }
                         : { message: undefined }),
                       ...(kind === stepDraft.kind
                         ? {}
                         : {
                             inputBindings:
-                              kind === "evidence"
+                              kind === 'evidence'
                                 ? {
                                     observation: (() => {
                                       const prior = plan.steps
                                         .slice(
                                           0,
                                           plan.steps.findIndex(
-                                            (item) => item.id === stepDraft.id,
-                                          ),
+                                            (item) => item.id === stepDraft.id
+                                          )
                                         )
                                         .findLast(
                                           (item) =>
-                                            item.kind === "inspect" ||
-                                            item.kind === "verify",
+                                            item.kind === 'inspect' ||
+                                            item.kind === 'verify'
                                         );
                                       return prior
                                         ? {
                                             stepId: prior.id,
-                                            field: "excerpt" as const,
+                                            field: 'excerpt' as const,
                                           }
                                         : undefined;
                                     })(),
                                   }
-                                : kind === "approve"
+                                : kind === 'approve'
                                   ? {
                                       evidence: (() => {
                                         const prior = plan.steps
                                           .slice(
                                             0,
                                             plan.steps.findIndex(
-                                              (item) =>
-                                                item.id === stepDraft.id,
-                                            ),
+                                              (item) => item.id === stepDraft.id
+                                            )
                                           )
                                           .findLast(
-                                            (item) => item.kind === "evidence",
+                                            (item) => item.kind === 'evidence'
                                           );
                                         return prior
                                           ? {
                                               stepId: prior.id,
-                                              field: "digest" as const,
+                                              field: 'digest' as const,
                                             }
                                           : undefined;
                                       })(),
@@ -997,12 +991,12 @@ function EditorBody(props: Props) {
             {stepForms[stepDraft.kind]?.fields.map((field) => (
               <label key={field.key} className="block text-xs font-bold">
                 {field.label}
-                {field.control === "textarea" ? (
+                {field.control === 'textarea' ? (
                   <textarea
                     aria-label={field.label}
                     rows={3}
                     maxLength={field.max}
-                    value={String(stepDraft[field.key] ?? "")}
+                    value={String(stepDraft[field.key] ?? '')}
                     onChange={(e) =>
                       setStepDraft({
                         ...stepDraft,
@@ -1014,18 +1008,18 @@ function EditorBody(props: Props) {
                 ) : (
                   <input
                     aria-label={field.label}
-                    type={field.control === "number" ? "number" : "text"}
+                    type={field.control === 'number' ? 'number' : 'text'}
                     min={field.min}
                     max={field.min === undefined ? undefined : field.max}
                     maxLength={
-                      field.control !== "number" ? field.max : undefined
+                      field.control !== 'number' ? field.max : undefined
                     }
-                    value={String(stepDraft[field.key] ?? "")}
+                    value={String(stepDraft[field.key] ?? '')}
                     onChange={(e) =>
                       setStepDraft({
                         ...stepDraft,
                         [field.key]:
-                          field.control === "number"
+                          field.control === 'number'
                             ? Number(e.target.value)
                             : e.target.value,
                       })
@@ -1053,7 +1047,7 @@ function EditorBody(props: Props) {
                 </button>
               </div>
             )}
-            {stepDraft.kind === "note" && (
+            {stepDraft.kind === 'note' && (
               <label className="block text-xs font-bold">
                 Note input from earlier step
                 <select
@@ -1061,21 +1055,21 @@ function EditorBody(props: Props) {
                   value={
                     stepDraft.inputBindings?.message
                       ? stepDraft.inputBindings.message.stepId +
-                        ":" +
+                        ':' +
                         stepDraft.inputBindings.message.field
-                      : ""
+                      : ''
                   }
                   onChange={(event) => {
                     const selected = event.target.value;
-                    const [stepId, field] = selected.split(":");
+                    const [stepId, field] = selected.split(':');
                     setStepDraft({
                       ...stepDraft,
                       inputBindings:
-                        stepId && ["url", "excerpt"].includes(field)
+                        stepId && ['url', 'excerpt'].includes(field)
                           ? {
                               message: {
                                 stepId,
-                                field: field as "url" | "excerpt",
+                                field: field as 'url' | 'excerpt',
                               },
                             }
                           : undefined,
@@ -1087,20 +1081,20 @@ function EditorBody(props: Props) {
                   {plan.steps
                     .slice(
                       0,
-                      plan.steps.findIndex((item) => item.id === stepDraft.id),
+                      plan.steps.findIndex((item) => item.id === stepDraft.id)
                     )
                     .filter(
                       (item) =>
-                        item.kind === "inspect" || item.kind === "verify",
+                        item.kind === 'inspect' || item.kind === 'verify'
                     )
                     .flatMap((item) => [
                       <option
-                        key={item.id + ":excerpt"}
-                        value={item.id + ":excerpt"}
+                        key={item.id + ':excerpt'}
+                        value={item.id + ':excerpt'}
                       >
                         {item.title}: observed excerpt
                       </option>,
-                      <option key={item.id + ":url"} value={item.id + ":url"}>
+                      <option key={item.id + ':url'} value={item.id + ':url'}>
                         {item.title}: observed URL
                       </option>,
                     ])}
@@ -1111,12 +1105,12 @@ function EditorBody(props: Props) {
                 </span>
               </label>
             )}
-            {stepDraft.kind === "evidence" && (
+            {stepDraft.kind === 'evidence' && (
               <label className="block text-xs font-bold">
                 Observed evidence source
                 <select
                   aria-label="Observed evidence source"
-                  value={stepDraft.inputBindings?.observation?.stepId ?? ""}
+                  value={stepDraft.inputBindings?.observation?.stepId ?? ''}
                   onChange={(e) =>
                     setStepDraft({
                       ...stepDraft,
@@ -1124,7 +1118,7 @@ function EditorBody(props: Props) {
                         ? {
                             observation: {
                               stepId: e.target.value,
-                              field: "excerpt",
+                              field: 'excerpt',
                             },
                           }
                         : undefined,
@@ -1136,11 +1130,11 @@ function EditorBody(props: Props) {
                   {plan.steps
                     .slice(
                       0,
-                      plan.steps.findIndex((item) => item.id === stepDraft.id),
+                      plan.steps.findIndex((item) => item.id === stepDraft.id)
                     )
                     .filter(
                       (item) =>
-                        item.kind === "inspect" || item.kind === "verify",
+                        item.kind === 'inspect' || item.kind === 'verify'
                     )
                     .map((item) => (
                       <option key={item.id} value={item.id}>
@@ -1150,12 +1144,12 @@ function EditorBody(props: Props) {
                 </select>
               </label>
             )}
-            {stepDraft.kind === "approve" && (
+            {stepDraft.kind === 'approve' && (
               <label className="block text-xs font-bold">
                 Evidence requiring owner approval
                 <select
                   aria-label="Evidence requiring owner approval"
-                  value={stepDraft.inputBindings?.evidence?.stepId ?? ""}
+                  value={stepDraft.inputBindings?.evidence?.stepId ?? ''}
                   onChange={(e) =>
                     setStepDraft({
                       ...stepDraft,
@@ -1163,7 +1157,7 @@ function EditorBody(props: Props) {
                         ? {
                             evidence: {
                               stepId: e.target.value,
-                              field: "digest",
+                              field: 'digest',
                             },
                           }
                         : undefined,
@@ -1175,9 +1169,9 @@ function EditorBody(props: Props) {
                   {plan.steps
                     .slice(
                       0,
-                      plan.steps.findIndex((item) => item.id === stepDraft.id),
+                      plan.steps.findIndex((item) => item.id === stepDraft.id)
                     )
-                    .filter((item) => item.kind === "evidence")
+                    .filter((item) => item.kind === 'evidence')
                     .map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.title} · SHA-256
@@ -1229,24 +1223,24 @@ function EditorBody(props: Props) {
                     (stepDraft.delayMs !== undefined &&
                       (stepDraft.delayMs < 0 || stepDraft.delayMs > 30000))
                   ) {
-                    setEditorError("Invalid title or delay");
+                    setEditorError('Invalid title or delay');
                     return;
                   }
                   if (
-                    (stepDraft.kind === "evidence" &&
+                    (stepDraft.kind === 'evidence' &&
                       !stepDraft.inputBindings?.observation) ||
-                    (stepDraft.kind === "approve" &&
+                    (stepDraft.kind === 'approve' &&
                       !stepDraft.inputBindings?.evidence)
                   ) {
                     setEditorError(
-                      "This step requires a preceding typed source binding.",
+                      'This step requires a preceding typed source binding.'
                     );
                     return;
                   }
                   update({
                     ...plan,
                     steps: plan.steps.map((s) =>
-                      s.id === stepDraft.id ? stepDraft : s,
+                      s.id === stepDraft.id ? stepDraft : s
                     ),
                   });
                   setStepDraft(null);
@@ -1284,8 +1278,8 @@ function EditorBody(props: Props) {
         testId="workflow-output-dialog"
       >
         <div data-testid="workflow-output" className="space-y-4">
-          <p className="rounded-xl bg-slate-950 p-4 text-sm font-semibold capitalize text-white">
-            {state ?? "No run"} · {runId ?? "No run selected"}
+          <p className="rounded-xl bg-slate-950 p-4 text-sm font-semibold text-white capitalize">
+            {state ?? 'No run'} · {runId ?? 'No run selected'}
           </p>
           {result.length ? (
             result.map((e, i) => (
@@ -1310,13 +1304,13 @@ function EditorBody(props: Props) {
               <p className="text-sm font-semibold">
                 {observed.details.title ??
                   observed.details.xName ??
-                  "Observed page"}
+                  'Observed page'}
               </p>
-              <p className="mt-2 whitespace-pre-wrap text-xs text-slate-600">
+              <p className="mt-2 text-xs whitespace-pre-wrap text-slate-600">
                 {observed.details.headline ??
                   observed.details.bio ??
                   observed.details.excerpt ??
-                  ""}
+                  ''}
               </p>
             </div>
           )}

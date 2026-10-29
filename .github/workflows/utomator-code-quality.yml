@@ -4,12 +4,12 @@ on:
   pull_request:
     branches: [main, feat/unified-linkedin-growth-workspace]
     paths:
-      - 'apps/backend/**'
-      - 'apps/frontend/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - '.github/workflows/utomator-code-quality.yml'
+      - "apps/backend/**"
+      - "apps/frontend/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/utomator-code-quality.yml"
   push:
     branches: [main, feat/yaml-growth-profile-pipeline]
   workflow_dispatch:
@@ -34,7 +34,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Verify backend formatting
@@ -51,7 +51,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Verify frontend formatting

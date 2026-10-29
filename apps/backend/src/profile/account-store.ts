@@ -3,8 +3,14 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import type { DocumentStore } from '../db/documents.js';
 
-export type SocialPlatform = 'linkedin' | 'x' | 'instagram' | 'github' | 'devto';
-export type AccountProfile = { displayName: string; email: string; location: string; about: string };
+export type SocialPlatform =
+  'linkedin' | 'x' | 'instagram' | 'github' | 'devto';
+export type AccountProfile = {
+  displayName: string;
+  email: string;
+  location: string;
+  about: string;
+};
 export type SocialAccount = {
   id: string;
   platform: SocialPlatform;
@@ -17,14 +23,22 @@ export type AccountState = {
   profile: AccountProfile;
   socialAccounts: SocialAccount[];
 };
-const platforms = new Set<SocialPlatform>(['linkedin', 'x', 'instagram', 'github', 'devto']);
+const platforms = new Set<SocialPlatform>([
+  'linkedin',
+  'x',
+  'instagram',
+  'github',
+  'devto',
+]);
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const field = (value: unknown, max: number, name: string) => {
-  if (typeof value !== 'string' || value.length > max) throw Error('Invalid ' + name);
+  if (typeof value !== 'string' || value.length > max)
+    throw Error('Invalid ' + name);
   return value.trim();
 };
 const asRecord = (value: unknown) => {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error('Expected object');
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    throw Error('Expected object');
   return value as Record<string, unknown>;
 };
 export function parseAccountProfile(raw: unknown): AccountProfile {
@@ -37,10 +51,16 @@ export function parseAccountProfile(raw: unknown): AccountProfile {
     throw Error('A name and valid email are required');
   return { displayName, email, location, about };
 }
-export function parseSocialAccount(raw: unknown, id: string = randomUUID()): SocialAccount {
+export function parseSocialAccount(
+  raw: unknown,
+  id: string = randomUUID()
+): SocialAccount {
   const value = asRecord(raw);
   const platform = value.platform;
-  if (typeof platform !== 'string' || !platforms.has(platform as SocialPlatform))
+  if (
+    typeof platform !== 'string' ||
+    !platforms.has(platform as SocialPlatform)
+  )
     throw Error('Unsupported platform category');
   const label = field(value.label, 100, 'account label');
   const handle = field(value.handle, 100, 'handle').replace(/^@/, '');
@@ -81,15 +101,27 @@ export function parseSocialAccount(raw: unknown, id: string = randomUUID()): Soc
   }
   if (platform === 'x' && parsed.pathname.replace(/\/$/, '') !== '/' + handle)
     throw Error('X profile handle must match its URL');
-  return { id, platform: platform as SocialPlatform, label, handle, profileUrl: parsed.href };
+  return {
+    id,
+    platform: platform as SocialPlatform,
+    label,
+    handle,
+    profileUrl: parsed.href,
+  };
 }
 
-const emptyProfile = (): AccountProfile => ({ displayName: '', email: '', location: '', about: '' });
+const emptyProfile = (): AccountProfile => ({
+  displayName: '',
+  email: '',
+  location: '',
+  about: '',
+});
 
 function storedProfile(value: unknown): AccountProfile {
   const record = asRecord(value);
   // Empty personal details are permitted until the workspace owner fills them in.
-  if (Object.keys(emptyProfile()).every((key) => record[key] === '')) return emptyProfile();
+  if (Object.keys(emptyProfile()).every((key) => record[key] === ''))
+    return emptyProfile();
   return parseAccountProfile(value);
 }
 
@@ -105,7 +137,9 @@ export class AccountStore {
   }
   async get(): Promise<AccountState> {
     try {
-      const stored = this.documents ? await this.documents.get<AccountState>('account', 'owner') : null;
+      const stored = this.documents
+        ? await this.documents.get<AccountState>('account', 'owner')
+        : null;
       // Tenant data must never fall through to the local operator's JSON records.
       if (this.documents && this.documents.ownerId !== 'local-owner' && !stored)
         return { revision: 0, profile: emptyProfile(), socialAccounts: [] };
@@ -125,9 +159,16 @@ export class AccountStore {
           if (!uuid.test(row.id)) throw Error('Invalid account ID');
           return parseSocialAccount(row, row.id);
         });
-      if (new Set(socialAccounts.map((row) => row.id)).size !== socialAccounts.length)
+      if (
+        new Set(socialAccounts.map((row) => row.id)).size !==
+        socialAccounts.length
+      )
         throw Error('Duplicate account ID');
-      return { revision: data.revision, profile: storedProfile(data.profile), socialAccounts };
+      return {
+        revision: data.revision,
+        profile: storedProfile(data.profile),
+        socialAccounts,
+      };
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
       // New workspaces must not inherit a portfolio owner's identity or social links.
@@ -136,7 +177,7 @@ export class AccountStore {
   }
   private change(
     expectedRevision: number,
-    nextState: (state: AccountState) => AccountState,
+    nextState: (state: AccountState) => AccountState
   ): Promise<AccountState> {
     if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0)
       return Promise.reject(Error('Invalid revision'));
@@ -147,19 +188,29 @@ export class AccountStore {
       const updated = nextState(current);
       updated.revision = current.revision + 1;
       if (this.documents) {
-        const existing = await this.documents.get<AccountState>('account', 'owner');
-        await this.documents.put('account', 'owner', updated, existing?.version ?? 0);
+        const existing = await this.documents.get<AccountState>(
+          'account',
+          'owner'
+        );
+        await this.documents.put(
+          'account',
+          'owner',
+          updated,
+          existing?.version ?? 0
+        );
       } else {
         await mkdir(dirname(this.file), { recursive: true, mode: 0o700 });
         const temp = this.file + '.' + randomUUID() + '.tmp';
-        await writeFile(temp, JSON.stringify(updated, null, 2) + '\n', { mode: 0o600 });
+        await writeFile(temp, JSON.stringify(updated, null, 2) + '\n', {
+          mode: 0o600,
+        });
         await rename(temp, this.file);
       }
       return updated;
     });
     this.queue = operation.then(
       () => undefined,
-      () => undefined,
+      () => undefined
     );
     return operation;
   }
@@ -170,7 +221,9 @@ export class AccountStore {
   addSocial(revision: number, value: unknown) {
     const social = parseSocialAccount(value);
     return this.change(revision, (state) => {
-      if (state.socialAccounts.some((item) => item.platform === social.platform))
+      if (
+        state.socialAccounts.some((item) => item.platform === social.platform)
+      )
         throw Error('Only one linked account is permitted per platform');
       return { ...state, socialAccounts: [...state.socialAccounts, social] };
     });
@@ -179,10 +232,20 @@ export class AccountStore {
     if (!uuid.test(id)) return Promise.reject(Error('Invalid account ID'));
     const social = parseSocialAccount(value, id);
     return this.change(revision, (state) => {
-      if (!state.socialAccounts.some((s) => s.id === id)) throw Error('Social account not found');
-      if (state.socialAccounts.some((item) => item.id !== id && item.platform === social.platform))
+      if (!state.socialAccounts.some((s) => s.id === id))
+        throw Error('Social account not found');
+      if (
+        state.socialAccounts.some(
+          (item) => item.id !== id && item.platform === social.platform
+        )
+      )
         throw Error('Only one linked account is permitted per platform');
-      return { ...state, socialAccounts: state.socialAccounts.map((s) => (s.id === id ? social : s)) };
+      return {
+        ...state,
+        socialAccounts: state.socialAccounts.map((s) =>
+          s.id === id ? social : s
+        ),
+      };
     });
   }
   // Only the connector calls this after proving ownership in the provider's browser.
@@ -202,7 +265,9 @@ export class AccountStore {
           return state;
         throw Error('Linked account identity cannot be replaced');
       }
-      if (state.socialAccounts.some((item) => item.platform === social.platform))
+      if (
+        state.socialAccounts.some((item) => item.platform === social.platform)
+      )
         throw Error('Only one linked account is permitted per platform');
       return { ...state, socialAccounts: [...state.socialAccounts, social] };
     });
@@ -210,8 +275,12 @@ export class AccountStore {
   removeSocial(revision: number, id: string) {
     if (!uuid.test(id)) return Promise.reject(Error('Invalid account ID'));
     return this.change(revision, (state) => {
-      if (!state.socialAccounts.some((s) => s.id === id)) throw Error('Social account not found');
-      return { ...state, socialAccounts: state.socialAccounts.filter((s) => s.id !== id) };
+      if (!state.socialAccounts.some((s) => s.id === id))
+        throw Error('Social account not found');
+      return {
+        ...state,
+        socialAccounts: state.socialAccounts.filter((s) => s.id !== id),
+      };
     });
   }
 }

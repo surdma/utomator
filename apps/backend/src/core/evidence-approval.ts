@@ -22,7 +22,7 @@ export function evidenceRecord(
   sourceStepId: string,
   sourceSchema: EvidenceSourceSchema,
   url: string,
-  content: string,
+  content: string
 ): EvidenceRecord {
   if (
     !stepIdPattern.test(sourceStepId) ||
@@ -53,7 +53,8 @@ export function isEvidenceRecord(raw: unknown): raw is EvidenceRecord {
     value.schema === 'evidence/v1' &&
     typeof value.sourceStepId === 'string' &&
     stepIdPattern.test(value.sourceStepId) &&
-    (value.sourceSchema === 'page-observation/v1' || value.sourceSchema === 'owner-evidence/v1') &&
+    (value.sourceSchema === 'page-observation/v1' ||
+      value.sourceSchema === 'owner-evidence/v1') &&
     typeof value.url === 'string' &&
     value.url.length <= 500 &&
     URL.canParse(value.url) &&
@@ -63,7 +64,10 @@ export function isEvidenceRecord(raw: unknown): raw is EvidenceRecord {
   );
 }
 /** An approval is pinned to evidence; it never grants general provider mutation rights. */
-export function approvalDecision(evidence: EvidenceRecord, approved: boolean): ApprovalDecision {
+export function approvalDecision(
+  evidence: EvidenceRecord,
+  approved: boolean
+): ApprovalDecision {
   if (!isEvidenceRecord(evidence) || typeof approved !== 'boolean')
     throw Error('Approval requires validated evidence and a boolean decision');
   return {
@@ -85,8 +89,17 @@ export function isApprovalDecision(raw: unknown): raw is ApprovalDecision {
     sha256Pattern.test(value.evidenceDigest)
   );
 }
-export function isApprovalFor(raw: unknown, evidence: EvidenceRecord): raw is ApprovalDecision {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw) || !isEvidenceRecord(evidence)) return false;
+export function isApprovalFor(
+  raw: unknown,
+  evidence: EvidenceRecord
+): raw is ApprovalDecision {
+  if (
+    !raw ||
+    typeof raw !== 'object' ||
+    Array.isArray(raw) ||
+    !isEvidenceRecord(evidence)
+  )
+    return false;
   const value = raw as Partial<ApprovalDecision>;
   return (
     value.schema === 'approval/v1' &&

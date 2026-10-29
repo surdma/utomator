@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { motion } from "framer-motion";
-import Link from "next/link";
+import { motion } from 'framer-motion';
+import Link from 'next/link';
 
 function ArrowIcon({ className }: { className?: string }) {
   return (

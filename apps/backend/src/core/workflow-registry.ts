@@ -1,5 +1,12 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdir, readFile, readdir, rename, unlink, writeFile } from 'node:fs/promises';
+import {
+  mkdir,
+  readFile,
+  readdir,
+  rename,
+  unlink,
+  writeFile,
+} from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { validatePlan, templates, type WorkflowPlan } from './workflow-plan.js';
 import type { Action, Platform } from './types.js';
@@ -14,16 +21,19 @@ export interface WorkflowRecord {
   updatedAt: string;
   plan: WorkflowPlan;
 }
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const templatePattern = /^[a-zA-Z][a-zA-Z0-9_-]{0,79}$/;
 
 function validatedPlan(raw: unknown): WorkflowPlan {
-  if (!raw || typeof raw !== 'object') throw Error('Workflow definition is required');
+  if (!raw || typeof raw !== 'object')
+    throw Error('Workflow definition is required');
   const plan = raw as Partial<WorkflowPlan>;
   return validatePlan(raw, plan.platform as Platform, plan.action as Action);
 }
 function checkedId(id: string): string {
-  if (typeof id !== 'string' || !uuidPattern.test(id)) throw Error('Invalid workflow identifier');
+  if (typeof id !== 'string' || !uuidPattern.test(id))
+    throw Error('Invalid workflow identifier');
   return id.toLowerCase();
 }
 function checkedTemplateId(value: unknown): string | null {
@@ -42,13 +52,18 @@ export class WorkflowRegistry {
   }
   constructor(
     private readonly root = resolve(process.cwd(), '.runtime', 'workflows'),
-    private readonly legacyRoot = resolve(process.cwd(), '.runtime', 'workflow-plans'),
+    private readonly legacyRoot = resolve(
+      process.cwd(),
+      '.runtime',
+      'workflow-plans'
+    )
   ) {}
   private pathFor(id: string): string {
     return resolve(this.root, checkedId(id) + '.json');
   }
   private revisionPath(id: string, revision: number): string {
-    if (!Number.isSafeInteger(revision) || revision < 1) throw Error('Invalid workflow revision');
+    if (!Number.isSafeInteger(revision) || revision < 1)
+      throw Error('Invalid workflow revision');
     return resolve(this.root, 'revisions', checkedId(id), revision + '.json');
   }
   private serialize<T>(operation: () => Promise<T>): Promise<T> {
@@ -68,40 +83,69 @@ export class WorkflowRegistry {
   }
   private async persist(record: WorkflowRecord): Promise<void> {
     if (this.documents) {
-      const current = await this.documents.get<WorkflowRecord>('workflows', record.id);
+      const current = await this.documents.get<WorkflowRecord>(
+        'workflows',
+        record.id
+      );
       const revisionKey = record.id + ':' + record.revision;
-      const revision = await this.documents.get<WorkflowRecord>('workflow-revisions', revisionKey);
-      if (revision) throw Error('Version conflict: workflow revision already exists');
+      const revision = await this.documents.get<WorkflowRecord>(
+        'workflow-revisions',
+        revisionKey
+      );
+      if (revision)
+        throw Error('Version conflict: workflow revision already exists');
       await this.documents.put('workflow-revisions', revisionKey, record, 0);
       try {
-        await this.documents.put('workflows', record.id, record, current?.version ?? 0);
+        await this.documents.put(
+          'workflows',
+          record.id,
+          record,
+          current?.version ?? 0
+        );
       } catch (error) {
-        await this.documents.remove('workflow-revisions', revisionKey, 1).catch(() => undefined);
+        await this.documents
+          .remove('workflow-revisions', revisionKey, 1)
+          .catch(() => undefined);
         throw error;
       }
       return;
     }
-    await mkdir(resolve(this.root, 'revisions', record.id), { recursive: true, mode: 0o700 });
+    await mkdir(resolve(this.root, 'revisions', record.id), {
+      recursive: true,
+      mode: 0o700,
+    });
     // The snapshot is created exactly once; the mutable pointer is updated only afterward.
     const revisionPath = this.revisionPath(record.id, record.revision);
-    await writeFile(revisionPath, JSON.stringify(record, null, 2) + '\n', { mode: 0o600, flag: 'wx' });
+    await writeFile(revisionPath, JSON.stringify(record, null, 2) + '\n', {
+      mode: 0o600,
+      flag: 'wx',
+    });
     try {
-      await this.atomic(this.pathFor(record.id), JSON.stringify(record, null, 2) + '\n');
+      await this.atomic(
+        this.pathFor(record.id),
+        JSON.stringify(record, null, 2) + '\n'
+      );
     } catch (error) {
       await unlink(revisionPath).catch(() => undefined);
       throw error;
     }
   }
   async get(id: string, revision?: number): Promise<WorkflowRecord | null> {
-    const path = revision === undefined ? this.pathFor(id) : this.revisionPath(id, revision);
+    const path =
+      revision === undefined
+        ? this.pathFor(id)
+        : this.revisionPath(id, revision);
     try {
       const stored = this.documents
         ? await this.documents.get<WorkflowRecord>(
             revision === undefined ? 'workflows' : 'workflow-revisions',
-            revision === undefined ? checkedId(id) : checkedId(id) + ':' + revision,
+            revision === undefined
+              ? checkedId(id)
+              : checkedId(id) + ':' + revision
           )
         : null;
-      if (this.documents && this.documents.ownerId !== 'local-owner' && !stored) return null;
+      if (this.documents && this.documents.ownerId !== 'local-owner' && !stored)
+        return null;
       const record = stored
         ? stored.value
         : (JSON.parse(await readFile(path, 'utf8')) as WorkflowRecord);
@@ -139,7 +183,11 @@ export class WorkflowRegistry {
       return record;
     });
   }
-  async update(id: string, expectedRevision: number, raw: unknown): Promise<WorkflowRecord> {
+  async update(
+    id: string,
+    expectedRevision: number,
+    raw: unknown
+  ): Promise<WorkflowRecord> {
     const key = checkedId(id);
     const plan = validatedPlan(raw);
     if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1)
@@ -147,7 +195,8 @@ export class WorkflowRegistry {
     return this.serialize(async () => {
       const previous = await this.get(key);
       if (!previous) throw Error('Workflow not found');
-      if (previous.revision !== expectedRevision) throw Error('Version conflict: workflow changed');
+      if (previous.revision !== expectedRevision)
+        throw Error('Version conflict: workflow changed');
       const record: WorkflowRecord = {
         ...previous,
         revision: previous.revision + 1,
@@ -181,7 +230,9 @@ export class WorkflowRegistry {
         let plan: WorkflowPlan;
         try {
           plan = validatedPlan(
-            JSON.parse(await readFile(resolve(this.legacyRoot, key + '.json'), 'utf8')),
+            JSON.parse(
+              await readFile(resolve(this.legacyRoot, key + '.json'), 'utf8')
+            )
           );
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
@@ -212,18 +263,27 @@ export class WorkflowRegistry {
       }
       const records: WorkflowRecord[] = [];
       if (this.documents) {
-        const dbRecords = await this.documents.list<WorkflowRecord>('workflows');
+        const dbRecords =
+          await this.documents.list<WorkflowRecord>('workflows');
         for (const row of dbRecords) {
           const record = await this.get(row.key);
           if (record) records.push(record);
         }
       }
-      for (const name of this.documents?.ownerId === 'local-owner' || !this.documents ? names : []) {
-        if (!name.endsWith('.json') || !uuidPattern.test(name.slice(0, -5))) continue;
+      for (const name of this.documents?.ownerId === 'local-owner' ||
+      !this.documents
+        ? names
+        : []) {
+        if (!name.endsWith('.json') || !uuidPattern.test(name.slice(0, -5)))
+          continue;
         const record = await this.get(name.slice(0, -5));
-        if (record && !records.some((current) => current.id === record.id)) records.push(record);
+        if (record && !records.some((current) => current.id === record.id))
+          records.push(record);
       }
-      return records.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id));
+      return records.sort(
+        (a, b) =>
+          b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id)
+      );
     });
   }
 }
