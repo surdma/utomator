@@ -1,7 +1,7 @@
 "use client";
 
 import {useCallback,useEffect,useRef,useState} from "react";
-import {Check,ChevronRight,ExternalLink,LoaderCircle,RefreshCw,ShieldCheck,Trash2,Monitor,Smartphone,LockKeyhole,Radio} from "lucide-react";
+import {LoaderCircle} from "lucide-react";
 import {providerMeta,type ProviderKey} from "./provider-meta";
 import StudioDialog from "@/components/ui/studio-dialog";
 import {LinkedInIcon} from "@/components/svgs";
@@ -201,7 +201,6 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
   const actionText=operation==="connect"?"Connect "+providerMeta[network].name:status==="connected"?"Check connection":"Verify connection";
   const browserLoginAvailable=chosen?.interactiveSignIn!==false&&capabilities?.browserAvailable===true&&!mobileClient;
   const canStart=Boolean(capabilities?.browserAvailable)&&!mobileClient;
-  const NetworkIcon=providerMeta[network].icon;
   const browserSupported=network==="linkedin"||network==="x";
 
   return <>
@@ -211,124 +210,151 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
     </button>}
     <StudioDialog open={open} onDismiss={()=>{if(!busy)setOpen(false);}}
       dismissible={!busy} testId="connector-onboarding-dialog" title="Connect your social accounts"
-      description="Verified social identities and local browser permissions" size="wide">
-      <div data-testid="linkedin-connector" className="mx-auto max-w-4xl space-y-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-teal-700">Connection studio</p>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">Choose a provider and sign in securely. Utomator discovers the verified account automatically; no profile URL is required.</p>
+      description="Choose a network and verify the account you want to use.">
+      <div data-testid="linkedin-connector" className="mx-auto flex max-w-2xl flex-col gap-5">
+        <section aria-labelledby="connector-network-heading">
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
+            <h3 id="connector-network-heading" className="text-sm font-semibold text-slate-900">Select a network</h3>
+            <p className="text-xs text-slate-500">One account per network</p>
           </div>
-          <span className="inline-flex shrink-0 items-center gap-2 self-start rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700"><LockKeyhole className="size-4"/> One account per provider</span>
-        </div>
-        <div aria-label="Social networks" className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-          {(["linkedin","x","instagram","github","devto"] as const).map(key=><button key={key} type="button"
-            aria-pressed={network===key} onClick={()=>{setNetwork(key);setSelected(null);setError("");setMessage("");}}
-            className={"flex min-h-14 items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 "+(network===key?"border-slate-900 bg-slate-900 text-white":"border-slate-200 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50")}>
-            {(() => {const Icon=providerMeta[key].icon;return <Icon className="size-4 shrink-0"/>;})()}{providerMeta[key].name}</button>)}
-        </div>
-        <div className="flex flex-wrap items-center gap-3 rounded-3xl bg-slate-950 p-5 text-white sm:p-6">
-          <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-white/15 text-white">
-            <NetworkIcon className="size-6"/>
-          </span>
-          <div className="min-w-0 flex-1">
-            <h3 className="text-lg font-semibold text-white">{providerMeta[network].name}</h3>
-            <p className="text-sm leading-5 text-slate-300">Verify ownership before any automation runs</p>
+          <div aria-label="Social networks" className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+            {(["linkedin","x","instagram","github","devto"] as const).map(key=>{
+              const Icon=providerMeta[key].icon;
+              return <button key={key} type="button" aria-pressed={network===key}
+                onClick={()=>{setNetwork(key);setSelected(null);setConfirming(false);setError("");setMessage("");}}
+                className={"flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 "+(key==="devto"?"col-span-2 sm:col-span-1 ":"")+
+                  (network===key?"border-slate-950 bg-slate-950 text-white":"border-slate-200 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50")}>
+                <Icon className="size-5! shrink-0" aria-hidden="true"/>
+                <span className="min-w-0">{providerMeta[key].name}</span>
+              </button>;
+            })}
           </div>
-          <span data-testid="connector-status" className={"ml-auto rounded-full px-3 py-2 text-xs font-semibold "+
-            (status==="connected"?"bg-emerald-100 text-emerald-800":
-              status==="sign-in-open"?"bg-amber-100 text-amber-900":"bg-white/15 text-white")}>
-            {status==="connected"?"Session connected":status==="sign-in-open"?"Sign-in in progress":status==="api-required"||!browserSupported?"Unavailable":oauth?.connected?"Publishing connected":"Not connected"}
-          </span>
-        </div>
-        <ol aria-label="Connection progress" className="grid grid-cols-3 gap-2 text-center text-xs font-semibold text-slate-700">
-          {["Choose provider","Sign in","Verify identity"].map((step,index)=><li key={step} className={"rounded-xl border px-2 py-3 "+(index===0||(index===1&&status)||(index===2&&status==="connected")?"border-teal-200 bg-teal-50 text-teal-900":"border-slate-200 bg-slate-50")}>{index+1}. {step}</li>)}
-        </ol>
-        <div className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
-          {mobileClient?<Smartphone className="mt-1 size-5 shrink-0"/>:<Monitor className="mt-1 size-5 shrink-0"/>}
-          <p>{mobileClient?"Mobile Chrome and Safari cannot share their authenticated tabs with server-side Playwright. Use provider OAuth when supported; local browser linking requires desktop.":
-            !capabilities?.browserAvailable?"This server cannot open an interactive login on your device. Connect through a local desktop agent or a supported OAuth provider.":
-            capabilities.mode==="attached"?"Local Chrome attachment enabled: sign-in opens a new tab in your authorized Chrome profile.":
-            "Isolated Chrome mode: the browser has its own profile. To reuse an existing Chrome login, opt in to local Chrome attachment."}</p>
-        </div>
-        {!ready?<p role="status" className="py-6 text-center text-sm text-slate-500">Checking your connections...</p>:<>
-          {available.length>1&&<label className="block text-xs font-semibold text-slate-600">Legacy linked accounts
-            <select aria-label="Legacy linked account" value={chosen?.id||""} onChange={e=>{setSelected(e.target.value);setConfirming(false);setError("");}}
-              className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm">
-              {available.map(item=><option key={item.id} value={item.id}>{item.label} (@{item.handle})</option>)}
-            </select>
-          </label>}
-          {available.length>1&&<p role="alert" className="text-xs text-amber-800">Legacy duplicates detected. Remove the extra identities from your profile before linking a replacement.</p>}
-          {chosen?<div className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="break-words [overflow-wrap:anywhere] text-sm font-semibold text-slate-900">{chosen.label}</p>
-                <p className="mt-1 break-words [overflow-wrap:anywhere] text-xs text-slate-500">@{chosen.handle}</p>
-              </div>
-              {activeId===chosen.id&&status==="connected"&&
-                <span className="flex items-center gap-1 text-xs font-semibold text-emerald-700"><Check className="size-4"/>In use</span>}
+        </section>
+
+        <section aria-label={providerMeta[network].name+" connection"} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3.5 sm:px-5">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-slate-500">Selected network</p>
+              <h3 className="text-lg font-semibold leading-7 text-slate-950">{providerMeta[network].name}</h3>
             </div>
-            <p className="mt-3 text-xs text-slate-500" title={chosen.verifiedAt||undefined}>
-              {status==="connected"?shortDate(chosen.verifiedAt):status==="sign-in-open"?
-                "Waiting for provider sign-in. Automatic checks continue without reloading your login page.":"Connect to start using supported workflows."}
-            </p>
-          </div>:<div className="rounded-xl border border-slate-200 bg-white p-4 text-center">
-            <p className="text-sm text-slate-600">No {providerMeta[network].name} account linked. Sign in with the provider to discover your profile automatically.</p>
-            {browserSupported?<button type="button" disabled={busy||!canStart} className={button+" mt-3 bg-slate-950 px-5 text-white"}
-              onClick={()=>void beginNewConnection(network as "linkedin"|"x")}>Connect {providerMeta[network].name}</button>:
-              <p className="mt-3 text-xs font-semibold text-amber-800">Official API connector not available yet. Sync is disabled.</p>}
-          </div>}
-          {error&&<p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs leading-5 text-rose-800">{error}</p>}
-          {message&&<p role="status" className="rounded-xl bg-teal-50 px-3 py-2 text-xs leading-5 text-teal-900">{message}</p>}
-          {chosen&&browserSupported&&<div className="flex flex-col gap-2">
-            {browserLoginAvailable?<button type="button" disabled={busy} onClick={()=>void command(chosen.id,operation)}
-              className={button+" w-full bg-[#0a66c2] text-white hover:bg-[#0857a8]"}>
-              {working&&workingId===chosen.id?<LoaderCircle className="size-4 animate-spin"/>:
-                status==="connected"?<RefreshCw className="size-4"/>:<NetworkIcon className="size-4"/>}
-              {working&&workingId===chosen.id?"Checking connection...":actionText}
-            </button>:network==="linkedin"?<button type="button" disabled={busy||!oauth?.configured} onClick={()=>void authorizePublishing(chosen.id)}
-              className={button+" w-full bg-[#0a66c2] text-white hover:bg-[#0857a8]"}>
-              <LinkedInIcon className="size-4"/>{oauth?.connected?"Renew LinkedIn publishing":"Connect LinkedIn for publishing"}
-            </button>:<p className="text-sm text-amber-800">Local desktop connector unavailable. This provider cannot use mobile browser cookies.</p>}
-            {!browserLoginAvailable&&<p className="text-xs text-slate-500">
-              Browser-based workflows need an interactive connection host. This sign-in authorizes only supported API publishing.
-            </p>}
-            {working&&<button type="button" onClick={()=>abortRef.current?.abort()} className="min-h-11 text-xs font-semibold text-slate-600">Cancel</button>}
-            {network==="linkedin"&&status==="connected"&&activeId!==chosen.id&&<button type="button" disabled={busy}
-              onClick={()=>{onSelect(chosen);setMessage("LinkedIn is selected for your workspace.");}}
-              className={button+" w-full border border-slate-200 bg-white text-slate-800"}>
-              Use this account <ChevronRight className="size-4"/>
-            </button>}
-            {status==="sign-in-open"&&<>
-              <p role="status" className="flex items-center justify-center gap-2 rounded-xl bg-teal-50 p-3 text-sm text-teal-900"><Radio className="size-4 animate-pulse"/> Automatically checking sign-in. Verify now is also available.</p>
-              <button type="button" disabled={busy} onClick={()=>void command(chosen.id,"disconnect")}
-                className={button+" w-full border border-slate-200 text-slate-700"}>Cancel connection</button>
+            <span data-testid="connector-status" className={"inline-flex min-h-8 max-w-full items-center rounded-full px-3 py-1 text-xs font-semibold leading-5 "+
+              (status==="connected"?"bg-emerald-100 text-emerald-900":
+                status==="sign-in-open"?"bg-amber-100 text-amber-950":
+                status==="api-required"||!browserSupported?"bg-slate-200 text-slate-700":"bg-white text-slate-700 ring-1 ring-inset ring-slate-200")}>
+              {status==="connected"?"Session connected":status==="sign-in-open"?"Sign-in in progress":status==="api-required"||!browserSupported?"Unavailable":oauth?.connected?"Publishing connected":"Not connected"}
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-4 p-4 sm:p-5">
+            {!ready?<p role="status" className="py-6 text-center text-sm text-slate-600">Checking your connections...</p>:<>
+              {available.length>1&&<>
+                <label className="flex flex-col gap-2 text-sm font-medium text-slate-800">
+                  Legacy linked accounts
+                  <select aria-label="Legacy linked account" value={chosen?.id||""}
+                    onChange={e=>{setSelected(e.target.value);setConfirming(false);setError("");}}
+                    className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
+                    {available.map(item=><option key={item.id} value={item.id}>{item.label} (@{item.handle})</option>)}
+                  </select>
+                </label>
+                <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm leading-5 text-amber-900">
+                  Legacy duplicates detected. Remove the extra identities from your profile before linking a replacement.
+                </p>
+              </>}
+              {chosen?<div className="min-w-0">
+                <p className="break-words text-base font-semibold leading-6 text-slate-950 [overflow-wrap:anywhere]">{chosen.label}</p>
+                {chosen.handle&&<p className="mt-1 break-words text-sm leading-5 text-slate-600 [overflow-wrap:anywhere]">@{chosen.handle}</p>}
+                {activeId===chosen.id&&status==="connected"&&
+                  <p className="mt-2 text-xs font-semibold text-emerald-800">In use in your workspace</p>}
+                <p className="mt-3 text-sm leading-6 text-slate-600" title={chosen.verifiedAt||undefined}>
+                  {status==="connected"?shortDate(chosen.verifiedAt):status==="sign-in-open"?
+                    "Finish signing in with the provider. We will check for completion automatically.":
+                    "This account needs a verified session before workflows can run."}
+                </p>
+              </div>:<div className="flex flex-col gap-3">
+                {browserSupported?<p className="text-sm leading-6 text-slate-600">
+                  No {providerMeta[network].name} account linked. Sign in with the provider and your profile will be detected automatically.
+                </p>:<p className="rounded-xl bg-slate-50 p-3 text-sm leading-6 text-slate-700">
+                  Official API connector not available yet. Sync is disabled.
+                </p>}
+                {browserSupported&&<button type="button" disabled={busy||!canStart}
+                  className={button+" w-full bg-slate-950 text-white hover:bg-slate-800"}
+                  onClick={()=>void beginNewConnection(network as "linkedin"|"x")}>
+                  {saving?<LoaderCircle className="size-4 animate-spin" aria-hidden="true"/>:null}
+                  Connect {providerMeta[network].name}
+                </button>}
+              </div>}
+              {error&&<p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm leading-6 text-rose-900">{error}</p>}
+              {message&&<p role="status" className="rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm leading-6 text-teal-950">{message}</p>}
+
+              {chosen&&browserSupported&&<div className="flex flex-col gap-3">
+                {browserLoginAvailable?<button type="button" disabled={busy}
+                  onClick={()=>void command(chosen.id,operation)}
+                  className={button+" w-full bg-slate-950 text-white hover:bg-slate-800"}>
+                  {working&&workingId===chosen.id?<LoaderCircle className="size-4 animate-spin" aria-hidden="true"/>:null}
+                  {working&&workingId===chosen.id?"Checking connection...":actionText}
+                </button>:network==="linkedin"?<button type="button" disabled={busy||!oauth?.configured}
+                  onClick={()=>void authorizePublishing(chosen.id)}
+                  className={button+" w-full bg-slate-950 text-white hover:bg-slate-800"}>
+                  {oauth?.connected?"Renew LinkedIn publishing":"Connect LinkedIn for publishing"}
+                </button>:<p className="text-sm leading-6 text-amber-900">
+                  Local desktop connector unavailable. This provider cannot use mobile browser cookies.
+                </p>}
+                {!browserLoginAvailable&&<p className="text-sm leading-6 text-slate-600">
+                  Browser-based workflows need an interactive connection host. Publishing authorization does not grant browser access.
+                </p>}
+                {working&&<button type="button" onClick={()=>abortRef.current?.abort()}
+                  className={button+" w-full border border-slate-200 text-slate-700 hover:bg-slate-50"}>Cancel</button>}
+                {network==="linkedin"&&status==="connected"&&activeId!==chosen.id&&<button type="button" disabled={busy}
+                  onClick={()=>{onSelect(chosen);setMessage("LinkedIn is selected for your workspace.");}}
+                  className={button+" w-full border border-slate-200 bg-white text-slate-800 hover:bg-slate-50"}>
+                  Use this account
+                </button>}
+                {status==="sign-in-open"&&<>
+                  <p role="status" className="rounded-xl bg-blue-50 p-3 text-sm leading-6 text-blue-950">
+                    Automatically checking sign-in. You can also verify now.
+                  </p>
+                  <button type="button" disabled={busy} onClick={()=>void command(chosen.id,"disconnect")}
+                    className={button+" w-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}>
+                    Cancel connection
+                  </button>
+                </>}
+                {network==="linkedin"&&browserLoginAvailable&&oauth?.configured&&<details className="rounded-xl border border-slate-200 p-3 text-sm text-slate-700">
+                  <summary className="min-h-11 cursor-pointer py-3 font-medium text-slate-800">
+                    Publishing access: {oauth.connected?"Authorized":"Not authorized"}
+                  </summary>
+                  <button type="button" disabled={busy} onClick={()=>void authorizePublishing(chosen.id)}
+                    className={button+" mt-2 w-full border border-slate-200 bg-white text-slate-800 hover:bg-slate-50"}>
+                    {oauth.connected?"Renew publishing access":"Authorize publishing"}
+                  </button>
+                </details>}
+                {confirming?<div className="grid grid-cols-2 gap-2">
+                  <button type="button" disabled={busy} onClick={()=>void command(chosen.id,"disconnect")}
+                    className={button+" border border-rose-300 bg-rose-50 px-2 text-rose-900 hover:bg-rose-100"}>Confirm disconnect</button>
+                  <button type="button" onClick={()=>setConfirming(false)}
+                    className={button+" border border-slate-200 px-2 text-slate-800 hover:bg-slate-50"}>Cancel</button>
+                </div>:status==="connected"&&<button type="button" disabled={busy}
+                  onClick={()=>setConfirming(true)}
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-rose-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950">
+                  Disconnect
+                </button>}
+              </div>}
+              <div className="rounded-xl bg-slate-50 px-3 py-3 text-sm leading-6 text-slate-600">
+                <p>{mobileClient?"Mobile Chrome and Safari cannot share their authenticated tabs with server-side Playwright. Local browser linking requires a desktop session.":
+                  !capabilities?.browserAvailable?"This server cannot open an interactive login on your device. Use a local desktop agent or a supported provider authorization.":
+                  capabilities.mode==="attached"?"Local Chrome attachment enabled. Sign-in opens in a new tab in your authorized Chrome profile.":
+                  "Isolated Chrome mode uses a separate browser profile. To reuse a Chrome login, opt in to local Chrome attachment."}</p>
+              </div>
+              {onManageProfile&&<button type="button" onClick={()=>{setOpen(false);onManageProfile();}}
+                className={button+" w-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}>
+                Manage profiles
+              </button>}
             </>}
-            {network==="linkedin"&&browserLoginAvailable&&oauth?.configured&&<details className="rounded-xl border border-slate-200 p-3 text-xs text-slate-600">
-              <summary className="cursor-pointer font-semibold text-slate-800">
-                Publishing access: {oauth.connected?"Authorized":"Not authorized"}
-              </summary>
-              <button type="button" disabled={busy} onClick={()=>void authorizePublishing(chosen.id)}
-                className={button+" mt-3 w-full border border-slate-200 bg-white text-[#0a66c2]"}>
-                {oauth.connected?"Renew publishing access":"Authorize publishing"}
-              </button>
-            </details>}
-            {confirming?<div className="flex gap-2">
-              <button type="button" disabled={busy} onClick={()=>void command(chosen.id,"disconnect")}
-                className={button+" flex-1 border border-rose-300 bg-rose-50 text-rose-800"}>Confirm disconnect</button>
-              <button type="button" onClick={()=>setConfirming(false)} className={button+" border border-slate-200"}>Cancel</button>
-            </div>:status==="connected"&&<button type="button" disabled={busy}
-              onClick={()=>setConfirming(true)} className="mx-auto flex min-h-11 items-center gap-2 text-xs font-semibold text-slate-500 hover:text-rose-700">
-              <Trash2 className="size-3.5"/> Disconnect
-            </button>}
-          </div>}
-          {onManageProfile&&<button type="button" onClick={()=>{setOpen(false);onManageProfile();}}
-            className="mx-auto flex min-h-11 items-center gap-1 text-xs text-slate-500 hover:text-slate-800">
-            Manage profiles <ExternalLink className="size-3.5"/>
-          </button>}
-        </>}
-        <p className="flex items-start gap-2 border-t border-slate-100 pt-3 text-[11px] leading-5 text-slate-500">
-          <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[#0a66c2]"/>
-          Utomator does not collect your social password. A local Chrome attachment is opt-in, and hosted or mobile use requires official provider authorization. Workflows still require permission and review.
+          </div>
+        </section>
+
+        <p className="px-1 text-xs leading-5 text-slate-600">
+          Utomator does not collect your social password. Local Chrome attachment is optional.
+          Hosted and mobile connections require supported provider authorization; workflows still require your review.
         </p>
       </div>
     </StudioDialog>

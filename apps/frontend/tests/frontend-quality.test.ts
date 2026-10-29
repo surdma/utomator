@@ -59,6 +59,31 @@ async function assertAxe(page: Page, info: TestInfo, label: string) {
   expect(failures, failures.join("\n")).toEqual([]);
 }
 
+test("provider icons have one consistent size and no redundant status graphics", async ({ page }) => {
+  await installConnectorApi(page, []);
+  const dialog = await openConnectorDialog(page);
+  const choices = dialog.locator('[aria-label="Social networks"] button');
+  await expect(choices).toHaveCount(5);
+  const icons = choices.locator("svg");
+  await expect(icons).toHaveCount(5);
+  const dimensions = await icons.evaluateAll(elements =>
+    elements.map(element => {
+      const rect = element.getBoundingClientRect();
+      return { width: rect.width, height: rect.height };
+    }));
+  for (const icon of dimensions) {
+    expect(icon.width).toBeGreaterThanOrEqual(19);
+    expect(icon.width).toBeLessThanOrEqual(21);
+    expect(icon.height).toBeGreaterThanOrEqual(19);
+    expect(icon.height).toBeLessThanOrEqual(21);
+  }
+  await expect(dialog.getByTestId("linkedin-connector").locator("svg")).toHaveCount(5);
+  await expect(dialog.locator('[aria-label="Connection progress"]')).toHaveCount(0);
+  const width = await dialog.evaluate(element => element.getBoundingClientRect().width);
+  expect(width).toBeLessThanOrEqual(700);
+  await assertLayout(page);
+});
+
 test("provider choices, connection CTA, and the full dialog fit the active viewport", async ({ page }, info) => {
   await installConnectorApi(page, []);
   const dialog = await openConnectorDialog(page);
