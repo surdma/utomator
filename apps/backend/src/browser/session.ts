@@ -1,6 +1,9 @@
-import { mkdir } from 'node:fs/promises';
+import { mkdir, rm } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
+import type { VaultPayload } from '../core/session-vault.js';
+import { seedOriginStorage } from './vault-probe.js';
 
 // Prefer Chrome that is already running with a local debugging endpoint.
 // A normal Chrome window cannot be attached unless remote debugging was enabled.
@@ -48,11 +51,12 @@ export class BrowserSession {
   private browser?: Browser;
   private context?: BrowserContext;
   private page?: Page;
-  private connection?: 'existing-chrome' | 'persistent-profile';
+  private connection?: 'existing-chrome' | 'persistent-profile' | 'vault-restored';
+  private scratchDir?: string;
 
   get currentPage(): Page | undefined { return this.page; }
 
-  get kind(): 'existing-chrome' | 'persistent-profile' | undefined {
+  get kind(): 'existing-chrome' | 'persistent-profile' | 'vault-restored' | undefined {
     return this.connection;
   }
 
@@ -100,6 +104,44 @@ export class BrowserSession {
     return this.page;
   }
 
+  /**
+   * Hosted vault restore: rebuild the saved connector session inside a
+   * throwaway scratch context. The vault record (snowflake DB namespace)
+   * stays the only durable credential surface; this directory is deleted on close.
+   * Browser hints replay LinkedIn's observed client fingerprint so a restored
+   * session never presents a second tracked profile shape.
+   */
+  async openRestored(payload: VaultPayload): Promise<Page> {
+    if (this.page) throw new Error('Browser session is already in use');
+    const hints = payload.browserHints;
+    const dir = resolve('.runtime', 'chrome', 'scratch', randomUUID());
+    await mkdir(dir, { recursive: true, mode: 0o700 });
+    this.scratchDir = dir;
+    this.context = await chromium.launchPersistentContext(dir, {
+      headless: process.env.HEADLESS === 'true',
+      userAgent: hints.userAgent,
+      viewport: { width: hints.viewport.width, height: hints.viewport.height },
+      ...(hints.locale ? { locale: hints.locale } : {}),
+      ...(hints.timezone ? { timezoneId: hints.timezone } : {}),
+      ...(typeof hints.deviceScaleFactor === 'number'
+        ? { deviceScaleFactor: hints.deviceScaleFactor } : {}),
+      acceptDownloads: false,
+    });
+    if (payload.cookies.length) await this.context.addCookies(payload.cookies);
+    if (payload.originState.length) {
+      const page = this.context.pages()[0] ?? await this.context.newPage();
+      try {
+        await seedOriginStorage(page, payload.originState);
+      } finally {
+        await page.close().catch(() => {});
+      }
+    }
+    this.page = this.context.pages()[0] ?? await this.context.newPage();
+    this.connection = 'vault-restored';
+    this.page.setDefaultTimeout(12000);
+    return this.page;
+  }
+
   async close(): Promise<void> {
     try {
       if (this.browser) await this.page?.close();
@@ -110,6 +152,12 @@ export class BrowserSession {
       // Reusing it prevents one workflow from disconnecting other active runs.
       this.page = undefined; this.context = undefined; this.browser = undefined;
       this.connection = undefined;
+      // A vault scratch context is disposable: the DB record is the credential surface.
+      if (this.scratchDir) {
+        const scratch = this.scratchDir;
+        this.scratchDir = undefined;
+        await rm(scratch, { recursive: true, force: true }).catch(() => {});
+      }
     }
   }
 }

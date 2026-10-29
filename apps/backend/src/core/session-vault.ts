@@ -132,7 +132,7 @@ function assertPayloadShape(payload:VaultPayload){
  * CAS discipline ConnectorService uses for its own records. An explicit master
  * key keeps callers (and tests) independent of process env snapshots. */
 export function saveVaultPayload(documents:DocumentStore,connectorId:string,payload:VaultPayload,
-  master:Buffer=loadVaultMasterKey()):Promise<number>{
+  master:Buffer|null=loadVaultMasterKey()):Promise<number>{
   const plaintext=serializeVaultPayload(payload);
   const ownerKey=masterFor(documents,master);
   const envelope=encryptSession(ownerKey,plaintext);
@@ -144,7 +144,7 @@ export function saveVaultPayload(documents:DocumentStore,connectorId:string,payl
 }
 
 export function loadVaultPayload(documents:DocumentStore,connectorId:string,
-  master:Buffer=loadVaultMasterKey()):Promise<VaultPayload|null>{
+  master:Buffer|null=loadVaultMasterKey()):Promise<VaultPayload|null>{
   return documents.get<VaultRecord>(VAULT_NAMESPACE,connectorId).then(record=>{
     // The version pin travels with the parsed payload so callers can still
     // CAS-update the same record they loaded.
