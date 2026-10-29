@@ -88,6 +88,8 @@ export class ProfileGrowthCoordinator {
     const counts = {total: sectionIds.length, ownerSupplied: coverage.filter(c => c.evidence).length,
       missing: coverage.filter(c => !c.evidence).length, independentlyProviderVerified: 0};
     const childState = child?.state ?? (value.status === 'active' ? 'unavailable' : null);
+    const releasePending = value.status === 'active' && childState === 'completed' &&
+      !this.runner.isIdle();
     return {
       ...value, currentChild: child, currentStage: stage,
       pipelineRuns: value.stages.map(item => ({id: item.id, childRunId: item.childRunId,
@@ -97,7 +99,8 @@ export class ProfileGrowthCoordinator {
       currentPageEvidence: pageEvidence, coverage, counts,
       state: value.status === 'active' ? childState : value.status,
       canAdvance: value.status === 'active' && childState === 'completed' &&
-        Boolean(pageEvidence),
+        Boolean(pageEvidence) && !releasePending,
+      releasePending,
       outcomeNotice: 'Read-only browser observations and owner-supplied evidence are recorded separately. No section is independently provider-verified and no external profile change or growth outcome is claimed.',
     };
   }
@@ -173,6 +176,10 @@ export class ProfileGrowthCoordinator {
       const child = stage.childRunId ? this.runner.get(stage.childRunId) : undefined;
       if (!child || child.state !== 'completed')
         throw Error('Current Runner pipeline has not completed its approvals and evidence');
+      // Runner marks the child completed before async browser cleanup finishes.
+      // Do not start the next child while the prior browser still owns this Runner.
+      if (!this.runner.isIdle())
+        throw Error('Runner browser session is still closing; retry when the Runner is idle');
       const proof = this.runner.stepOutput(child.id,
         stage.action === 'audit-page' ? 'sectionEvidence' : 'baseline');
       if (!proof || proof.schema !== 'evidence/v1')

@@ -1,0 +1,109 @@
+# Growth YAML → Pipeline artboard: architecture and running handoff
+
+> **Single canonical progress/handoff record.** Updated 2026-10-29, Africa/Lagos. Repository: `surdma/utomator`. Target: draft PR [#7](https://github.com/surdma/utomator/pull/7), stacked on draft [#6](https://github.com/surdma/utomator/pull/6). Do not confuse a child PR merged into its parent branch with a merge into `main`.
+
+## 1. User outcome and acceptance
+
+A Growth is an objective with requirements and a versioned YAML workflow. From the **existing Pipeline → Templates modal**, load a Growth onto the **existing workflow artboard**. The parent graph contains connected **pipelines**. Selecting one drills into the connected **tasks/actions/steps** that actually execute it. Each child pipeline establishes its own session/account/authentication and uses the existing Runner for evidence, approvals, real provider actions and verification. A failed child task must be identifiable by actual step ID and must give the parent pipeline a red border and inspectable error/journal.
+
+**Acceptance criteria:** (A) no bespoke Growth page or parallel Runner; (B) catalogue discovers reviewed YAML dynamically and cannot accidentally launch the browser on template load; (C) parent connections and child task links reflect compiled YAML; (D) task failure is attributed to the real task, with red parent pipeline; (E) an authenticated child cannot advance until verified evidence, approval **and browser cleanup**; (F) invalid YAML/actions/task bindings fail closed; (G) backend + frontend + real-browser-fixture regression tests and independent review pass; (H) no claim of real LinkedIn or 20 field edits without live evidence; (I) no regression of saved workflows, Craft/MDX, Research and Editorial.
+
+The present 21-item Growth library is **15 LinkedIn capability definitions and 6 legacy MDX toolkits**, **not** 21 executable YAML workflows. Only `linkedin-profile` has authored executable YAML today; other entries must remain planned/guidance until fully implemented and verified.
+
+## 2. Architecture decisions (ADRs)
+
+| ID | Decision | Verified rationale / constraint |
+|---|---|---|
+| 01 | Reuse Pipeline artboard and its **existing Templates modal** | Avoid a new route/template editor for every Growth; old `/growth/default-growth-profile` redirects to Pipeline |
+| 02 | Model `Growth → dependent pipeline graph → each pipeline's connected task graph` | A coverage target isn't a task; task links must be the ones the Runner executes |
+| 03 | One existing `Runner`, never a second engine | The coordinator only schedules child runs, using existing account/session, approvals, cancellation and evidence |
+| 04 | Restricted YAML compiles to validated `WorkflowPlan` | YAML may override reviewed task titles only, not operation, typed binding, or provider permissions |
+| 05 | Pin plan, source digest and version when a Growth run starts | Editing a source file must not silently change an active run |
+| 06 | Distinguish page evidence, owner-supplied text and independently provider-verified field data | An audit result cannot imply 20 completed section reviews or actual external profile edits |
+| 07 | **A completed child summary is not yet an idle Runner** | `Runner.start` sets completed before awaiting `browser.close()`; advancement requires a released browser |
+| 08 | Preserve legacy MDX and specialized Research/Editorial | No lossless migration or live equivalence yet; removing them would be a regression |
+
+**Current model (serial restricted subset):**
+```text
+Pipeline → Templates modal
+  → GET /growth/templates (validated YAML catalogue)
+  → Load Growth (read-only selection; no Runner launch)
+  → existing workflow artboard
+      Growth pipeline A ──dependsOn──> pipeline B ──> ...
+       └── Select A → task graph from compiled WorkflowPlan
+           start → session/auth → observe → evidence → approve → action → verify → output
+                                     └─ failure + currentStepId ──> parent RED
+  → POST /growth/templates/:id/runs (requires verified connected owner)
+  → Runner.start(pinned child plan)
+  → child completes → browser closes → archive evidence → operator advances
+```
+
+**Scope ceiling:** The current YAML compiler is still `GrowthProfileWorkflow`, LinkedIn-profile-centric, with `audit` and `audit-page` only; its stage dependencies are serial. Arbitrary branching/fan-in, variable provider tasks, editing parameters, visual graph editing and 20 independent field extractors **are not implemented**. Generalizing requires a reviewed schema/contract migration and cannot be achieved by making read-only node cards look editable.
+
+## 3. Verified execution and dependency trace
+
+| Layer | Actual file(s) | Contract |
+|---|---|---|
+| Definition | `apps/backend/growth/profile-workflow.yaml` | six dependent read-only pipelines, 20 independent coverage records, named registered tasks |
+| YAML catalogue/compile | `apps/backend/src/engine/growth-profile.ts` | restricted parser, task/stage validation, `linkedinPipeline`, `compileWorkflow`, `*-workflow.yaml` discovery |
+| Parent coordinator | `apps/backend/src/engine/profile-growth-coordinator.ts` | pinned child plans, `Runner.start/get/stepOutput`, stages, owner evidence, `advance`, `releasePending` |
+| Execution/evidence | `apps/backend/src/core/runner.ts` | real browser account/session, task journal, immutable output artifacts, approvals, cleanup, `isIdle()` |
+| Persistence | `apps/backend/src/db/documents.ts`, `growth-runs` + Runner archive | stored run/stage state and source digest; no synthetic field verification |
+| API | `apps/backend/src/main.ts` | template catalogue/detail/YAML, per-template runs/evidence/advance; child `/runs/:id` action routes |
+| Frontend proxy | `apps/frontend/app/api/[...path]/route.ts` | allowlisted local-only API routes |
+| Caller | `apps/frontend/components/automate/pipeline.tsx` → `workflow-plan-editor.tsx` → `template-browser.tsx` | original modal and workflow artboard, retained existing action template workflows |
+| Growth UI | `growth-profile-pipelines.tsx` → `growth-workflow-artboard.tsx` | parent connected pipeline nodes, child task nodes, source journal status, red failed node, navigation back |
+| Tests | `apps/backend/tests/growth-profile-workflow.test.ts`, `browser.integration.test.ts`, frontend route tests | contract/failure, true browser fixture graph and no implicit launch |
+
+**Error flow:** `Runner` records current step and `stage: failed` with bounded reason. Browser startup failure before first plan task is assigned to `session`. The coordinator's `pipelineRuns` provides the child's state/currentStepId/error. The artboard colors a failed or blocked outer node red and highlights the failed inner node; journal link remains available. **Never infer a failing child task from a generic error without a real ID.**
+
+**Handoff race:** `RunSummary.state='completed'` occurs before async `browser.close()` finishes in Runner `finally`. A coordinator call to `advance` in that interval previously attempted `Runner.start` and could fail `BUSY`. Fix: expose `Runner.isIdle()`; emit `releasePending` in compiled status; `canAdvance` is false while active; `advance` rejects without starting/persisting a new stage; UI explains the cleanup phase. A new stubbed regression test asserts blocked advancement and subsequent success.
+
+## 4. Progress, status and validation evidence
+
+| Date | Item | Status | Evidence |
+|---|---|---|---|
+| 2026-10-28 | Growth scope and initial profile architecture | IMPLEMENTED, draft | PR #6 + PR #7; NOT merged into `main` |
+| 2026-10-28 | YAML catalogue, existing modal, nested parent/child graphs, failure attribution | IMPLEMENTED / CI_VERIFIED for baseline | former PR #9 consolidated into PR #7 at `3a06ddbf18b4b3a1efc12a7fa247ee0dcbab41d3` |
+| 2026-10-28 | Full baseline CI | CI_VERIFIED for **exact baseline SHA only** | [Actions #40776273349](https://github.com/surdma/utomator/actions/runs/40776273349) success: backend/unit/Fastify, TS/Biome, builds, hosted security, browser-fixture pipeline edges and task drill-in |
+| 2026-10-29 | Async browser cleanup race | INVESTIGATED | Runner completion before `browser.close()` vs coordinator advancement |
+| 2026-10-29 | Idle-gated advancement, session-start failure attribution, UI and regression test | IMPLEMENTED in this candidate change; independent CI review **pending at authoring time** | Exact new commit SHA/run must be entered after verification; no green claim yet |
+
+**Local execution limitation:** no project checkout was mounted, and `git ls-remote https://github.com/surdma/utomator.git HEAD` failed with DNS resolution error in this environment. Do not claim local Node tests. CI results must be linked to the precise code SHA; local stub tests and a green CI are not live LinkedIn validation.
+
+## 5. Blockers / risks (do not mark resolved without evidence)
+
+| Priority | Blocker | Impact / next owner |
+|---|---|---|
+| P0 | Real connected LinkedIn owner execution has not been exercised | Integration/Dogfood + consenting owner; safe read-only verified session and evidence before any write |
+| P0 | Growth compiler remains LinkedIn-profile-specific; one YAML example | API/Contract + Backend + Security: generic `GrowthWorkflow` schema/version, typed task registry, provider ownership and backward compatibility |
+| P0 | Twenty profile sections have no independently verified field-level collector/rubric chain | Backend + Test + Product: scope each collector, explicit unavailable/manual states, source provenance and no fabricated success |
+| P1 | Coordinator restart/recovery, multi-process idempotency and active-child reconciliation unverified | Backend/Reliability: recovery state machine, duplicate start protection, tests across restart |
+| P1 | Growth parent/child graph currently read-only, not a YAML authoring editor | UI/UX + Frontend + API: versioned graph edit + compile + persist + round-trip; preserve approvals |
+| P1 | Six legacy MDX toolkits are not converted to YAML and additional 14 capability definitions have no supported YAML | Product + Backend: migrations in small, provider-verified increments; planned/guidance is not executable |
+| P1 | No live fixture assertion yet for browser-open failure → session task after this change | Test + Integration: simulate actual browser bootstrap failure and check session journal and red parent |
+| P2 | Responsive/keyboard/long-running polling, status recovery and journal transitions | Frontend + Dogfood: mobile, keyboard focus, loading/errors, stale child journal, accidental launches |
+
+## 6. Predecessor, successor, exact handoff
+
+**Predecessors:** PR [#6](https://github.com/surdma/utomator/pull/6) (Growth/MDX catalogue) → PR [#7](https://github.com/surdma/utomator/pull/7) (YAML/Runner composition) → former PR #8 and #9 consolidated **into the PR #7 branch**, not main. Re-check refs on each resumption.
+
+**Current:** Engineering Lead controls `INVESTIGATED → IMPLEMENTED → TEST → REVIEW → DOGFOOD → GIT`. This change's scope is the real Runner cleanup handoff and associated visibility; do not broaden to synthetic full 20-field automation.
+
+**Successor sequence / next actions:**
+1. **Test Engineer** — independently run focused state tests, verify completed-but-active rejects advance without launching new child or changing `activeIndex`, confirm subsequent advancement after idle; inspect startup failure evidence.
+2. **Independent Reviewer** — challenge Runner status/cleanup race and all `start`/failure/advance call sites; reject idempotency/ownership gaps.
+3. **Integration & Dogfood** — exercise Templates → Growth → six parent nodes/five actual SVG paths → child task chain → back; simulate failure, test mobile/keyboard; document real provider boundary separately.
+4. **Backend/API/Contract/Security** — define generic type-safe versioned Growth workflow schema for remaining Growths; run a second **different** reviewed, read-only Growth as proof of reuse; retain old documents and APIs.
+5. **Git/Release** — only after gates: verify branch/diff, CI by exact head, ancestry PR #6 → PR #7, update this file, do not call `main` merged prematurely.
+
+**On the next resume:** refresh canonical RelvorLabs Engineering Lead, HANDOFF and using-superpowers; fetch current PR #7 head, latest CI and this document. Reconcile source with this ledger, record exact result and successor. If changed, update this *same file*, not a new status note.
+
+## 7. Prohibited assumptions and completion gate
+
+- CI browser fixtures do not prove real LinkedIn access or actual profile writes.
+- A red parent border without real `currentStepId`/journal is not sufficient task diagnosis.
+- Six read-only audits do not imply that 20 fields were assessed, modified or optimized.
+- One YAML sample plus a catalogue does not mean the remaining 20 Growth experiences execute.
+- MDX, Research and Editorial cannot be deleted until lossless replacement validated.
+- Keep PR #7 **draft** if integration, independent review, real account proof or generic compiler acceptance remains blocked.

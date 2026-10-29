@@ -158,6 +158,14 @@ export class Runner {
         const terminalState = controller.signal.aborted ? 'cancelled' :
           /approval denied|not authenticated|not establish edit ownership/i.test(message) ? 'blocked' : 'failed';
         summary.error = message;
+        // Before executePlan starts, a browser/session failure has no failed task.
+        // Attribute it to the actual session boundary for nested Growth diagnosis.
+        if (compiled && !summary.currentStepId) {
+          summary.currentStepId = 'session';
+          emit('step', 'Failed: Establish authenticated browser session', {
+            stepId: 'session', stage: 'failed', kind: 'session', reason: message.slice(0, 400),
+          });
+        }
         // Invalidate the expired connector before exposing a blocked run to clients.
         if (input.accountId && /not authenticated|sign.in required|cannot establish edit ownership/i.test(message)) {
           await this.onSessionInvalid?.(input.accountId).catch(() => {});
@@ -411,6 +419,8 @@ export class Runner {
     return true;
   }
 
+  /** A terminal summary may precede browser.close(); wait for idle before the next child. */
+  isIdle(): boolean { return this.active === undefined; }
   get(id: string): RunSummary | undefined { return this.history.get(id); }
   list(): RunSummary[] { return [...this.history.values()].reverse(); }
 

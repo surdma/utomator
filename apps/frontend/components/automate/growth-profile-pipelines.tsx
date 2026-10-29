@@ -16,7 +16,7 @@ type Evidence = {source:"owner-supplied";excerpt:string;digest:string;capturedAt
 type Run = {id:string;accountId:string;status:string;state:string;activeIndex:number;
   currentChild:Child|null;currentStage:Omit<Stage,"plan"|"stepCount">&{childRunId:string|null};
   pipelineRuns:Array<{id:string;childRunId:string|null;state:string;currentStepId:string|null;error:string|null}>;
-  currentPageEvidence:{url:string;digest:string}|null;canAdvance:boolean;
+  currentPageEvidence:{url:string;digest:string}|null;canAdvance:boolean;releasePending:boolean;
   coverage:Array<{id:string;stageId:string;status:"missing"|"owner-supplied-unverified";evidence:Evidence|null}>;
   counts:{total:number;missing:number;ownerSupplied:number;independentlyProviderVerified:number};
   outcomeNotice:string};
@@ -133,6 +133,9 @@ export default function GrowthProfilePipelines({platform,selectedAction,busy,acc
             onClick={()=>void mutate(()=>request("/api/runs/"+child.id+"/cancel","POST"))}>
             Cancel active Runner pipeline
           </button>}
+        {run.releasePending&&<p role="status" className="mt-3 text-xs text-amber-800">
+          The completed Runner is releasing its browser session. The next pipeline becomes available after cleanup.
+        </p>}
         {run.canAdvance&&<button type="button" disabled={working||busy}
           className="mt-3 min-h-11 rounded-xl bg-teal-800 px-4 text-sm font-semibold text-white disabled:opacity-50"
           onClick={()=>void mutate(()=>request(endpoint+"/runs/"+run.id+"/advance","POST"))}>

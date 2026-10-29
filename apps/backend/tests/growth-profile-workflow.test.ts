@@ -74,6 +74,7 @@ test('six dependent pipelines reuse validated Runner WorkflowPlans and record in
         digest:'a'.repeat(64)};
     },
     cancel(){return true;},
+    isIdle(){return true;},
   } as unknown as Runner;
   const coordinator=new ProfileGrowthCoordinator(stub);
   const accountId='c63e8078-644d-4a2a-80bd-7cba9eaa0e1b';
@@ -114,6 +115,7 @@ test('unverified Growth run cannot advance, and no valid account means no browse
     get(){return {state:'running'};},
     stepOutput(){return null;},
     cancel(){return true;},
+    isIdle(){return true;},
   } as unknown as Runner;
   const coordinator=new ProfileGrowthCoordinator(runner);
   await assert.rejects(coordinator.start('bad-identity','https://www.linkedin.com/in/owner/'),/Verified LinkedIn account ID/);
@@ -183,7 +185,7 @@ test('composite runner reports failed pipelines and the exact failed child task'
       state:'failed',createdAt:new Date().toISOString(),currentStepId:'inspect',error:'Scoped profile inspection failed'} as RunSummary;},
     get(){return {id,platform:'linkedin',action:'audit',state:'failed',
       createdAt:new Date().toISOString(),currentStepId:'inspect',error:'Scoped profile inspection failed'} as RunSummary;},
-    stepOutput(){return null;},cancel(){return true;},
+    stepOutput(){return null;},cancel(){return true;},isIdle(){return true;},
   } as unknown as Runner;
   const coordinator=new ProfileGrowthCoordinator(runner);
   const run=await coordinator.start(id,'https://www.linkedin.com/in/verified-owner/');
@@ -192,4 +194,38 @@ test('composite runner reports failed pipelines and the exact failed child task'
   assert.match(run.pipelineRuns[0]?.error??'',/inspection failed/);
   await assert.rejects(coordinator.advance(run.id),/not completed/);
   assert.equal(run.pipelineRuns[1]?.state,'waiting');
+});
+
+test('completed child waits for Runner browser cleanup before the next pipeline',async()=>{
+  const accountId='c63e8078-644d-4a2a-80bd-7cba9eaa0e1b';
+  const children=new Map<string,RunSummary>();
+  let idle=false;
+  let starts=0;
+  const runner={
+    start(input:RunRequest){
+      starts++;
+      const value:RunSummary={id:randomUUID(),platform:input.platform,action:input.action,
+        state:'completed',createdAt:new Date().toISOString()};
+      children.set(value.id,value);
+      return value;
+    },
+    get(id:string){return children.get(id);},
+    stepOutput(){return {schema:'evidence/v1',url:'https://www.linkedin.com/in/verified-owner/',
+      digest:'a'.repeat(64)};},
+    isIdle(){return idle;},
+    cancel(){return true;},
+  } as unknown as Runner;
+  const coordinator=new ProfileGrowthCoordinator(runner);
+  const started=await coordinator.start(accountId,'https://www.linkedin.com/in/verified-owner/');
+  assert.equal(started.currentChild?.state,'completed');
+  assert.equal(started.releasePending,true);
+  assert.equal(started.canAdvance,false);
+  await assert.rejects(coordinator.advance(started.id),/browser session is still closing/);
+  assert.equal(starts,1,'blocked advance must never launch a second browser');
+  assert.equal((await coordinator.get(started.id))?.activeIndex,0);
+  idle=true;
+  assert.equal((await coordinator.get(started.id))?.canAdvance,true);
+  const next=await coordinator.advance(started.id);
+  assert.equal(next.activeIndex,1);
+  assert.equal(starts,2);
 });
