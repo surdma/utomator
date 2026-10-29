@@ -1410,6 +1410,7 @@ export default function AutomationPipeline({
       throw new Error(json.error || "Could not save visual review");
     setImageDraft(null);
     setSelectedNode("annotation");
+    setPlanDirty(true);
     setWorkflowPlan((previous) => {
       const id = "review-" + json.id!.slice(0, 8);
       if (previous.steps.some((step) => step.id === id)) return previous;
@@ -1426,7 +1427,6 @@ export default function AutomationPipeline({
           draft.annotations.length +
           " location actions; approval still required",
       });
-      setPlanDirty(true);
       return {
         ...previous,
         steps,
