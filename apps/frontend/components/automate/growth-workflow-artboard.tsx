@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Background,
   BackgroundVariant,
@@ -11,50 +11,19 @@ import {
   ReactFlow,
   ReactFlowProvider,
   type Edge,
-  type Node,
   type NodeProps,
 } from '@xyflow/react';
 import { ArrowLeft, AlertCircle, GitBranch, ShieldCheck } from 'lucide-react';
-import type { WorkflowPlan } from './workflow-plan-editor';
+import {
+  buildGrowthGraph,
+  type GrowthGraphNode,
+  type GrowthGraphProgram,
+  type GrowthGraphRun,
+} from './growth-graph-model';
+import { useGrowthRunJournal } from '../../hooks/use-growth-run-journal';
 
-type Stage = {
-  id: string;
-  title: string;
-  action: string;
-  page: string;
-  dependsOn: string;
-  sectionIds: string[];
-  plan: WorkflowPlan;
-  stepCount: number;
-};
-export type GrowthGraphProgram = {
-  id: string;
-  title: string;
-  coverage: Array<{ id: string; label: string }>;
-  stages: Stage[];
-};
-type PipelineRun = {
-  id: string;
-  childRunId: string | null;
-  state: string;
-  currentStepId: string | null;
-  error: string | null;
-};
-export type GrowthGraphRun = { id: string; pipelineRuns: PipelineRun[] } | null;
-type JournalEvent = {
-  kind: string;
-  message: string;
-  details?: { stepId?: string; stage?: string; reason?: string };
-};
-type GraphData = Record<string, unknown> & {
-  label: string;
-  subtitle: string;
-  state: string;
-  nodeId: string;
-  kind: 'pipeline' | 'task';
-  failure?: string;
-};
-type GraphNode = Node<GraphData, 'growthNode'>;
+export type { GrowthGraphProgram, GrowthGraphRun } from './growth-graph-model';
+
 const statuses = {
   failed: 'border-rose-600 bg-rose-50 ring-2 ring-rose-200',
   blocked: 'border-rose-500 bg-rose-50 ring-2 ring-rose-100',
@@ -65,7 +34,7 @@ const statuses = {
   'approval-needed': 'border-amber-500 bg-amber-50',
   'input-needed': 'border-amber-500 bg-amber-50',
 } as Record<string, string>;
-function GraphNodeCard({ data, selected }: NodeProps<GraphNode>) {
+function GraphNodeCard({ data, selected }: NodeProps<GrowthGraphNode>) {
   const failed = data.state === 'failed' || data.state === 'blocked';
   return (
     <div
@@ -127,151 +96,22 @@ function GraphContent({
   run: GrowthGraphRun;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [journalResult, setJournalResult] = useState<{
-    runId: string;
-    entries: JournalEvent[];
-    error: string;
-  }>({ runId: '', entries: [], error: '' });
   const selected =
     program.stages.find((stage) => stage.id === selectedId) ?? null;
   const live = run?.pipelineRuns.find((item) => item.id === selectedId);
   const childRunId = live?.childRunId ?? null;
-  const journal = useMemo(
-    () => (childRunId === journalResult.runId ? journalResult.entries : []),
-    [childRunId, journalResult]
-  );
-  const logError =
-    childRunId === journalResult.runId ? journalResult.error : '';
-
-  useEffect(() => {
-    if (!childRunId) return;
-    let mounted = true;
-    const refresh = async () => {
-      const response = await fetch(
-        '/api/runs/' + encodeURIComponent(childRunId) + '/logs',
-        { cache: 'no-store' }
-      );
-      if (!response.ok)
-        throw Error(
-          'Runner event journal unavailable (HTTP ' + response.status + ')'
-        );
-      const entries = (await response.json()) as JournalEvent[];
-      if (!Array.isArray(entries)) throw Error('Invalid Runner journal');
-      if (mounted) setJournalResult({ runId: childRunId, entries, error: '' });
-    };
-    const recordError = (error: unknown) => {
-      if (mounted)
-        setJournalResult({
-          runId: childRunId,
-          entries: [],
-          error: error instanceof Error ? error.message : 'Journal unavailable',
-        });
-    };
-    void refresh().catch(recordError);
-    const interval = setInterval(() => {
-      void refresh().catch(recordError);
-    }, 2500);
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
-  }, [childRunId]);
-  const taskStates = useMemo(() => {
-    const states = new Map<string, string>();
-    for (const entry of journal) {
-      const id = entry.details?.stepId,
-        stage = entry.details?.stage;
-      if (id && stage && ['started', 'completed', 'failed'].includes(stage))
-        states.set(id, stage);
-    }
-    if (
-      live &&
-      ['failed', 'blocked'].includes(live.state) &&
-      live.currentStepId
-    )
-      states.set(live.currentStepId, 'failed');
-    return states;
-  }, [journal, live]);
+  const { journal, logError } = useGrowthRunJournal(childRunId);
   const { nodes, edges } = useMemo(() => {
-    if (selected) {
-      const nodes: GraphNode[] = selected.plan.steps.map((step, i) => ({
-        id: step.id,
-        type: 'growthNode',
-        position: step.position ?? {
-          x: 35 + (i % 4) * 295,
-          y: 50 + Math.floor(i / 4) * 205,
-        },
-        data: {
-          kind: 'task',
-          nodeId: step.id,
-          label: step.title,
-          subtitle:
-            step.kind +
-            ' · ' +
-            String(i + 1) +
-            ' of ' +
-            selected.plan.steps.length,
-          state: taskStates.get(step.id) ?? 'waiting',
-          failure:
-            taskStates.get(step.id) === 'failed'
-              ? (journal
-                  .filter(
-                    (e) =>
-                      e.details?.stepId === step.id &&
-                      e.details?.stage === 'failed'
-                  )
-                  .at(-1)?.details?.reason ??
-                live?.error ??
-                undefined)
-              : undefined,
-        },
-      }));
-      const edges: Edge[] = selected.plan.links.map((link) => ({
-        id: link.source + '-' + link.target,
-        source: link.source,
-        target: link.target,
-        type: 'smoothstep',
+    const graph = buildGrowthGraph(program, run, selected, journal, live);
+    return {
+      ...graph,
+      edges: graph.edges.map((edge) => ({
+        ...edge,
         markerEnd: { type: MarkerType.ArrowClosed },
-        style: { stroke: '#64748b', strokeWidth: 2 },
-        animated: taskStates.get(link.target) === 'started',
-      }));
-      return { nodes, edges };
-    }
-    const nodes: GraphNode[] = program.stages.map((stage, i) => {
-      const state = run?.pipelineRuns.find((item) => item.id === stage.id);
-      return {
-        id: stage.id,
-        type: 'growthNode',
-        position: { x: 40 + (i % 3) * 315, y: 55 + Math.floor(i / 3) * 250 },
-        data: {
-          kind: 'pipeline',
-          nodeId: stage.id,
-          label: stage.title,
-          subtitle:
-            stage.stepCount +
-            ' connected tasks · ' +
-            stage.sectionIds.length +
-            ' coverage requirements',
-          state: state?.state ?? 'waiting',
-          failure: state?.error ?? undefined,
-        },
-      };
-    });
-    const edges: Edge[] = program.stages
-      .filter((stage) => stage.dependsOn !== 'none')
-      .map((stage) => ({
-        id: stage.dependsOn + '-' + stage.id,
-        source: stage.dependsOn,
-        target: stage.id,
-        type: 'smoothstep',
-        markerEnd: { type: MarkerType.ArrowClosed },
-        style: { stroke: '#64748b', strokeWidth: 2 },
-        animated:
-          run?.pipelineRuns.find((item) => item.id === stage.id)?.state ===
-          'running',
-      }));
-    return { nodes, edges };
-  }, [selected, program, run, taskStates, journal, live]);
+      })),
+    };
+  }, [program, run, selected, journal, live]);
+
   return (
     <section
       data-testid="growth-nested-artboard"
@@ -314,7 +154,7 @@ function GraphContent({
         className="h-[470px] bg-[#f5f8f9] sm:h-[570px]"
         data-testid="growth-workflow-graph"
       >
-        <ReactFlow<GraphNode, Edge>
+        <ReactFlow<GrowthGraphNode, Edge>
           key={program.id + '/' + (selected?.id ?? 'pipelines')}
           nodes={nodes}
           edges={edges}

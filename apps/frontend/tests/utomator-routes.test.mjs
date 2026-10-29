@@ -184,7 +184,11 @@ test("Growth YAML loads through the existing Templates modal and nested artboard
   );
   assert.match(graph, /growth-pipeline-node-/);
   assert.match(graph, /growth-task-node-/);
-  assert.match(graph, /details\?\.stepId/);
+  const graphModel = readFileSync(
+    resolve(root, "components/automate/growth-graph-model.ts"),
+    "utf8",
+  );
+  assert.match(graphModel, /details\?\.stepId/);
   assert.match(graph, /failed/);
   assert.match(proxy, /growth\\\/templates/);
   const legacy = readFileSync(
