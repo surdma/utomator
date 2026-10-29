@@ -1,4 +1,4 @@
-import type { GrowthJournalEvent } from '../components/automate/growth-graph-model';
+import type { GrowthJournalEvent } from '../components/dashboard/growth/growth-graph-model';
 
 export async function fetchGrowthRunJournal(
   childRunId: string,
