@@ -321,9 +321,7 @@ export class ConnectorService {
     if (!profileUrl) return null; // Not signed in yet. Leave the page intact.
     const handle = profileUrl.pathname.split('/').filter(Boolean).at(-1)!;
     const normalized =
-      platform === 'linkedin'
-        ? `https://www.linkedin.com/in/${handle}/`
-        : `https://x.com/${handle}`;
+      platform === 'linkedin' ? `https://www.linkedin.com/in/${handle}/` : `https://x.com/${handle}`;
     // Prove ownership at the discovered profile before it is persisted.
     const verified = await this.verify(page, {
       id: '',

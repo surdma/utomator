@@ -117,7 +117,7 @@ export default function GrowthProfilePipelines({
             endpoint={endpoint}
             mutate={mutate}
           />
-          {run.status === 'active' && active?.id !== 'review' && (
+          {run.status === 'active' && run.currentStage?.id !== 'review' && (
             <GrowthEvidenceForm
               run={run}
               program={program}
