@@ -293,3 +293,46 @@ test('attached browser cleanup closes only its own tab and keeps Chrome running'
   assert.equal(browserKilled,false);
   assert.equal(session.currentPage,undefined);
 });
+
+
+test('reconnection polling does not interrupt an existing account MFA challenge',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'utomator-reconnect-poll-'));
+  try {
+    const store=new AccountStore(root);
+    const row=(await store.addSocial(0,{
+      platform:'linkedin',label:'Owner',handle:'verified-owner',
+      profileUrl:'https://www.linkedin.com/in/verified-owner/',
+    })).socialAccounts[0]!;
+    let url='https://www.linkedin.com/checkpoint/challenge/';
+    let signedIn=false;
+    const visited:string[]=[];
+    const browser={
+      currentPage:undefined as Page|undefined,
+      async open(){
+        const page={
+          url:()=>url,isClosed:()=>false,
+          goto:async(next:string)=>{
+            visited.push(next);
+            url=signedIn?next:'https://www.linkedin.com/checkpoint/challenge/';
+          },
+          locator:()=>({first:()=>({getAttribute:async()=>signedIn?'/in/verified-owner/':null})}),
+          getByRole:()=>({first:()=>({waitFor:async()=>{
+            if(!signedIn)throw Error('MFA not complete');
+          }})}),
+        } as unknown as Page;
+        this.currentPage=page;
+        return page;
+      },
+      async close(){this.currentPage=undefined;},
+    };
+    const service=new ConnectorService(store,()=>browser,root);
+    await service.begin(row.id);
+    visited.length=0;
+    assert.equal((await service.check(row.id)).status,'sign-in-open');
+    assert.deepEqual(visited,[],'automatic checking may not replace an MFA screen');
+    signedIn=true;
+    url='https://www.linkedin.com/feed/';
+    assert.equal((await service.check(row.id)).status,'connected');
+    assert.equal((await service.list()).find(x=>x.id===row.id)?.status,'connected');
+  }finally{await rm(root,{recursive:true,force:true});}
+});

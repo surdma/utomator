@@ -9,6 +9,12 @@ import { BrowserSession } from '../src/browser/session.js';
 test('CDP reuse shares login cookies without closing existing Chrome tabs', { timeout: 45000 }, async () => {
   const directory = await mkdtemp(join(tmpdir(), 'utomator-cdp-'));
   const previous = process.env.CHROME_CDP_URL;
+  const previousMode=process.env.UTOMATOR_BROWSER_MODE;
+  const previousHeadless=process.env.HEADLESS;
+  const previousOwner=process.env.UTOMATOR_INTERNAL_OWNER_ID;
+  process.env.UTOMATOR_BROWSER_MODE='attached';
+  process.env.HEADLESS='false';
+  delete process.env.UTOMATOR_INTERNAL_OWNER_ID;
   let chrome: Awaited<ReturnType<typeof chromium.launchPersistentContext>> | undefined;
   try {
     chrome = await chromium.launchPersistentContext(directory, {
@@ -54,6 +60,12 @@ test('CDP reuse shares login cookies without closing existing Chrome tabs', { ti
   } finally {
     if (previous === undefined) delete process.env.CHROME_CDP_URL;
     else process.env.CHROME_CDP_URL = previous;
+    if(previousMode===undefined)delete process.env.UTOMATOR_BROWSER_MODE;
+    else process.env.UTOMATOR_BROWSER_MODE=previousMode;
+    if(previousHeadless===undefined)delete process.env.HEADLESS;
+    else process.env.HEADLESS=previousHeadless;
+    if(previousOwner===undefined)delete process.env.UTOMATOR_INTERNAL_OWNER_ID;
+    else process.env.UTOMATOR_INTERNAL_OWNER_ID=previousOwner;
     await chrome?.close();
     await rm(directory, { recursive: true, force: true });
   }
@@ -61,6 +73,12 @@ test('CDP reuse shares login cookies without closing existing Chrome tabs', { ti
 
 test('CDP attachment rejects non-loopback endpoints before connecting', async () => {
   const previous = process.env.CHROME_CDP_URL;
+  const previousMode=process.env.UTOMATOR_BROWSER_MODE;
+  const previousHeadless=process.env.HEADLESS;
+  const previousOwner=process.env.UTOMATOR_INTERNAL_OWNER_ID;
+  process.env.UTOMATOR_BROWSER_MODE='attached';
+  process.env.HEADLESS='false';
+  delete process.env.UTOMATOR_INTERNAL_OWNER_ID;
   process.env.CHROME_CDP_URL = 'http://192.0.2.1:9222';
   const session = new BrowserSession();
   try {
@@ -68,6 +86,12 @@ test('CDP attachment rejects non-loopback endpoints before connecting', async ()
   } finally {
     if (previous === undefined) delete process.env.CHROME_CDP_URL;
     else process.env.CHROME_CDP_URL = previous;
+    if(previousMode===undefined)delete process.env.UTOMATOR_BROWSER_MODE;
+    else process.env.UTOMATOR_BROWSER_MODE=previousMode;
+    if(previousHeadless===undefined)delete process.env.HEADLESS;
+    else process.env.HEADLESS=previousHeadless;
+    if(previousOwner===undefined)delete process.env.UTOMATOR_INTERNAL_OWNER_ID;
+    else process.env.UTOMATOR_INTERNAL_OWNER_ID=previousOwner;
     await session.close();
   }
 });

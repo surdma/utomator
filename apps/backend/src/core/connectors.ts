@@ -330,9 +330,40 @@ export class ConnectorService {
   async check(id: string): Promise<{status:string;accountId:string}> {
     const inFlight=this.checks.get(id);
     if(inFlight)return inFlight;
-    const attempt=this.sync(id).finally(()=>this.checks.delete(id));
+    const attempt=(this.pending.has(id)?this.sync(id):
+      this.sessions.has(id)?this.checkExistingSignIn(id):this.sync(id))
+      .finally(()=>this.checks.delete(id));
     this.checks.set(id,attempt);
     return attempt;
+  }
+  private async checkExistingSignIn(id:string) {
+    const account=await this.account(id);
+    const browser=this.sessions.get(id);
+    const page=browser?.currentPage;
+    if(!page||page.isClosed?.())return {status:'reconnect-required' as const,accountId:id};
+    const here=new URL(page.url());
+    const target=new URL(account.profileUrl);
+    if(here.protocol!=='https:'||!platformHosts[account.platform]?.includes(here.hostname))
+      return {status:'sign-in-open' as const,accountId:id};
+    const onOwnedProfile=here.pathname.replace(/\/$/,'')===target.pathname.replace(/\/$/,'');
+    if(onOwnedProfile) {
+      const outcome=await this.verify(page,account,false);
+      if(outcome!=='verified')
+        return {status:outcome==='temporarily-unavailable'?'temporarily-unavailable' as const:'sign-in-open' as const,accountId:id};
+    }else {
+      // A provider home page can expose the signed-in user's self-profile link.
+      // Login/MFA pages do not; never navigate away from them while polling.
+      const owner=await this.discover(page,account.platform as 'linkedin'|'x').catch(()=>null);
+      if(!owner)return {status:'sign-in-open' as const,accountId:id};
+      if(owner.profileUrl!==account.profileUrl)
+        return {status:'reconnect-required' as const,accountId:id};
+    }
+    await this.update(id,{accountId:id,verifiedAt:new Date().toISOString(),
+      platform:account.platform,handle:account.handle,profileUrl:account.profileUrl});
+    this.sessions.delete(id);
+    await browser?.close().catch(()=>{});
+    await this.audit('session-verified',account);
+    return {status:'connected' as const,accountId:id};
   }
   async sync(id: string) {
     const pending=this.pending.get(id);
@@ -393,9 +424,9 @@ export class ConnectorService {
       }
     }
   }
-  async verify(page: Page, account: SocialAccount): Promise<'verified' | 'not-authenticated' | 'temporarily-unavailable'> {
+  async verify(page: Page, account: SocialAccount, navigate=true): Promise<'verified' | 'not-authenticated' | 'temporarily-unavailable'> {
     try {
-      await navigateWithRetry(page, account.profileUrl, {
+      if(navigate)await navigateWithRetry(page, account.profileUrl, {
         waitUntil: 'domcontentloaded',
         timeout: 15000,
         maxAttempts: 2,
