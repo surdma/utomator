@@ -165,7 +165,8 @@ export function buildApp(options:{socialWorkspaceRoot?:string;linkedInFetch?:typ
       return reply.code(message.includes('not found')?404:message.includes('API connector')?422:400).send({error:message});}
   });
   app.post<{Params:{id:string}}>('/connectors/:id/sync', async(request,reply)=>{
-    try{return await connectors.check(request.params.id);}
+    // Explicit Sync may navigate to the owner's profile. Background /check must not.
+    try{return await connectors.sync(request.params.id);}
     catch(error){return reply.code(400).send({error:error instanceof Error?error.message:'Could not sync connection'});}
   });
   app.post<{Params:{id:string}}>('/connectors/:id/check', async(request,reply)=>{
