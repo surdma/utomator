@@ -245,7 +245,7 @@ export default function LinkedInEditorialStudio() {
     setError("");
     setFeedback("");
   }
-  function useResearch(id: string) {
+  function selectResearchEvidence(id: string) {
     const run = research.find((item) => item.id === id);
     if (!run) {
       setContent((old) => ({ ...old, researchRunId: null, sourceUrls: [] }));
@@ -513,7 +513,7 @@ export default function LinkedInEditorialStudio() {
               className={input}
               disabled={selected?.status === "archived"}
               value={content.researchRunId ?? ""}
-              onChange={(e) => useResearch(e.target.value)}
+              onChange={(e) => selectResearchEvidence(e.target.value)}
             >
               <option value="">No linked research</option>
               {research.map((item) => (
