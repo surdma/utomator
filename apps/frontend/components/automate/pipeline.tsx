@@ -345,21 +345,6 @@ const workflows: Record<Platform, Workflow[]> = {
     },
   ],
 };
-const iconsByAction: Record<string, typeof Eye> = {
-  audit: Eye,
-  "audit-page": Focus,
-  "edit-profile": FileText,
-  "edit-experience": Layers3,
-  "add-skill": Sparkles,
-  "edit-website": ExternalLink,
-  "edit-services": Activity,
-  "add-project": GitBranch,
-  "add-featured": BookOpen,
-  "upload-banner": FileText,
-  "compose-post": MessageSquareText,
-  "pin-post": Layers3,
-  "delete-post": AlertCircle,
-};
 const getApi = (path: string) => "/api/" + path;
 function stateLabel(state: string) {
   return state.replaceAll("-", " ");
@@ -495,7 +480,7 @@ export default function AutomationPipeline({
     null,
   );
   const [craftsRevision, setCraftsRevision] = useState(0);
-  const [selectedNode, setSelectedNode] = useState("inspect");
+  const [, setSelectedNode] = useState("inspect");
   const [scopeSection, setScopeSection] = useState("profile");
   const [reviews, setReviews] = useState<Review[]>([]);
   const [imageDraft, setImageDraft] = useState<ImageSource | null>(null);
@@ -1487,9 +1472,6 @@ export default function AutomationPipeline({
   const latest = events.at(-1);
   const checkpointNeeded = checkpoint?.kind === "approval";
   const coverage = playbook?.coverage || [];
-  const coverageCount = coverage.filter(
-    (item) => item.status === "implemented",
-  ).length;
   const showChat =
     chatVisible &&
     pane !== "profile" &&
