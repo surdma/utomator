@@ -1,8 +1,9 @@
-import { randomUUID } from 'node:crypto';
+﻿import { randomUUID } from 'node:crypto';
 import { chmod, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import type { Page } from 'playwright';
 import { BrowserSession } from '../browser/session.js';
+import { isConnectionTimeout, navigateWithRetry } from '../browser/navigation.js';
 import { AccountStore, type SocialAccount, type SocialPlatform } from '../profile/account-store.js';
 import type {DocumentStore} from '../db/documents.js';
 
@@ -19,8 +20,6 @@ type PendingConnection = {platform:'linkedin'|'x';browser:BrowserPort};
 const providerHome = {linkedin:'https://www.linkedin.com/feed/',x:'https://x.com/home'} as const;
 
 const allowId = (id: string) => /^[0-9a-fA-F-]{36}$/.test(id);
-const isConnectionTimeout = (error: unknown): boolean =>
-  error instanceof Error && /net::ERR_CONNECTION_TIMED_OUT|net::ERR_CONNECTION_REFUSED|net::ERR_NAME_NOT_RESOLVED/i.test(error.message);
 
 /**
  * Platforms served by the conduct-based browser-session connector.
@@ -40,36 +39,6 @@ type AuditAction =
   | 'sign-in-opened' | 'session-verified' | 'reconnect-required'
   | 'temporarily-unavailable' | 'connection-expired' | 'disconnected';
 
-/**
- * Navigate with exponential backoff retries. The first attempt uses the
- * caller-supplied timeout; subsequent attempts double the wait between tries.
- * Never retries navigation that left the official platform.
- */
-async function navigateWithRetry(
-  page: Page,
-  url: string,
-  opts: {
-    waitUntil?: 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
-    timeout?: number;
-    maxAttempts?: number;
-    baseDelayMs?: number;
-  } = {},
-): Promise<void> {
-  const { waitUntil, timeout, maxAttempts = 3, baseDelayMs = 2000 } = opts;
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      await page.goto(url, { waitUntil, timeout });
-      return;
-    } catch (error) {
-      lastError = error;
-      if (attempt === maxAttempts) break;
-      if (!isConnectionTimeout(error)) break; // non-network errors are not retried
-      await new Promise((resolve) => setTimeout(resolve, baseDelayMs * attempt));
-    }
-  }
-  throw lastError;
-}
 export class ConnectorService {
   private readonly path: string;
   private sessions = new Map<string, BrowserPort>();
@@ -445,8 +414,8 @@ export class ConnectorService {
     };
     if (!isOwnedProfilePage()) return 'not-authenticated';
     // Only a control the account owner can see proves an authenticated session:
-    //   LinkedIn  – the "Edit intro" button on the owned profile
-    //   X         – the "Edit profile" link on the owned profile
+    //   LinkedIn  â€“ the "Edit intro" button on the owned profile
+    //   X         â€“ the "Edit profile" link on the owned profile
     // A signed-out visitor sees "Follow" buttons instead, never these controls.
     const ownerOnlyControl = account.platform === 'x'
       ? page.getByRole('link', { name: /edit profile/i })
