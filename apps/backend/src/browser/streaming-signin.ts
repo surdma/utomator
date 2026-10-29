@@ -83,10 +83,10 @@ const VIRTUAL_KEYS: Record<string, number | undefined> = {
 const virtualKey = (code: string): number | undefined => {
   const direct = VIRTUAL_KEYS[code];
   if (direct) return direct;
-  const digit = /^Digit([0-9])$/.exec(code);
-  if (digit) return 48 + Number(digit[1]!);
-  const letter = /^Key([A-Z])$/.exec(code);
-  if (letter) return letter[1]!.charCodeAt(0);
+  const digit = /^Digit([0-9])$/.exec(code)?.[1];
+  if (digit) return 48 + Number(digit);
+  const letter = /^Key([A-Z])$/.exec(code)?.[1];
+  if (letter) return letter.charCodeAt(0);
   return undefined;
 };
 const POINTER_BUTTON = {
@@ -301,7 +301,7 @@ export class SignInBroker {
     if (classifyProviderAuth(here, this.platform) !== 'authenticated') return;
     // Require the URL to settle so mid-navigation probes do not race.
     await new Promise((resolve) => setTimeout(resolve, 600));
-    if (this.state !== 'streaming' || !this.page) return;
+    if (this.state !== 'streaming' || !this.page || !this.context) return;
     if (classifyProviderAuth(this.page.url(), this.platform) !== 'authenticated') return;
     if (this.completion) return;
     this.completion = new Promise<CompletionContext>((resolve, reject) => {
@@ -310,7 +310,7 @@ export class SignInBroker {
     });
     this.completionResolve?.({
       page: this.page,
-      context: this.context!,
+      context: this.context,
       platform: this.platform,
     });
     this.state = 'authenticated';

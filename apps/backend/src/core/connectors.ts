@@ -279,7 +279,8 @@ export class ConnectorService {
   private async discover(page: Page, platform: 'linkedin' | 'x') {
     // Never navigate away from a login, MFA or consent page while checking.
     const here = new URL(page.url());
-    if (here.protocol !== 'https:' || !platformHosts[platform]!.includes(here.hostname))
+    const trustedHosts = platformHosts[platform];
+    if (!trustedHosts || here.protocol !== 'https:' || !trustedHosts.includes(here.hostname))
       throw Error('Provider sign-in is not complete');
     const candidates =
       platform === 'linkedin'
@@ -301,7 +302,7 @@ export class ConnectorService {
         const candidate = new URL(href, here.origin);
         if (
           candidate.protocol !== 'https:' ||
-          !platformHosts[platform]!.includes(candidate.hostname) ||
+          !trustedHosts.includes(candidate.hostname) ||
           candidate.search ||
           candidate.hash ||
           candidate.username ||
@@ -319,7 +320,8 @@ export class ConnectorService {
       }
     }
     if (!profileUrl) return null; // Not signed in yet. Leave the page intact.
-    const handle = profileUrl.pathname.split('/').filter(Boolean).at(-1)!;
+    const handle = profileUrl.pathname.split('/').filter(Boolean).at(-1);
+    if (!handle) return null;
     const normalized =
       platform === 'linkedin' ? `https://www.linkedin.com/in/${handle}/` : `https://x.com/${handle}`;
     // Prove ownership at the discovered profile before it is persisted.
@@ -596,8 +598,8 @@ export class ConnectorService {
       return { status: 'disconnected' as const, accountId: id };
     }
     const account = await this.account(id);
-    if (this.sessions.has(id)) {
-      const browser = this.sessions.get(id)!;
+    const browser = this.sessions.get(id);
+    if (browser) {
       this.sessions.delete(id);
       await browser.close();
     }
