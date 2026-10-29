@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import type { Page } from 'playwright';
 import { AccountStore } from '../src/profile/account-store.js';
 import { ConnectorService } from '../src/core/connectors.js';
+import { BrowserSession } from '../src/browser/session.js';
 
 async function registerAccounts(store: AccountStore) {
   const first = await store.addSocial(0, {
@@ -276,4 +277,19 @@ test('automatic connection checks leave an unfinished provider challenge unchang
     assert.equal((await service.check(started.accountId)).status,'connected');
     assert.equal((await store.get()).socialAccounts.length,1);
   }finally{await rm(root,{recursive:true,force:true});}
+});
+
+
+test('attached browser cleanup closes only its own tab and keeps Chrome running',async()=>{
+  const session=new BrowserSession();
+  let tabClosed=false,browserKilled=false;
+  Object.assign(session,{
+    browser:{close:async()=>{browserKilled=true;}},
+    page:{close:async()=>{tabClosed=true;}},
+    connection:'existing-chrome',
+  });
+  await session.close();
+  assert.equal(tabClosed,true);
+  assert.equal(browserKilled,false);
+  assert.equal(session.currentPage,undefined);
 });

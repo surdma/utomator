@@ -221,3 +221,13 @@ bounded one-time upload token, validated type/size and a cleanup lifetime.
 Destructive external writes still require separate, explicit approval.
 Server restart, disconnect, timeout and cancellation must end pending
 checkpoints safely without marking the workflow completed.
+
+## Safety: attached Chrome lifetime
+
+Attached desktop mode uses a single shared CDP transport for the local Utomator
+engine. Each connector owns and closes only the tab it creates. It must never call
+`Browser.close()` on the user's Chrome process. The transport remains connected
+until Chrome disconnects or Utomator exits, and other active runs may share it.
+Without an explicit `UTOMATOR_BROWSER_MODE=attached` opt-in, no CDP discovery is
+attempted. Sharing an entire browser profile is powerful: use a dedicated Chrome
+profile with limited permissions, never a remote worker or public CDP port.

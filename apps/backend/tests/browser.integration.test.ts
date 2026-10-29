@@ -559,3 +559,41 @@ test('second Growth YAML uses the same modal and nested pipeline graph', {timeou
     assert.equal((await app.inject('/runs')).json().length,before);
   } finally { await browser.close(); await app.close(); }
 });
+
+
+test('Local Chrome attachment keeps the external process alive across connector tab cleanup',
+  {timeout:45000},async()=>{
+  const {BrowserSession}=await import('../src/browser/session.js');
+  const port=22000+(process.pid%14000);
+  const external=await chromium.launch({headless:true,args:['--remote-debugging-port='+port]});
+  const keys=['UTOMATOR_BROWSER_MODE','HEADLESS','UTOMATOR_INTERNAL_OWNER_ID','CHROME_CDP_URL','UTOMATOR_DISABLE_CDP'] as const;
+  const saved=Object.fromEntries(keys.map(key=>[key,process.env[key]]));
+  let first:InstanceType<typeof BrowserSession>|undefined;
+  let second:InstanceType<typeof BrowserSession>|undefined;
+  try{
+    process.env.UTOMATOR_BROWSER_MODE='attached';
+    process.env.HEADLESS='false';
+    delete process.env.UTOMATOR_INTERNAL_OWNER_ID;
+    delete process.env.UTOMATOR_DISABLE_CDP;
+    process.env.CHROME_CDP_URL='http://127.0.0.1:'+port;
+    first=new BrowserSession();
+    second=new BrowserSession();
+    await first.open('linkedin','00000000-0000-4000-8000-000000000041');
+    await second.open('x','00000000-0000-4000-8000-000000000042');
+    await first.close();
+    assert.equal(external.isConnected(),true,'local Chrome must survive first disconnect');
+    await second.currentPage!.setContent('<main>second connection works</main>');
+    assert.equal(await second.currentPage!.locator('main').innerText(),'second connection works');
+    await second.close();
+    assert.equal(external.isConnected(),true,'local Chrome must survive all tab closures');
+  }finally{
+    await first?.close().catch(()=>{});
+    await second?.close().catch(()=>{});
+    await external.close();
+    for(const key of keys){
+      const original=saved[key];
+      if(original===undefined)delete process.env[key];
+      else process.env[key]=original;
+    }
+  }
+});

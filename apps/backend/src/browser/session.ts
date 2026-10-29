@@ -6,6 +6,30 @@ import { chromium, type Browser, type BrowserContext, type Page } from 'playwrig
 // A normal Chrome window cannot be attached unless remote debugging was enabled.
 const localCdpUrl = 'http://127.0.0.1:9222';
 
+// An attached browser belongs to the desktop user, not to one automation run.
+// Keep ONE CDP transport for the engine lifetime; never issue Browser.close to
+// an external Chrome process. Each run owns and closes only its own tab.
+let attachedBrowser: Browser | undefined;
+let attachedAttempt: Promise<Browser> | undefined;
+async function attachChrome(endpoint: string): Promise<Browser> {
+  if (attachedBrowser?.isConnected()) return attachedBrowser;
+  if (!attachedAttempt) {
+    attachedAttempt = chromium.connectOverCDP(endpoint, { timeout: 6000 })
+      .then(browser => {
+        attachedBrowser = browser;
+        browser.on('disconnected', () => {
+          if (attachedBrowser === browser) attachedBrowser = undefined;
+          attachedAttempt = undefined;
+        });
+        return browser;
+      }).catch(error => {
+        attachedAttempt = undefined;
+        throw error;
+      });
+  }
+  return attachedAttempt;
+}
+
 async function discoverRunningChrome(): Promise<string | undefined> {
   try {
     const response = await fetch(localCdpUrl + '/json/version', {
@@ -39,8 +63,10 @@ export class BrowserSession {
     // Remote workers and mobile browsers cannot expose their cookies through CDP.
     const attach = process.env.UTOMATOR_BROWSER_MODE === 'attached' &&
       process.env.HEADLESS !== 'true' && !process.env.UTOMATOR_INTERNAL_OWNER_ID;
-    const cdpUrl = process.env.UTOMATOR_DISABLE_CDP === 'true' || (accountId && !attach)
-      ? undefined : process.env.CHROME_CDP_URL?.trim() || await discoverRunningChrome();
+    // Never attach implicitly. The user must opt in to shared browser cookies.
+    const cdpUrl = attach && process.env.UTOMATOR_DISABLE_CDP !== 'true'
+      ? process.env.CHROME_CDP_URL?.trim() || await discoverRunningChrome()
+      : undefined;
     if (attach && !cdpUrl) throw Error(
       'Existing Chrome was not found. Enable loopback Chrome debugging in a local profile, or use isolated browser mode.'
     );
@@ -49,7 +75,7 @@ export class BrowserSession {
       if (!['127.0.0.1', 'localhost', '[::1]'].includes(cdp.hostname) ||
           !['http:', 'https:'].includes(cdp.protocol)) throw new Error('CDP must use loopback');
       try {
-        this.browser = await chromium.connectOverCDP(cdpUrl, { timeout: 6000 });
+        this.browser = await attachChrome(cdpUrl);
       } catch {
         throw new Error('Cannot attach to Chrome debugging session. Verify Chrome is running with a loopback CDP port, or disable CHROME_CDP_URL to use the persistent profile.');
       }
@@ -79,8 +105,9 @@ export class BrowserSession {
       if (this.browser) await this.page?.close();
       else await this.context?.close();
     } finally {
-      // For CDP: disconnect from Chrome, do not terminate the user's browser.
-      if (this.browser) await this.browser.close();
+      // The engine owns its tab, NEVER the attached Chrome process. The shared
+      // connection intentionally persists until Chrome or this engine exits.
+      // Reusing it prevents one workflow from disconnecting other active runs.
       this.page = undefined; this.context = undefined; this.browser = undefined;
       this.connection = undefined;
     }
