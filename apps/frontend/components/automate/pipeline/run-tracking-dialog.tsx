@@ -100,8 +100,8 @@ export default function RunTrackingDialog({
             <CardHeader>
               <CardTitle>Audit comparison</CardTitle>
               <CardDescription>
-                Current observation against an owner-authored draft.
-                Differences require your judgment.
+                Current observation against an owner-authored draft. Differences
+                require your judgment.
               </CardDescription>
             </CardHeader>
             <CardContent>

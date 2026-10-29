@@ -30,8 +30,8 @@ export default function RunHistory<T extends RunSummary>({
       <CardHeader>
         <CardTitle>Recent executions</CardTitle>
         <CardDescription>
-          Stored in memory during the current engine session. Select a
-          run to inspect streamed events.
+          Stored in memory during the current engine session. Select a run to
+          inspect streamed events.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -53,8 +53,7 @@ export default function RunHistory<T extends RunSummary>({
                   {run.platform} / {run.action.replaceAll('-', ' ')}
                 </span>
                 <span className="text-xs text-slate-500">
-                  {short(run.id)} ·{' '}
-                  {new Date(run.createdAt).toLocaleString()}
+                  {short(run.id)} · {new Date(run.createdAt).toLocaleString()}
                 </span>
               </span>
               <span className="text-xs font-semibold text-slate-500 capitalize">
