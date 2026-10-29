@@ -38,7 +38,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Verify backend formatting
-        run: pnpm --filter @utomator/backend exec biome format .
+        run: pnpm --filter @utomator/backend exec biome format --max-diagnostics=200 .
       - name: Verify backend lint, including warnings
         run: pnpm --filter @utomator/backend exec biome lint --error-on-warnings .
 
