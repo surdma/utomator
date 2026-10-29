@@ -331,12 +331,6 @@ function chain(plan: WorkflowPlan, steps: WorkflowStep[]): WorkflowPlan {
       .map((s, i) => ({ source: steps[i]!.id, target: s.id })),
   };
 }
-function editorLabel(action: string) {
-  return action
-    .split("-")
-    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-    .join(" ");
-}
 function EditorBody(props: Props) {
   const {
     plan,
