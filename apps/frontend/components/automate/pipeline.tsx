@@ -34,7 +34,6 @@ import { useWorkflowWorkspace } from './pipeline/use-workflow-workspace';
 import RunTrackingDialog from './pipeline/run-tracking-dialog';
 import CheckpointDialog from './pipeline/checkpoint-dialog';
 import DashboardHeader from './pipeline/dashboard-header';
-import { getApi } from './pipeline/api-client';
 import DashboardSidebar from './pipeline/dashboard-sidebar';
 import {
   useDashboardNavigation,
