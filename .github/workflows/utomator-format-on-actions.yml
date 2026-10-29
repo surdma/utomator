@@ -1,0 +1,62 @@
+name: Utomator formatter (controlled)
+
+on:
+  push:
+    branches: [feat/yaml-growth-profile-pipeline]
+    paths: ['.github/workflows/utomator-format-on-actions.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: utomator-format-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  format:
+    if: github.repository == 'surdma/utomator' && github.ref == 'refs/heads/feat/yaml-growth-profile-pipeline'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/yaml-growth-profile-pipeline
+          persist-credentials: true
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Format backend with its existing Biome configuration
+        run: pnpm --filter @utomator/backend exec biome format --write .
+      - name: Format frontend with pinned Prettier
+        run: >-
+          pnpm dlx prettier@3.6.2 --write
+          'apps/frontend/{app,components,lib,tests}/**/*.{js,jsx,mjs,ts,tsx,css,md,json}'
+          'apps/frontend/*.{js,mjs,ts,tsx,json}'
+      - name: Reject malformed diffs
+        run: git diff --check
+      - name: Verify backend tests and types
+        run: |
+          pnpm --filter @utomator/backend test
+          pnpm --filter @utomator/backend typecheck
+      - name: Verify frontend tests and types
+        run: |
+          pnpm --filter @utomator/frontend test
+          pnpm --filter @utomator/frontend build
+          pnpm --filter @utomator/frontend exec tsc --noEmit
+      - name: Commit validated formatting changes to the PR branch
+        run: |
+          git add -- apps/backend/src apps/backend/tests apps/frontend/app apps/frontend/components apps/frontend/lib apps/frontend/tests apps/frontend/playwright.config.ts apps/frontend/tsconfig.json
+          if git diff --cached --quiet; then
+            echo 'No formatting changes to commit'
+            exit 0
+          fi
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'style: Format backend and frontend sources'
+          git push origin HEAD:feat/yaml-growth-profile-pipeline
