@@ -39,7 +39,9 @@ async function exercise(mode:'audit'|'audit-race'|'reject'){
     const launcher=page.getByTestId('floating-connector-button');
     const wizard=page.getByRole('dialog',{name:'Connect your social accounts'});
     await clickUntilVisible(page,launcher,wizard);
-    await wizard.getByText('No LinkedIn account linked.',{exact:false}).waitFor();
+    await wizard.getByTestId('connector-status').waitFor();
+    assert.equal((await wizard.getByTestId('connector-status').innerText()).trim(),'Not connected');
+    await wizard.getByRole('button',{name:'Connect LinkedIn',exact:true}).waitFor();
     // A saved profile reference is not a verified browser session.
     await wizard.getByRole('button',{name:'Close Connect your social accounts'}).click();
     await wizard.waitFor({state:'hidden'});

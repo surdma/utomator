@@ -225,7 +225,7 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
                 className={"flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-xl border px-2.5 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 "+
                   (network===key?"border-slate-950 bg-slate-950 text-white":"border-slate-200 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50")}>
                 <Icon className="size-5! shrink-0" aria-hidden="true"/>
-                <span className="min-w-0">{providerMeta[key].name}</span>
+                <span className={key==="x"?"sr-only":"min-w-0"}>{providerMeta[key].name}</span>
               </button>;
             })}
           </div>
