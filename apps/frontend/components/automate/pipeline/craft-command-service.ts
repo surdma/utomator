@@ -51,8 +51,7 @@ export async function executeCraftCommand(
     body: JSON.stringify({ expectedVersion, craft }),
   });
   const saved = (await responseSave.json()) as Craft & { error?: string };
-  if (!responseSave.ok)
-    throw Error(saved.error || 'Craft edit was rejected');
+  if (!responseSave.ok) throw Error(saved.error || 'Craft edit was rejected');
   return {
     kind: 'updated',
     id: saved.id,
