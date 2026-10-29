@@ -23,6 +23,10 @@ Scope: `apps/frontend/components/automate/pipeline.tsx` and its page-specific mo
   plans and Growth templates.
 - `use-run-monitor.ts`: run event stream, polling, run state, checkpoint actions.
 - `run-event-utils.ts`: pure filtering, deduplication, refresh and terminal logic.
+- `use-visual-reviews.ts`: image attachment, screenshot annotation, saved review
+  loading and persistence, with explicit callbacks for page-specific side effects.
+- `visual-review-model.ts`: pure upload validation, review page targeting, and
+  the workflow note used for tagged annotations.
 - `use-chat-messages.ts`: operator message state and notices.
 - `use-operator-commands.ts`: structured chat/craft command orchestration.
 - `pipeline-workspace.tsx`: workflow artboard, parameter forms and run controls.
@@ -36,7 +40,7 @@ remain on this page rather than becoming global components.
 
 ## Verification
 
-Frontend unit/route tests, TypeScript, formatting and ESLint, production build, browser integration
+Frontend unit/route tests (including the visual review model), TypeScript, formatting and ESLint, production build, browser integration
 and responsive/accessibility checks are required before this refactor is considered validated. Live
 LinkedIn account execution remains outside fixture-based CI and is not claimed by this structural
 refactor.

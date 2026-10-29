@@ -3,11 +3,7 @@
 import { useCallback, useState } from 'react';
 import { MessageSquareText } from 'lucide-react';
 import CraftsLibrary from '@/components/automate/crafts-library';
-import VisualReviewPanel, {
-  type ImageSource,
-  type VisualReviewDraft,
-  type VisualAnnotation,
-} from '@/components/automate/visual-review-panel';
+import VisualReviewPanel from '@/components/automate/visual-review-panel';
 import { AutomationSettingsPage } from '@/components/automate/owner-pages';
 import CareerStudio from '@/components/automate/career-studio';
 import AccountStudio, {
@@ -26,8 +22,12 @@ import PipelineWorkspace from './pipeline/pipeline-workspace';
 import { buildRunPayload } from './pipeline/build-run-payload';
 import RunHistory from './pipeline/run-history';
 import OperatorChatPanel from './pipeline/operator-chat-panel';
-import type { Review } from './pipeline/run-models';
 import { useRunMonitor } from './pipeline/use-run-monitor';
+import { useVisualReviews } from './pipeline/use-visual-reviews';
+import {
+  appendVisualReviewStep,
+  reviewSection,
+} from './pipeline/visual-review-model';
 import { useChatMessages } from './pipeline/use-chat-messages';
 import { useOperatorCommands } from './pipeline/use-operator-commands';
 import { useWorkflowWorkspace } from './pipeline/use-workflow-workspace';
@@ -266,126 +266,58 @@ export default function AutomationPipeline({
       chatNotice(detail);
     }
   }
-  async function attachImage(file?: File) {
-    if (!file) return;
-    if (
-      file.size > 2 * 1024 * 1024 ||
-      !['image/png', 'image/jpeg', 'image/webp'].includes(file.type)
-    ) {
-      setImageError('Choose a PNG, JPEG or WebP file under 2 MB.');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setImageDraft({
-          kind: 'upload',
-          src: reader.result,
-          imageData: reader.result,
-        });
-        setImageError('');
-      }
-    };
-    reader.onerror = () => setImageError('Could not read the selected image');
-    reader.readAsDataURL(file);
-  }
-  function annotateCapture(runId: string, fileName: string) {
-    const section = /^audit-(experience|skills|projects|featured)\.png$/.exec(
-      fileName
-    )?.[1];
-    if (section && platform === 'linkedin') setScopeSection(section);
-    const src = getApi('runs/' + runId + '/evidence/' + fileName);
-    setSelectedNode('annotation');
-    setImageDraft({ kind: 'capture', src, runId, fileName });
-  }
-  async function saveVisualReview(draft: VisualReviewDraft) {
-    const response = await fetch(getApi('visual-reviews'), {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(draft),
-    });
-    const json = (await response.json()) as {
-      error?: string;
-      id?: string;
-      annotations?: VisualAnnotation[];
-    };
-    if (!response.ok || !json.id)
-      throw new Error(json.error || 'Could not save visual review');
-    setImageDraft(null);
-    setSelectedNode('annotation');
-    setPlanDirty(true);
-    setWorkflowPlan((previous) => {
-      const id = 'review-' + json.id!.slice(0, 8);
-      if (previous.steps.some((step) => step.id === id)) return previous;
-      const steps = [...previous.steps];
-      const idx = steps.findIndex((step) => step.id === 'action');
-      steps.splice(idx, 0, {
-        id,
-        kind: 'note',
-        title: 'Tagged image instruction',
-        message:
-          'Image review ' +
-          json.id +
-          ' · ' +
-          draft.annotations.length +
-          ' location actions; approval still required',
-      });
-      return {
+  const {
+    imageDraft,
+    setImageDraft,
+    imageError,
+    attachImage,
+    annotateCapture,
+    saveVisualReview,
+    inspectReview,
+    tagExistingReview,
+    reviewImage,
+  } = useVisualReviews({
+    platform,
+    onCaptureSection: setScopeSection,
+    onSelectedNode: setSelectedNode,
+    onReviewSaved: (id, annotationCount) => {
+      setPlanDirty(true);
+      setWorkflowPlan((previous) =>
+        appendVisualReviewStep(previous, id, annotationCount)
+      );
+      setChatVisible(true);
+      setConversation((previous) => [
         ...previous,
-        steps,
-        links: steps
-          .slice(1)
-          .map((step, i) => ({ source: steps[i]!.id, target: step.id })),
-      };
-    });
-    setChatVisible(true);
-    setConversation((previous) => [
-      ...previous,
-      {
-        id: Date.now(),
-        sender: 'assistant',
-        text:
-          'Tagged ' +
-          draft.annotations.length +
-          ' annotation(s) to this image and workflow. Review ' +
-          json.id +
-          ' links each location to its selected action and optional comment. This is an operator-authored plan; no AI model or website action has run. Inspect the live page and explicitly approve any supported edit.',
-      },
-    ]);
-    await refresh();
-  }
-  function inspectReview(review: Review) {
-    choosePlatform(review.platform);
-    const part = review.pageUrl.match(
-      /\/details\/(experience|skills|projects|featured)\/?$/
-    );
-    setHandle(review.handle);
-    setScopeSection(part?.[1] || 'profile');
-    invalidateWorkflowSelection();
-    setActiveWorkflow(null);
-    setAction('audit-page');
-    setSelectedNode('inspect');
-    setConfigRequest((value) => value + 1);
-    navigatePane('pipeline');
-  }
-  const reviewImage = (review: Review) =>
-    getApi('visual-reviews/' + review.id + '/image');
-  const tagExistingReview = (review: Review) => {
-    choosePlatform(review.platform);
-    setHandle(review.handle);
-    setScopeSection(
-      review.pageUrl.match(
-        /\/details\/(experience|skills|projects|featured)\/?$/
-      )?.[1] ?? 'profile'
-    );
-    setImageDraft({
-      kind: 'review',
-      src: reviewImage(review),
-      reviewId: review.id,
-      initialAnnotations: review.annotations,
-    });
-    setSelectedNode('annotation');
-  };
+        {
+          id: Date.now(),
+          sender: 'assistant',
+          text:
+            'Tagged ' +
+            annotationCount +
+            ' annotation(s) to this image and workflow. Review ' +
+            id +
+            ' links each location to its selected action and optional comment. This is an operator-authored plan; no AI model or website action has run. Inspect the live page and explicitly approve any supported edit.',
+        },
+      ]);
+    },
+    onInspectReview: (review) => {
+      choosePlatform(review.platform);
+      setHandle(review.handle);
+      setScopeSection(reviewSection(review.pageUrl));
+      invalidateWorkflowSelection();
+      setActiveWorkflow(null);
+      setAction('audit-page');
+      setSelectedNode('inspect');
+      setConfigRequest((value) => value + 1);
+      navigatePane('pipeline');
+    },
+    onSelectReviewAccount: (review) => {
+      choosePlatform(review.platform);
+      setHandle(review.handle);
+      setScopeSection(reviewSection(review.pageUrl));
+    },
+    refresh,
+  });
   const latest = events.at(-1);
   const showChat =
     chatVisible &&
