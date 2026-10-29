@@ -72,16 +72,16 @@ test("unified Growth editor reads the ID from nested Growth and legacy Craft URL
     resolve(root, "components", "automate", "pipeline.tsx"),
     "utf8",
   );
-  assert.match(pipeline, /const\s+id\s*=\s*pathname\.split\("\/"\)\[3\]/);
+  assert.match(pipeline, /const\s+id\s*=\s*pathname\.split\(['"]\/['"]\)\[3\]/);
   assert.doesNotMatch(
     pipeline,
-    /const\s+id\s*=\s*pathname\.split\("\/"\)\[2\]/,
+    /const\s+id\s*=\s*pathname\.split\(['"]\/['"]\)\[2\]/,
   );
-  assert.match(pipeline, /pathname.startsWith\("\/dashboard\/growth\/"\)/);
-  assert.match(pipeline, /pane\s*===\s*"growth"\s*&&\s*\(?\s*<CraftsLibrary/);
+  assert.match(pipeline, /pathname.startsWith\(['"]\/dashboard\/growth\/['"]\)/);
+  assert.match(pipeline, /pane\s*===\s*['"]growth['"]\s*&&\s*\(?\s*<CraftsLibrary/);
   assert.match(pipeline, /onGrowthTemplateApply=\{applyGrowthTemplate\}/);
   assert.match(pipeline, /growthTemplateId=\{selectedGrowthTemplateId\}/);
-  assert.match(pipeline, /"\/dashboard\/growth\/"\s*\+\s*encodeURIComponent/);
+  assert.match(pipeline, /['"]\/dashboard\/growth\/['"]\s*\+\s*encodeURIComponent/);
   assert.ok(!pipeline.includes("<LinkedInGrowthHub"));
   for (const route of [
     "app/dashboard/growth/[craftId]/page.tsx",
@@ -95,7 +95,7 @@ test("unified Growth editor reads the ID from nested Growth and legacy Craft URL
   ])
     assert.match(
       readFileSync(resolve(root, route), "utf8"),
-      /redirect\("\/dashboard\/growth/,
+      /redirect\(['"]\/dashboard\/growth/,
     );
 });
 
@@ -110,21 +110,21 @@ test("dashboard navigation is distinct from account and career API paths", () =>
   );
   assert.match(
     account,
-    /save\(\s*"\/profile"\s*,\s*"PUT"\s*,\s*profile\s*\)/,
+    /save\(\s*['"]\/profile['"]\s*,\s*['"]PUT['"]\s*,\s*profile\s*\)/,
     "account settings use /api/account/profile",
   );
   assert.match(
     career,
-    /request\(\s*sourceView\s*\?\s*"\/profile"\s*:\s*"\/resumes\/"/,
+    /request\(\s*sourceView\s*\?\s*['"]\/profile['"]\s*:\s*['"]\/resumes\/['"]/,
     "career editor uses /api/career/profile or /api/career/resumes",
   );
   assert.match(
     career,
-    /request\(\s*"\/resumes"\s*,\s*"POST"/,
+    /request\(\s*['"]\/resumes['"]\s*,\s*['"]POST['"]/,
     "creating a résumé uses the backend API",
   );
   assert.ok(
-    account.includes('"/dashboard/profile/connections"'),
+    /['"]\/dashboard\/profile\/connections['"]/.test(account),
     "navigation still lives inside dashboard",
   );
 });
@@ -195,5 +195,5 @@ test("Growth YAML loads through the existing Templates modal and nested artboard
     resolve(root, "app/growth/default-growth-profile/page.tsx"),
     "utf8",
   );
-  assert.match(legacy, /redirect\("\/dashboard\/pipeline"\)/);
+  assert.match(legacy, /redirect\(['"]\/dashboard\/pipeline['"]\)/);
 });

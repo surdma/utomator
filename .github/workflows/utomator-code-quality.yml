@@ -56,7 +56,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Verify frontend formatting
         run: >-
-          pnpm dlx prettier@3.6.2 --check
+          pnpm exec prettier --check
           'apps/frontend/{app,components,lib,tests}/**/*.{js,jsx,mjs,ts,tsx,css,md,json}'
           'apps/frontend/*.{js,mjs,ts,tsx,json}'
       - name: Verify frontend ESLint, including warnings

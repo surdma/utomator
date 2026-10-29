@@ -79,8 +79,10 @@ import ConnectorOnboarding, {
   type Connector,
 } from '@/components/automate/connector-onboarding';
 import { LinkedInIcon, TwitterIcon } from '@/components/svgs';
+import { workflows, type Platform, type Workflow } from './pipeline/workflow-catalog';
+import { stateLabel, timeLabel, short } from './pipeline/presentation-utils';
+import { explainCommand } from './pipeline/command-parser';
 
-type Platform = 'linkedin' | 'x';
 type WorkflowRecord = {
   id: string;
   ownerId: 'local-owner';
@@ -124,20 +126,6 @@ type Run = {
   state: State;
   createdAt: string;
   error?: string;
-};
-type Field = {
-  key: string;
-  label: string;
-  multiline?: boolean;
-  placeholder?: string;
-  required?: boolean;
-  max?: number;
-};
-type Workflow = {
-  id: string;
-  title: string;
-  category: string;
-  fields: Field[];
 };
 type Coverage = {
   id: string;
@@ -188,211 +176,7 @@ type Review = {
     | { kind: 'review'; reviewId: string };
 };
 
-const workflows: Record<Platform, Workflow[]> = {
-  linkedin: [
-    { id: 'audit', title: 'Profile audit', category: 'Inspect', fields: [] },
-    {
-      id: 'audit-page',
-      title: 'Inspect selected page',
-      category: 'Inspect',
-      fields: [],
-    },
-    {
-      id: 'edit-profile',
-      title: 'Headline & About',
-      category: 'Profile',
-      fields: [
-        { key: 'headline', label: 'Headline', max: 220 },
-        { key: 'about', label: 'About', multiline: true, max: 2600 },
-      ],
-    },
-    {
-      id: 'edit-experience',
-      title: 'Experience',
-      category: 'Profile',
-      fields: [
-        {
-          key: 'positionId',
-          label: 'Existing LinkedIn position ID',
-          required: true,
-        },
-        {
-          key: 'description',
-          label: 'Experience description',
-          multiline: true,
-          required: true,
-        },
-        { key: 'startMonth', label: 'Start month (optional)' },
-        { key: 'startYear', label: 'Start year (optional)' },
-      ],
-    },
-    {
-      id: 'add-skill',
-      title: 'Add skill',
-      category: 'Profile',
-      fields: [{ key: 'skill', label: 'Exact skill', required: true }],
-    },
-    {
-      id: 'edit-website',
-      title: 'Contact website',
-      category: 'Profile',
-      fields: [
-        { key: 'website', label: 'HTTPS website', required: true },
-        { key: 'websiteIndex', label: 'Row index (0–9)', placeholder: '0' },
-        { key: 'websiteType', label: 'Website type (optional)' },
-      ],
-    },
-    {
-      id: 'edit-services',
-      title: 'Services',
-      category: 'Profile',
-      fields: [
-        {
-          key: 'description',
-          label: 'Services description',
-          multiline: true,
-          required: true,
-        },
-      ],
-    },
-    {
-      id: 'add-project',
-      title: 'Add project',
-      category: 'Showcase',
-      fields: [
-        { key: 'projectName', label: 'Project name', required: true },
-        {
-          key: 'description',
-          label: 'Contribution and outcome',
-          required: true,
-          multiline: true,
-        },
-        { key: 'projectUrl', label: 'Optional media URL' },
-      ],
-    },
-    {
-      id: 'add-featured',
-      title: 'Featured link',
-      category: 'Showcase',
-      fields: [
-        { key: 'projectUrl', label: 'HTTPS destination', required: true },
-        { key: 'featuredTitle', label: 'Featured title', required: true },
-      ],
-    },
-  ],
-  x: [
-    { id: 'audit', title: 'Profile audit', category: 'Inspect', fields: [] },
-    {
-      id: 'audit-page',
-      title: 'Inspect selected page',
-      category: 'Inspect',
-      fields: [],
-    },
-    {
-      id: 'edit-profile',
-      title: 'Bio & contact',
-      category: 'Profile',
-      fields: [
-        { key: 'bio', label: 'Bio', multiline: true, max: 160 },
-        { key: 'location', label: 'Location' },
-        { key: 'website', label: 'HTTPS website' },
-      ],
-    },
-    {
-      id: 'upload-banner',
-      title: 'Upload banner',
-      category: 'Profile',
-      fields: [
-        {
-          key: 'bannerPath',
-          label: 'Local image in apps/backend/assets',
-          required: true,
-        },
-      ],
-    },
-    {
-      id: 'compose-post',
-      title: 'Publish one post',
-      category: 'Content',
-      fields: [
-        {
-          key: 'postText',
-          label: 'Post text',
-          required: true,
-          multiline: true,
-          max: 280,
-        },
-      ],
-    },
-    {
-      id: 'pin-post',
-      title: 'Pin post',
-      category: 'Content',
-      fields: [{ key: 'postUrl', label: 'Exact post URL', required: true }],
-    },
-    {
-      id: 'delete-post',
-      title: 'Delete one post',
-      category: 'Content',
-      fields: [
-        { key: 'postUrl', label: 'Exact authored post URL', required: true },
-      ],
-    },
-  ],
-};
 const getApi = (path: string) => '/api/' + path;
-function stateLabel(state: string) {
-  return state.replaceAll('-', ' ');
-}
-function timeLabel(time: string) {
-  return new Date(time).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-}
-function short(id: string) {
-  return id.slice(0, 8);
-}
-function explainCommand(
-  value: string
-): { action: string; fields: Record<string, string>; note: string } | null {
-  const text = value.trim();
-  if (/^(audit|inspect|review)(?:\s+(?:my\s+)?profile)?[.!]?$/i.test(text)) {
-    return {
-      action: 'audit',
-      fields: {},
-      note: 'Read-only audit prepared. Start the run to collect current profile evidence.',
-    };
-  }
-  const headline = text.match(
-    /^(?:set|update|draft)\s+(?:my\s+)?headline\s*:\s*([\s\S]+)$/i
-  );
-  if (headline)
-    return {
-      action: 'edit-profile',
-      fields: { headline: headline[1].trim() },
-      note: 'Headline staged for review. No change has been published.',
-    };
-  const skill = text.match(/^(?:add)\s+(?:the\s+)?skill\s*:\s*([\s\S]+)$/i);
-  if (skill)
-    return {
-      action: 'add-skill',
-      fields: { skill: skill[1].trim() },
-      note: 'Skill selected. LinkedIn will confirm the exact catalog entry.',
-    };
-  const post = text.match(
-    /^(?:draft|compose)\s+(?:a\s+)?post\s*:\s*([\s\S]+)$/i
-  );
-  if (post)
-    return {
-      action: 'compose-post',
-      fields: { postText: post[1].trim() },
-      note: 'Post staged. Publishing still requires your explicit approval.',
-    };
-  return null;
-}
-
 export default function AutomationPipeline({
   initialPane = 'pipeline',
 }: {

@@ -58,7 +58,7 @@ test("the marketing root is separate and every operator page is nested under das
   );
   assert.match(
     await read("app/dashboard/page.tsx"),
-    /redirect\("\/dashboard\/pipeline"\)/,
+    /redirect\(['"]\/dashboard\/pipeline['"]\)/,
   );
   assert.match(await read("components/automate/pipeline.tsx"), /Pipeline/);
   assert.match(
@@ -74,8 +74,8 @@ test("API proxy remains loopback-only and craft endpoints are allowlisted", asyn
   assert.match(api, /Same-origin request required/);
   assert.match(api, /\/api\/linkedin\/oauth\/callback/);
   assert.ok(!api.includes("/_automate"));
-  assert.ok(api.includes('"crafts"'));
-  assert.ok(!api.includes('"skills"'));
+  assert.match(api, /['"]crafts['"]/);
+  assert.doesNotMatch(api, /['"]skills['"]/);
 });
 test("marketing content does not embed old personal portfolio identity", async () => {
   const layout = await read("app/layout.tsx");
