@@ -47,7 +47,7 @@ test('CDP reuse shares login cookies without closing existing Chrome tabs', {
         url: 'https://www.linkedin.com',
       },
     ]);
-    process.env.CHROME_CDP_URL = 'http://127.0.0.1:' + port;
+    process.env.CHROME_CDP_URL = `http://127.0.0.1:${port}`;
     for (let run = 0; run < 2; run++) {
       const session = new BrowserSession();
       try {

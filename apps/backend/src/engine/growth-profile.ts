@@ -35,7 +35,7 @@ function fields(
     Object.keys(input).length !== expected.length ||
     expected.some((key) => !Object.hasOwn(input, key))
   )
-    throw Error('Invalid Growth profile YAML ' + label);
+    throw Error(`Invalid Growth profile YAML ${label}`);
 }
 function entries(input: unknown, prefix: 'requirement' | '', min: number, max: number, label: string) {
   if (
@@ -52,7 +52,7 @@ function entries(input: unknown, prefix: 'requirement' | '', min: number, max: n
         value.length <= 400,
     )
   )
-    throw Error('Invalid Growth profile YAML ' + label);
+    throw Error(`Invalid Growth profile YAML ${label}`);
   return Object.entries(input) as Array<[string, string]>;
 }
 export function compileGrowthProfileYaml(yaml: string) {

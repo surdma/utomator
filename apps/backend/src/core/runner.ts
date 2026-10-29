@@ -94,15 +94,15 @@ export class Runner {
       if (input.workflowId && input.workflowRevision) {
         writeFileSync(
           resolve(yamlDir, 'source-revision.json'),
-          JSON.stringify({
+          `${JSON.stringify({
             workflowId: input.workflowId,
             workflowRevision: input.workflowRevision,
-          }) + '\n',
+          })}\n`,
           { flag: 'wx', mode: 0o600 },
         );
       }
       for (const step of compiled.steps) {
-        writeFileSync(resolve(yamlDir, step.source.id + '.yaml'), step.yaml, {
+        writeFileSync(resolve(yamlDir, `${step.source.id}.yaml`), step.yaml, {
           flag: 'wx',
           mode: 0o600,
         });
@@ -130,7 +130,7 @@ export class Runner {
       // Each run keeps its own human-readable event journal. No secrets or
       // session cookies are included in our event payloads.
       try {
-        appendFileSync(logPath, JSON.stringify(event) + '\n', { mode: 0o600 });
+        appendFileSync(logPath, `${JSON.stringify(event)}\n`, { mode: 0o600 });
       } catch (error) {
         this.events.publish({
           runId: summary.id,
@@ -310,7 +310,7 @@ export class Runner {
       if (signal.aborted) throw Error('Run cancelled');
       summary.currentStepId = step.source.id;
       await this.waitForResume(summary, emit, step.document.spec.operation === 'await-operator', signal);
-      emit('step', 'Started: ' + step.source.title, {
+      emit('step', `Started: ${step.source.title}`, {
         stepId: step.source.id,
         stage: 'started',
         kind: step.source.kind,
@@ -323,7 +323,7 @@ export class Runner {
           throw Error('Step output schema does not match compiled YAML instruction');
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        emit('step', 'Failed: ' + step.source.title, {
+        emit('step', `Failed: ${step.source.title}`, {
           stepId: step.source.id,
           stage: 'failed',
           kind: step.source.kind,
@@ -333,13 +333,13 @@ export class Runner {
       }
       // A completed stage must have an immutable result, not just a success log.
       writeFileSync(
-        resolve('.runtime', 'runs', summary.id, step.source.id + '.output.json'),
-        JSON.stringify({ stepId: step.source.id, ...output }) + '\n',
+        resolve('.runtime', 'runs', summary.id, `${step.source.id}.output.json`),
+        `${JSON.stringify({ stepId: step.source.id, ...output })}\n`,
         { flag: 'wx', mode: 0o600 },
       );
       outputs.set(step.source.id, output);
       summary.completedStepIds.push(step.source.id);
-      emit('step', 'Completed: ' + step.source.title, {
+      emit('step', `Completed: ${step.source.title}`, {
         stepId: step.source.id,
         stage: 'completed',
         kind: step.source.kind,
@@ -434,7 +434,7 @@ export class Runner {
         url: ctx.page.url(),
         excerpt: summary.slice(0, 800),
       };
-      emit('audit', step.source.title + ': observed browser content', {
+      emit('audit', `${step.source.title}: observed browser content`, {
         stepId: step.source.id,
         stage: 'observation',
         url: observation.url,
@@ -449,11 +449,11 @@ export class Runner {
       if (!binding) return undefined;
       const source = outputs.get(binding.stepId);
       if (!source || source.schema !== binding.schema || !(binding.field in source))
-        throw Error('Typed step input unavailable: ' + binding.stepId + '.' + binding.field);
+        throw Error(`Typed step input unavailable: ${binding.stepId}.${binding.field}`);
       const value = (source as unknown as Record<string, unknown>)[binding.field];
       const expectedType = key === 'delayMs' ? 'number' : key === 'expectedMatch' ? 'boolean' : 'string';
       if (typeof value !== expectedType)
-        throw Error('Typed step input/output mismatch: ' + binding.stepId);
+        throw Error(`Typed step input/output mismatch: ${binding.stepId}`);
       return value as string | number | boolean;
     };
     if (operation === 'assess-observation') {
@@ -519,7 +519,7 @@ export class Runner {
       return { schema: 'status/v1', status: 'stopped' };
     }
     if (!['begin', 'reuse-session', 'await-operator', 'complete-run'].includes(operation))
-      throw new Error('Unregistered YAML step operation: ' + operation);
+      throw new Error(`Unregistered YAML step operation: ${operation}`);
     return { schema: 'status/v1', status: 'completed' };
   }
 
