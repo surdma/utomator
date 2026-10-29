@@ -100,8 +100,14 @@ test('unified Growth editor reads the ID from nested Growth and legacy Craft URL
     resolve(root, 'components/automate/pipeline/pipeline-workspace.tsx'),
     'utf8'
   );
-  assert.match(pipelineWorkspace, /onGrowthTemplateApply=\{applyGrowthTemplate\}/);
-  assert.match(pipelineWorkspace, /growthTemplateId=\{selectedGrowthTemplateId\}/);
+  assert.match(
+    pipelineWorkspace,
+    /onGrowthTemplateApply=\{applyGrowthTemplate\}/
+  );
+  assert.match(
+    pipelineWorkspace,
+    /growthTemplateId=\{selectedGrowthTemplateId\}/
+  );
   assert.match(
     navigationHook,
     /['"]\/dashboard\/growth\/['"]\s*\+\s*encodeURIComponent/

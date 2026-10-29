@@ -85,6 +85,13 @@ export type Review = {
     | { kind: 'review'; reviewId: string };
 };
 
-
-export type Checkpoint = { kind: 'approval' | 'input'; id: string; message: string };
-export type ChatMessage = { id: number; sender: 'user' | 'assistant'; text: string };
+export type Checkpoint = {
+  kind: 'approval' | 'input';
+  id: string;
+  message: string;
+};
+export type ChatMessage = {
+  id: number;
+  sender: 'user' | 'assistant';
+  text: string;
+};

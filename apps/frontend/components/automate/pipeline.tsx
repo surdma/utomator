@@ -208,7 +208,16 @@ export default function AutomationPipeline({
       setScopeSection('profile');
       setConnectorRequest(null);
     },
-    [activeConnector?.id, platform, invalidateWorkflowSelection]
+    [
+      activeConnector?.id,
+      platform,
+      invalidateWorkflowSelection,
+      setAction,
+      setActiveWorkflow,
+      setForm,
+      setHandle,
+      setPlatform,
+    ]
   );
   function choosePlatform(next: Platform) {
     invalidateWorkflowSelection();

@@ -5,22 +5,22 @@ Scope: `apps/frontend/components/automate/pipeline.tsx` and its page-specific mo
 ## Behavior preserved
 
 - Dashboard routes and the local-only API proxy remain unchanged.
-- Runner is still the only executable browser workflow. Starting a run still
-  validates the selected account, workflow revision, and required fields.
-- Streamed status, approval and input events remain associated with the selected
-  run. Events from another run are discarded; replayed event IDs are deduplicated.
+- Runner is still the only executable browser workflow. Starting a run still validates the selected
+  account, workflow revision, and required fields.
+- Streamed status, approval and input events remain associated with the selected run. Events from
+  another run are discarded; replayed event IDs are deduplicated.
 - Pausing, resuming, cancelling, and approving checkpoints use the same endpoints.
-- Saved workflows continue to use revision-checked persistence and retain the
-  selection-epoch guard against stale asynchronous responses.
+- Saved workflows continue to use revision-checked persistence and retain the selection-epoch guard
+  against stale asynchronous responses.
 - Growth YAML selection still validates the compiled server response.
 - Mator commands remain structured commands; there is no connected AI model.
-- Chat transcript, evidence screenshots and annotation editors retain their
-  existing visible behavior and test IDs.
+- Chat transcript, evidence screenshots and annotation editors retain their existing visible
+  behavior and test IDs.
 
 ## Page-local ownership
 
-- `use-workflow-workspace.ts`: workflow state, catalogue loading, saving,
-  selecting and applying plans and Growth templates.
+- `use-workflow-workspace.ts`: workflow state, catalogue loading, saving, selecting and applying
+  plans and Growth templates.
 - `use-run-monitor.ts`: run event stream, polling, run state, checkpoint actions.
 - `run-event-utils.ts`: pure filtering, deduplication, refresh and terminal logic.
 - `use-chat-messages.ts`: operator message state and notices.
@@ -31,12 +31,12 @@ Scope: `apps/frontend/components/automate/pipeline.tsx` and its page-specific mo
 - `run-models.ts`: shared page-local types.
 - `default-workflow-plan.ts`: isolated initial plan factory.
 
-The parent coordinates cross-feature interactions and visual-review editing;
-those interactions remain on this page rather than becoming global components.
+The parent coordinates cross-feature interactions and visual-review editing; those interactions
+remain on this page rather than becoming global components.
 
 ## Verification
 
-Frontend unit/route tests, TypeScript, formatting and ESLint, production build,
-browser integration and responsive/accessibility checks are required before
-this refactor is considered validated. Live LinkedIn account execution remains
-outside fixture-based CI and is not claimed by this structural refactor.
+Frontend unit/route tests, TypeScript, formatting and ESLint, production build, browser integration
+and responsive/accessibility checks are required before this refactor is considered validated. Live
+LinkedIn account execution remains outside fixture-based CI and is not claimed by this structural
+refactor.

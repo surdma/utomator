@@ -34,9 +34,8 @@ export function useWorkflowWorkspace({
   const [action, setAction] = useState('audit');
   const [handle, setHandle] = useState('');
   const [form, setForm] = useState<Record<string, string>>({});
-  const [workflowPlan, setWorkflowPlan] = useState<WorkflowPlan>(
-    defaultWorkflowPlan
-  );
+  const [workflowPlan, setWorkflowPlan] =
+    useState<WorkflowPlan>(defaultWorkflowPlan);
   const [templatePlans, setTemplatePlans] = useState<WorkflowPlan[]>([]);
   const [selectedGrowthTemplateId, setSelectedGrowthTemplateId] = useState<
     string | null
@@ -269,8 +268,6 @@ export function useWorkflowWorkspace({
     setPlanDirty(false);
     setRunFormError('');
   }
-
-
 
   const invalidateWorkflowSelection = useCallback(() => {
     workflowSelectionEpoch.current++;

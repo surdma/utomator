@@ -124,9 +124,7 @@ export default function OperatorChatPanel({
         <CardHeader className="flex flex-row items-start justify-between gap-3 border-b border-slate-100">
           <div>
             <CardTitle>Mator</CardTitle>
-            <CardDescription>
-              Your local operator conversation
-            </CardDescription>
+            <CardDescription>Your local operator conversation</CardDescription>
           </div>
           <div className="flex items-center gap-1">
             <button
@@ -187,9 +185,7 @@ export default function OperatorChatPanel({
               >
                 <MessageAvatar
                   className={
-                    item.sender === 'assistant'
-                      ? 'bg-teal-700'
-                      : 'bg-slate-800'
+                    item.sender === 'assistant' ? 'bg-teal-700' : 'bg-slate-800'
                   }
                 >
                   {item.sender === 'assistant' ? (
@@ -251,8 +247,7 @@ export default function OperatorChatPanel({
                         )}
                         className="mt-2 block w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-left hover:border-teal-400 focus-visible:outline-2 focus-visible:outline-teal-600"
                         aria-label={
-                          'Annotate captured image: ' +
-                          event.details.fileName
+                          'Annotate captured image: ' + event.details.fileName
                         }
                       >
                         <Image
@@ -327,9 +322,7 @@ export default function OperatorChatPanel({
                                   stroke="#0f766e"
                                   strokeWidth="5"
                                   points={(a.points ?? [])
-                                    .map(
-                                      (p) => p.x * 1000 + ',' + p.y * 1000
-                                    )
+                                    .map((p) => p.x * 1000 + ',' + p.y * 1000)
                                     .join(' ')}
                                 />
                               ) : a.shape === 'ellipse' ? (
@@ -400,17 +393,15 @@ export default function OperatorChatPanel({
                                   className="text-[11px] text-slate-700"
                                 >
                                   <strong>
-                                    {index + 1}.{' '}
-                                    {a.action.replaceAll('-', ' ')}
+                                    {index + 1}. {a.action.replaceAll('-', ' ')}
                                   </strong>
                                   {a.comment ? ' · ' + a.comment : ''}
                                 </p>
                               ))}
                             </div>
                             <p className="mt-1 text-[10px] leading-4 text-slate-500">
-                              Tagged instructions are linked to the
-                              workflow; they cannot execute unapproved
-                              browser actions.
+                              Tagged instructions are linked to the workflow;
+                              they cannot execute unapproved browser actions.
                             </p>
                           </>
                         ) : (

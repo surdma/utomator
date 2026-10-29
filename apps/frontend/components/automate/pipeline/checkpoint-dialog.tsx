@@ -28,9 +28,7 @@ export default function CheckpointDialog({
       open={Boolean(checkpoint)}
       onDismiss={() => {}}
       dismissible={false}
-      title={
-        checkpointNeeded ? 'Approval required' : 'Operator input required'
-      }
+      title={checkpointNeeded ? 'Approval required' : 'Operator input required'}
       description={checkpoint?.message}
       testId="checkpoint-dialog"
     >
