@@ -45,11 +45,7 @@ export default function WorkflowOutputDialog({
     <StudioDialog
       open={open}
       onDismiss={() => onDismiss()}
-      title={
-        focused === 'verify'
-          ? 'Verification evidence'
-          : 'Final workflow output'
-      }
+      title={focused === 'verify' ? 'Verification evidence' : 'Final workflow output'}
       description="Actual run results and captured evidence. Screenshots are labeled as captured, not fabricated after-state previews."
       size="wide"
       testId="workflow-output-dialog"
