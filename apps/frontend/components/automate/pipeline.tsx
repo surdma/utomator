@@ -806,7 +806,7 @@ export default function AutomationPipeline({ initialPane = "pipeline" }: { initi
               else chatNotice(text); }}
             revision={craftsRevision}
           />}
-          {pane === "profile" && <AccountStudio view={pathname.endsWith("/details")?"details":pathname.endsWith("/connections")?"connections":"overview"} onNavigate={navigateSubpage} onSelectAccount={selectSocialAccount} />}
+          {pane === "profile" && <AccountStudio view={pathname.endsWith("/details")?"details":pathname.endsWith("/connections")?"connections":"overview"} onNavigate={navigateSubpage} onSelectAccount={selectSocialAccount} linkedAccountId={activeConnector?.id} onConnect={()=>{setConnectorRequest(null);setConnectorOpenSignal(value=>value+1);}} />}
           {pane === "resumes" && <CareerStudio mode={pathname==="/dashboard/resumes/profile"?"profile":"resumes"} onNavigate={navigateSubpage} />}
           {(pane === "memory" || pane === "observer") && <ActivityIntelligence initialView={pane} onNavigate={path=>{navigate(path);setPane(path.endsWith("/dashboard/observer")?"observer":"memory")}} />}
           {pane === "research" && <LinkedInResearchStudio />}

@@ -71,3 +71,34 @@ test("Compact LinkedIn dialog stays usable on narrow mobile viewports",async({pa
   await expect(dialog.getByRole("button",{name:"Check connection"})).toBeVisible();
   expect(await dialog.evaluate(element=>element.scrollWidth<=element.clientWidth+1)).toBe(true);
 });
+
+
+test("a new connection discovers its identity without manual input",async({page})=>{
+  const fixture=await installConnectorApi(page,[]);
+  const dialog=await openConnectorDialog(page);
+  await expect(dialog.getByRole("textbox",{name:/profile address|handle|username/i})).toHaveCount(0);
+  await dialog.getByRole("button",{name:"Connect LinkedIn",exact:true}).click();
+  await expect(dialog.getByTestId("connector-status")).toHaveText("Sign-in in progress");
+  await dialog.getByRole("button",{name:"Verify connection"}).click();
+  await expect(dialog.getByText("@verified-owner")).toBeVisible();
+  expect(fixture.commands.map(event=>event.operation)).toEqual(["start","sync"]);
+});
+
+test("unsupported providers cannot sync",async({page})=>{
+  const fixture=await installConnectorApi(page,[]);
+  const dialog=await openConnectorDialog(page);
+  await dialog.getByRole("button",{name:"GitHub"}).click();
+  await expect(dialog.getByText(/Official API connector not available yet/)).toBeVisible();
+  await expect(dialog.getByRole("button",{name:/Sync|Verify connection|Check connection/})).toHaveCount(0);
+  expect(fixture.commands).toHaveLength(0);
+});
+
+test("X linking is discovered through provider sign-in",async({page})=>{
+  const fixture=await installConnectorApi(page,[]);
+  const dialog=await openConnectorDialog(page);
+  await dialog.getByRole("button",{name:"X",exact:true}).click();
+  await dialog.getByRole("button",{name:"Connect X",exact:true}).click();
+  await dialog.getByRole("button",{name:"Verify connection"}).click();
+  await expect(dialog.getByText("@verified-owner")).toBeVisible();
+  expect(fixture.commands.map(event=>event.operation)).toEqual(["start","sync"]);
+});

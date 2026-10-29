@@ -183,38 +183,63 @@ test('X connector verifies ownership through the owner-only Edit profile control
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
-test('two LinkedIn accounts resolve independently to their saved profile URLs', async () => {
-  const root=await mkdtemp(join(tmpdir(),'utomator-two-accounts-'));
+test('browser-sign-in discovers a new LinkedIn identity without a typed profile', async () => {
+  const root=await mkdtemp(join(tmpdir(),'utomator-discovery-'));
   try {
     const store=new AccountStore(root);
-    const alice=await store.addSocial(0,{platform:'linkedin',label:'Alice',
-      handle:'alice',profileUrl:'https://www.linkedin.com/in/alice/'});
-    const bob=await store.addSocial(alice.revision,{platform:'linkedin',label:'Bob',
-      handle:'bob',profileUrl:'https://www.linkedin.com/in/bob/'});
-    const first=bob.socialAccounts.find(row=>row.handle==='alice')!;
-    const second=bob.socialAccounts.find(row=>row.handle==='bob')!;
-    const service=new ConnectorService(store,()=>({
+    let url='https://www.linkedin.com/feed/';
+    let signedIn=false;
+    const page={
+      url:()=>url,
+      isClosed:()=>false,
+      goto:async(next:string)=>{url=next;},
+      locator:(selector:string)=>({first:()=>({getAttribute:async()=>
+        signedIn&&selector.includes('identity_profile_photo')?'/in/verified-owner/':null})}),
+      getByRole:()=>({first:()=>({waitFor:async()=>{if(!signedIn)throw Error('Sign in required');}})}),
+    } as unknown as Page;
+    const browser={
       currentPage:undefined as Page|undefined,
-      async open(){
-        let currentUrl='about:blank';
-        this.currentPage={
-          url:()=>currentUrl,
-          goto:async(url:string)=>{currentUrl=url;return null;},
-          getByRole:()=>({first:()=>({waitFor:async()=>undefined})}),
-        } as unknown as Page;
-        return this.currentPage;
-      },
+      async open(){this.currentPage=page;return page;},
       async close(){this.currentPage=undefined;},
-    }),root);
-    for(const row of [first,second]){
-      await service.begin(row.id);
-      assert.equal((await service.sync(row.id)).status,'connected');
-    }
-    assert.equal((await service.list()).filter(row=>row.status==='connected').length,2);
-    assert.equal((await service.requireConnected(first.id,'linkedin')).profileUrl,first.profileUrl);
-    assert.equal((await service.requireConnected(second.id,'linkedin')).profileUrl,second.profileUrl);
-    await assert.rejects(service.requireConnected(first.id,'linkedin',second.profileUrl),/does not match/);
-    await service.disconnect(first.id);
-    assert.equal((await service.list()).find(row=>row.id===second.id)?.status,'connected');
+    };
+    const service=new ConnectorService(store,()=>browser,root);
+    const started=await service.start('linkedin');
+    assert.equal(started.status,'sign-in-open');
+    assert.equal((await store.get()).socialAccounts.length,0);
+    assert.equal((await service.sync(started.accountId)).status,'reconnect-required');
+    signedIn=true;
+    assert.equal((await service.sync(started.accountId)).status,'connected');
+    const saved=(await store.get()).socialAccounts;
+    assert.equal(saved.length,1);
+    assert.equal(saved[0]?.handle,'verified-owner');
+    assert.equal(saved[0]?.id,started.accountId);
+    assert.equal((await service.list()).find(row=>row.id===started.accountId)?.status,'connected');
+    await assert.rejects(service.start('linkedin'),/already exists/);
+    await service.disconnect(started.accountId);
+    await assert.rejects(service.sync(started.accountId),/Connect before requesting sync/);
+  } finally {await rm(root,{recursive:true,force:true});}
+});
+
+test('one account per platform prevents a second LinkedIn profile',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'utomator-unique-'));
+  try{
+    const store=new AccountStore(root);
+    const a=await store.addSocial(0,{platform:'linkedin',label:'Alice',handle:'alice',profileUrl:'https://www.linkedin.com/in/alice/'});
+    await assert.rejects(store.addSocial(a.revision,{platform:'linkedin',label:'Bob',handle:'bob',profileUrl:'https://www.linkedin.com/in/bob/'}),/Only one linked account/);
+    const service=new ConnectorService(store,undefined,root);
+    await assert.rejects(service.start('linkedin'),/already exists/);
+    await assert.rejects(service.start('github'),/Official API connector not configured/);
+  }finally{await rm(root,{recursive:true,force:true});}
+});
+
+test('disconnected saved account cannot sync until Connect', async () => {
+  const root=await mkdtemp(join(tmpdir(),'utomator-sync-guard-'));
+  try {
+    const store=new AccountStore(root);
+    const state=await store.addSocial(0,{platform:'linkedin',label:'LinkedIn',handle:'owner',
+      profileUrl:'https://www.linkedin.com/in/owner/'});
+    const service=new ConnectorService(store,undefined,root);
+    await assert.rejects(service.sync(state.socialAccounts[0]!.id),/Connect before requesting sync/);
+    await assert.rejects(service.start('linkedin'),/already exists/);
   } finally {await rm(root,{recursive:true,force:true});}
 });

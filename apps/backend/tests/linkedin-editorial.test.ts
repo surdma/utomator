@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+import {AccountStore} from '../src/profile/account-store.js';
 import {randomUUID} from 'node:crypto';
 import {LinkedInEditorialStore,editorialYaml} from '../src/core/linkedin-editorial.js';
 
@@ -67,14 +68,12 @@ test('Fastify editorial API verifies saved account and supports versioned CRUD w
   const app=buildApp({socialWorkspaceRoot:root});
   try{
     await app.ready();
-    const state=(await app.inject('/account')).json() as {revision:number};
     const handle='editorial_'+randomUUID().slice(0,8);
-    const add=await app.inject({method:'POST',url:'/account/social',payload:{
-      expectedRevision:state.revision,document:{platform:'linkedin',label:'Test editorial account',
-        handle,profileUrl:'https://www.linkedin.com/in/'+handle+'/'},
-    }});
-    assert.equal(add.statusCode,201,add.body);
-    const accountId=(add.json() as {socialAccounts:Array<{id:string}>}).socialAccounts.at(-1)!.id;
+    const seeded=await new AccountStore(root).addSocial(0,{
+      platform:'linkedin',label:'Test editorial account',
+      handle,profileUrl:'https://www.linkedin.com/in/'+handle+'/',
+    });
+    const accountId=seeded.socialAccounts[0]!.id;
     const bad=await app.inject({method:'POST',url:'/linkedin/drafts',payload:{accountId:randomUUID(),content:{...draft,researchRunId:null,sourceUrls:[]}}});
     assert.equal(bad.statusCode,400);
     const created=await app.inject({method:'POST',url:'/linkedin/drafts',payload:{accountId,content:{

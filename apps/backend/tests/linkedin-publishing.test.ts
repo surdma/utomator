@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+import {AccountStore} from '../src/profile/account-store.js';
 import {randomBytes} from 'node:crypto';
 import {createClient} from '@libsql/client';
 
@@ -44,13 +45,11 @@ async function fixture(outcome:'success'|'rejected'|'uncertain'){
   const received:Array<{url:string;request:RequestInit}>=[];
   const app=buildApp({socialWorkspaceRoot:root,linkedInFetch:mockTransport(outcome,received)});
   await app.ready();
-  const handle='example-editor',state=(await app.inject('/account')).json();
-  const add=await app.inject({method:'POST',url:'/account/social',payload:{
-    expectedRevision:state.revision,
-    document:{platform:'linkedin',label:'Editor',handle,profileUrl:'https://www.linkedin.com/in/'+handle+'/'},
-  }});
-  assert.equal(add.statusCode,201,add.body);
-  const accountId=add.json().socialAccounts[0].id as string;
+  const handle='example-editor';
+  const seeded=await new AccountStore(root).addSocial(0,{
+    platform:'linkedin',label:'Editor',handle,profileUrl:'https://www.linkedin.com/in/'+handle+'/',
+  });
+  const accountId=seeded.socialAccounts[0]!.id;
   const draft=await app.inject({method:'POST',url:'/linkedin/drafts',
     payload:{accountId,content:editorial}});
   assert.equal(draft.statusCode,201,draft.body);

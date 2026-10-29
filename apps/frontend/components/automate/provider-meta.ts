@@ -53,7 +53,7 @@ export const providerMeta: Record<ProviderKey, ProviderMeta> = {
 };
 
 /** One action per provider state, exactly as the connector contract defines it. */
-export type ProviderOperation = "connect" | "sync" | "disconnect";
+export type ProviderOperation = "connect" | "sync" | "disconnect" | "unavailable";
 
 export function primaryOperation(
   status: "connected" | "disconnected" | "sign-in-open" | "api-required",
@@ -66,6 +66,7 @@ export function primaryOperation(
     if (Date.now() - verified > 24 * 60 * 60 * 1000) return "sync";
     return "disconnect";
   }
+  if (status === "api-required") return "unavailable";
   if (status === "disconnected") return "connect";
   // sign-in-open / reconnect-required / anything unknown needs synchronization.
   return "sync";
@@ -76,4 +77,5 @@ export const operationLabels: Record<ProviderOperation, string> = {
   connect: "Connect",
   sync: "Sync",
   disconnect: "Disconnect",
+  unavailable: "Connector unavailable",
 };

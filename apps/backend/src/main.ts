@@ -21,7 +21,7 @@ import type { WorkflowPlan } from './core/workflow-plan.js';
 import type { Action } from './core/types.js';
 import { profileUrlForHandle } from './core/validate.js';
 import { CareerStore } from './profile/career-store.js';
-import { AccountStore,parseSocialAccount } from './profile/account-store.js';
+import { AccountStore } from './profile/account-store.js';
 import { loadAutomationPlaybook } from './profile/playbook.js';
 import { assessAudit } from './core/assessment.js';
 import { loadIdentityTimeline } from './profile/timeline.js';
@@ -154,6 +154,10 @@ export function buildApp(options:{socialWorkspaceRoot?:string;linkedInFetch?:typ
   } as const;
   app.get('/health', async () => ({ status: 'ok' }));
   app.get('/connectors', async () => connectors.list());
+  app.post<{Body:{platform:'linkedin'|'x'|'instagram'|'github'|'devto'}}>('/connectors/start',async(request,reply)=>{
+    try{return await connectors.start(request.body?.platform);}
+    catch(error){return reply.code(400).send({error:error instanceof Error?error.message:'Could not start connection'});}
+  });
   app.post<{Params:{id:string}}>('/connectors/:id/connect', async(request,reply)=>{
     try{return await connectors.begin(request.params.id);}
     catch(error){const message=error instanceof Error?error.message:'Connection failed';
@@ -552,30 +556,10 @@ export function buildApp(options:{socialWorkspaceRoot?:string;linkedInFetch?:typ
       catch(e){const message=e instanceof Error?e.message:'Invalid account';
         return reply.code(message.includes('changed')?409:400).send({error:message});}
     });
-  app.post<{Body:{expectedRevision:number;document:unknown}}>('/account/social',
-    {bodyLimit:32768}, async(request,reply)=>{
-      try{return reply.code(201).send(await accountStore.addSocial(request.body?.expectedRevision,request.body?.document));}
-      catch(e){const message=e instanceof Error?e.message:'Invalid social profile';
-        return reply.code(message.includes('changed')?409:400).send({error:message});}
-    });
-  app.put<{Params:{id:string};Body:{expectedRevision:number;document:unknown}}>('/account/social/:id',
-    {bodyLimit:32768}, async(request,reply)=>{
-      try{
-        const snapshot=await accountStore.get();
-        if(snapshot.revision!==request.body?.expectedRevision)throw Error('Account changed');
-        const old=snapshot.socialAccounts.find(item=>item.id===request.params.id);
-        if(!old)throw Error('Social account not found');
-        const proposed=parseSocialAccount(request.body.document,old.id);
-        const identityChanged=proposed.platform!==old.platform||
-          proposed.handle!==old.handle||proposed.profileUrl!==old.profileUrl;
-        if(identityChanged){
-          await connectors.disconnect(old.id);
-          if(old.platform==='linkedin'&&database)await linkedInPublisher.disconnect(old.id);
-        }
-        return await accountStore.updateSocial(request.body.expectedRevision,old.id,request.body.document);
-      }catch(e){const message=e instanceof Error?e.message:'Invalid social profile';
-        return reply.code(message.includes('changed')?409:message.includes('not found')?404:400).send({error:message});}
-    });
+  // Public callers cannot create or change a social identity by supplying a handle.
+  // The connector writes the verified profile only after provider-side ownership proof.
+  app.post('/account/social',async(_request,reply)=>reply.code(405).send({error:'Link social accounts through a verified connector'}));
+  app.put('/account/social/:id',async(_request,reply)=>reply.code(405).send({error:'Linked social identities cannot be edited manually'}));
   app.delete<{Params:{id:string};Body:{expectedRevision:number}}>('/account/social/:id',
     async(request,reply)=>{
       try{

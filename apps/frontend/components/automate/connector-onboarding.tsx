@@ -1,7 +1,8 @@
 "use client";
 
 import {useCallback,useEffect,useRef,useState} from "react";
-import {Check,ChevronRight,ExternalLink,LoaderCircle,Plus,RefreshCw,ShieldCheck,Trash2} from "lucide-react";
+import {Check,ChevronRight,ExternalLink,LoaderCircle,RefreshCw,ShieldCheck,Trash2} from "lucide-react";
+import {providerMeta,type ProviderKey} from "./provider-meta";
 import StudioDialog from "@/components/ui/studio-dialog";
 import {LinkedInIcon} from "@/components/svgs";
 
@@ -30,8 +31,7 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
   const [error,setError]=useState("");
   const [message,setMessage]=useState("");
   const [confirming,setConfirming]=useState(false);
-  const [adding,setAdding]=useState(false);
-  const [profileUrl,setProfileUrl]=useState("");
+  const [network,setNetwork]=useState<ProviderKey>("linkedin");
   const [saving,setSaving]=useState(false);
   const [oauth,setOauth]=useState<{connected:boolean;configured:boolean;subject?:string;expiresAt?:string}|null>(null);
   const abortRef=useRef<AbortController|null>(null);
@@ -42,7 +42,7 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
   const refresh=useCallback(async()=>{
     const response=await fetch(path,{cache:"no-store"});
     const data=await response.json() as Connector[]&{error?:string};
-    if(!response.ok||!Array.isArray(data))throw Error(data.error||"LinkedIn connections unavailable");
+    if(!response.ok||!Array.isArray(data))throw Error(data.error||"Social connections unavailable");
     setAccounts(data);
     const linkedin=data.filter(item=>item.platform==="linkedin");
     const previous=last.current.accounts.find(item=>item.id===last.current.activeId);
@@ -69,13 +69,16 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
   useEffect(()=>{
     if(openSignal===handled.current)return;
     handled.current=openSignal;setOpen(true);setConfirming(false);setError("");setMessage("");
-    setSelected(requestedId||last.current.activeId);
+    const target=requestedId||last.current.activeId;
+    setSelected(target);
+    const match=last.current.accounts.find(item=>item.id===target);
+    if(match)setNetwork(match.platform);
     void refresh().catch(()=>undefined);
   },[openSignal,requestedId,refresh]);
 
-  const linkedin=accounts.filter(item=>item.platform==="linkedin");
-  const chosen=linkedin.find(item=>item.id===selected)||
-    linkedin.find(item=>item.id===activeId)||linkedin[0]||null;
+  const available=accounts.filter(item=>item.platform===network);
+  const chosen=available.find(item=>item.id===selected)||
+    available.find(item=>item.id===activeId)||available[0]||null;
 
   async function command(id:string,operation:Command){
     if(working||saving)return;
@@ -92,7 +95,7 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
       const updated=(await refresh()).find(row=>row.id===id);
       if(result.status==="connected"){
         if(updated)onSelect(updated);
-        setSelected(id);setMessage("LinkedIn session verified.");
+        setSelected(id);setMessage(providerMeta[updated?.platform||network].name+" session verified.");
       }else if(result.status==="sign-in-open"){
         setSelected(id);setMessage(result.navigationWarning||
           "Finish signing in to LinkedIn in the secure window, then select Verify connection.");
@@ -110,46 +113,26 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
       clearTimeout(timer);abortRef.current=null;setWorking(null);setWorkingId(null);
     }
   }
-  async function addAccount(){
-    if(saving||working)return;
-    setError("");setMessage("");
-    let url:URL;
+  async function beginNewConnection(provider:"linkedin"|"x"){
+    if(working||saving)return;
+    setError("");setMessage("");setSaving(true);
     try{
-      url=new URL(profileUrl.trim());
-      if(url.protocol!=="https:"||!["linkedin.com","www.linkedin.com"].includes(url.hostname)||
-        url.search||url.hash||url.username||url.password||url.port||
-        !/^\/in\/[a-zA-Z0-9_-]{3,100}\/?$/.test(url.pathname))throw Error();
-    }catch{
-      setError("Enter your LinkedIn profile address, for example https://www.linkedin.com/in/your-name/");
-      return;
-    }
-    setSaving(true);
-    try{
-      const existing=await fetch("/api/account",{cache:"no-store"});
-      const record=await existing.json() as {revision?:number;error?:string};
-      if(!existing.ok||!Number.isSafeInteger(record.revision))throw Error(record.error||"Account directory unavailable");
-      const handle=url.pathname.split("/")[2]!;
-      const response=await fetch("/api/account/social",{
-        method:"POST",headers:{"content-type":"application/json"},
-        body:JSON.stringify({expectedRevision:record.revision,document:{
-          platform:"linkedin",label:handle,handle,profileUrl:"https://www.linkedin.com/in/"+handle+"/",
-        }}),
+      const response=await fetch(path+"/start",{
+        method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({platform:provider}),
       });
-      const result=await response.json() as {socialAccounts?:Array<{id:string;handle:string}>;error?:string};
-      if(!response.ok)throw Error(result.error||"Could not add LinkedIn account");
-      const row=result.socialAccounts?.find(item=>item.handle===handle);
-      if(!row)throw Error("LinkedIn account was saved but could not be selected");
-      setSelected(row.id);setAdding(false);setProfileUrl("");
+      const result=await response.json() as Result&{accountId?:string};
+      if(!response.ok||!result.accountId)throw Error(result.error||"Could not open provider sign-in");
+      setNetwork(provider);setSelected(result.accountId);
       await refresh();
-      setMessage("Account added. Connect LinkedIn to verify its session.");
-    }catch(e){setError(e instanceof Error?e.message:"Could not add LinkedIn account");}
+      setMessage(result.navigationWarning||"Complete provider sign-in in Chrome, then select Verify connection.");
+    }catch(e){setError(e instanceof Error?e.message:"Could not start connection");}
     finally{setSaving(false);}
   }
 
   const busy=Boolean(working)||saving;
   const status=chosen?.status;
   useEffect(()=>{
-    if(!chosen?.id){setOauth(null);return;}
+    if(!chosen?.id||chosen.platform!=="linkedin"||chosen.status==="sign-in-open"){setOauth(null);return;}
     let live=true;
     void fetch("/api/linkedin/oauth/status?accountId="+encodeURIComponent(chosen.id),
       {cache:"no-store"}).then(async response=>{
@@ -158,7 +141,7 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
     }).then(result=>{if(live)setOauth(result);})
       .catch(()=>{if(live)setOauth(null);});
     return()=>{live=false;};
-  },[chosen?.id,open]);
+  },[chosen?.id,chosen?.status,open]);
   async function authorizePublishing(id:string){
     if(busy)return;
     setError("");setSaving(true);
@@ -173,8 +156,10 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
     }catch(e){setError(e instanceof Error?e.message:"Unable to authorize LinkedIn");setSaving(false);}
   }
   const operation:Command=status==="connected"||status==="sign-in-open"?"sync":"connect";
-  const actionText=operation==="connect"?"Connect LinkedIn":status==="connected"?"Check connection":"Verify connection";
+  const actionText=operation==="connect"?"Connect "+providerMeta[network].name:status==="connected"?"Check connection":"Verify connection";
   const browserLoginAvailable=chosen?.interactiveSignIn!==false;
+  const NetworkIcon=providerMeta[network].icon;
+  const browserSupported=network==="linkedin"||network==="x";
 
   return <>
     {!hideTrigger&&<button type="button" onClick={()=>{setOpen(true);void refresh();}} aria-label="Manage connected social accounts"
@@ -185,27 +170,33 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
       dismissible={!busy} testId="connector-onboarding-dialog" title="Connect your social accounts"
       description="LinkedIn connection" size="default">
       <div data-testid="linkedin-connector" className="space-y-4">
+        <div aria-label="Social networks" className="flex flex-wrap gap-2">
+          {(["linkedin","x","instagram","github","devto"] as const).map(key=><button key={key} type="button"
+            aria-pressed={network===key} onClick={()=>{setNetwork(key);setSelected(null);setError("");setMessage("");}}
+            className={button+" border px-3 "+(network===key?"border-slate-900 bg-slate-900 text-white":"border-slate-200 bg-white text-slate-700")}>{providerMeta[key].name}</button>)}
+        </div>
         <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
           <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-[#0a66c2] text-white">
-            <LinkedInIcon className="size-6"/>
+            <NetworkIcon className="size-6"/>
           </span>
           <div className="min-w-0 flex-1">
-            <h3 className="text-base font-semibold text-slate-950">LinkedIn</h3>
-            <p className="text-xs text-slate-500">Your professional account</p>
+            <h3 className="text-base font-semibold text-slate-950">{providerMeta[network].name}</h3>
+            <p className="text-xs text-slate-500">One verified profile per social network</p>
           </div>
           <span data-testid="connector-status" className={"rounded-full px-2.5 py-1 text-xs font-semibold "+
             (status==="connected"?"bg-emerald-100 text-emerald-800":
               status==="sign-in-open"?"bg-amber-100 text-amber-800":"bg-slate-200 text-slate-700")}>
-            {status==="connected"?"Session connected":status==="sign-in-open"?"Sign-in in progress":oauth?.connected?"Publishing connected":"Not connected"}
+            {status==="connected"?"Session connected":status==="sign-in-open"?"Sign-in in progress":status==="api-required"||!browserSupported?"Unavailable":oauth?.connected?"Publishing connected":"Not connected"}
           </span>
         </div>
         {!ready?<p role="status" className="py-6 text-center text-sm text-slate-500">Checking your connections...</p>:<>
-          {linkedin.length>1&&<label className="block text-xs font-semibold text-slate-600">LinkedIn account
-            <select aria-label="LinkedIn account" value={chosen?.id||""} onChange={e=>{setSelected(e.target.value);setConfirming(false);setError("");}}
+          {available.length>1&&<label className="block text-xs font-semibold text-slate-600">Legacy linked accounts
+            <select aria-label="Legacy linked account" value={chosen?.id||""} onChange={e=>{setSelected(e.target.value);setConfirming(false);setError("");}}
               className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm">
-              {linkedin.map(item=><option key={item.id} value={item.id}>{item.label} (@{item.handle})</option>)}
+              {available.map(item=><option key={item.id} value={item.id}>{item.label} (@{item.handle})</option>)}
             </select>
           </label>}
+          {available.length>1&&<p role="alert" className="text-xs text-amber-800">Legacy duplicates detected. Remove the extra identities from your profile before linking a replacement.</p>}
           {chosen?<div className="rounded-xl border border-slate-200 bg-white p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
@@ -219,15 +210,20 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
               {status==="connected"?shortDate(chosen.verifiedAt):status==="sign-in-open"?
                 "Sign in securely, then verify.":"Connect to start using supported workflows."}
             </p>
-          </div>:<p className="py-2 text-center text-sm text-slate-600">Add a LinkedIn profile to get started.</p>}
+          </div>:<div className="rounded-xl border border-slate-200 bg-white p-4 text-center">
+            <p className="text-sm text-slate-600">No {providerMeta[network].name} account linked. Sign in with the provider to discover your profile automatically.</p>
+            {browserSupported?<button type="button" disabled={busy} className={button+" mt-3 bg-slate-950 px-5 text-white"}
+              onClick={()=>void beginNewConnection(network as "linkedin"|"x")}>Connect {providerMeta[network].name}</button>:
+              <p className="mt-3 text-xs font-semibold text-amber-800">Official API connector not available yet. Sync is disabled.</p>}
+          </div>}
           {error&&<p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs leading-5 text-rose-800">{error}</p>}
           {message&&<p role="status" className="rounded-xl bg-teal-50 px-3 py-2 text-xs leading-5 text-teal-900">{message}</p>}
-          {chosen&&<div className="flex flex-col gap-2">
+          {chosen&&browserSupported&&<div className="flex flex-col gap-2">
             {browserLoginAvailable?<button type="button" disabled={busy} onClick={()=>void command(chosen.id,operation)}
               className={button+" w-full bg-[#0a66c2] text-white hover:bg-[#0857a8]"}>
               {working&&workingId===chosen.id?<LoaderCircle className="size-4 animate-spin"/>:
-                status==="connected"?<RefreshCw className="size-4"/>:<LinkedInIcon className="size-4"/>}
-              {working&&workingId===chosen.id?"Checking LinkedIn...":actionText}
+                status==="connected"?<RefreshCw className="size-4"/>:<NetworkIcon className="size-4"/>}
+              {working&&workingId===chosen.id?"Checking connection...":actionText}
             </button>:<button type="button" disabled={busy||!oauth?.configured} onClick={()=>void authorizePublishing(chosen.id)}
               className={button+" w-full bg-[#0a66c2] text-white hover:bg-[#0857a8]"}>
               <LinkedInIcon className="size-4"/>{oauth?.connected?"Renew LinkedIn publishing":"Connect LinkedIn for publishing"}
@@ -236,13 +232,17 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
               Browser-based workflows need an interactive connection host. This sign-in authorizes only supported API publishing.
             </p>}
             {working&&<button type="button" onClick={()=>abortRef.current?.abort()} className="min-h-10 text-xs font-semibold text-slate-600">Cancel</button>}
-            {status==="connected"&&activeId!==chosen.id&&<button type="button" disabled={busy}
+            {network==="linkedin"&&status==="connected"&&activeId!==chosen.id&&<button type="button" disabled={busy}
               onClick={()=>{onSelect(chosen);setMessage("LinkedIn is selected for your workspace.");}}
               className={button+" w-full border border-slate-200 bg-white text-slate-800"}>
               Use this account <ChevronRight className="size-4"/>
             </button>}
-            {status==="sign-in-open"&&<p className="text-center text-xs text-slate-500">Complete any LinkedIn sign-in or verification prompts in the opened window.</p>}
-            {browserLoginAvailable&&oauth?.configured&&<details className="rounded-xl border border-slate-200 p-3 text-xs text-slate-600">
+            {status==="sign-in-open"&&<>
+              <p className="text-center text-xs text-slate-500">Complete sign-in in the opened provider window, then verify.</p>
+              <button type="button" disabled={busy} onClick={()=>void command(chosen.id,"disconnect")}
+                className={button+" w-full border border-slate-200 text-slate-700"}>Cancel connection</button>
+            </>}
+            {network==="linkedin"&&browserLoginAvailable&&oauth?.configured&&<details className="rounded-xl border border-slate-200 p-3 text-xs text-slate-600">
               <summary className="cursor-pointer font-semibold text-slate-800">
                 Publishing access: {oauth.connected?"Authorized":"Not authorized"}
               </summary>
@@ -260,22 +260,6 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
               <Trash2 className="size-3.5"/> Disconnect
             </button>}
           </div>}
-          {adding?<div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
-            <label className="block text-xs font-semibold text-slate-700">LinkedIn profile address
-              <input aria-label="LinkedIn profile address" value={profileUrl} onChange={e=>setProfileUrl(e.target.value)}
-                type="url" placeholder="https://www.linkedin.com/in/your-name/"
-                className="mt-2 min-h-11 w-full rounded-lg border border-slate-200 px-3 text-sm"/>
-            </label>
-            <div className="flex gap-2">
-              <button type="button" disabled={busy} className={button+" flex-1 bg-slate-950 text-white"} onClick={()=>void addAccount()}>
-                {saving?"Saving...":"Add account"}
-              </button>
-              <button type="button" disabled={busy} className={button+" border border-slate-200"} onClick={()=>setAdding(false)}>Cancel</button>
-            </div>
-          </div>:<button type="button" disabled={busy} onClick={()=>setAdding(true)}
-            className="mx-auto flex min-h-10 items-center gap-2 text-xs font-semibold text-[#0a66c2]">
-            <Plus className="size-4"/> Add another LinkedIn account
-          </button>}
           {onManageProfile&&<button type="button" onClick={()=>{setOpen(false);onManageProfile();}}
             className="mx-auto flex min-h-10 items-center gap-1 text-xs text-slate-500 hover:text-slate-800">
             Manage profiles <ExternalLink className="size-3.5"/>

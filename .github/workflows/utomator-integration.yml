@@ -11,7 +11,7 @@ on:
       - 'pnpm-workspace.yaml'
       - '.github/workflows/utomator-integration.yml'
   push:
-    branches: [main]
+    branches: [main, feat/yaml-growth-profile-pipeline]
   workflow_dispatch:
 
 permissions:
@@ -73,6 +73,8 @@ jobs:
         env:
           NODE_ENV: test
           HEADLESS: 'true'
+      - name: Frontend connection browser regression tests
+        run: pnpm --filter @utomator/frontend exec playwright test tests/connector-states.test.ts tests/connector-sync.test.ts
       - name: Upload local mock-browser evidence on failure
         if: failure()
         uses: actions/upload-artifact@v4

@@ -142,22 +142,21 @@ Prerequisites: local engine running (`node --import tsx src/main.ts` in
 apps/backend, listens on 127.0.0.1:3101), Next dev server on 3000
 (`pnpm dev` in apps/frontend). Chrome available for isolated CDP use.
 
-1. **Add the profile reference.** In Utomator → Profile → Social profiles, add
-   the LinkedIn or X profile with its exact public URL.
-2. **Open the connector dialog.** Click the floating connector button on the
-   workspace toolbar. Select the provider card.
-3. **Connect.** Press **Connect**. The engine launches an isolated Chrome
-   window (profile `.runtime/chrome/accounts/<uuid>/`) and opens the profile
-   page. The dialog shows the progress rail, then “Waiting for … sign-in in
-   isolated Chrome…”.
+1. **Choose Connect.** In Utomator → Profile → Social accounts, open the
+   connector. No username, handle or profile URL is collected by Utomator.
+2. **Choose the provider.** Click the floating connector button on the
+   workspace toolbar. Only LinkedIn and X currently support browser sign-in.
+3. **Connect.** Press **Connect**. The engine creates a temporary UUID and
+   opens the provider's official home page in an isolated Chrome profile.
+   The account directory is unchanged at this stage.
 4. **Sign in yourself, in that Chrome window.** Enter credentials, complete
    MFA/2FA, and approve any provider consent screen. Utomator never sees this.
    If the provider fails the sign-in, retry there or start over from Connect.
-5. **Sync.** Back in the dialog press **Sync** (or wait for the next poll and
-   press it). The engine verifies the owner-only control. On success you get
-   the “session verified” status banner, the pill flips to *Connected* and the
-   account becomes usable in workflows. On `reconnect-required`, finish any
-   remaining sign-in step in the still-open window and Sync again.
+5. **Verify connection.** Utomator obtains the profile URL from an authenticated
+   provider-owned navigation surface, checks an owner-only control on that
+   profile, and only then stores the linked identity. A disconnected saved
+   account must first use Connect, not Sync. On `reconnect-required`, finish
+   the remaining sign-in steps and verify again.
 6. **Recovery cases.**
    - *temporarily-unavailable*: network hiccup; prior verification is kept —
      check connectivity in the Chrome window and retry Sync.

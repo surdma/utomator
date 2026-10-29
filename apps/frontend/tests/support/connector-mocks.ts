@@ -104,6 +104,11 @@ export async function installConnectorApi(
     if (status === "connected") {
       account.status = "connected";
       account.verifiedAt = iso.now();
+      if(!account.handle){
+        account.handle="verified-owner";account.label="verified-owner";
+        account.profileUrl=account.platform==="linkedin"
+          ? "https://www.linkedin.com/in/verified-owner/" : "https://x.com/verified-owner";
+      }
     } else if (status === "sign-in-open") {
       account.status = "sign-in-open";
     } else if (status === "disconnected") {
@@ -131,15 +136,24 @@ export async function installConnectorApi(
         await respond(route, accounts, custom?.status ?? 200);
         return;
       }
-      // POST path: /api/connectors/:id/:operation
-      const id = path[3] ?? "";
-      const operation = path[4] ?? "";
+      // POST /api/connectors/start links through a provider, not a supplied handle.
+      const starting=path[2]==="start";
+      const id = starting ? "" : path[2] ?? "";
+      const operation = starting ? "start" : path[3] ?? "";
       const event: ConnectorCommandEvent = { method: request.method(), operation, id };
       requests.push(event);
       if (event.method !== "GET") commands.push(event);
       const custom = behavior?.(event);
       if (custom && "simulate" in custom) return;
       if (custom?.respondAfter) await new Promise((resolve) => setTimeout(resolve, custom.respondAfter));
+      if(starting){
+        const provider=(request.postDataJSON() as {platform:ProviderKey}).platform;
+        const pendingId="00000000-0000-4000-8000-"+String(sequence++).padStart(12,"0");
+        accounts.push({id:pendingId,platform:provider,label:"Sign-in in progress",handle:"",
+          profileUrl:"",status:"sign-in-open",verifiedAt:null,authentication:"browser"});
+        await respond(route,{status:"sign-in-open",accountId:pendingId});
+        return;
+      }
       const body = custom?.body ?? defaultBody[operation] ?? {};
       if (!custom?.status || custom.status < 400) applyStatusChange({ ...(body as { status?: string }), id });
       await respond(route, body, custom?.status ?? 200);

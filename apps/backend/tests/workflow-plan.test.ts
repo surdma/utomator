@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import {AccountStore} from '../src/profile/account-store.js';
 import { defaultPlan, templates, validatePlan } from '../src/core/workflow-plan.js';
 import { WorkflowPlanStore } from '../src/core/workflow-store.js';
 import { WorkflowRegistry } from '../src/core/workflow-registry.js';
@@ -990,14 +991,11 @@ test('every LinkedIn run revalidates the saved browser session and flags authent
   const app=buildApp({socialWorkspaceRoot:root});
   try{
     await app.ready();
-    const starting=(await app.inject('/account')).json() as {revision:number};
-    const added=await app.inject({method:'POST',url:'/account/social',payload:{
-      expectedRevision:starting.revision,
-      document:{platform:'linkedin',label:'Verified owner',handle:'verified-owner',
-        profileUrl:'https://www.linkedin.com/in/verified-owner/'},
-    }});
-    assert.equal(added.statusCode,201,added.body);
-    const account=(added.json() as {socialAccounts:Array<{id:string}>}).socialAccounts[0]!;
+    const seeded=await new AccountStore(root).addSocial(0,{
+      platform:'linkedin',label:'Verified owner',handle:'verified-owner',
+      profileUrl:'https://www.linkedin.com/in/verified-owner/',
+    });
+    const account=seeded.socialAccounts[0]!;
     assert.equal((await app.inject({method:'POST',url:'/connectors/'+account.id+'/connect'})).statusCode,200);
     assert.equal((await app.inject({method:'POST',url:'/connectors/'+account.id+'/sync'})).json().status,'connected');
     signedIn=false; // The provider revoked the session after the earlier sync.

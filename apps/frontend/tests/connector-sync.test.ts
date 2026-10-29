@@ -19,20 +19,23 @@ test("Only LinkedIn is shown; account state remains server-owned across reloads"
   await expect(reopened.getByTestId("connector-status")).toHaveText("Session connected");
 });
 
-test("Account selection is specific to the connected LinkedIn identity",async({page})=>{
+test("Legacy duplicate accounts require deliberate cleanup, not selection for workflows",async({page})=>{
   const seed=[
-    connectorAccount("linkedin",{id:"li-one",label:"First LinkedIn",handle:"first-owner",
-      profileUrl:"https://www.linkedin.com/in/first-owner/",status:"connected",verifiedAt:iso.now()}),
-    connectorAccount("linkedin",{id:"li-two",label:"Second LinkedIn",handle:"second-owner",
-      profileUrl:"https://www.linkedin.com/in/second-owner/",status:"disconnected"}),
+    connectorAccount("linkedin",{id:"li-one",label:"First LinkedIn",handle:"first-owner",status:"disconnected"}),
+    connectorAccount("linkedin",{id:"li-two",label:"Second LinkedIn",handle:"second-owner",status:"disconnected"}),
   ];
   await installConnectorApi(page,seed);
   const dialog=await openConnectorDialog(page);
-  await expect(dialog.getByRole("combobox",{name:"LinkedIn account"})).toBeVisible();
-  await dialog.getByRole("combobox",{name:"LinkedIn account"}).selectOption("li-two");
-  await expect(dialog.getByText("@second-owner")).toBeVisible();
+  await expect(dialog.getByRole("alert")).toContainText("Legacy duplicates detected");
+  await expect(dialog.getByRole("combobox",{name:"Legacy linked account"})).toBeVisible();
+});
+
+
+
+test("disconnected accounts show Connect, never Sync",async({page})=>{
+  const fixture=await installConnectorApi(page,[connectorAccount("linkedin",{id:"li-disconnected"})]);
+  const dialog=await openConnectorDialog(page);
   await expect(dialog.getByRole("button",{name:"Connect LinkedIn",exact:true})).toBeVisible();
-  await dialog.getByRole("combobox",{name:"LinkedIn account"}).selectOption("li-one");
-  await expect(dialog.getByText("@first-owner")).toBeVisible();
-  await expect(dialog.getByRole("button",{name:"Check connection"})).toBeVisible();
+  await expect(dialog.getByRole("button",{name:/Verify connection|Check connection/})).toHaveCount(0);
+  expect(fixture.commands).toHaveLength(0);
 });

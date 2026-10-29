@@ -29,35 +29,36 @@ test('fresh workspace does not inherit portfolio owner or social handles', async
   });
 });
 
-test('independent LinkedIn accounts persist and duplicate identities are rejected', async () => {
+test('one verified account per provider and linked identities persist', async () => {
   await withStore(async (store, root) => {
     const first = await store.get();
     const changed = await store.updateProfile(first.revision, {
       displayName: 'Different Account Owner', email:'different@example.org', location:'Lagos', about:'Owner profile',
     });
-    const alice = await store.addSocial(changed.revision, {
+    const alice = await store.linkVerifiedSocial('00000000-0000-4000-8000-000000000011', {
       platform:'linkedin',label:'Work LinkedIn',handle:'alice',
       profileUrl:'https://www.linkedin.com/in/alice/',
     });
-    const bob = await store.addSocial(alice.revision, {
+    assert.equal(alice.revision,changed.revision+1);
+    await assert.rejects(store.linkVerifiedSocial('00000000-0000-4000-8000-000000000012', {
       platform:'linkedin',label:'Personal LinkedIn',handle:'bob',
       profileUrl:'https://www.linkedin.com/in/bob/',
+    }), /Only one linked account/);
+    await assert.rejects(store.addSocial(alice.revision, {
+      platform:'linkedin',label:'Other LinkedIn',handle:'bob',
+      profileUrl:'https://www.linkedin.com/in/bob/',
+    }), /Only one linked account/);
+    const x=await store.linkVerifiedSocial('00000000-0000-4000-8000-000000000013',{
+      platform:'x',label:'X profile',handle:'alice',profileUrl:'https://x.com/alice',
     });
-    assert.equal(bob.socialAccounts.filter(a=>a.platform==='linkedin').length, 2);
-    await assert.rejects(store.addSocial(bob.revision, {
-      platform:'linkedin',label:'Duplicate',handle:'BOB',profileUrl:'https://www.linkedin.com/in/bob/',
-    }), /already exists/);
-    const bobId = bob.socialAccounts.find(a=>a.handle==='bob')!.id;
-    const renamed = await store.updateSocial(bob.revision, bobId, {
-      platform:'linkedin',label:'Second profile',handle:'bob',profileUrl:'https://linkedin.com/in/bob/',
-    });
-    assert.equal(renamed.socialAccounts.find(a=>a.id===bobId)?.label, 'Second profile');
-    const restored = await new AccountStore(root).get();
-    assert.equal(restored.revision, 4);
-    assert.equal(restored.socialAccounts.length, 2);
-    const removed = await store.removeSocial(restored.revision, bobId);
-    assert.equal(removed.socialAccounts.length, 1);
-    assert.equal(removed.socialAccounts[0]?.handle, 'alice');
+    assert.equal(x.socialAccounts.length,2);
+    assert.equal((await new AccountStore(root).get()).socialAccounts.length,2);
+    await assert.rejects(store.updateSocial(x.revision,x.socialAccounts[1]!.id,{
+      platform:'linkedin',label:'Other LinkedIn',handle:'bob',
+      profileUrl:'https://www.linkedin.com/in/bob/',
+    }),/Only one linked account/);
+    const removed=await store.removeSocial(x.revision,alice.socialAccounts[0]!.id);
+    assert.equal(removed.socialAccounts.length,1);
   });
 });
 
@@ -89,4 +90,17 @@ test('account revisions and provider identity checks reject conflicting updates'
     assert.equal(results.filter(r=>r.status==='rejected').length,1);
     await assert.rejects(store.removeSocial(1,'00000000-0000-4000-8000-000000009999'),/not found/);
   });
+});
+
+test('manual account API write is not a valid linking mechanism', async()=>{
+  process.env.NODE_ENV='test';
+  const {buildApp}=await import('../src/main.js');
+  const app=buildApp();
+  try {
+    await app.ready();
+    const fake={expectedRevision:0,document:{platform:'linkedin',label:'Attacker',
+      handle:'attacker',profileUrl:'https://www.linkedin.com/in/attacker/'}};
+    assert.equal((await app.inject({method:'POST',url:'/account/social',payload:fake})).statusCode,405);
+    assert.equal((await app.inject({method:'PUT',url:'/account/social/00000000-0000-4000-8000-000000000000',payload:fake})).statusCode,405);
+  } finally {await app.close();}
 });

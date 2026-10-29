@@ -52,12 +52,12 @@ function permitted(path: string, method: string): boolean {
     if (path === "linkedin/research" || path === "linkedin/drafts" ||
       /^linkedin\/drafts\/[0-9a-fA-F-]{36}\/transition$/.test(path)) return true;
     if (/^crafts\/[a-zA-Z0-9-]{1,75}\/clone$/.test(path)) return true;
-    if (path === "account/social" || path === "intelligence/chat" || /^connectors\/[0-9a-fA-F-]{36}\/(connect|sync|disconnect)$/.test(path)) return true;
+    if (path === "connectors/start" || path === "intelligence/chat" || /^connectors\/[0-9a-fA-F-]{36}\/(connect|sync|disconnect)$/.test(path)) return true;
     return ["runs", "visual-reviews", "identity-memory", "career/resumes", "crafts", "crafts/from-mdx", "workflows", "step-definitions", "profile-plans"].includes(path) ||
       new RegExp("^profile-plans/" + id + "/(decision|select)$").test(path) || new RegExp("^runs/" + id + "/(decision|input|cancel|pause|resume)$").test(path);
   }
   if (method === "PUT" && /^linkedin\/drafts\/[0-9a-fA-F-]{36}$/.test(path)) return true;
-  if (method === "PUT" && (path === "account/profile" || /^account\/social\/[0-9a-fA-F-]{36}$/.test(path))) return true;
+  if (method === "PUT" && path === "account/profile") return true;
   if (method === "PUT" && (path === "career/profile" || /^career\/resumes\/[0-9a-fA-F-]{36}$/.test(path))) return true;
   if (method === "PUT") return /^workflows\/[0-9a-fA-F-]{36}$/.test(path) || /^crafts\/[a-zA-Z0-9-]{1,75}$/.test(path) ||
     /^workflow-plans\/(linkedin|x)\/(audit|audit-page|edit-profile|add-skill|compose-post|pin-post|delete-post|edit-experience|edit-website|edit-services|add-project|add-featured|upload-banner)$/.test(path);

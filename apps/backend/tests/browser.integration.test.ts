@@ -5,6 +5,7 @@ import type { Locator, Page } from 'playwright';
 import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+import {AccountStore} from '../src/profile/account-store.js';
 
 process.env.NODE_ENV = 'test';
 process.env.UTOMATOR_TEST_DATABASE = 'true';
@@ -38,7 +39,7 @@ async function exercise(mode:'audit'|'audit-race'|'reject'){
     const launcher=page.getByTestId('floating-connector-button');
     const wizard=page.getByRole('dialog',{name:'Connect your social accounts'});
     await clickUntilVisible(page,launcher,wizard);
-    await wizard.getByText('Add a LinkedIn profile to get started.').waitFor();
+    await wizard.getByText('No LinkedIn account linked.',{exact:false}).waitFor();
     // A saved profile reference is not a verified browser session.
     await wizard.getByRole('button',{name:'Close Connect your social accounts'}).click();
     await wizard.waitFor({state:'hidden'});
@@ -368,17 +369,13 @@ test('LinkedIn editorial research-to-draft workflow persists, approves and retur
   const browser=await chromium.launch({headless:true});
   try{
     await app.listen({host:'127.0.0.1',port:3101});
-    const account=(await app.inject('/account')).json() as {revision:number};
     const suffix=String(Date.now()).slice(-8);
     const handle='editorial'+suffix;
-    const added=await app.inject({method:'POST',url:'/account/social',payload:{
-      expectedRevision:account.revision,document:{
-        platform:'linkedin',label:'Editorial E2E',handle,
-        profileUrl:'https://www.linkedin.com/in/'+handle+'/',
-      },
-    }});
-    assert.equal(added.statusCode,201,added.body);
-    const savedAccount=(added.json() as {socialAccounts:Array<{id:string}>}).socialAccounts.at(-1)!;
+    const seeded=await new AccountStore(root).addSocial(0,{
+      platform:'linkedin',label:'Editorial E2E',handle,
+      profileUrl:'https://www.linkedin.com/in/'+handle+'/',
+    });
+    const savedAccount=seeded.socialAccounts[0]!;
     const research=await app.inject({method:'POST',url:'/linkedin/research',payload:{
       niche:'Software education',objective:'Test evidence-grounded content planning',
       ownerHeadline:'Engineering educator',creators:[{name:'Example creator',

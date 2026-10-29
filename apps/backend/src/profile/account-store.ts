@@ -128,10 +128,8 @@ export class AccountStore {
   addSocial(revision: number, value: unknown) {
     const social = parseSocialAccount(value);
     return this.change(revision, state => {
-      if (state.socialAccounts.length >= 80) throw Error('Maximum 80 social profiles');
-      if (state.socialAccounts.some(item => item.platform === social.platform &&
-          item.handle.toLowerCase() === social.handle.toLowerCase()))
-        throw Error('Social profile already exists');
+      if (state.socialAccounts.some(item => item.platform === social.platform))
+        throw Error('Only one linked account is permitted per platform');
       return { ...state, socialAccounts: [...state.socialAccounts, social] };
     });
   }
@@ -140,10 +138,27 @@ export class AccountStore {
     const social = parseSocialAccount(value, id);
     return this.change(revision, state => {
       if (!state.socialAccounts.some(s => s.id === id)) throw Error('Social account not found');
-      if (state.socialAccounts.some(item => item.id !== id && item.platform === social.platform &&
-          item.handle.toLowerCase() === social.handle.toLowerCase()))
-        throw Error('Social profile already exists');
+      if (state.socialAccounts.some(item => item.id !== id && item.platform === social.platform))
+        throw Error('Only one linked account is permitted per platform');
       return { ...state, socialAccounts: state.socialAccounts.map(s => s.id === id ? social : s) };
+    });
+  }
+  // Only the connector calls this after proving ownership in the provider's browser.
+  // The caller-supplied UUID is also the persistent isolated Chrome profile ID.
+  async linkVerifiedSocial(id: string, value: unknown) {
+    if (!uuid.test(id)) throw Error('Invalid account ID');
+    const social = parseSocialAccount(value, id);
+    const current = await this.get();
+    return this.change(current.revision, state => {
+      const same = state.socialAccounts.find(item => item.id === id);
+      if (same) {
+        if (same.platform === social.platform && same.handle === social.handle &&
+          same.profileUrl === social.profileUrl) return state;
+        throw Error('Linked account identity cannot be replaced');
+      }
+      if (state.socialAccounts.some(item => item.platform === social.platform))
+        throw Error('Only one linked account is permitted per platform');
+      return {...state, socialAccounts:[...state.socialAccounts,social]};
     });
   }
   removeSocial(revision: number, id: string) {
