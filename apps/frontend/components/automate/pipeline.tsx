@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   useCallback,
   useEffect,
@@ -1564,12 +1565,12 @@ export default function AutomationPipeline({
               <RotateCcw className="size-4" />{" "}
               <span className="hidden sm:inline">Refresh</span>
             </Button>
-            <a
+            <Link
               href="/"
               className="inline-flex min-h-10 items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-950"
             >
               Portfolio <ExternalLink className="size-3.5" />
-            </a>
+            </Link>
           </div>
         </div>
       </div>
