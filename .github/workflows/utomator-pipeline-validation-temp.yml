@@ -1,0 +1,58 @@
+name: Temporary dashboard refactor validation
+
+on:
+  push:
+    branches: [feat/yaml-growth-profile-pipeline]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: pnpm install --frozen-lockfile
+      - name: Normalize changed frontend sources
+        run: >-
+          pnpm exec prettier --write
+          apps/frontend/components/automate/pipeline.tsx
+          apps/frontend/components/automate/pipeline/use-run-monitor.ts
+          apps/frontend/components/automate/pipeline/run-models.ts
+          apps/frontend/components/automate/pipeline/operator-chat-panel.tsx
+          apps/frontend/components/automate/pipeline/use-workflow-workspace.ts
+          apps/frontend/components/automate/pipeline/default-workflow-plan.ts
+          apps/frontend/components/automate/pipeline/use-chat-messages.ts
+          apps/frontend/components/automate/pipeline/use-operator-commands.ts
+          apps/frontend/components/automate/pipeline/pipeline-workspace.tsx
+          apps/frontend/components/automate/pipeline/checkpoint-dialog.tsx
+          apps/frontend/components/automate/pipeline/run-event-utils.ts
+          apps/frontend/tests/run-event-utils.test.mjs
+          apps/frontend/tests/default-workflow-plan.test.mjs
+          apps/frontend/tests/pipeline-controller-boundaries.test.mjs
+          apps/frontend/tests/utomator-routes.test.mjs
+          apps/frontend/package.json
+          docs/architecture/dashboard-pipeline-controller-refactor.md
+      - name: Export exact formatted source for review
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const paths = ["apps/frontend/components/automate/pipeline.tsx","apps/frontend/components/automate/pipeline/use-run-monitor.ts","apps/frontend/components/automate/pipeline/run-models.ts","apps/frontend/components/automate/pipeline/operator-chat-panel.tsx","apps/frontend/components/automate/pipeline/use-workflow-workspace.ts","apps/frontend/components/automate/pipeline/default-workflow-plan.ts","apps/frontend/components/automate/pipeline/use-chat-messages.ts","apps/frontend/components/automate/pipeline/use-operator-commands.ts","apps/frontend/components/automate/pipeline/pipeline-workspace.tsx","apps/frontend/components/automate/pipeline/checkpoint-dialog.tsx","apps/frontend/components/automate/pipeline/run-event-utils.ts","apps/frontend/tests/run-event-utils.test.mjs","apps/frontend/tests/default-workflow-plan.test.mjs","apps/frontend/tests/pipeline-controller-boundaries.test.mjs","apps/frontend/tests/utomator-routes.test.mjs","apps/frontend/package.json","docs/architecture/dashboard-pipeline-controller-refactor.md"];
+          for (const path of paths) {
+            const content = fs.readFileSync(path, 'utf8');
+            process.stdout.write('FORMAT_SOURCE=' + JSON.stringify({ path, content }) + '\n');
+          }
+          NODE
+      - name: Run frontend unit and route checks
+        run: pnpm --filter @utomator/frontend test
+      - name: Check frontend ESLint
+        run: pnpm --filter @utomator/frontend exec eslint . --max-warnings 0
+      - name: Build and type-check frontend
+        run: |
+          pnpm --filter @utomator/frontend build
+          pnpm --filter @utomator/frontend exec tsc --noEmit

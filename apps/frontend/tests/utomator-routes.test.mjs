@@ -96,8 +96,12 @@ test('unified Growth editor reads the ID from nested Growth and legacy Craft URL
     pipeline,
     /pane\s*===\s*['"]growth['"]\s*&&\s*\(?\s*<CraftsLibrary/
   );
-  assert.match(pipeline, /onGrowthTemplateApply=\{applyGrowthTemplate\}/);
-  assert.match(pipeline, /growthTemplateId=\{selectedGrowthTemplateId\}/);
+  const pipelineWorkspace = readFileSync(
+    resolve(root, 'components/automate/pipeline/pipeline-workspace.tsx'),
+    'utf8'
+  );
+  assert.match(pipelineWorkspace, /onGrowthTemplateApply=\{applyGrowthTemplate\}/);
+  assert.match(pipelineWorkspace, /growthTemplateId=\{selectedGrowthTemplateId\}/);
   assert.match(
     navigationHook,
     /['"]\/dashboard\/growth\/['"]\s*\+\s*encodeURIComponent/

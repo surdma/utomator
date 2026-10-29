@@ -1,55 +1,11 @@
 'use client';
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type FormEvent,
-} from 'react';
-import Image from 'next/image';
-import {
-  Activity,
-  AlertCircle,
-  Check,
-  CheckCircle2,
-  MessageSquareText,
-  Play,
-  Pause,
-  Plus,
-  Send,
-  Workflow,
-  X,
-  ImageIcon,
-  Paperclip,
-  Crosshair,
-  Focus,
-} from 'lucide-react';
-import {
-  Message,
-  MessageAvatar,
-  MessageContent,
-  MessageFooter,
-  MessageHeader,
-} from '@/components/ui/message';
-import { Bubble, BubbleContent } from '@/components/ui/bubble';
-import {
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/automate-card';
-import StudioDialog from '@/components/ui/studio-dialog';
-import WorkflowPlanEditor, {
-  type WorkflowPlan,
-} from '@/components/automate/workflow-plan-editor';
+import { useCallback, useState } from 'react';
+import { MessageSquareText } from 'lucide-react';
 import CraftsLibrary from '@/components/automate/crafts-library';
 import VisualReviewPanel, {
   type ImageSource,
   type VisualReviewDraft,
-  type Region,
   type VisualAnnotation,
 } from '@/components/automate/visual-review-panel';
 import { AutomationSettingsPage } from '@/components/automate/owner-pages';
@@ -66,112 +22,24 @@ import ConnectorOnboarding, {
 } from '@/components/automate/connector-onboarding';
 import { LinkedInIcon, TwitterIcon } from '@/components/svgs';
 import { workflows, type Platform } from './pipeline/workflow-catalog';
-import { timeLabel, short } from './pipeline/presentation-utils';
-import { explainCommand } from './pipeline/command-parser';
+import PipelineWorkspace from './pipeline/pipeline-workspace';
 import { buildRunPayload } from './pipeline/build-run-payload';
-import { executeCraftCommand } from './pipeline/craft-command-service';
 import RunHistory from './pipeline/run-history';
+import OperatorChatPanel from './pipeline/operator-chat-panel';
+import type { Review } from './pipeline/run-models';
+import { useRunMonitor } from './pipeline/use-run-monitor';
+import { useChatMessages } from './pipeline/use-chat-messages';
+import { useOperatorCommands } from './pipeline/use-operator-commands';
+import { useWorkflowWorkspace } from './pipeline/use-workflow-workspace';
 import RunTrackingDialog from './pipeline/run-tracking-dialog';
+import CheckpointDialog from './pipeline/checkpoint-dialog';
 import DashboardHeader from './pipeline/dashboard-header';
-import { apiPost, getApi } from './pipeline/api-client';
+import { getApi } from './pipeline/api-client';
 import DashboardSidebar from './pipeline/dashboard-sidebar';
 import {
   useDashboardNavigation,
   type DashboardPane,
 } from './pipeline/use-dashboard-navigation';
-
-type WorkflowRecord = {
-  id: string;
-  ownerId: 'local-owner';
-  templateId: string | null;
-  revision: number;
-  createdAt: string;
-  updatedAt: string;
-  plan: WorkflowPlan;
-};
-type State =
-  | 'running'
-  | 'paused'
-  | 'approval-needed'
-  | 'input-needed'
-  | 'completed'
-  | 'blocked'
-  | 'failed'
-  | 'cancelled';
-type Event = {
-  id: number;
-  runId: string;
-  time: string;
-  kind: string;
-  message: string;
-  details?: {
-    checkpointId?: string;
-    fileName?: string;
-    title?: string;
-    headline?: string | null;
-    bio?: string | null;
-    xName?: string | null;
-    url?: string;
-    excerpt?: string;
-    section?: string;
-  };
-};
-type Run = {
-  id: string;
-  platform: Platform;
-  action: string;
-  state: State;
-  createdAt: string;
-  error?: string;
-};
-type Coverage = {
-  id: string;
-  label: string;
-  platform: Platform;
-  status: 'implemented' | 'manual' | 'reference';
-  source: string;
-  note: string;
-};
-type Playbook = {
-  source: string;
-  reviewed: string;
-  stages: string[];
-  guardrails: string[];
-  recommended: { headline: string | null; about: string | null };
-  sections: string[];
-  coverage: Coverage[];
-  artifacts: {
-    scripts: string[];
-    snapshots: string[];
-    screenshots: string[];
-    rootSnapshots: string[];
-  };
-};
-type Assessment = {
-  runId: string;
-  comparisons: Array<{
-    field: string;
-    observed: string | null;
-    proposed: string | null;
-    status: string;
-  }>;
-  notice: string;
-};
-type Review = {
-  id: string;
-  createdAt: string;
-  platform: Platform;
-  handle: string;
-  pageUrl: string;
-  nodeId: string;
-  note: string;
-  regions: Region[];
-  annotations?: VisualAnnotation[];
-  source:
-    | { kind: 'capture'; runId: string; fileName: string }
-    | { kind: 'upload' }
-    | { kind: 'review'; reviewId: string };
-};
 
 export default function AutomationPipeline({
   initialPane = 'pipeline',
@@ -193,10 +61,6 @@ export default function AutomationPipeline({
     navigateCraft,
     navigateCraftView,
   } = useDashboardNavigation(initialPane);
-  const [platform, setPlatform] = useState<Platform>('linkedin');
-  const [action, setAction] = useState('audit');
-  const [handle, setHandle] = useState('');
-  const [form, setForm] = useState<Record<string, string>>({});
   const [activeConnector, setActiveConnector] = useState<Connector | null>(
     null
   );
@@ -205,77 +69,78 @@ export default function AutomationPipeline({
   const [trackingOpen, setTrackingOpen] = useState(false);
   const [chatVisible, setChatVisible] = useState(true);
   const [configRequest, setConfigRequest] = useState(0);
-  const [workflowPlan, setWorkflowPlan] = useState<WorkflowPlan>(() => ({
-    version: 1,
-    platform: 'linkedin',
-    action: 'audit',
-    name: 'Profile audit',
-    steps: [
-      { id: 'start', kind: 'start', title: 'Start run' },
-      { id: 'session', kind: 'session', title: 'Authenticated browser' },
-      { id: 'inspect', kind: 'inspect', title: 'Inspect current page' },
-      { id: 'action', kind: 'action', title: 'Inspect page' },
-      { id: 'verify', kind: 'verify', title: 'Observe final page' },
-      { id: 'finish', kind: 'finish', title: 'Final output' },
-    ],
-    links: [
-      { source: 'start', target: 'session' },
-      { source: 'session', target: 'inspect' },
-      { source: 'inspect', target: 'action' },
-      { source: 'action', target: 'verify' },
-      { source: 'verify', target: 'finish' },
-    ],
-  }));
-  const [templatePlans, setTemplatePlans] = useState<WorkflowPlan[]>([]);
-  const [selectedGrowthTemplateId, setSelectedGrowthTemplateId] = useState<
-    string | null
-  >(null);
-  const [savedWorkflows, setSavedWorkflows] = useState<WorkflowRecord[]>([]);
-  const [activeWorkflow, setActiveWorkflow] = useState<WorkflowRecord | null>(
-    null
-  );
-  const [loadingWorkflow, setLoadingWorkflow] = useState(false);
-  const workflowSelectionEpoch = useRef(0);
-  const savedListEpoch = useRef(0);
-  const [planDirty, setPlanDirty] = useState(false);
-  const [planSaving, setPlanSaving] = useState(false);
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
   const [craftsRevision, setCraftsRevision] = useState(0);
   const [, setSelectedNode] = useState('inspect');
   const [scopeSection, setScopeSection] = useState('profile');
-  const [reviews, setReviews] = useState<Review[]>([]);
   const [imageDraft, setImageDraft] = useState<ImageSource | null>(null);
   const [imageError, setImageError] = useState('');
 
-  const [available, setAvailable] = useState<'checking' | 'ready' | 'offline'>(
-    'checking'
-  );
-  const [playbook, setPlaybook] = useState<Playbook | null>(null);
-  const [assessment, setAssessment] = useState<Assessment | null>(null);
-  const [runs, setRuns] = useState<Run[]>([]);
-  const [active, setActive] = useState<Run | null>(null);
-  const [events, setEvents] = useState<Event[]>([]);
-  const [checkpoint, setCheckpoint] = useState<{
-    kind: 'approval' | 'input';
-    id: string;
-    message: string;
-  } | null>(null);
-  const [checkpointError, setCheckpointError] = useState('');
   const [runFormError, setRunFormError] = useState('');
-  const [inputReply, setInputReply] = useState('');
-  const [message, setMessage] = useState('');
-  const [conversation, setConversation] = useState<
-    Array<{ id: number; sender: 'user' | 'assistant'; text: string }>
-  >([
-    {
-      id: 1,
-      sender: 'assistant',
-      text: 'Your automation pipeline is ready. Choose a workflow, or type a structured command. I can stage approved actions and explain the run, but no AI model is connected.',
-    },
-  ]);
-  const streamRef = useRef<EventSource | null>(null);
-  const logRef = useRef<HTMLDivElement>(null);
-  const currentRunRef = useRef<string | null>(null);
+  const { message, setMessage, conversation, setConversation, chatNotice } =
+    useChatMessages();
+  const {
+    available,
+    playbook,
+    assessment,
+    runs,
+    active,
+    events,
+    checkpoint,
+    checkpointError,
+    inputReply,
+    setInputReply,
+    reviews,
+    currentRunId,
+    refresh,
+    startMonitoredRun,
+    selectRun,
+    pauseRun,
+    resumeRun,
+    act,
+    cancelRun,
+  } = useRunMonitor(
+    (text) =>
+      setConversation((previous) => [
+        ...previous,
+        { id: Date.now(), sender: 'assistant', text },
+      ]),
+    (text) => setRunFormError(text)
+  );
+  const busy = Boolean(
+    active &&
+    ['running', 'paused', 'input-needed', 'approval-needed'].includes(
+      active.state
+    )
+  );
+  const {
+    platform,
+    setPlatform,
+    handle,
+    setHandle,
+    action,
+    setAction,
+    form,
+    setForm,
+    workflowPlan,
+    setWorkflowPlan,
+    templatePlans,
+    selectedGrowthTemplateId,
+    setSelectedGrowthTemplateId,
+    savedWorkflows,
+    activeWorkflow,
+    setActiveWorkflow,
+    loadingWorkflow,
+    planDirty,
+    setPlanDirty,
+    planSaving,
+    formDirty,
+    saveWorkflowPlan,
+    applyGrowthTemplate,
+    applyTemplate,
+    selectSavedWorkflow,
+    invalidateWorkflowSelection,
+  } = useWorkflowWorkspace({ busy, setRunFormError });
   function selectSocialAccount(account: SocialAccount) {
     setConnectorRequest(account.id);
     setConnectorOpenSignal((value) => value + 1);
@@ -299,292 +164,29 @@ export default function AutomationPipeline({
       ? ['profile', 'experience', 'skills', 'projects', 'featured']
       : ['profile'];
 
-  const busy = Boolean(
-    active &&
-    ['running', 'paused', 'input-needed', 'approval-needed'].includes(
-      active.state
-    )
-  );
   const connectorReady =
     activeConnector?.platform === platform &&
     activeConnector.status === 'connected';
   const PlatformIcon = platform === 'linkedin' ? LinkedInIcon : TwitterIcon;
   const platformLabel = platform === 'linkedin' ? 'LinkedIn' : 'X';
-  const formDirty =
-    JSON.stringify(form) !== JSON.stringify(workflowPlan.parameters ?? {});
-  useEffect(() => {
-    let live = true;
-    const generation = savedListEpoch.current;
-    void fetch(getApi('workflows'), { cache: 'no-store' })
-      .then(async (response) => {
-        if (!response.ok) throw Error('Saved workflows unavailable');
-        const records = (await response.json()) as WorkflowRecord[];
-        if (live && savedListEpoch.current === generation)
-          setSavedWorkflows(records);
-      })
-      .catch(() => {
-        if (live)
-          setRunFormError(
-            'Saved workflows unavailable. Check the local automation API.'
-          );
-      });
-    return () => {
-      live = false;
-    };
-  }, []);
-  useEffect(() => {
-    let live = true;
-    setTemplatePlans([]);
-    const controller = new AbortController();
-    void fetch(getApi('workflow-templates/' + platform), {
-      cache: 'no-store',
-      signal: controller.signal,
-    })
-      .then(async (result) => {
-        if (!result.ok) throw Error('Template catalogue not available');
-        const plans = (await result.json()) as WorkflowPlan[];
-        if (live) setTemplatePlans(plans);
-      })
-      .catch(() => {
-        if (live) setTemplatePlans([]);
-      });
-    return () => {
-      live = false;
-      controller.abort();
-    };
-  }, [platform]);
-  useEffect(() => {
-    if (activeWorkflow) {
-      setLoadingWorkflow(false);
-      return;
-    }
-    setLoadingWorkflow(true);
-    let live = true;
-    const controller = new AbortController();
-    void fetch(getApi('workflow-plans/' + platform + '/' + action), {
-      cache: 'no-store',
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        if (!response.ok) throw Error('Saved workflow could not be loaded');
-        const plan = (await response.json()) as WorkflowPlan;
-        if (live) {
-          setWorkflowPlan(plan);
-          setForm(plan.parameters ?? {});
-          setPlanDirty(false);
-          setLoadingWorkflow(false);
-        }
-      })
-      .catch((error) => {
-        if (
-          live &&
-          !(error instanceof DOMException && error.name === 'AbortError')
-        ) {
-          setRunFormError(
-            'Saved workflow unavailable. Check the local automation API.'
-          );
-          setLoadingWorkflow(false);
-        }
-      });
-    return () => {
-      live = false;
-      controller.abort();
-    };
-  }, [platform, action, activeWorkflow]);
-  async function saveWorkflowPlan(): Promise<void> {
-    if (busy) throw Error('Stop the active workflow before saving');
-    if (loadingWorkflow)
-      throw Error('Wait until the selected workflow finishes loading');
-    if (planSaving) throw Error('A workflow save is already running');
-    const selection = workflowSelectionEpoch.current;
-    setPlanSaving(true);
-    try {
-      const value = { ...workflowPlan, parameters: { ...form } };
-      const response = await fetch(
-        getApi(activeWorkflow ? 'workflows/' + activeWorkflow.id : 'workflows'),
-        {
-          method: activeWorkflow ? 'PUT' : 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(
-            activeWorkflow
-              ? { plan: value, expectedRevision: activeWorkflow.revision }
-              : { plan: value }
-          ),
-        }
-      );
-      const json = (await response.json()) as WorkflowRecord & {
-        error?: string;
-      };
-      if (!response.ok) throw Error(json.error ?? 'Could not save workflow');
-      savedListEpoch.current++;
-      setSavedWorkflows((previous) => [
-        ...previous.filter((item) => item.id !== json.id),
-        json,
-      ]);
-      if (selection === workflowSelectionEpoch.current) {
-        setActiveWorkflow(json);
-        setWorkflowPlan(json.plan);
-        setPlanDirty(false);
-        setRunFormError('');
-      }
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Workflow save failed';
-      setRunFormError(message);
-      throw Error(message);
-    } finally {
-      setPlanSaving(false);
-    }
-  }
-  async function applyGrowthTemplate(id: string): Promise<void> {
-    if (busy)
-      throw Error(
-        'Stop the current Runner workflow before loading a Growth template'
-      );
-    if (platform !== 'linkedin')
-      throw Error('Growth template requires LinkedIn');
-    const response = await fetch(
-      getApi('growth/templates/' + encodeURIComponent(id)),
-      { cache: 'no-store' }
-    );
-    const program = (await response.json()) as {
-      id?: string;
-      stages?: unknown[];
-      error?: string;
-    };
-    if (
-      !response.ok ||
-      program.id !== id ||
-      !Array.isArray(program.stages) ||
-      program.stages.length === 0
-    )
-      throw Error(
-        program.error ||
-          'Growth YAML did not compile into a connected pipeline graph'
-      );
-    setSelectedGrowthTemplateId(id);
-  }
-  async function applyTemplate(
-    plan: WorkflowPlan,
-    templateId: string
-  ): Promise<void> {
-    setSelectedGrowthTemplateId(null);
-    if (busy)
-      throw Error(
-        'Stop or finish the active workflow before changing templates'
-      );
-    if (plan.platform !== platform)
-      throw Error(
-        'Select the matching studio account before applying this template'
-      );
-    if (planSaving) throw Error('A workflow save is already running');
-    const selection = ++workflowSelectionEpoch.current;
-    setPlanSaving(true);
-    setRunFormError('');
-    try {
-      const response = await fetch(getApi('workflows'), {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ plan, templateId }),
-      });
-      const saved = (await response.json()) as WorkflowRecord & {
-        error?: string;
-      };
-      if (!response.ok)
-        throw Error(saved.error || 'The selected workflow could not be saved');
-      savedListEpoch.current++;
-      setSavedWorkflows((previous) => [
-        ...previous.filter((item) => item.id !== saved.id),
-        saved,
-      ]);
-      if (selection === workflowSelectionEpoch.current) {
-        setAction(saved.plan.action);
-        setActiveWorkflow(saved);
-        setWorkflowPlan(saved.plan);
-        setForm(saved.plan.parameters ?? {});
-        setPlanDirty(false);
-        setLoadingWorkflow(false);
-      }
-    } finally {
-      setPlanSaving(false);
-    }
-  }
-  function selectSavedWorkflow(id: string | null) {
-    setSelectedGrowthTemplateId(null);
-    workflowSelectionEpoch.current++;
-    if (id === null) {
-      setActiveWorkflow(null);
-      setPlanDirty(false);
-      setRunFormError('');
-      return;
-    }
-    const selected = savedWorkflows.find((item) => item.id === id);
-    if (!selected) return;
-    setLoadingWorkflow(false);
-    setActiveWorkflow(selected);
-    setPlatform(selected.plan.platform);
-    setAction(selected.plan.action);
-    setWorkflowPlan(selected.plan);
-    setForm(selected.plan.parameters ?? {});
-    setPlanDirty(false);
-    setRunFormError('');
-  }
-
-  const refresh = useCallback(async () => {
-    try {
-      const [health, recent, rules, savedReviews] = await Promise.all([
-        fetch(getApi('health'), { cache: 'no-store' }),
-        fetch(getApi('runs'), { cache: 'no-store' }),
-        fetch(getApi('playbook'), { cache: 'no-store' }),
-        fetch(getApi('visual-reviews'), { cache: 'no-store' }),
-      ]);
-      if (!health.ok) throw new Error('Engine health request failed');
-      setAvailable('ready');
-      if (recent.ok) {
-        const list = (await recent.json()) as Run[];
-        setRuns(list);
-        if (currentRunRef.current) {
-          const matching = list.find((run) => run.id === currentRunRef.current);
-          if (matching) setActive(matching);
-        }
-      }
-      if (rules.ok) setPlaybook((await rules.json()) as Playbook);
-      if (savedReviews.ok) setReviews((await savedReviews.json()) as Review[]);
-      if (currentRunRef.current) {
-        const current = (await (
-          await fetch(getApi('runs/' + currentRunRef.current), {
-            cache: 'no-store',
-          })
-        ).json()) as Run;
-        if (current.action === 'audit') {
-          const report = await fetch(
-            getApi('runs/' + current.id + '/assessment'),
-            { cache: 'no-store' }
-          );
-          if (report.ok) setAssessment((await report.json()) as Assessment);
-        }
-      }
-    } catch {
-      setAvailable('offline');
-    }
-  }, []);
-  useEffect(() => {
-    void refresh();
-    const timer = setInterval(() => {
-      void refresh();
-    }, 20000);
-    return () => {
-      clearInterval(timer);
-      streamRef.current?.close();
-    };
-  }, [refresh]);
-  useEffect(() => {
-    logRef.current?.scrollTo({
-      top: logRef.current.scrollHeight,
-      behavior: 'smooth',
-    });
-  }, [events, conversation, checkpoint]);
-
+  const { sendMessage, handleCraftCommand } = useOperatorCommands({
+    message,
+    setMessage,
+    setConversation,
+    chatNotice,
+    platform,
+    accountId: activeConnector?.id ?? null,
+    selectedCraftId,
+    selectedPage,
+    navigatePane,
+    navigateCraft,
+    setCraftsRevision,
+    invalidateWorkflowSelection,
+    setActiveWorkflow,
+    setAction,
+    setForm,
+    setSelectedNode,
+  });
   const onConnectorSelect = useCallback(
     (account: Connector) => {
       if (account.platform !== 'linkedin') return;
@@ -599,17 +201,17 @@ export default function AutomationPipeline({
       setHandle(account.handle);
       if (!switchingAccount && !switchingPlatform) return;
       // Switching identities or platforms intentionally resets any account-specific form.
-      workflowSelectionEpoch.current++;
+      invalidateWorkflowSelection();
       setActiveWorkflow(null);
       setAction('audit');
       setForm({});
       setScopeSection('profile');
       setConnectorRequest(null);
     },
-    [activeConnector?.id, platform]
+    [activeConnector?.id, platform, invalidateWorkflowSelection]
   );
   function choosePlatform(next: Platform) {
-    workflowSelectionEpoch.current++;
+    invalidateWorkflowSelection();
     setActiveWorkflow(null);
     setPlatform(next);
     setAction('audit');
@@ -620,62 +222,13 @@ export default function AutomationPipeline({
   }
   function chooseAction(next: string) {
     setSelectedGrowthTemplateId(null);
-    workflowSelectionEpoch.current++;
+    invalidateWorkflowSelection();
     setActiveWorkflow(null);
     setAction(next);
     setForm({});
     setRunFormError('');
     navigatePane('pipeline');
     setMobileMenu(false);
-  }
-  function connect(runId: string) {
-    streamRef.current?.close();
-    const source = new EventSource(getApi('events/' + runId));
-    streamRef.current = source;
-    const kinds = [
-      'status',
-      'step',
-      'audit',
-      'approval',
-      'input',
-      'screenshot',
-      'error',
-      'result',
-    ];
-    const consume = (incoming: MessageEvent) => {
-      const item = JSON.parse(incoming.data) as Event;
-      if (item.runId !== currentRunRef.current) return;
-      setEvents((prev) =>
-        prev.some((entry) => entry.id === item.id) ? prev : [...prev, item]
-      );
-      if (item.kind === 'approval' || item.kind === 'input') {
-        setCheckpointError('');
-        setCheckpoint({
-          kind: item.kind,
-          id: item.details?.checkpointId || '',
-          message: item.message,
-        });
-      }
-      if (
-        item.kind === 'status' &&
-        (item.message.startsWith('Run paused') ||
-          item.message.startsWith('Run resumed'))
-      )
-        void refresh();
-      if (
-        item.kind === 'status' &&
-        (item.message.startsWith('Run ended:') ||
-          item.message.includes('Run finished'))
-      ) {
-        setCheckpoint(null);
-        void refresh();
-      }
-    };
-    for (const kind of kinds)
-      source.addEventListener(kind, consume as EventListener);
-    source.onerror = () => {
-      setAvailable('offline');
-    }; // EventSource retries automatically.
   }
   async function startRun() {
     const payload = buildRunPayload({
@@ -691,22 +244,7 @@ export default function AutomationPipeline({
       selectedPage,
       fields: selected.fields,
     });
-    const result = await apiPost('runs', payload);
-    if (!result.id) throw new Error('Server did not return a run ID');
-    currentRunRef.current = result.id;
-    setActive({
-      id: result.id,
-      action,
-      platform,
-      state: 'running',
-      createdAt: new Date().toISOString(),
-    });
-    setEvents([]);
-
-    setAssessment(null);
-    setCheckpoint(null);
-    connect(result.id);
-    void refresh();
+    await startMonitoredRun(payload, action, platform);
   }
   async function launchRun() {
     setRunFormError('');
@@ -716,173 +254,8 @@ export default function AutomationPipeline({
       const detail =
         error instanceof Error ? error.message : 'Unable to start run';
       setRunFormError(detail);
-      setConversation((prev) => [
-        ...prev,
-        { id: Date.now(), sender: 'assistant', text: detail },
-      ]);
+      chatNotice(detail);
     }
-  }
-  async function pauseRun() {
-    if (!active) return;
-    try {
-      await apiPost('runs/' + active.id + '/pause');
-      void refresh();
-    } catch (e) {
-      setRunFormError(e instanceof Error ? e.message : 'Could not pause');
-    }
-  }
-  async function resumeRun() {
-    if (!active) return;
-    try {
-      await apiPost('runs/' + active.id + '/resume');
-      void refresh();
-    } catch (e) {
-      setRunFormError(e instanceof Error ? e.message : 'Could not resume');
-    }
-  }
-  async function act(approve: boolean, text?: string) {
-    if (!active || !checkpoint) return;
-    setCheckpointError('');
-    try {
-      if (checkpoint.kind === 'approval')
-        await apiPost('runs/' + active.id + '/decision', {
-          checkpointId: checkpoint.id,
-          approved: approve,
-        });
-      else
-        await apiPost('runs/' + active.id + '/input', {
-          checkpointId: checkpoint.id,
-          value: text || '',
-        });
-      setCheckpoint(null);
-      setInputReply('');
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : 'Action failed';
-      setCheckpointError(detail);
-      setConversation((prev) => [
-        ...prev,
-        { id: Date.now(), sender: 'assistant', text: detail },
-      ]);
-    }
-  }
-  async function cancelRun() {
-    if (!active) return;
-    try {
-      await apiPost('runs/' + active.id + '/cancel');
-      void refresh();
-    } catch (error) {
-      setConversation((prev) => [
-        ...prev,
-        { id: Date.now(), sender: 'assistant', text: String(error) },
-      ]);
-    }
-  }
-  function chatNotice(text: string) {
-    setConversation((previous) => [
-      ...previous,
-      { id: Date.now() + Math.random(), sender: 'assistant', text },
-    ]);
-  }
-  async function handleCraftCommand(text: string) {
-    try {
-      const result = await executeCraftCommand(text, selectedCraftId);
-      if (result.kind === 'list') {
-        navigatePane('growth');
-      } else {
-        if (result.kind === 'updated') setCraftsRevision((value) => value + 1);
-        navigateCraft(result.id, result.slug);
-      }
-      chatNotice(result.notice);
-    } catch (error) {
-      chatNotice(
-        error instanceof Error ? error.message : 'Unable to edit craft'
-      );
-    }
-  }
-  function sendMessage(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!message.trim()) return;
-    const request = message.trim();
-    setMessage('');
-    setConversation((prev) => [
-      ...prev,
-      { id: Date.now(), sender: 'user', text: request },
-    ]);
-    void apiPost('intelligence/chat', {
-      text: request,
-      platform,
-      ...(activeConnector?.id ? { accountId: activeConnector.id } : {}),
-    }).catch((error) =>
-      chatNotice(
-        'This message was not stored in memory: ' +
-          (error instanceof Error ? error.message : 'Storage unavailable')
-      )
-    );
-    if (/^(?:\/?craft(?:\s|$)|crafts$)/i.test(request)) {
-      void handleCraftCommand(request === 'crafts' ? '/craft help' : request);
-      return;
-    }
-    const parsed = explainCommand(request);
-    if (/^(what do you remember\??|show memory|memory)$/i.test(request)) {
-      void fetch(getApi('intelligence'), { cache: 'no-store' })
-        .then(async (response) => {
-          if (!response.ok) throw Error('Memory unavailable');
-          const entries = (await response.json()) as Array<{
-            source: string;
-            text: string;
-          }>;
-          const summary = entries
-            .filter((item) => item.source === 'chat')
-            .slice(0, 5)
-            .map((item) => '• ' + item.text)
-            .join('\n');
-          chatNotice(summary || 'No chat-origin memory has been saved yet.');
-        })
-        .catch(() => chatNotice('Could not load local conversation memory.'));
-      return;
-    }
-    if (/^(inspect this page|audit this page)$/i.test(request)) {
-      workflowSelectionEpoch.current++;
-      setActiveWorkflow(null);
-      setAction('audit-page');
-      navigatePane('pipeline');
-      setSelectedNode('inspect');
-      setConversation((prev) => [
-        ...prev,
-        {
-          id: Date.now() + 1,
-          sender: 'assistant',
-          text:
-            'Scoped read-only inspection staged for ' +
-            selectedPage +
-            '. Use Start Inspect selected page in the artboard to open the real page.',
-        },
-      ]);
-      return;
-    }
-    let answer: string;
-    if (!parsed) {
-      answer =
-        "No model is connected, so I will not guess. Use commands such as 'audit', 'set headline: …', 'add skill: …' or 'draft post: …'. You can also select a workflow from the left.";
-    } else if (
-      !workflows[platform].some((workflow) => workflow.id === parsed.action)
-    ) {
-      answer =
-        'That operation is not supported on ' +
-        (platform === 'x' ? 'X' : 'LinkedIn') +
-        '. Choose another platform or supported workflow.';
-    } else {
-      workflowSelectionEpoch.current++;
-      setActiveWorkflow(null);
-      setAction(parsed.action);
-      setForm(parsed.fields);
-      navigatePane('pipeline');
-      answer = parsed.note;
-    }
-    setConversation((prev) => [
-      ...prev,
-      { id: Date.now() + 1, sender: 'assistant', text: answer },
-    ]);
   }
   async function attachImage(file?: File) {
     if (!file) return;
@@ -979,7 +352,7 @@ export default function AutomationPipeline({
     );
     setHandle(review.handle);
     setScopeSection(part?.[1] || 'profile');
-    workflowSelectionEpoch.current++;
+    invalidateWorkflowSelection();
     setActiveWorkflow(null);
     setAction('audit-page');
     setSelectedNode('inspect');
@@ -1005,7 +378,6 @@ export default function AutomationPipeline({
     setSelectedNode('annotation');
   };
   const latest = events.at(-1);
-  const checkpointNeeded = checkpoint?.kind === 'approval';
   const showChat =
     chatVisible &&
     pane !== 'profile' &&
@@ -1068,294 +440,58 @@ export default function AutomationPipeline({
             hideTrigger
             openSignal={connectorOpenSignal}
           />
-          {pane === 'pipeline' && (
-            <>
-              <WorkflowPlanEditor
-                plan={workflowPlan}
-                templates={templatePlans}
-                growthTemplateId={selectedGrowthTemplateId}
-                growthAccountId={
-                  connectorReady ? activeConnector?.id : undefined
-                }
-                onGrowthTemplateApply={applyGrowthTemplate}
-                onClearGrowth={() => setSelectedGrowthTemplateId(null)}
-                onGrowthActionSelect={chooseAction}
-                connected={
-                  activeConnector?.platform === 'linkedin' &&
-                  activeConnector?.status === 'connected'
-                }
-                accountLabel={
-                  activeConnector?.platform === platform
-                    ? activeConnector.label
-                    : undefined
-                }
-                events={
-                  active?.platform === platform && active.action === action
-                    ? events
-                    : []
-                }
-                state={
-                  active?.platform === platform && active.action === action
-                    ? active.state
-                    : undefined
-                }
-                runId={
-                  active?.platform === platform && active.action === action
-                    ? active.id
-                    : undefined
-                }
-                busy={busy}
-                dirty={planDirty || formDirty}
-                saving={planSaving}
-                savedWorkflows={savedWorkflows}
-                workflowId={activeWorkflow?.id ?? null}
-                onWorkflowSelect={selectSavedWorkflow}
-                configRequest={configRequest}
-                onPlanChange={(next) => {
-                  setWorkflowPlan(next);
-                  setPlanDirty(true);
-                }}
-                onTemplateApply={applyTemplate}
-                onSave={saveWorkflowPlan}
-                onStop={() => {
-                  void cancelRun();
-                }}
-                runError={runFormError}
-                evidenceRoot={
-                  active
-                    ? getApi('runs/' + active.id + '/evidence/')
-                    : undefined
-                }
-                onEvidenceOpen={annotateCapture}
-              >
-                <form
-                  className="space-y-4"
-                  onSubmit={(event) => event.preventDefault()}
-                >
-                  {runFormError && (
-                    <p
-                      role="alert"
-                      className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800"
-                    >
-                      {runFormError}
-                    </p>
-                  )}
-                  <label
-                    htmlFor="workflowSelect"
-                    className="block text-xs font-semibold"
-                  >
-                    Workflow action
-                    <select
-                      id="workflowSelect"
-                      className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
-                      value={action}
-                      onChange={(event) => chooseAction(event.target.value)}
-                    >
-                      {workflows[platform].map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.title}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <div
-                    data-testid="page-scope"
-                    className="rounded-xl border border-teal-200 bg-teal-50 p-3"
-                  >
-                    <p className="flex items-center gap-2 text-xs font-bold text-teal-900">
-                      <Focus className="size-4" />
-                      Isolate one page
-                    </p>
-                    <label
-                      className="mt-2 block text-xs font-semibold"
-                      htmlFor="pageScope"
-                    >
-                      Page section
-                    </label>
-                    <select
-                      id="pageScope"
-                      className="mt-1.5 min-h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm"
-                      value={scopeSection}
-                      onChange={(e) => setScopeSection(e.target.value)}
-                    >
-                      {pageOptions.map((part) => (
-                        <option key={part} value={part}>
-                          {part === 'profile'
-                            ? 'Main profile'
-                            : part[0].toUpperCase() + part.slice(1)}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="mt-2 font-mono text-[10px] break-all text-teal-800">
-                      {selectedPage ||
-                        'Select a saved social profile to set the inspection target.'}
-                    </p>
-                    <button
-                      type="button"
-                      disabled={!profilePage}
-                      onClick={() => {
-                        chooseAction('audit-page');
-                        setSelectedNode('inspect');
-                      }}
-                      className="mt-2 inline-flex items-center gap-2 text-xs font-bold text-teal-900 hover:underline"
-                    >
-                      <Crosshair className="size-4" />
-                      Inspect this page before editing
-                    </button>
-                  </div>
-                  {selected.fields.length > 0 && (
-                    <div className="grid gap-3">
-                      {selected.fields.map((field) => (
-                        <div key={field.key}>
-                          <label
-                            className="mb-1 block text-xs font-semibold"
-                            htmlFor={'automation-' + field.key}
-                          >
-                            {field.label}
-                            {field.required && (
-                              <span className="ml-1 text-rose-500">*</span>
-                            )}
-                          </label>
-                          {field.multiline ? (
-                            <textarea
-                              id={'automation-' + field.key}
-                              className="min-h-24 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-teal-600"
-                              maxLength={field.max || 3000}
-                              required={field.required}
-                              value={form[field.key] || ''}
-                              onChange={(event) =>
-                                setForm((prev) => ({
-                                  ...prev,
-                                  [field.key]: event.target.value,
-                                }))
-                              }
-                            />
-                          ) : (
-                            <input
-                              id={'automation-' + field.key}
-                              className="min-h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-teal-600"
-                              maxLength={field.max || 500}
-                              placeholder={field.placeholder}
-                              required={field.required}
-                              value={form[field.key] || ''}
-                              onChange={(event) =>
-                                setForm((prev) => ({
-                                  ...prev,
-                                  [field.key]: event.target.value,
-                                }))
-                              }
-                            />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {platform === 'linkedin' && action === 'edit-profile' && (
-                    <p className="text-xs leading-5 text-slate-500">
-                      Use details reviewed for this LinkedIn account. Content
-                      from another identity is not auto-filled.
-                    </p>
-                  )}
-                  <p className="rounded-xl bg-slate-50 p-3 text-xs leading-6 text-slate-500">
-                    Authentication is managed by the selected connection. Use
-                    the {platformLabel} icon in the floating toolbar to connect,
-                    verify, or sync an expired session.
-                  </p>
-                </form>
-              </WorkflowPlanEditor>
-            </>
-          )}
-          {pane === 'pipeline' && (
-            <div
-              className="pointer-events-none fixed bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/30 bg-[#111e2b] p-1.5 shadow-2xl"
-              data-testid="floating-workflow-controls"
-            >
-              {!selectedGrowthTemplateId && (
-                <button
-                  type="button"
-                  aria-label={
-                    active?.state === 'paused'
-                      ? 'Resume workflow'
-                      : active?.state === 'running'
-                        ? 'Pause workflow'
-                        : 'Start workflow'
-                  }
-                  disabled={
-                    active?.state === 'paused'
-                      ? false
-                      : active?.state === 'running'
-                        ? false
-                        : busy ||
-                          available !== 'ready' ||
-                          !connectorReady ||
-                          loadingWorkflow ||
-                          workflowPlan.platform !== platform ||
-                          workflowPlan.action !== action ||
-                          (Boolean(activeWorkflow) && (planDirty || formDirty))
-                  }
-                  onClick={() => {
-                    if (active?.state === 'paused') void resumeRun();
-                    else if (active?.state === 'running') void pauseRun();
-                    else void launchRun();
-                  }}
-                  className="pointer-events-auto inline-flex min-h-12 items-center justify-center gap-3 rounded-full bg-white px-6 text-sm font-bold text-slate-950 transition hover:bg-teal-50 disabled:opacity-50"
-                >
-                  {active?.state === 'running' ? (
-                    <Pause className="size-5" />
-                  ) : (
-                    <Play className="size-5" />
-                  )}
-                  {active?.state === 'paused'
-                    ? 'Resume'
-                    : active?.state === 'running'
-                      ? 'Pause'
-                      : 'Run workflow'}
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setConnectorOpenSignal((value) => value + 1)}
-                aria-label={
-                  (connectorReady ? 'Manage ' : 'Connect ') +
-                  platformLabel +
-                  ' account'
-                }
-                aria-haspopup="dialog"
-                title={
-                  connectorReady
-                    ? platformLabel + ' connected · Manage or sync'
-                    : 'Connect ' + platformLabel + ' account'
-                }
-                data-testid="floating-connector-button"
-                className="pointer-events-auto relative inline-flex size-12 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-400"
-              >
-                <span className="grid size-5 shrink-0 place-items-center [&>svg]:h-5 [&>svg]:w-5">
-                  <PlatformIcon className="size-5" />
-                </span>
-                <span
-                  aria-hidden="true"
-                  className={
-                    'absolute -top-1 -right-1 grid size-4 place-items-center rounded-full text-slate-950 ring-2 ring-[#111e2b] ' +
-                    (connectorReady ? 'bg-emerald-400' : 'bg-amber-400')
-                  }
-                >
-                  {connectorReady ? (
-                    <Check className="size-2.5" strokeWidth={3} />
-                  ) : (
-                    <Plus className="size-2.5" strokeWidth={3} />
-                  )}
-                </span>
-              </button>
-            </div>
-          )}
+          <PipelineWorkspace
+            pane={pane}
+            workflowPlan={workflowPlan}
+            templatePlans={templatePlans}
+            selectedGrowthTemplateId={selectedGrowthTemplateId}
+            connectorReady={connectorReady}
+            activeConnector={activeConnector}
+            applyGrowthTemplate={applyGrowthTemplate}
+            setSelectedGrowthTemplateId={setSelectedGrowthTemplateId}
+            chooseAction={chooseAction}
+            platform={platform}
+            action={action}
+            events={events}
+            active={active}
+            busy={busy}
+            planDirty={planDirty}
+            formDirty={formDirty}
+            planSaving={planSaving}
+            savedWorkflows={savedWorkflows}
+            activeWorkflow={activeWorkflow}
+            selectSavedWorkflow={selectSavedWorkflow}
+            configRequest={configRequest}
+            setWorkflowPlan={setWorkflowPlan}
+            setPlanDirty={setPlanDirty}
+            applyTemplate={applyTemplate}
+            saveWorkflowPlan={saveWorkflowPlan}
+            cancelRun={cancelRun}
+            runFormError={runFormError}
+            annotateCapture={annotateCapture}
+            form={form}
+            setForm={setForm}
+            selected={selected}
+            scopeSection={scopeSection}
+            setScopeSection={setScopeSection}
+            pageOptions={pageOptions}
+            selectedPage={selectedPage}
+            profilePage={profilePage}
+            setSelectedNode={setSelectedNode}
+            platformLabel={platformLabel}
+            available={available}
+            loadingWorkflow={loadingWorkflow}
+            launchRun={launchRun}
+            resumeRun={resumeRun}
+            pauseRun={pauseRun}
+            setConnectorOpenSignal={setConnectorOpenSignal}
+            PlatformIcon={PlatformIcon}
+          />
           {pane === 'history' && (
             <RunHistory
               runs={runs}
               onSelect={(run) => {
-                currentRunRef.current = run.id;
-                setActive(run);
-                setEvents([]);
-                connect(run.id);
+                selectRun(run);
                 navigatePane('pipeline');
               }}
             />
@@ -1425,389 +561,33 @@ export default function AutomationPipeline({
             />
           )}
         </main>
-        <aside
-          data-testid="automation-right-sidebar"
-          className={
-            (mobileChatOpen
-              ? 'fixed inset-y-0 right-0 z-50 flex w-[min(92vw,390px)] bg-[#f5f7f8] p-3 shadow-2xl'
-              : 'hidden') +
-            (showChat
-              ? ' lg:static lg:flex lg:h-full lg:min-h-0 lg:w-auto lg:overflow-hidden lg:bg-transparent lg:p-0 lg:shadow-none'
-              : ' lg:hidden') +
-            ' min-w-0 flex-col'
-          }
-        >
-          <button
-            type="button"
-            className="mb-2 inline-flex min-h-10 items-center justify-end gap-2 text-xs font-semibold text-slate-700 lg:hidden"
-            onClick={() => {
-              setMobileChatOpen(false);
-              setChatVisible(false);
-            }}
-            aria-label="Close operator chat"
-          >
-            <X className="size-4" />
-            Close
-          </button>
-          <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <CardHeader className="flex flex-row items-start justify-between gap-3 border-b border-slate-100">
-              <div>
-                <CardTitle>Mator</CardTitle>
-                <CardDescription>
-                  Your local operator conversation
-                </CardDescription>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setTrackingOpen(true)}
-                  aria-label="Open tracking"
-                  className="inline-flex size-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"
-                  title="Tracking"
-                >
-                  <Activity className="size-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setChatVisible(false);
-                    setMobileChatOpen(false);
-                  }}
-                  aria-label="Minimize Mator"
-                  className="inline-flex size-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"
-                  title="Minimize chat"
-                >
-                  <X className="size-4" />
-                </button>
-              </div>
-            </CardHeader>
-            <CardContent className="flex min-h-0 flex-1 flex-col pt-3">
-              {pane === 'growth' && selectedCraftSlug && (
-                <div
-                  data-testid="active-craft-context"
-                  className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-teal-200 bg-teal-50 p-3"
-                >
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-bold tracking-wider text-teal-800 uppercase">
-                      Active craft
-                    </p>
-                    <p className="mt-0.5 truncate font-mono text-[11px] text-teal-950">
-                      {selectedCraftSlug}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setMessage('/craft help')}
-                    className="rounded-lg bg-white px-2.5 py-2 text-[11px] font-semibold text-teal-800 hover:bg-teal-100"
-                  >
-                    Commands
-                  </button>
-                </div>
-              )}
-              <div
-                className="min-h-[260px] flex-1 space-y-3 overflow-y-auto pr-1 lg:min-h-0"
-                ref={logRef}
-                role="log"
-                aria-live="polite"
-              >
-                {conversation.map((item) => (
-                  <Message
-                    key={item.id}
-                    align={item.sender === 'user' ? 'end' : 'start'}
-                  >
-                    <MessageAvatar
-                      className={
-                        item.sender === 'assistant'
-                          ? 'bg-teal-700'
-                          : 'bg-slate-800'
-                      }
-                    >
-                      {item.sender === 'assistant' ? (
-                        <Workflow className="size-4" />
-                      ) : (
-                        'ME'
-                      )}
-                    </MessageAvatar>
-                    <MessageContent>
-                      <MessageHeader>
-                        {item.sender === 'assistant'
-                          ? 'Utomator · Local assistant'
-                          : 'You'}
-                      </MessageHeader>
-                      <Bubble muted={item.sender === 'user'}>
-                        <BubbleContent>{item.text}</BubbleContent>
-                      </Bubble>
-                    </MessageContent>
-                  </Message>
-                ))}
-                {events.map((event) => (
-                  <Message key={'event-' + event.id}>
-                    <MessageAvatar
-                      className={
-                        event.kind === 'error' ? 'bg-rose-700' : 'bg-slate-700'
-                      }
-                    >
-                      {event.kind === 'error' ? (
-                        <AlertCircle className="size-4" />
-                      ) : (
-                        <Activity className="size-4" />
-                      )}
-                    </MessageAvatar>
-                    <MessageContent>
-                      <MessageHeader>
-                        {event.kind.toUpperCase()} · {timeLabel(event.time)}
-                      </MessageHeader>
-                      <Bubble>
-                        <BubbleContent>{event.message}</BubbleContent>
-                      </Bubble>
-                      {event.kind === 'screenshot' &&
-                        typeof event.details?.fileName === 'string' &&
-                        /^[a-zA-Z0-9_-]+\.png$/.test(event.details.fileName) &&
-                        event.runId === currentRunRef.current && (
-                          <button
-                            data-testid="workflow-screenshot"
-                            type="button"
-                            onClick={() =>
-                              annotateCapture(
-                                event.runId,
-                                event.details!.fileName!
-                              )
-                            }
-                            data-evidence-url={getApi(
-                              'runs/' +
-                                event.runId +
-                                '/evidence/' +
-                                event.details.fileName
-                            )}
-                            className="mt-2 block w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-left hover:border-teal-400 focus-visible:outline-2 focus-visible:outline-teal-600"
-                            aria-label={
-                              'Annotate captured image: ' +
-                              event.details.fileName
-                            }
-                          >
-                            <Image
-                              unoptimized
-                              src={getApi(
-                                'runs/' +
-                                  event.runId +
-                                  '/evidence/' +
-                                  event.details.fileName
-                              )}
-                              width={640}
-                              height={400}
-                              alt={'Actual browser capture: ' + event.message}
-                              className="h-auto w-full object-contain"
-                            />
-                            <div className="flex items-center gap-2 px-3 py-2 text-[11px] text-slate-500">
-                              <ImageIcon className="size-3.5" />
-                              {event.details.fileName} · Click image to annotate
-                            </div>
-                          </button>
-                        )}
-                      <MessageFooter>
-                        Event {event.id} · Run {short(event.runId)}
-                      </MessageFooter>
-                    </MessageContent>
-                  </Message>
-                ))}
-                {reviews
-                  .filter(
-                    (r) =>
-                      r.platform === platform &&
-                      r.handle.toLowerCase() === normalizedHandle.toLowerCase()
-                  )
-                  .map((review) => (
-                    <Message key={'review-' + review.id}>
-                      <MessageAvatar className="bg-teal-800">
-                        <Crosshair className="size-4" />
-                      </MessageAvatar>
-                      <MessageContent>
-                        <MessageHeader>
-                          Saved visual review · {review.nodeId} node
-                        </MessageHeader>
-                        <div
-                          data-testid="saved-visual-review"
-                          className="overflow-hidden rounded-xl border border-teal-200 bg-teal-50/40"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => tagExistingReview(review)}
-                            aria-label={'Edit annotated image ' + review.id}
-                            className="relative block w-full overflow-hidden bg-slate-50 text-left"
-                          >
-                            <Image
-                              unoptimized
-                              src={reviewImage(review)}
-                              width={640}
-                              height={400}
-                              alt={'Annotated ' + review.pageUrl}
-                              className="pointer-events-none h-auto w-full"
-                            />
-                            <svg
-                              aria-hidden="true"
-                              viewBox="0 0 1000 1000"
-                              preserveAspectRatio="none"
-                              className="pointer-events-none absolute inset-0 size-full"
-                            >
-                              {(review.annotations ?? []).map((a, index) => (
-                                <g key={a.id}>
-                                  {a.shape === 'freehand' ? (
-                                    <polyline
-                                      fill="none"
-                                      stroke="#0f766e"
-                                      strokeWidth="5"
-                                      points={(a.points ?? [])
-                                        .map(
-                                          (p) => p.x * 1000 + ',' + p.y * 1000
-                                        )
-                                        .join(' ')}
-                                    />
-                                  ) : a.shape === 'ellipse' ? (
-                                    <ellipse
-                                      cx={(a.x + a.width / 2) * 1000}
-                                      cy={(a.y + a.height / 2) * 1000}
-                                      rx={a.width * 500}
-                                      ry={a.height * 500}
-                                      fill="#0f766e"
-                                      fillOpacity=".08"
-                                      stroke="#0f766e"
-                                      strokeWidth="4"
-                                    />
-                                  ) : (
-                                    <rect
-                                      x={a.x * 1000}
-                                      y={a.y * 1000}
-                                      width={a.width * 1000}
-                                      height={a.height * 1000}
-                                      fill="#0f766e"
-                                      fillOpacity=".08"
-                                      stroke="#0f766e"
-                                      strokeWidth="4"
-                                    />
-                                  )}
-                                  <text
-                                    x={a.x * 1000 + 10}
-                                    y={a.y * 1000 + 23}
-                                    fill="#0f766e"
-                                    fontSize="22"
-                                    fontWeight="bold"
-                                  >
-                                    {index + 1}
-                                  </text>
-                                </g>
-                              ))}
-                            </svg>
-                            <span className="block border-t border-teal-100 px-3 py-2 text-[11px] font-bold text-teal-800">
-                              Open annotation editor
-                            </span>
-                          </button>
-                          <div className="space-y-1 p-3 text-[11px]">
-                            <p className="font-bold text-teal-900">
-                              {review.regions.length} marked region(s)
-                            </p>
-                            {review.regions.map((r, i) => (
-                              <p key={i} className="text-slate-600">
-                                {i + 1}. {r.label}: {r.request}
-                              </p>
-                            ))}
-                            <p className="font-mono text-[10px] break-all text-slate-500">
-                              {review.pageUrl}
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => inspectReview(review)}
-                              className="mt-2 inline-flex gap-2 font-bold text-teal-800 hover:underline"
-                            >
-                              <Focus className="size-3.5" />
-                              Inspect this exact page on the artboard
-                            </button>
-                            {review.annotations?.length ? (
-                              <>
-                                <div className="mt-3 space-y-1 border-t border-teal-100 pt-3">
-                                  {review.annotations.map((a, index) => (
-                                    <p
-                                      key={a.id}
-                                      className="text-[11px] text-slate-700"
-                                    >
-                                      <strong>
-                                        {index + 1}.{' '}
-                                        {a.action.replaceAll('-', ' ')}
-                                      </strong>
-                                      {a.comment ? ' · ' + a.comment : ''}
-                                    </p>
-                                  ))}
-                                </div>
-                                <p className="mt-1 text-[10px] leading-4 text-slate-500">
-                                  Tagged instructions are linked to the
-                                  workflow; they cannot execute unapproved
-                                  browser actions.
-                                </p>
-                              </>
-                            ) : (
-                              <p className="mt-2 text-[10px] text-slate-500">
-                                Earlier image review. Click the image to add
-                                detailed actions and comments.
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </MessageContent>
-                    </Message>
-                  ))}
-              </div>
-              {imageError && (
-                <p role="alert" className="mt-2 text-xs text-rose-700">
-                  {imageError}
-                </p>
-              )}
-              <form
-                onSubmit={sendMessage}
-                className="mt-4 flex items-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 focus-within:ring-2 focus-within:ring-teal-600/20"
-              >
-                <label htmlFor="operatorMessage" className="sr-only">
-                  Structured command
-                </label>
-                <textarea
-                  id="operatorMessage"
-                  className="max-h-28 min-h-[46px] flex-1 resize-y bg-transparent px-2 py-2 text-sm outline-none placeholder:text-slate-400"
-                  rows={1}
-                  placeholder="Try: audit · set headline: ... · add skill: ..."
-                  value={message}
-                  onChange={(event) => setMessage(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' && !event.shiftKey) {
-                      event.preventDefault();
-                      event.currentTarget.form?.requestSubmit();
-                    }
-                  }}
-                />
-                <label
-                  title="Attach a PNG, JPEG or WebP image"
-                  className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-teal-50"
-                >
-                  <Paperclip className="size-4" />
-                  <input
-                    aria-label="Attach image to chat"
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    className="sr-only"
-                    onChange={(e) => {
-                      void attachImage(e.target.files?.[0]);
-                      e.currentTarget.value = '';
-                    }}
-                  />
-                </label>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  aria-label="Send structured command"
-                >
-                  <Send className="size-4" />
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </aside>
+        <OperatorChatPanel
+          pane={pane}
+          selectedCraftSlug={selectedCraftSlug}
+          mobileChatOpen={mobileChatOpen}
+          showChat={showChat}
+          onClose={() => {
+            setChatVisible(false);
+            setMobileChatOpen(false);
+          }}
+          onOpenTracking={() => setTrackingOpen(true)}
+          conversation={conversation}
+          events={events}
+          reviews={reviews}
+          platform={platform}
+          normalizedHandle={normalizedHandle}
+          currentRunId={currentRunId}
+          onAnnotateCapture={annotateCapture}
+          onEditReview={tagExistingReview}
+          onInspectReview={inspectReview}
+          reviewImage={reviewImage}
+          imageError={imageError}
+          message={message}
+          onMessageChange={setMessage}
+          onSendMessage={sendMessage}
+          onAttachImage={attachImage}
+          checkpoint={checkpoint}
+        />
       </div>
 
       <RunTrackingDialog
@@ -1818,65 +598,14 @@ export default function AutomationPipeline({
         assessment={assessment}
         latest={latest}
       />
-      <StudioDialog
-        open={Boolean(checkpoint)}
-        onDismiss={() => {}}
-        dismissible={false}
-        title={
-          checkpointNeeded ? 'Approval required' : 'Operator input required'
-        }
-        description={checkpoint?.message}
-        testId="checkpoint-dialog"
-      >
-        {checkpoint && (
-          <div className="flex flex-col gap-4">
-            <p className="text-sm leading-6 text-slate-700">
-              Review the operation before continuing.
-            </p>
-            {checkpointError && (
-              <p
-                role="alert"
-                className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800"
-              >
-                {checkpointError}
-              </p>
-            )}
-            <div>
-              {checkpointNeeded ? (
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="primary" onClick={() => void act(true)}>
-                    <CheckCircle2 className="size-4" />
-                    Approve checkpoint
-                  </Button>
-                  <Button variant="danger" onClick={() => void act(false)}>
-                    Reject
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  <input
-                    aria-label="Checkpoint response"
-                    value={inputReply}
-                    onChange={(event) => setInputReply(event.target.value)}
-                    className="min-h-10 min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 text-sm"
-                    maxLength={300}
-                  />
-                  <Button
-                    variant="primary"
-                    disabled={!inputReply.trim()}
-                    onClick={() => void act(true, inputReply)}
-                  >
-                    Respond
-                  </Button>
-                  <Button type="button" onClick={() => void cancelRun()}>
-                    Cancel run
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </StudioDialog>
+      <CheckpointDialog
+        checkpoint={checkpoint}
+        checkpointError={checkpointError}
+        inputReply={inputReply}
+        onInputChange={setInputReply}
+        onDecision={act}
+        onCancel={cancelRun}
+      />
       {pane !== 'profile' && pane !== 'resumes' && (
         <button
           type="button"
