@@ -508,29 +508,36 @@ function CanvasInner({
     "output" | "annotation" | "stage" | null
   >(null);
   useEffect(() => {
-    if (inspectorRequest > 0) setInspector(true);
+    if (inspectorRequest <= 0) return;
+    const frame = requestAnimationFrame(() => setInspector(true));
+    return () => cancelAnimationFrame(frame);
   }, [inspectorRequest]);
   useEffect(() => {
-    if (runId) setInspector(false);
+    if (!runId) return;
+    const frame = requestAnimationFrame(() => setInspector(false));
+    return () => cancelAnimationFrame(frame);
   }, [runId]);
   const [notice, setNotice] = useState(
     "Select nodes or right-click a connection to inspect it.",
   );
   useEffect(() => {
-    // Keep manually arranged positions while telemetry updates, reset on action change
-    setNodes((previous) => {
-      const structureChanged =
-        previous.some((item) => item.id === "annotation") !==
-        graph.nodes.some((item) => item.id === "annotation");
-      return graph.nodes.map((node) => ({
-        ...node,
-        position: structureChanged
-          ? node.position
-          : (previous.find((item) => item.id === node.id)?.position ??
-            node.position),
-      }));
+    // Apply graph telemetry after paint so interaction state is not updated during effect setup.
+    const frame = requestAnimationFrame(() => {
+      setNodes((previous) => {
+        const structureChanged =
+          previous.some((item) => item.id === "annotation") !==
+          graph.nodes.some((item) => item.id === "annotation");
+        return graph.nodes.map((node) => ({
+          ...node,
+          position: structureChanged
+            ? node.position
+            : (previous.find((item) => item.id === node.id)?.position ??
+              node.position),
+        }));
+      });
+      setEdges(graph.edges);
     });
-    setEdges(graph.edges);
+    return () => cancelAnimationFrame(frame);
   }, [graph, setNodes, setEdges]);
   useEffect(() => {
     if (!taggedReviews.length) return;
