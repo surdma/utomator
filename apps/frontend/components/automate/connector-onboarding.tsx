@@ -261,8 +261,8 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
           {chosen?<div className="rounded-xl border border-slate-200 bg-white p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-slate-900">{chosen.label}</p>
-                <p className="mt-1 truncate text-xs text-slate-500">@{chosen.handle}</p>
+                <p className="break-words [overflow-wrap:anywhere] text-sm font-semibold text-slate-900">{chosen.label}</p>
+                <p className="mt-1 break-words [overflow-wrap:anywhere] text-xs text-slate-500">@{chosen.handle}</p>
               </div>
               {activeId===chosen.id&&status==="connected"&&
                 <span className="flex items-center gap-1 text-xs font-semibold text-emerald-700"><Check className="size-4"/>In use</span>}
@@ -292,7 +292,7 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
             {!browserLoginAvailable&&<p className="text-xs text-slate-500">
               Browser-based workflows need an interactive connection host. This sign-in authorizes only supported API publishing.
             </p>}
-            {working&&<button type="button" onClick={()=>abortRef.current?.abort()} className="min-h-10 text-xs font-semibold text-slate-600">Cancel</button>}
+            {working&&<button type="button" onClick={()=>abortRef.current?.abort()} className="min-h-11 text-xs font-semibold text-slate-600">Cancel</button>}
             {network==="linkedin"&&status==="connected"&&activeId!==chosen.id&&<button type="button" disabled={busy}
               onClick={()=>{onSelect(chosen);setMessage("LinkedIn is selected for your workspace.");}}
               className={button+" w-full border border-slate-200 bg-white text-slate-800"}>
@@ -317,12 +317,12 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
                 className={button+" flex-1 border border-rose-300 bg-rose-50 text-rose-800"}>Confirm disconnect</button>
               <button type="button" onClick={()=>setConfirming(false)} className={button+" border border-slate-200"}>Cancel</button>
             </div>:status==="connected"&&<button type="button" disabled={busy}
-              onClick={()=>setConfirming(true)} className="mx-auto flex min-h-10 items-center gap-2 text-xs font-semibold text-slate-500 hover:text-rose-700">
+              onClick={()=>setConfirming(true)} className="mx-auto flex min-h-11 items-center gap-2 text-xs font-semibold text-slate-500 hover:text-rose-700">
               <Trash2 className="size-3.5"/> Disconnect
             </button>}
           </div>}
           {onManageProfile&&<button type="button" onClick={()=>{setOpen(false);onManageProfile();}}
-            className="mx-auto flex min-h-10 items-center gap-1 text-xs text-slate-500 hover:text-slate-800">
+            className="mx-auto flex min-h-11 items-center gap-1 text-xs text-slate-500 hover:text-slate-800">
             Manage profiles <ExternalLink className="size-3.5"/>
           </button>}
         </>}

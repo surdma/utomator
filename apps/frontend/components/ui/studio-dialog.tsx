@@ -51,7 +51,7 @@ export default function StudioDialog({
           {description && <p id={descriptionId} className="mt-1 text-xs leading-5 text-slate-500">{description}</p>}
         </div>
         {dismissible && <button type="button" onClick={onDismiss} aria-label={"Close " + title}
-          className="flex size-10 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-teal-600">
+          className="flex size-11 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-teal-600">
           <X className="size-5" />
         </button>}
       </div>
