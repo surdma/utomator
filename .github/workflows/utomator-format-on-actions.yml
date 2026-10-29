@@ -3,7 +3,7 @@ name: Utomator formatter (controlled)
 on:
   push:
     branches: [feat/yaml-growth-profile-pipeline]
-    paths: ['.github/workflows/utomator-format-on-actions.yml']
+    paths: ['.github/workflows/utomator-format-on-actions.yml', 'apps/frontend/tests/utomator-routes.test.mjs']
   workflow_dispatch:
 
 permissions:
