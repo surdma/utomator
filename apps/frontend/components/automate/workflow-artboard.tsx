@@ -23,13 +23,11 @@ import {
   type Node,
   type Edge,
   type NodeProps,
-  type EdgeProps,
 } from "@xyflow/react";
 import StudioDialog from "@/components/ui/studio-dialog";
 import Image from "next/image";
 import {
   Activity,
-  ArrowDownToLine,
   Check,
   ChevronDown,
   CircleDot,
@@ -44,9 +42,7 @@ import {
   Play,
   ScanSearch,
   ShieldCheck,
-  Sparkles,
   Waypoints,
-  XCircle,
   Zap,
 } from "lucide-react";
 
