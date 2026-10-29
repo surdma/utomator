@@ -54,7 +54,7 @@ export function AutomationSettingsPage({
           </CardTitle>
           <CardDescription>
             Each run uses the currently selected social account rather than the
-            portfolio owner's handle.
+            portfolio owner&apos;s handle.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3 text-sm">
