@@ -128,10 +128,11 @@ export default function TemplateBrowser({
   const [picked, setPicked] = useState<string | null>(null);
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState("");
+  const growthSupported = typeof onGrowthApply === "function";
   const allOptions = useMemo<GrowthOption[]>(
     () => [
       ...templateCatalog,
-      ...(onGrowthApply
+      ...(growthSupported
         ? growthCapabilities.map((cap) => {
             const id = "linkedin-" + cap.id;
             const available = growthTemplates.find(
@@ -158,7 +159,7 @@ export default function TemplateBrowser({
             };
           })
         : []),
-      ...(onGrowthApply
+      ...(growthSupported
         ? growthTemplates
             .filter(
               (template) =>
@@ -183,7 +184,7 @@ export default function TemplateBrowser({
               schedule: "manual" as const,
             }))
         : []),
-      ...(onGrowthApply
+      ...(growthSupported
         ? toolkits.map((item) => ({
             id: "method-" + item.slug,
             methodCraftId: item.id,
@@ -205,7 +206,7 @@ export default function TemplateBrowser({
           }))
         : []),
     ],
-    [growthTemplates, toolkits, onGrowthApply],
+    [growthTemplates, toolkits, growthSupported],
   );
   const options = useMemo(
     () =>
