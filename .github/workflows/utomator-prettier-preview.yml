@@ -1,0 +1,39 @@
+name: Utomator targeted Prettier preview
+
+on:
+  push:
+    branches: [feat/yaml-growth-profile-pipeline]
+    paths:
+      - ".github/workflows/utomator-prettier-preview.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  format-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Format the extracted dialog in the job workspace only
+        run: pnpm exec prettier --write apps/frontend/components/automate/workflow-artboard-output-dialog.tsx
+      - name: Print exact formatted file for reviewed patch
+        run: |
+          python3 - <<'PY'
+          import base64
+          import hashlib
+          from pathlib import Path
+          path = Path('apps/frontend/components/automate/workflow-artboard-output-dialog.tsx')
+          content = path.read_bytes()
+          print('FORMAT_BYTES:',len(content))
+          print('FORMAT_SHA256:',hashlib.sha256(content).hexdigest())
+          encoded = base64.b64encode(content).decode()
+          for i in range(0,len(encoded),2000):
+              print('FORMAT_CHUNK:',i//2000,':',encoded[i:i+2000],sep='')
+          PY
