@@ -510,6 +510,14 @@ test('Growth YAML templates load into the existing workflow artboard with nested
     const before=(await app.inject('/runs')).json().length;
     const modal=page.getByRole('dialog',{name:'Workflow template library'});
     await clickUntilVisible(page,page.getByRole('button',{name:'Choose workflow template'}),modal);
+    await modal.getByRole('searchbox',{name:'Search workflow templates'}).fill('Portfolio proofing');
+    await modal.getByRole('option',{name:/Portfolio proofing/}).waitFor();
+    await modal.getByRole('option',{name:/Portfolio proofing/}).click();
+    await modal.getByText(/MDX methodology · not an executable YAML workflow/).waitFor();
+    assert.match(await modal.getByRole('link',{name:'Open methodology in Growth library'}).getAttribute('href')??'',
+      /\/dashboard\/growth\/default-portfolio-proofing$/, 'existing MDX toolkit remains accessible');
+    assert.equal((await app.inject('/runs')).json().length,before,
+      'viewing an MDX methodology must not dispatch the Runner');
     await modal.getByRole('searchbox',{name:'Search workflow templates'}).fill('Profile auditing & section optimization');
     await modal.getByRole('option',{name:/Profile auditing & section optimization/}).click();
     await modal.getByText(/6 connected pipelines/).waitFor();

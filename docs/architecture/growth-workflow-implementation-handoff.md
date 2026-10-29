@@ -67,7 +67,7 @@ Pipeline → Templates modal
 | 2026-10-28 | YAML catalogue, existing modal, nested parent/child graphs, failure attribution | IMPLEMENTED / CI_VERIFIED for baseline | former PR #9 consolidated into PR #7 at `3a06ddbf18b4b3a1efc12a7fa247ee0dcbab41d3` |
 | 2026-10-28 | Full baseline CI | CI_VERIFIED for **exact baseline SHA only** | [Actions #40776273349](https://github.com/surdma/utomator/actions/runs/40776273349) success: backend/unit/Fastify, TS/Biome, builds, hosted security, browser-fixture pipeline edges and task drill-in |
 | 2026-10-29 | Async browser cleanup race | INVESTIGATED | Runner completion before `browser.close()` vs coordinator advancement |
-| 2026-10-29 | Idle-gated advancement, session-start failure attribution, UI and regression test | IMPLEMENTED in this candidate change; independent CI review **pending at authoring time** | Exact new commit SHA/run must be entered after verification; no green claim yet |
+| 2026-10-29 | Idle-gated advancement, session-start failure attribution, UI and regression test | IMPLEMENTED at `a640bb4decfe83c3fa5a66b6c24b3d9c7df90047`; independent CI review pending | Runner `isIdle`, coordinator `releasePending`, new regression test |
 
 **Local execution limitation:** no project checkout was mounted, and `git ls-remote https://github.com/surdma/utomator.git HEAD` failed with DNS resolution error in this environment. Do not claim local Node tests. CI results must be linked to the precise code SHA; local stub tests and a green CI are not live LinkedIn validation.
 
@@ -80,7 +80,7 @@ Pipeline → Templates modal
 | P0 | Twenty profile sections have no independently verified field-level collector/rubric chain | Backend + Test + Product: scope each collector, explicit unavailable/manual states, source provenance and no fabricated success |
 | P1 | Coordinator restart/recovery, multi-process idempotency and active-child reconciliation unverified | Backend/Reliability: recovery state machine, duplicate start protection, tests across restart |
 | P1 | Growth parent/child graph currently read-only, not a YAML authoring editor | UI/UX + Frontend + API: versioned graph edit + compile + persist + round-trip; preserve approvals |
-| P1 | Six legacy MDX toolkits are not converted to YAML and additional 14 capability definitions have no supported YAML | Product + Backend: migrations in small, provider-verified increments; planned/guidance is not executable |
+| P1 | Six legacy MDX toolkits are discoverable as guidance in the Templates modal but not converted to YAML; additional 14 capability definitions have no supported YAML | Product + Backend: migrations in small, provider-verified increments; planned/guidance is not executable |
 | P1 | No live fixture assertion yet for browser-open failure → session task after this change | Test + Integration: simulate actual browser bootstrap failure and check session journal and red parent |
 | P2 | Responsive/keyboard/long-running polling, status recovery and journal transitions | Frontend + Dogfood: mobile, keyboard focus, loading/errors, stale child journal, accidental launches |
 

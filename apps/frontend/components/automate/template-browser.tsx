@@ -7,7 +7,8 @@ import {growthCapabilities} from "./linkedin-growth-capabilities";
 import type {WorkflowPlan} from "./workflow-plan-editor";
 import TemplateGraphPreview from "./template-graph-preview";
 export type GrowthTemplateSummary={id:string;title:string;objective:string;platform:"linkedin";pipelineCount:number;coverageCount:number;executable:boolean};
-type GrowthOption=CatalogTemplate&{growthId?:string};
+type GrowthOption=CatalogTemplate&{growthId?:string;methodCraftId?:string};
+type MethodCraft={id:string;slug:string;name:string;description:string;category:string;scope:"default"|"personal"};
 type Props={
   activePlatform:"linkedin"|"x";
   templates:WorkflowPlan[];
@@ -19,12 +20,26 @@ type Props={
 export default function TemplateBrowser({activePlatform,templates,onApply,onApplied,connected,onGrowthApply}:Props){
   const [growthTemplates,setGrowthTemplates]=useState<GrowthTemplateSummary[]>([]);
   const [growthError,setGrowthError]=useState("");
+  const [toolkits,setToolkits]=useState<MethodCraft[]>([]);
+  const [toolkitError,setToolkitError]=useState("");
   useEffect(()=>{const controller=new AbortController();
     void fetch("/api/growth/templates",{cache:"no-store",signal:controller.signal})
       .then(async response=>{if(!response.ok)throw Error("Growth catalogue unavailable");
         return response.json() as Promise<GrowthTemplateSummary[]>;})
       .then(value=>{if(!controller.signal.aborted)setGrowthTemplates(value);})
       .catch(error=>{if(!controller.signal.aborted)setGrowthError(error instanceof Error?error.message:"Growth catalogue unavailable");});
+    return()=>controller.abort();
+  },[]);
+  useEffect(()=>{const controller=new AbortController();
+    void fetch("/api/crafts",{cache:"no-store",signal:controller.signal})
+      .then(async response=>{if(!response.ok)throw Error("Growth methodology catalogue unavailable");
+        return response.json() as Promise<MethodCraft[]>;})
+      .then(value=>{if(!controller.signal.aborted){
+        if(!Array.isArray(value))throw Error("Invalid Growth methodology catalogue");
+        setToolkits(value.filter(item=>item.scope==="default"&&!item.slug.startsWith("growth-")));
+      }})
+      .catch(error=>{if(!controller.signal.aborted)
+        setToolkitError(error instanceof Error?error.message:"Growth methodology unavailable");});
     return()=>controller.abort();
   },[]);
   const [platform,setPlatform]=useState<TemplatePlatform>(activePlatform);
@@ -51,7 +66,14 @@ export default function TemplateBrowser({activePlatform,templates,onApply,onAppl
       automation:template.executable?"supported" as const:"planned" as const,
       schedule:"manual" as const,
     })):[]),
-  ],[growthTemplates,onGrowthApply]);
+    ...(onGrowthApply?toolkits.map(item=>({
+      id:"method-"+item.slug,methodCraftId:item.id,platform:"linkedin" as const,
+      category:(item.category==="content"?"Publishing":item.category==="engagement"?"Engagement":"Profile") as TemplateCategory,
+      title:item.name,description:item.description,
+      capabilities:["Existing MDX methodology","Review in the Growth library","Not an executable YAML pipeline"],
+      automation:"planned" as const,schedule:"manual" as const,
+    })):[]),
+  ],[growthTemplates,toolkits,onGrowthApply]);
   const options=useMemo(()=>allOptions.filter(item=>item.platform===platform&&
     (category==="All"||item.category===category)&&
     (item.title+" "+item.description+" "+item.capabilities.join(" ")).toLowerCase().includes(query.toLowerCase().trim())),
@@ -133,7 +155,7 @@ export default function TemplateBrowser({activePlatform,templates,onApply,onAppl
               <span className="mt-1 line-clamp-2 block text-[11px] leading-5 text-slate-600">{item.description}</span>
               <span className="mt-2 flex flex-wrap items-center gap-2 text-[10px] font-semibold">
                 <span className={item.automation==="supported"?"text-emerald-800":"text-amber-800"}>
-                  {item.automation==="supported"&&item.platform==="linkedin"?"Ready to load":"Coming soon"}
+                  {item.methodCraftId?"MDX guidance only":item.automation==="supported"&&item.platform==="linkedin"?"Ready to load":"Coming soon"}
                 </span><span className="text-slate-400">{item.category}</span>
               </span>
             </span><ChevronRight className="mt-2 size-4 shrink-0 text-slate-400"/>
@@ -142,6 +164,10 @@ export default function TemplateBrowser({activePlatform,templates,onApply,onAppl
       <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/80 p-3 sm:p-4" data-testid="template-preview">
         {selected?<><div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1"><div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-teal-700"><ShieldCheck className="size-4"/>Template details</div>
           <h3 className="text-lg font-extrabold leading-tight text-slate-950">{selected.title}</h3>
+          {selected?.methodCraftId&&<div className="rounded-xl border border-slate-200 bg-white p-3 text-xs leading-6 text-slate-700">
+            <p className="font-bold">MDX methodology · not an executable YAML workflow</p>
+            <p>This existing Growth toolkit remains available for review and cloning in the Growth library. It cannot start a Runner pipeline until a validated YAML definition and supported actions exist.</p>
+          </div>}
           {selectedGrowth&&<div className="rounded-xl border border-teal-200 bg-teal-50 p-3 text-xs leading-6 text-teal-950">
             <p className="font-bold">YAML Growth workflow · {selectedGrowth.pipelineCount} connected pipelines</p>
             <p>{selectedGrowth.coverageCount} separate coverage requirements · Load to inspect pipeline task nodes in the artboard.</p>
@@ -159,17 +185,24 @@ export default function TemplateBrowser({activePlatform,templates,onApply,onAppl
           </div>
           <div className="mt-5 border-t border-slate-200 pt-3 text-[11px] leading-5 text-slate-600">
             <p className="flex items-center gap-2"><Clock3 className="size-3.5"/>Trigger: {selected.schedule==="manual"?"Manual start":"Scheduling requires a durable runner"}</p>
-            {selected.automation==="planned"&&<p className="mt-2">This template is coming soon. A verified provider integration and executable handler are required.</p>}
+            {selected.automation==="planned"&&!selected.methodCraftId&&<p className="mt-2">This template is coming soon. A verified provider integration and executable handler are required.</p>}
             {loadable&&!connected&&<p className="mt-2">You can load and edit this template now. Running it requires selecting, connecting, and syncing your LinkedIn account.</p>}
             {loadable&&connected&&<p className="mt-2">This template can be loaded. Execution uses the currently selected verified LinkedIn account after your review.</p>}
           </div>
           {growthError&&<p role="alert" className="mt-3 text-xs text-amber-800">{growthError}</p>}
+          {toolkitError&&<p role="status" className="mt-3 text-xs text-amber-800">{toolkitError}</p>}
           {error&&<p role="alert" className="mt-3 rounded-lg bg-rose-50 p-2 text-xs text-rose-800">{error}</p>}
-          </div><div className="shrink-0 border-t border-slate-200 pt-3"><button type="button" disabled={!loadable||applying} onClick={()=>{void useTemplate();}}
+          </div><div className="shrink-0 border-t border-slate-200 pt-3">
+          {selected?.methodCraftId?<a href={"/dashboard/growth/"+encodeURIComponent(selected.methodCraftId)}
+            className="flex w-full min-h-11 items-center justify-center rounded-xl bg-slate-950 px-4 text-xs font-bold text-white">
+            Open methodology in Growth library
+          </a>:<button type="button" disabled={!loadable||applying} onClick={()=>{void useTemplate();}}
             aria-label={selected?.growthId?"Load Growth workflow":"Load selected pipeline"} className="flex w-full min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600">
             {applying?"Loading template…":!loadable?"Not available yet":selected?.growthId?"Load Growth workflow":"Load pipeline"}
-          </button>
-          <p className="mt-2 text-center text-[10px] text-slate-500">{loadable?"Loads an editable copy on the dashboard; it does not start a LinkedIn action.":"Planned templates require a supported integration before they can be loaded or run."}</p></div>
+          </button>}
+          <p className="mt-2 text-center text-[10px] text-slate-500">
+            {selected?.methodCraftId?"Opens the original MDX toolkit without claiming it is an executable YAML workflow.":loadable?"Loads an editable copy on the dashboard; it does not start a LinkedIn action.":"Planned templates require a supported integration before they can be loaded or run."}
+          </p></div>
         </>:<p className="text-xs text-slate-500">Select a workflow template to review its capabilities.</p>}
       </div>
     </div>
