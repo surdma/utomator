@@ -85,7 +85,7 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
     setSelected(target);
     const match=last.current.accounts.find(item=>item.id===target);
     if(match)setNetwork(match.platform);
-    void refresh().catch(()=>undefined);
+    void refresh().catch(e=>setError(e instanceof Error?e.message:"Unable to load connections"));
   },[openSignal,requestedId,refresh]);
 
   // Check the provider tab without touching it until ownership can be proven.
@@ -205,7 +205,7 @@ export default function ConnectorOnboarding({activeId,onSelect,requestedId,hideT
   const browserSupported=network==="linkedin"||network==="x";
 
   return <>
-    {!hideTrigger&&<button type="button" onClick={()=>{setOpen(true);void refresh();}} aria-label="Manage connected social accounts"
+    {!hideTrigger&&<button type="button" onClick={()=>{setOpen(true);void refresh().catch(e=>setError(e instanceof Error?e.message:"Unable to load connections"));}} aria-label="Manage connected social accounts"
       className={button+" border border-slate-200 bg-white text-slate-900"}>
       <LinkedInIcon className="size-5"/> LinkedIn {chosen?.status==="connected"?"connected":"connection"}
     </button>}

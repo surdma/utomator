@@ -38,7 +38,8 @@ async function assertLayout(page: Page) {
 async function assertAxe(page: Page, info: TestInfo, label: string) {
   await page.addScriptTag({ content: axe.source });
   const result = await page.evaluate(async () => {
-    const audit = (window as Window & { axe: typeof axe }).axe;
+    const audit = (window as Window & { axe?: typeof axe }).axe;
+    if (!audit) throw new Error("axe-core did not load in the test browser");
     const dialog = document.querySelector('[data-testid="connector-onboarding-dialog"]');
     if (!dialog) throw new Error("Missing connector dialog");
     return audit.run(dialog, {

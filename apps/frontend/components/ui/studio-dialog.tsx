@@ -30,6 +30,41 @@ export default function StudioDialog({
     if (!open && dialog.open) dialog.close();
   }, [open]);
 
+  // The browser's native modal focus behavior differs on some Chromium/WebKit
+  // mobile emulations. Keep keyboard users inside the active dialog explicitly.
+  useEffect(() => {
+    if (!open) return;
+    const dialog = ref.current;
+    if (!dialog) return;
+
+    const trapFocus = (event: KeyboardEvent) => {
+      if (event.key !== "Tab" || !dialog.open) return;
+      const candidates = Array.from(dialog.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])',
+      )).filter((element) => element.getClientRects().length > 0);
+      const first = candidates[0];
+      const last = candidates[candidates.length - 1];
+      if (!first || !last) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const active = document.activeElement;
+      if (!dialog.contains(active)) {
+        event.preventDefault();
+        first.focus();
+      } else if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", trapFocus, true);
+    return () => document.removeEventListener("keydown", trapFocus, true);
+  }, [open]);
+
   function backdropClick(event: MouseEvent<HTMLDialogElement>) {
     if (!dismissible || event.target !== event.currentTarget) return;
     const bounds = event.currentTarget.getBoundingClientRect();
@@ -38,7 +73,7 @@ export default function StudioDialog({
   }
 
   return (
-    <dialog ref={ref} data-testid={testId} aria-labelledby={titleId}
+    <dialog ref={ref} tabIndex={-1} data-testid={testId} aria-labelledby={titleId}
       aria-describedby={description ? descriptionId : undefined}
       onCancel={(event) => { event.preventDefault(); if (dismissible) onDismiss(); }}
       onClick={backdropClick}
