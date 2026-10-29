@@ -358,7 +358,7 @@ function Inner({
       setMdxDirty(false);
       setSelection(picked.steps[0]?.id || null);
     }
-  }, [selectedId, catalog, baseline?.id, view]);
+  }, [selectedId, catalog, baseline?.id, view, onSelected]);
   const update = (fn: (skill: Draft) => Draft) => {
     if (readOnly) return;
     setDraft((prev) => (prev ? fn(prev) : null));
