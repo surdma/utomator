@@ -34,7 +34,13 @@ test('retired Mator UI modules cannot return without a reference audit', () => {
 });
 
 test('dashboard pages consume the shared dashboard shell', () => {
-  for (const route of ['pipeline', 'settings', 'growth', 'history', 'resumes']) {
+  for (const route of [
+    'pipeline',
+    'settings',
+    'growth',
+    'history',
+    'resumes',
+  ]) {
     const page = readFileSync(
       resolve(root, 'app/dashboard', route, 'page.tsx'),
       'utf8'

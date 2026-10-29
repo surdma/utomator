@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
-import { apiPost, getApi } from '../components/dashboard/pipeline/api-client.ts';
+import {
+  apiPost,
+  getApi,
+} from '../components/dashboard/pipeline/api-client.ts';
 
 const originalFetch = globalThis.fetch;
 afterEach(() => {

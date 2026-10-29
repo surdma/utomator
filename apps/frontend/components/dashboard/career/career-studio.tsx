@@ -16,12 +16,7 @@ import {
   ShieldCheck,
   Trash2,
 } from 'lucide-react';
-import type {
-  CareerDocument,
-  Resume,
-  CareerState,
-  SectionKey,
-} from './types';
+import type { CareerDocument, Resume, CareerState, SectionKey } from './types';
 import { classInput, classButton } from './styles';
 import SectionEditor from './section-editor';
 import ResumePaper from './resume-paper';

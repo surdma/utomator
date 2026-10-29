@@ -422,4 +422,3 @@ export default function SectionEditor({
     </div>
   );
 }
-

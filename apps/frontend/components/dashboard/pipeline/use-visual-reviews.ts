@@ -1,7 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import type { ImageSource, VisualReviewDraft } from '../reviews/visual-review-panel';
+import type {
+  ImageSource,
+  VisualReviewDraft,
+} from '../reviews/visual-review-panel';
 import type { Platform } from './workflow-catalog';
 import type { Review } from './run-models';
 import { getApi } from './api-client';

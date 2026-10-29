@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { GrowthJournalEvent } from '../components/automate/growth-graph-model';
+import type { GrowthJournalEvent } from '../components/dashboard/growth/growth-graph-model';
 import { fetchGrowthRunJournal } from '../lib/growth-run-journal';
 
 type JournalResult = {

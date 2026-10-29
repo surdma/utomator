@@ -2,7 +2,9 @@
 
 import { type ComponentType, type Dispatch, type SetStateAction } from 'react';
 import { Check, Crosshair, Focus, Pause, Play, Plus } from 'lucide-react';
-import WorkflowPlanEditor, { type WorkflowPlan } from '../workflows/workflow-plan-editor';
+import WorkflowPlanEditor, {
+  type WorkflowPlan,
+} from '../workflows/workflow-plan-editor';
 import type { Connector } from '../connections/connector-onboarding';
 import { workflows, type Platform, type Workflow } from './workflow-catalog';
 import { getApi } from './api-client';

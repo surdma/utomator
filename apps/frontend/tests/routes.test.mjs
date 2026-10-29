@@ -60,7 +60,10 @@ test('the marketing root is separate and every operator page is nested under das
     await read('app/dashboard/page.tsx'),
     /redirect\(['"]\/dashboard\/pipeline['"]\)/
   );
-  assert.match(await read('components/dashboard/dashboard-shell.tsx'), /DashboardShell/);
+  assert.match(
+    await read('components/dashboard/dashboard-shell.tsx'),
+    /DashboardShell/
+  );
   assert.match(
     await read('components/home/hero-button.tsx'),
     /href="\/dashboard\/pipeline"/
