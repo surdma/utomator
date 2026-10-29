@@ -895,11 +895,9 @@ export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?
           }),
         );
       } catch (error) {
-        return reply
-          .code(422)
-          .send({
-            error: error instanceof Error ? error.message : 'Could not assess account career evidence',
-          });
+        return reply.code(422).send({
+          error: error instanceof Error ? error.message : 'Could not assess account career evidence',
+        });
       }
     },
   );
@@ -1346,11 +1344,9 @@ export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?
     if (run.action !== 'audit')
       return reply.code(409).send({ error: 'Assessment requires an audit run' });
     if (runner.events.getSince(0, run.id).length === 0)
-      return reply
-        .code(409)
-        .send({
-          error: 'Live assessment events are unavailable after restart; review the archived run journal',
-        });
+      return reply.code(409).send({
+        error: 'Live assessment events are unavailable after restart; review the archived run journal',
+      });
     // A static portfolio headline is not evidence of the selected account.
     return assessAudit(runner.events, run, null);
   });
@@ -1416,11 +1412,9 @@ export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?
           (rest.workflowId !== undefined || rest.workflow !== undefined) &&
           !rest.accountId
         ) {
-          return reply
-            .code(400)
-            .send({
-              error: 'Select, connect, and sync a LinkedIn account before running this workflow',
-            });
+          return reply.code(400).send({
+            error: 'Select, connect, and sync a LinkedIn account before running this workflow',
+          });
         }
         if (!rest.accountId && Boolean(handle) === Boolean(profileUrl)) {
           return reply.code(400).send({ error: 'Supply either your handle or a profile URL' });
