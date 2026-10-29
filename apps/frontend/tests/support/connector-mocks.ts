@@ -15,7 +15,8 @@ export type ConnectorFixture = {
 
 export const iso = {
   now: () => new Date().toISOString(),
-  hoursAgo: (hours: number) => new Date(Date.now() - hours * 3_600_000).toISOString(),
+  hoursAgo: (hours: number) =>
+    new Date(Date.now() - hours * 3_600_000).toISOString(),
 };
 
 let sequence = 0;
@@ -31,12 +32,22 @@ export function connectorAccount(
     id: overrides.id ?? platform + "-" + sequence,
     platform,
     label: overrides.label ?? cap(platform) + " sample",
-    handle: overrides.handle ?? (platform === "devto" ? "sample.dev" : "sample." + platform),
-    profileUrl: overrides.profileUrl ?? "https://www." + (platform === "devto" ? "dev.to/" : platform + ".com/")
-      + (platform === "linkedin" ? "in/" : "") + (platform === "devto" ? "sample.dev" : "sample." + platform),
+    handle:
+      overrides.handle ??
+      (platform === "devto" ? "sample.dev" : "sample." + platform),
+    profileUrl:
+      overrides.profileUrl ??
+      "https://www." +
+        (platform === "devto" ? "dev.to/" : platform + ".com/") +
+        (platform === "linkedin" ? "in/" : "") +
+        (platform === "devto" ? "sample.dev" : "sample." + platform),
     status: overrides.status ?? "disconnected",
     verifiedAt: overrides.verifiedAt ?? null,
-    authentication: overrides.authentication ?? (platform === "linkedin" || platform === "x" ? "browser" : "api-required"),
+    authentication:
+      overrides.authentication ??
+      (platform === "linkedin" || platform === "x"
+        ? "browser"
+        : "api-required"),
   };
 }
 
@@ -50,7 +61,9 @@ export const CONNECTORS_ROUTE = "**/api/connectors**";
 export async function openConnectorDialog(page: Page) {
   await page.goto("/dashboard/pipeline", { waitUntil: "domcontentloaded" });
   const trigger = page.getByTestId("floating-connector-button");
-  const wizard = page.getByRole("dialog", { name: "Connect your social accounts" });
+  const wizard = page.getByRole("dialog", {
+    name: "Connect your social accounts",
+  });
   await expect(trigger).toBeVisible();
   await expect(async () => {
     if (!(await wizard.isVisible())) await trigger.click();
@@ -59,7 +72,11 @@ export async function openConnectorDialog(page: Page) {
   return wizard;
 }
 
-export type ConnectorCommandEvent = { method: string; operation: string; id: string };
+export type ConnectorCommandEvent = {
+  method: string;
+  operation: string;
+  id: string;
+};
 
 export type ConnectorBehavior =
   | { simulate: "hang" }
@@ -92,9 +109,15 @@ export async function installConnectorApi(
   const commands: ConnectorCommandEvent[] = [];
 
   const respond = (route: Route, body: unknown, status = 200) =>
-    route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) }).catch(() => {
-      // The test may have aborted the in-flight request; fulfillment is moot.
-    });
+    route
+      .fulfill({
+        status,
+        contentType: "application/json",
+        body: JSON.stringify(body),
+      })
+      .catch(() => {
+        // The test may have aborted the in-flight request; fulfillment is moot.
+      });
 
   const applyStatusChange = (body: unknown) => {
     const status = (body as { status?: string }).status;
@@ -104,10 +127,13 @@ export async function installConnectorApi(
     if (status === "connected") {
       account.status = "connected";
       account.verifiedAt = iso.now();
-      if(!account.handle){
-        account.handle="verified-owner";account.label="verified-owner";
-        account.profileUrl=account.platform==="linkedin"
-          ? "https://www.linkedin.com/in/verified-owner/" : "https://x.com/verified-owner";
+      if (!account.handle) {
+        account.handle = "verified-owner";
+        account.label = "verified-owner";
+        account.profileUrl =
+          account.platform === "linkedin"
+            ? "https://www.linkedin.com/in/verified-owner/"
+            : "https://x.com/verified-owner";
       }
     } else if (status === "sign-in-open") {
       account.status = "sign-in-open";
@@ -118,7 +144,11 @@ export async function installConnectorApi(
   };
 
   const defaultBody: Record<string, unknown> = {
-    connect: { status: "sign-in-open", navigationWarning: "Mock provider sign-in is open in isolated Chrome. Finish signing in there - including any MFA or consent step - then choose Sync." },
+    connect: {
+      status: "sign-in-open",
+      navigationWarning:
+        "Mock provider sign-in is open in isolated Chrome. Finish signing in there - including any MFA or consent step - then choose Sync.",
+    },
     sync: { status: "connected" },
     check: { status: "sign-in-open" },
     disconnect: { status: "disconnected" },
@@ -128,39 +158,68 @@ export async function installConnectorApi(
     const request = route.request();
     const path = new URL(request.url()).pathname.split("/").filter(Boolean);
     try {
-      if(request.method()==="GET"&&path[2]==="capabilities"){
-        await respond(route,{browserAvailable:true,mode:"isolated",mobileBrowserSession:false});
+      if (request.method() === "GET" && path[2] === "capabilities") {
+        await respond(route, {
+          browserAvailable: true,
+          mode: "isolated",
+          mobileBrowserSession: false,
+        });
         return;
       }
       if (request.method() === "GET") {
-        const event: ConnectorCommandEvent = { method: "GET", operation: "", id: "" };
+        const event: ConnectorCommandEvent = {
+          method: "GET",
+          operation: "",
+          id: "",
+        };
         requests.push(event);
         const custom = behavior?.(event);
         if (custom && "simulate" in custom) return; // request stays pending
-        if (custom?.respondAfter) await new Promise((resolve) => setTimeout(resolve, custom.respondAfter));
+        if (custom?.respondAfter)
+          await new Promise((resolve) =>
+            setTimeout(resolve, custom.respondAfter),
+          );
         await respond(route, accounts, custom?.status ?? 200);
         return;
       }
       // POST /api/connectors/start links through a provider, not a supplied handle.
-      const starting=path[2]==="start";
-      const id = starting ? "" : path[2] ?? "";
-      const operation = starting ? "start" : path[3] ?? "";
-      const event: ConnectorCommandEvent = { method: request.method(), operation, id };
+      const starting = path[2] === "start";
+      const id = starting ? "" : (path[2] ?? "");
+      const operation = starting ? "start" : (path[3] ?? "");
+      const event: ConnectorCommandEvent = {
+        method: request.method(),
+        operation,
+        id,
+      };
       requests.push(event);
       if (event.method !== "GET") commands.push(event);
       const custom = behavior?.(event);
       if (custom && "simulate" in custom) return;
-      if (custom?.respondAfter) await new Promise((resolve) => setTimeout(resolve, custom.respondAfter));
-      if(starting){
-        const provider=(request.postDataJSON() as {platform:ProviderKey}).platform;
-        const pendingId="00000000-0000-4000-8000-"+String(sequence++).padStart(12,"0");
-        accounts.push({id:pendingId,platform:provider,label:"Sign-in in progress",handle:"",
-          profileUrl:"",status:"sign-in-open",verifiedAt:null,authentication:"browser"});
-        await respond(route,{status:"sign-in-open",accountId:pendingId});
+      if (custom?.respondAfter)
+        await new Promise((resolve) =>
+          setTimeout(resolve, custom.respondAfter),
+        );
+      if (starting) {
+        const provider = (request.postDataJSON() as { platform: ProviderKey })
+          .platform;
+        const pendingId =
+          "00000000-0000-4000-8000-" + String(sequence++).padStart(12, "0");
+        accounts.push({
+          id: pendingId,
+          platform: provider,
+          label: "Sign-in in progress",
+          handle: "",
+          profileUrl: "",
+          status: "sign-in-open",
+          verifiedAt: null,
+          authentication: "browser",
+        });
+        await respond(route, { status: "sign-in-open", accountId: pendingId });
         return;
       }
       const body = custom?.body ?? defaultBody[operation] ?? {};
-      if (!custom?.status || custom.status < 400) applyStatusChange({ ...(body as { status?: string }), id });
+      if (!custom?.status || custom.status < 400)
+        applyStatusChange({ ...(body as { status?: string }), id });
       await respond(route, body, custom?.status ?? 200);
     } catch {
       // Aborted fetches reject the fulfillment chain; the test has moved on.

@@ -32,12 +32,19 @@ export default defineConfig({
     {
       name: "desktop-chromium",
       testMatch: [qualitySuite],
-      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1440, height: 900 },
+      },
     },
     {
       name: "tablet-chromium",
       testMatch: [qualitySuite],
-      use: { ...devices["Desktop Chrome"], viewport: { width: 768, height: 1024 }, hasTouch: true },
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 768, height: 1024 },
+        hasTouch: true,
+      },
     },
     {
       name: "small-mobile-chromium",
@@ -62,10 +69,12 @@ export default defineConfig({
     },
   ],
   // CI exercises the already-built Next.js application, not an additional dev server.
-  webServer: process.env.CI ? undefined : {
-    command: "pnpm dev",
-    url: baseURL,
-    reuseExistingServer: true,
-    timeout: 120_000,
-  },
+  webServer: process.env.CI
+    ? undefined
+    : {
+        command: "pnpm dev",
+        url: baseURL,
+        reuseExistingServer: true,
+        timeout: 120_000,
+      },
 });

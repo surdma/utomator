@@ -13,7 +13,8 @@ export default function HeroGrid() {
     if (!ctx) return;
 
     let animationId: number;
-    let dots: { x: number; y: number; baseOpacity: number; phase: number }[] = [];
+    let dots: { x: number; y: number; baseOpacity: number; phase: number }[] =
+      [];
 
     const resize = () => {
       canvas.width = window.innerWidth;
@@ -43,8 +44,7 @@ export default function HeroGrid() {
 
       for (const dot of dots) {
         const opacity =
-          dot.baseOpacity *
-          (0.5 + 0.5 * Math.sin(time * 0.001 + dot.phase));
+          dot.baseOpacity * (0.5 + 0.5 * Math.sin(time * 0.001 + dot.phase));
         ctx.fillStyle = `rgba(6, 182, 212, ${opacity})`;
         ctx.beginPath();
         ctx.arc(dot.x, dot.y, 1, 0, Math.PI * 2);

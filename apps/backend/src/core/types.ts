@@ -1,8 +1,32 @@
 import type { WorkflowPlan } from './workflow-plan.js';
 export type Platform = 'linkedin' | 'x';
-export interface LoginCredentials { identifier: string; password: string; }
-export type Action = 'audit' | 'audit-page' | 'edit-profile' | 'add-skill' | 'compose-post' | 'pin-post' | 'delete-post' | 'edit-experience' | 'edit-website' | 'edit-services' | 'add-project' | 'add-featured' | 'upload-banner';
-export type RunState = 'running' | 'paused' | 'input-needed' | 'approval-needed' | 'completed' | 'blocked' | 'failed' | 'cancelled';
+export interface LoginCredentials {
+  identifier: string;
+  password: string;
+}
+export type Action =
+  | 'audit'
+  | 'audit-page'
+  | 'edit-profile'
+  | 'add-skill'
+  | 'compose-post'
+  | 'pin-post'
+  | 'delete-post'
+  | 'edit-experience'
+  | 'edit-website'
+  | 'edit-services'
+  | 'add-project'
+  | 'add-featured'
+  | 'upload-banner';
+export type RunState =
+  | 'running'
+  | 'paused'
+  | 'input-needed'
+  | 'approval-needed'
+  | 'completed'
+  | 'blocked'
+  | 'failed'
+  | 'cancelled';
 export interface RunRequest {
   platform: Platform;
   accountId?: string;

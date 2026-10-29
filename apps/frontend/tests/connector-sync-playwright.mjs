@@ -22,7 +22,9 @@ async function main() {
 
   try {
     console.log("\nTest 1: Connector onboarding dialog");
-    await page.goto(BASE + "/dashboard/pipeline", { waitUntil: "domcontentloaded" });
+    await page.goto(BASE + "/dashboard/pipeline", {
+      waitUntil: "domcontentloaded",
+    });
     await page.waitForTimeout(3000);
 
     const floatBtn = page.locator("[data-testid='floating-connector-button']");
@@ -48,10 +50,10 @@ async function main() {
       await accountBtns.first().click();
 
       const syncBtn = dialog.locator("button:has-text('Sync')");
-      assert(await syncBtn.count() > 0, "Sync button visible");
+      assert((await syncBtn.count()) > 0, "Sync button visible");
 
       const disconnectBtn = dialog.locator("button:has-text('Disconnect')");
-      assert(await disconnectBtn.count() > 0, "Disconnect button visible");
+      assert((await disconnectBtn.count()) > 0, "Disconnect button visible");
     }
 
     await page.keyboard.press("Escape");
@@ -60,7 +62,10 @@ async function main() {
     console.log("\nTest 2: Sync button calls API");
     const syncUrls = [];
     page.on("request", (request) => {
-      if (request.url().includes("/connectors/") && request.method() === "POST") {
+      if (
+        request.url().includes("/connectors/") &&
+        request.method() === "POST"
+      ) {
         syncUrls.push(request.url());
       }
     });
@@ -75,7 +80,10 @@ async function main() {
       if ((await syncBtn.count()) > 0) {
         await syncBtn.click();
         await page.waitForTimeout(3000);
-        assert(syncUrls.length > 0, "Sync API was called (" + syncUrls.length + " requests)");
+        assert(
+          syncUrls.length > 0,
+          "Sync API was called (" + syncUrls.length + " requests)",
+        );
       }
     }
 
@@ -91,13 +99,18 @@ async function main() {
     assert(await heading.isVisible(), "Connections page loads");
 
     const linkedinText = page.locator("text=LinkedIn");
-    assert(await linkedinText.isVisible(), "LinkedIn accounts visible from server");
+    assert(
+      await linkedinText.isVisible(),
+      "LinkedIn accounts visible from server",
+    );
 
     await page.reload();
     await page.waitForTimeout(2000);
     assert(await heading.isVisible(), "Connections page survives reload");
-    assert(await linkedinText.isVisible(), "LinkedIn accounts still visible after reload");
-
+    assert(
+      await linkedinText.isVisible(),
+      "LinkedIn accounts still visible after reload",
+    );
   } catch (error) {
     console.log("  ERROR: " + error.message);
     failed++;

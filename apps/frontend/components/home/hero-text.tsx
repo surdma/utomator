@@ -3,7 +3,12 @@
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
-const roles = ["Browser workflows", "Human approval", "Traceable execution", "Local-first control"];
+const roles = [
+  "Browser workflows",
+  "Human approval",
+  "Traceable execution",
+  "Local-first control",
+];
 
 export default function HeroText() {
   const [roleIndex, setRoleIndex] = useState(0);
@@ -25,10 +30,10 @@ export default function HeroText() {
           setDisplayText(
             isDeleting
               ? currentRole.substring(0, displayText.length - 1)
-              : currentRole.substring(0, displayText.length + 1)
+              : currentRole.substring(0, displayText.length + 1),
           );
         },
-        isDeleting ? 30 : 60
+        isDeleting ? 30 : 60,
       );
     }
 
@@ -65,7 +70,7 @@ export default function HeroText() {
           />
         </span>
       </motion.h1>
-      
+
       <motion.p
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -73,7 +78,9 @@ export default function HeroText() {
         className="text-base md:text-lg max-w-xl leading-relaxed"
         style={{ color: "var(--text-secondary)" }}
       >
-        Plan and review browser workflows for your LinkedIn and X accounts. Inspect first, approve changes explicitly, and keep evidence of what actually happened.
+        Plan and review browser workflows for your LinkedIn and X accounts.
+        Inspect first, approve changes explicitly, and keep evidence of what
+        actually happened.
       </motion.p>
     </div>
   );

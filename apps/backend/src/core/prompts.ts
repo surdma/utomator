@@ -1,9 +1,17 @@
 import { randomUUID } from 'node:crypto';
 
 export class PromptGate {
-  private waiting = new Map<string, { id: string; resolve: (value: string | null) => void; timer: NodeJS.Timeout }>();
+  private waiting = new Map<
+    string,
+    { id: string; resolve: (value: string | null) => void; timer: NodeJS.Timeout }
+  >();
 
-  request(runId: string, onCheckpoint: (id: string) => void, signal: AbortSignal, timeoutMs = 600000): Promise<string | null> {
+  request(
+    runId: string,
+    onCheckpoint: (id: string) => void,
+    signal: AbortSignal,
+    timeoutMs = 600000,
+  ): Promise<string | null> {
     if (this.waiting.has(runId)) throw new Error('A text response is already pending');
     const id = randomUUID();
     return new Promise((resolve) => {

@@ -1,8 +1,11 @@
-import type {Page} from 'playwright';
+import type { Page } from 'playwright';
 
 /** Network-class failures are retried; everything else surfaces immediately. */
-export const isConnectionTimeout=(error:unknown):boolean=>
-  error instanceof Error && /net::ERR_CONNECTION_TIMED_OUT|net::ERR_CONNECTION_REFUSED|net::ERR_NAME_NOT_RESOLVED/i.test(error.message);
+export const isConnectionTimeout = (error: unknown): boolean =>
+  error instanceof Error &&
+  /net::ERR_CONNECTION_TIMED_OUT|net::ERR_CONNECTION_REFUSED|net::ERR_NAME_NOT_RESOLVED/i.test(
+    error.message,
+  );
 
 /**
  * Navigate with exponential backoff retries. The first attempt uses the
@@ -36,4 +39,7 @@ export async function navigateWithRetry(
 }
 
 /** Provider sign-in entry points for streamed (hosted) sign-in. */
-export const streamSignInUrl={linkedin:'https://www.linkedin.com/login/',x:'https://x.com/i/flow/login'} as const;
+export const streamSignInUrl = {
+  linkedin: 'https://www.linkedin.com/login/',
+  x: 'https://x.com/i/flow/login',
+} as const;

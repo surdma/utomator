@@ -1,4 +1,7 @@
-export const GithubIcon: React.FC<{className: string}> = ({ className, ...rest }) => (
+export const GithubIcon: React.FC<{ className: string }> = ({
+  className,
+  ...rest
+}) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="1em"
@@ -15,7 +18,10 @@ export const GithubIcon: React.FC<{className: string}> = ({ className, ...rest }
   </svg>
 );
 
-export const XIcon: React.FC<{className: string}> = ({ className, ...rest }) => (
+export const XIcon: React.FC<{ className: string }> = ({
+  className,
+  ...rest
+}) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="1em"
@@ -31,7 +37,10 @@ export const XIcon: React.FC<{className: string}> = ({ className, ...rest }) => 
   </svg>
 );
 
-export const DevtoIcon: React.FC<{className: string}> = ({ className, ...rest }) => (
+export const DevtoIcon: React.FC<{ className: string }> = ({
+  className,
+  ...rest
+}) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="1em"
@@ -47,7 +56,10 @@ export const DevtoIcon: React.FC<{className: string}> = ({ className, ...rest })
   </svg>
 );
 
-export const TwitterIcon: React.FC<{className: string}> = ({ className, ...rest }) => (
+export const TwitterIcon: React.FC<{ className: string }> = ({
+  className,
+  ...rest
+}) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="1em"
@@ -64,7 +76,10 @@ export const TwitterIcon: React.FC<{className: string}> = ({ className, ...rest 
   </svg>
 );
 
-export const LinkedInIcon: React.FC<{className: string}> = ({ className, ...rest }) => (
+export const LinkedInIcon: React.FC<{ className: string }> = ({
+  className,
+  ...rest
+}) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="1em"
@@ -85,7 +100,10 @@ export const LinkedInIcon: React.FC<{className: string}> = ({ className, ...rest
   </svg>
 );
 
-export const InstagramIcon: React.FC<{className: string}> = ({ className, ...rest }) => (
+export const InstagramIcon: React.FC<{ className: string }> = ({
+  className,
+  ...rest
+}) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="1em"
@@ -113,7 +131,10 @@ export const InstagramIcon: React.FC<{className: string}> = ({ className, ...res
   </svg>
 );
 
-export const PinterestIcon: React.FC<{className: string}> = ({ className, ...rest }) => (
+export const PinterestIcon: React.FC<{ className: string }> = ({
+  className,
+  ...rest
+}) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="1em"
@@ -130,7 +151,10 @@ export const PinterestIcon: React.FC<{className: string}> = ({ className, ...res
   </svg>
 );
 
-export const DribbbleIcon: React.FC<{className: string}> = ({ className, ...rest }) => (
+export const DribbbleIcon: React.FC<{ className: string }> = ({
+  className,
+  ...rest
+}) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="1em"
@@ -151,7 +175,10 @@ export const DribbbleIcon: React.FC<{className: string}> = ({ className, ...rest
   </svg>
 );
 
-export const SunIcon: React.FC<{className: string}> = ({ className, ...rest }) => (
+export const SunIcon: React.FC<{ className: string }> = ({
+  className,
+  ...rest
+}) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="24"
@@ -329,7 +356,10 @@ export const SunIcon: React.FC<{className: string}> = ({ className, ...rest }) =
   </svg>
 );
 
-export const MoonIcon: React.FC<{className: string}> = ({ className, ...rest }) => (
+export const MoonIcon: React.FC<{ className: string }> = ({
+  className,
+  ...rest
+}) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="24"
@@ -485,7 +515,10 @@ export const MoonIcon: React.FC<{className: string}> = ({ className, ...rest }) 
   </svg>
 );
 
-export const CircularText: React.FC<{className: string}> = ({ className, ...rest }) => (
+export const CircularText: React.FC<{ className: string }> = ({
+  className,
+  ...rest
+}) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="496"
@@ -499,7 +532,10 @@ export const CircularText: React.FC<{className: string}> = ({ className, ...rest
   </svg>
 );
 
-export const LinkArrow: React.FC<{className: string}> = ({ className, ...rest }) => (
+export const LinkArrow: React.FC<{ className: string }> = ({
+  className,
+  ...rest
+}) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width={24}
@@ -519,4 +555,3 @@ export const LinkArrow: React.FC<{className: string}> = ({ className, ...rest })
     />
   </svg>
 );
-

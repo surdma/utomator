@@ -3,13 +3,20 @@ import { expect, test, type Page } from "@playwright/test";
 
 /** Self-contained mock provider page used to rehearse the sign-in flow. */
 function fixtureUrl(search: string) {
-  const file = join(process.cwd(), "tests", "mocks", "mock-provider-signin.html").replace(/\\/g, "/");
+  const file = join(
+    process.cwd(),
+    "tests",
+    "mocks",
+    "mock-provider-signin.html",
+  ).replace(/\\/g, "/");
   return "file:///" + file + search;
 }
 
 const stage = (page: Page) => page.getByTestId("mock-provider-stage");
 
-test("Mock provider happy path: sign-in → MFA → consent → success", async ({ page }) => {
+test("Mock provider happy path: sign-in → MFA → consent → success", async ({
+  page,
+}) => {
   await page.goto(fixtureUrl("?stage=signin"));
   await expect(stage(page)).toHaveAttribute("data-stage", "signin");
 
@@ -22,10 +29,14 @@ test("Mock provider happy path: sign-in → MFA → consent → success", async 
 
   await page.getByTestId("mock-consent-allow").click();
   await expect(stage(page)).toHaveAttribute("data-stage", "success");
-  await expect(page.getByTestId("mock-owner-only-control")).toHaveText("Edit profile");
+  await expect(page.getByTestId("mock-owner-only-control")).toHaveText(
+    "Edit profile",
+  );
 });
 
-test("Mock provider MFA failure stops the flow before consent", async ({ page }) => {
+test("Mock provider MFA failure stops the flow before consent", async ({
+  page,
+}) => {
   await page.goto(fixtureUrl("?stage=mfa"));
   await page.getByLabel("Authentication code").fill("000000");
   await page.getByTestId("mock-mfa-verify").click();
@@ -37,7 +48,9 @@ test("Mock provider MFA failure stops the flow before consent", async ({ page })
   await expect(page.getByTestId("mock-consent-allow")).toBeHidden();
 });
 
-test("Mock provider consent denial and deliberate failures end in failure", async ({ page }) => {
+test("Mock provider consent denial and deliberate failures end in failure", async ({
+  page,
+}) => {
   await page.goto(fixtureUrl("?stage=consent"));
   await page.getByTestId("mock-consent-deny").click();
   await expect(stage(page)).toHaveAttribute("data-stage", "failure");
