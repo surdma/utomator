@@ -14,13 +14,11 @@ import {
   Activity,
   AlertCircle,
   ArrowRight,
-  BookOpen,
   Check,
   CheckCircle2,
   Compass,
   ExternalLink,
   FileText,
-  GitBranch,
   History,
   Menu,
   MessageSquareText,
@@ -29,11 +27,8 @@ import {
   Plus,
   RotateCcw,
   Send,
-  Sparkles,
   Workflow,
   X,
-  Eye,
-  Layers3,
   Settings2,
   UserRound,
   ImageIcon,
@@ -1471,7 +1466,6 @@ export default function AutomationPipeline({
   };
   const latest = events.at(-1);
   const checkpointNeeded = checkpoint?.kind === "approval";
-  const coverage = playbook?.coverage || [];
   const showChat =
     chatVisible &&
     pane !== "profile" &&
