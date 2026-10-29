@@ -22,8 +22,10 @@ export function useGrowthRunJournal(childRunId: string | null): {
     if (!childRunId) return;
     const controller = new AbortController();
     let active = true;
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    let inFlight = false;
     const refresh = async () => {
+      if (!active || inFlight) return;
+      inFlight = true;
       try {
         const entries = await fetchGrowthRunJournal(childRunId, controller.signal);
         if (active) setResult({ runId: childRunId, entries, error: '' });
@@ -36,15 +38,15 @@ export function useGrowthRunJournal(childRunId: string | null): {
           });
         }
       } finally {
-        // Schedule after completion so a slow response never races a newer poll.
-        if (active) timer = setTimeout(() => void refresh(), 2500);
+        inFlight = false;
       }
     };
     void refresh();
+    const interval = setInterval(() => void refresh(), 2500);
     return () => {
       active = false;
+      clearInterval(interval);
       controller.abort();
-      if (timer) clearTimeout(timer);
     };
   }, [childRunId]);
 
