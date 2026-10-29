@@ -1,29 +1,25 @@
 import type { WorkflowPlan } from '../workflow-plan-editor';
 
+type ReviewImageFile = { size: number; type: string };
+
+const capturePattern = /^audit-(experience|skills|projects|featured)\.png$/;
+const reviewPattern = /\/details\/(experience|skills|projects|featured)\/?$/;
+
 export const REVIEW_IMAGE_ERROR = 'Choose a PNG, JPEG or WebP file under 2 MB.';
 
-export function validateReviewImage(file: {
-  size: number;
-  type: string;
-}): string | null {
-  return file.size > 2 * 1024 * 1024 ||
-    !['image/png', 'image/jpeg', 'image/webp'].includes(file.type)
-    ? REVIEW_IMAGE_ERROR
-    : null;
+export function validateReviewImage(file: ReviewImageFile): string | null {
+  if (file.size > 2 * 1024 * 1024) return REVIEW_IMAGE_ERROR;
+  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type))
+    return REVIEW_IMAGE_ERROR;
+  return null;
 }
 
 export function captureSection(fileName: string): string | null {
-  return (
-    /^audit-(experience|skills|projects|featured)\.png$/.exec(fileName)?.[1] ??
-    null
-  );
+  return capturePattern.exec(fileName)?.[1] ?? null;
 }
 
 export function reviewSection(pageUrl: string): string {
-  return (
-    pageUrl.match(/\/details\/(experience|skills|projects|featured)\/?$/)?.[1] ??
-    'profile'
-  );
+  return reviewPattern.exec(pageUrl)?.[1] ?? 'profile';
 }
 
 export function appendVisualReviewStep(

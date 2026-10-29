@@ -73,8 +73,6 @@ export default function AutomationPipeline({
   const [craftsRevision, setCraftsRevision] = useState(0);
   const [, setSelectedNode] = useState('inspect');
   const [scopeSection, setScopeSection] = useState('profile');
-  const [imageDraft, setImageDraft] = useState<ImageSource | null>(null);
-  const [imageError, setImageError] = useState('');
 
   const [runFormError, setRunFormError] = useState('');
   const { message, setMessage, conversation, setConversation, chatNotice } =
