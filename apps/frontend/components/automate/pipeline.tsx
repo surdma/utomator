@@ -13,7 +13,6 @@ import { usePathname } from 'next/navigation';
 import {
   Activity,
   AlertCircle,
-  ArrowRight,
   Check,
   CheckCircle2,
   Compass,
@@ -80,7 +79,7 @@ import ConnectorOnboarding, {
 } from '@/components/automate/connector-onboarding';
 import { LinkedInIcon, TwitterIcon } from '@/components/svgs';
 import { workflows, type Platform } from './pipeline/workflow-catalog';
-import { stateLabel, timeLabel, short } from './pipeline/presentation-utils';
+import { timeLabel, short } from './pipeline/presentation-utils';
 import { explainCommand } from './pipeline/command-parser';
 import { buildRunPayload } from './pipeline/build-run-payload';
 import { editCraftFromCommand } from './pipeline/craft-command-editor';
