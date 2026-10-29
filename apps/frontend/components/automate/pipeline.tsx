@@ -79,7 +79,7 @@ import ConnectorOnboarding, {
   type Connector,
 } from '@/components/automate/connector-onboarding';
 import { LinkedInIcon, TwitterIcon } from '@/components/svgs';
-import { workflows, type Platform, type Workflow } from './pipeline/workflow-catalog';
+import { workflows, type Platform } from './pipeline/workflow-catalog';
 import { stateLabel, timeLabel, short } from './pipeline/presentation-utils';
 import { explainCommand } from './pipeline/command-parser';
 
