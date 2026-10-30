@@ -194,6 +194,21 @@ export default function DashboardShell({
     send,
     sendMessage: sendMatorMessage,
     confirmStage,
+    rejectStage,
+    newConversation,
+    switchConversation,
+    restorePipeline,
+    attachFile,
+    saveMarkers,
+    attachmentPreviews,
+    conversations: matorConversations,
+    conversationMeta,
+    events: matorEvents,
+    settingsToggles,
+    patchSettings,
+    incomplete,
+    incompleteContinue,
+    error: matorError,
     pendingLabel: matorPendingLabel,
     pending: matorPending,
   } = useMatorChat({
@@ -268,6 +283,28 @@ export default function DashboardShell({
       return;
     }
     confirmPending();
+  };
+
+  const rejectChat = () => {
+    if (matorPendingLabel) void rejectStage();
+  };
+
+  const restoreMatorPipelineUi = async () => {
+    try {
+      await restorePipeline(false);
+    } catch (err) {
+      const text = err instanceof Error ? err.message : '';
+      if (/dirty|409|confirm/i.test(text)) {
+        const ok =
+          typeof window !== 'undefined' &&
+          window.confirm(
+            'Live pipeline has unsaved changes. Restore this conversation’s pipeline anyway?',
+          );
+        if (ok) await restorePipeline(true);
+        return;
+      }
+      throw err;
+    }
   };
 
   const pendingLabel = matorPendingLabel ?? operatorPendingLabel;
@@ -602,6 +639,32 @@ export default function DashboardShell({
           onOpenTracking={() => setTrackingOpen(true)}
           conversation={conversation}
           events={events}
+          matorEvents={matorEvents}
+          conversations={matorConversations}
+          conversationMeta={conversationMeta}
+          onSwitchConversation={(id) => void switchConversation(id)}
+          onNewConversation={() => void newConversation()}
+          onRestorePipeline={() => void restoreMatorPipelineUi()}
+          settingsToggles={settingsToggles}
+          onToggleHowTts={() =>
+            void patchSettings({
+              howTtsEnabled: !settingsToggles.howTtsEnabled,
+            })
+          }
+          onToggleAutoApprove={() =>
+            void patchSettings({
+              autoApprove: !settingsToggles.autoApprove,
+            })
+          }
+          onToggleSquash={() =>
+            void patchSettings({
+              squashPipelineHistory: !settingsToggles.squashPipelineHistory,
+            })
+          }
+          attachmentPreviews={attachmentPreviews}
+          onSaveMarkers={(attachmentId, markers) =>
+            void saveMarkers(attachmentId, markers)
+          }
           reviews={reviews}
           platform={platform}
           normalizedHandle={normalizedHandle}
@@ -614,11 +677,23 @@ export default function DashboardShell({
           message={message}
           onMessageChange={setMessage}
           onSendMessage={sendMessage}
-          onAttachImage={attachImage}
+          onAttachFile={(file) => {
+            if (!file) return;
+            if (activeWorkflow?.id) {
+              void attachFile(file);
+              return;
+            }
+            void attachImage(file);
+          }}
           checkpoint={checkpoint}
           voice={voice}
           pendingLabel={pendingLabel}
           onConfirm={confirmChat}
+          onReject={rejectChat}
+          busy={matorPending}
+          incomplete={Boolean(incomplete)}
+          onIncompleteContinue={() => void incompleteContinue()}
+          chatError={matorError}
         />
       </div>
 

@@ -14,11 +14,14 @@ import {
   fetchMatorEvents,
   fetchMatorSettings,
   listMatorConversations,
+  patchMatorMarkers,
   postMatorMessage,
   rejectMatorStage,
   restoreMatorPipeline,
   saveMatorSettings,
   switchMatorConversation,
+  uploadMatorAttachment,
+  type MatorImageMarkerDto,
   type MatorSettingsMasked,
   type MatorSettingsSavePatch,
 } from './mator-api.ts';
@@ -67,6 +70,9 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [attachmentPreviews, setAttachmentPreviews] = useState<
+    Record<string, string>
+  >({});
 
   const sendGateRef = useRef<MatorSendGate>(createMatorSendGate());
   const inFlightRef = useRef(false);
@@ -203,9 +209,10 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
   );
 
   const send = useCallback(
-    async (text?: string) => {
+    async (text?: string, attachmentIds?: string[]) => {
       const request = (text ?? message).trim();
-      if (!request) return;
+      const ids = attachmentIds?.filter(Boolean) ?? [];
+      if (!request && ids.length === 0) return;
       const conversationId = conversationIdRef.current;
       if (!conversationId) {
         setError('Select or create a workflow conversation first');
@@ -224,7 +231,10 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
       try {
         const result = await postMatorMessage(
           conversationId,
-          { text: request },
+          {
+            ...(request ? { text: request } : {}),
+            ...(ids.length ? { attachmentIds: ids } : {}),
+          },
           started.key,
         );
         setEvents((previous) => mergeMatorEvents(previous, result.events));
@@ -239,6 +249,56 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
       }
     },
     [message, speakNewHow],
+  );
+
+  const attachFile = useCallback(
+    async (file: File) => {
+      const conversationId = conversationIdRef.current;
+      if (!conversationId) {
+        setError('Select or create a workflow conversation first');
+        return null;
+      }
+      setError(null);
+      try {
+        const uploaded = await uploadMatorAttachment(conversationId, file);
+        const previewUrl = URL.createObjectURL(file);
+        setAttachmentPreviews((previous) => ({
+          ...previous,
+          [uploaded.id]: previewUrl,
+        }));
+        await send(file.name, [uploaded.id]);
+        return uploaded;
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : 'Unable to upload attachment',
+        );
+        return null;
+      }
+    },
+    [send],
+  );
+
+  const saveMarkers = useCallback(
+    async (attachmentId: string, markers: MatorImageMarkerDto[]) => {
+      setError(null);
+      try {
+        const meta = await patchMatorMarkers(attachmentId, markers);
+        setEvents((previous) =>
+          previous.map((event) =>
+            event.attachmentId === attachmentId
+              ? { ...event, markers: meta.markers }
+              : event,
+          ),
+        );
+        return meta;
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : 'Unable to save markers',
+        );
+        throw err;
+      }
+    },
+    [],
   );
 
   const sendMessage = useCallback(
@@ -403,6 +463,9 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
     newConversation,
     switchConversation,
     restorePipeline,
+    attachFile,
+    saveMarkers,
+    attachmentPreviews,
     settings,
     settingsToggles,
     patchSettings,

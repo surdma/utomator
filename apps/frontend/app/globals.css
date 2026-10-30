@@ -251,3 +251,26 @@ body:has([data-automate]) footer {
 body:has([data-automate]) {
   background: #f5f7f8;
 }
+
+@keyframes mator-listen-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.75;
+  }
+  100% {
+    transform: scale(1.45);
+    opacity: 0;
+  }
+}
+
+.mator-listen-ring {
+  animation: mator-listen-ring 1.2s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mator-listen-ring {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}

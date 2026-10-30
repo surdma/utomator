@@ -1,17 +1,22 @@
 'use client';
 
-import { useEffect, useRef, type FormEvent } from 'react';
+import { useEffect, useRef, type FormEvent, type ReactNode } from 'react';
 import Image from 'next/image';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   Activity,
   AlertCircle,
   Workflow,
   X,
   ImageIcon,
-  Paperclip,
   Crosshair,
   Focus,
-  Send,
+  Volume2,
+  VolumeX,
+  Plus,
+  RotateCcw,
+  ShieldCheck,
+  Layers,
 } from 'lucide-react';
 import {
   Message,
@@ -22,15 +27,19 @@ import {
 } from '@/components/ui/message';
 import { Bubble, BubbleContent } from '@/components/ui/bubble';
 import {
-  Button,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
+  Button,
 } from '@/components/ui/automate-card';
 import { timeLabel, short } from './presentation-utils';
+import VoiceDeck from './voice-deck';
+import MatorAttachmentCanvas from './mator-attachment-canvas';
+import type { VoiceSession } from './use-voice-session';
 import { getApi } from './api-client';
+import { matorAttachmentFileUrl } from './mator-api';
 import type { DashboardPane } from './dashboard-route';
 import type {
   ChatMessage,
@@ -39,6 +48,12 @@ import type {
   Checkpoint,
 } from './run-models';
 import type { Platform } from './workflow-catalog';
+import type {
+  MatorChatEvent,
+  MatorConversationSummary,
+  MatorSettingsToggles,
+} from './mator-chat-state';
+import type { MatorImageMarkerDto } from './mator-api';
 
 type Props = {
   pane: DashboardPane;
@@ -49,6 +64,21 @@ type Props = {
   onOpenTracking: () => void;
   conversation: ChatMessage[];
   events: RunEvent[];
+  matorEvents?: MatorChatEvent[];
+  conversations?: MatorConversationSummary[];
+  conversationMeta?: MatorConversationSummary | null;
+  onSwitchConversation?: (conversationId: string) => void;
+  onNewConversation?: () => void;
+  onRestorePipeline?: () => void;
+  settingsToggles?: MatorSettingsToggles;
+  onToggleHowTts?: () => void;
+  onToggleAutoApprove?: () => void;
+  onToggleSquash?: () => void;
+  attachmentPreviews?: Record<string, string>;
+  onSaveMarkers?: (
+    attachmentId: string,
+    markers: MatorImageMarkerDto[],
+  ) => void | Promise<void>;
   reviews: Review[];
   platform: Platform;
   normalizedHandle: string;
@@ -61,9 +91,47 @@ type Props = {
   message: string;
   onMessageChange: (message: string) => void;
   onSendMessage: (event: FormEvent<HTMLFormElement>) => void;
-  onAttachImage: (file?: File) => void | Promise<void>;
+  onAttachFile: (file?: File) => void | Promise<void>;
   checkpoint: Checkpoint | null;
+  voice: VoiceSession;
+  pendingLabel: string | null;
+  onConfirm: () => void;
+  onReject?: () => void;
+  busy?: boolean;
+  incomplete?: boolean;
+  onIncompleteContinue?: () => void;
+  chatError?: string | null;
 };
+
+function actionLabel(action: unknown): string {
+  const typed = action as { type?: string } | undefined;
+  if (typed?.type) return typed.type.replaceAll('_', ' ');
+  return 'action';
+}
+
+function EventMotion({
+  id,
+  children,
+}: {
+  id: string;
+  children: ReactNode;
+}) {
+  const reduceMotion = useReducedMotion();
+  return (
+    <motion.div
+      key={id}
+      layout={!reduceMotion}
+      initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={reduceMotion ? undefined : { opacity: 0, y: -6 }}
+      transition={
+        reduceMotion ? { duration: 0 } : { duration: 0.2, ease: 'easeOut' }
+      }
+    >
+      {children}
+    </motion.div>
+  );
+}
 
 export default function OperatorChatPanel({
   pane,
@@ -74,6 +142,18 @@ export default function OperatorChatPanel({
   onOpenTracking,
   conversation,
   events,
+  matorEvents = [],
+  conversations = [],
+  conversationMeta = null,
+  onSwitchConversation,
+  onNewConversation,
+  onRestorePipeline,
+  settingsToggles,
+  onToggleHowTts,
+  onToggleAutoApprove,
+  onToggleSquash,
+  attachmentPreviews = {},
+  onSaveMarkers,
   reviews,
   platform,
   normalizedHandle,
@@ -86,16 +166,34 @@ export default function OperatorChatPanel({
   message,
   onMessageChange,
   onSendMessage,
-  onAttachImage,
+  onAttachFile,
   checkpoint,
+  voice,
+  pendingLabel,
+  onConfirm,
+  onReject,
+  busy = false,
+  incomplete = false,
+  onIncompleteContinue,
+  chatError = null,
 }: Props) {
   const logRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = useReducedMotion();
+  const howMuted = !(settingsToggles?.howTtsEnabled ?? true);
+  const showRestore = Boolean(conversationMeta?.boundRevisionId);
+
   useEffect(() => {
     logRef.current?.scrollTo({
       top: logRef.current.scrollHeight,
-      behavior: 'smooth',
+      behavior: reduceMotion ? 'auto' : 'smooth',
     });
-  }, [events, conversation, checkpoint]);
+  }, [events, conversation, checkpoint, matorEvents, reduceMotion]);
+
+  const markerDraft =
+    voice.interim?.trim() ||
+    (voice.listening ? '' : message.trim()) ||
+    '';
+
   return (
     <aside
       data-testid="automation-right-sidebar"
@@ -120,33 +218,140 @@ export default function OperatorChatPanel({
         <X className="size-4" />
         Close
       </button>
-      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <CardHeader className="flex flex-row items-start justify-between gap-3 border-b border-slate-100">
-          <div>
-            <CardTitle>Mator</CardTitle>
-            <CardDescription>Your local operator conversation</CardDescription>
+      <Card
+        data-testid="mator-chat"
+        className="flex min-h-0 flex-1 flex-col overflow-hidden"
+      >
+        <CardHeader className="space-y-3 border-b border-slate-100 pb-3">
+          <div className="flex flex-row items-start justify-between gap-3">
+            <div className="min-w-0">
+              <CardTitle>Mator</CardTitle>
+              <CardDescription>
+                Speak or stage what you want changed.
+              </CardDescription>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                onClick={() => onToggleHowTts?.()}
+                aria-label={howMuted ? 'Unmute how TTS' : 'Mute how TTS'}
+                aria-pressed={howMuted}
+                className="inline-flex size-11 cursor-pointer items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                title={howMuted ? 'Unmute how TTS' : 'Mute how TTS'}
+              >
+                {howMuted ? (
+                  <VolumeX className="size-4" aria-hidden="true" />
+                ) : (
+                  <Volume2 className="size-4" aria-hidden="true" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={onOpenTracking}
+                aria-label="Open tracking"
+                className="inline-flex size-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"
+                title="Tracking"
+              >
+                <Activity className="size-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                }}
+                aria-label="Minimize Mator"
+                className="inline-flex size-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"
+                title="Minimize chat"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
+
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="sr-only" htmlFor="mator-conversation-switcher">
+              Conversation
+            </label>
+            <select
+              id="mator-conversation-switcher"
+              data-testid="mator-conversation-switcher"
+              value={conversationMeta?.id ?? ''}
+              disabled={!onSwitchConversation || conversations.length === 0}
+              onChange={(event) =>
+                onSwitchConversation?.(event.target.value)
+              }
+              className="min-h-10 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:opacity-50"
+            >
+              {conversations.length === 0 ? (
+                <option value="">No conversations</option>
+              ) : (
+                conversations.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.title || 'Conversation'}
+                  </option>
+                ))
+              )}
+            </select>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              data-testid="mator-new-conversation"
+              disabled={!onNewConversation || busy}
+              onClick={() => onNewConversation?.()}
+              className="shrink-0"
+            >
+              <Plus className="size-3.5" aria-hidden="true" />
+              New
+            </Button>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5">
             <button
               type="button"
-              onClick={onOpenTracking}
-              aria-label="Open tracking"
-              className="inline-flex size-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"
-              title="Tracking"
+              data-testid="mator-toggle-auto-approve"
+              aria-pressed={settingsToggles?.autoApprove ?? false}
+              disabled={!onToggleAutoApprove}
+              onClick={() => onToggleAutoApprove?.()}
+              className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:opacity-40 ${
+                settingsToggles?.autoApprove
+                  ? 'bg-teal-800 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+              title="Auto-approve staged actions"
             >
-              <Activity className="size-4" />
+              <ShieldCheck className="size-3.5" aria-hidden="true" />
+              Auto-approve
             </button>
             <button
               type="button"
-              onClick={() => {
-                onClose();
-              }}
-              aria-label="Minimize Mator"
-              className="inline-flex size-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"
-              title="Minimize chat"
+              data-testid="mator-toggle-squash"
+              aria-pressed={settingsToggles?.squashPipelineHistory ?? false}
+              disabled={!onToggleSquash}
+              onClick={() => onToggleSquash?.()}
+              className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:opacity-40 ${
+                settingsToggles?.squashPipelineHistory
+                  ? 'bg-teal-800 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+              title="Squash pipeline history on apply"
             >
-              <X className="size-4" />
+              <Layers className="size-3.5" aria-hidden="true" />
+              Squash
             </button>
+            {showRestore && (
+              <button
+                type="button"
+                data-testid="mator-restore-pipeline"
+                disabled={!onRestorePipeline || busy}
+                onClick={() => onRestorePipeline?.()}
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-slate-900 px-2.5 text-[11px] font-semibold text-white hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:opacity-40"
+                title="Restore this conversation's pipeline"
+              >
+                <RotateCcw className="size-3.5" aria-hidden="true" />
+                Restore pipeline
+              </button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="flex min-h-0 flex-1 flex-col pt-3">
@@ -173,39 +378,255 @@ export default function OperatorChatPanel({
             </div>
           )}
           <div
-            className="min-h-[260px] flex-1 space-y-3 overflow-y-auto pr-1 lg:min-h-0"
+            className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1"
             ref={logRef}
             role="log"
             aria-live="polite"
           >
-            {conversation.map((item) => (
-              <Message
-                key={item.id}
-                align={item.sender === 'user' ? 'end' : 'start'}
-              >
-                <MessageAvatar
-                  className={
-                    item.sender === 'assistant' ? 'bg-teal-700' : 'bg-slate-800'
-                  }
+            <AnimatePresence initial={false}>
+              {matorEvents.map((event) => {
+                if (event.kind === 'message' && event.role === 'user') {
+                  return (
+                    <EventMotion key={event.id} id={event.id}>
+                      <Message align="end">
+                        <MessageAvatar className="bg-slate-800">
+                          ME
+                        </MessageAvatar>
+                        <MessageContent>
+                          <MessageHeader>You</MessageHeader>
+                          <Bubble muted>
+                            <BubbleContent>
+                              {event.text || 'Attachment'}
+                            </BubbleContent>
+                          </Bubble>
+                          {event.attachmentId && (
+                            <div className="mt-2">
+                              <MatorAttachmentCanvas
+                                attachmentId={event.attachmentId}
+                                imageSrc={
+                                  attachmentPreviews[event.attachmentId] ??
+                                  matorAttachmentFileUrl(event.attachmentId)
+                                }
+                                markers={event.markers ?? []}
+                                draftText={markerDraft}
+                                onMarkersChange={
+                                  onSaveMarkers
+                                    ? (markers) =>
+                                        void onSaveMarkers(
+                                          event.attachmentId!,
+                                          markers,
+                                        )
+                                    : undefined
+                                }
+                              />
+                            </div>
+                          )}
+                        </MessageContent>
+                      </Message>
+                    </EventMotion>
+                  );
+                }
+
+                if (event.kind === 'how' || event.kind === 'message') {
+                  return (
+                    <EventMotion key={event.id} id={event.id}>
+                      <Message>
+                        <MessageAvatar className="bg-teal-700">
+                          <Workflow className="size-4" />
+                        </MessageAvatar>
+                        <MessageContent>
+                          <MessageHeader>
+                            {event.kind === 'how'
+                              ? 'How · Mator'
+                              : 'Utomator · Mator'}
+                          </MessageHeader>
+                          <Bubble>
+                            <BubbleContent>
+                              {event.text || '…'}
+                            </BubbleContent>
+                          </Bubble>
+                          {event.kind === 'how' && event.text && (
+                            <MessageFooter>
+                              <button
+                                type="button"
+                                onClick={() => voice.speak(event.text!, true)}
+                                aria-label="Hear this reply"
+                                className="inline-flex min-h-11 cursor-pointer items-center gap-1 rounded-lg px-2 text-xs font-semibold text-teal-800 hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                              >
+                                <Volume2
+                                  className="size-4"
+                                  aria-hidden="true"
+                                />
+                                Hear this
+                              </button>
+                            </MessageFooter>
+                          )}
+                        </MessageContent>
+                      </Message>
+                    </EventMotion>
+                  );
+                }
+
+                if (event.status === 'staged' || event.action) {
+                  const staged = event.status === 'staged';
+                  return (
+                    <EventMotion key={event.id} id={event.id}>
+                      <motion.div
+                        layout={!reduceMotion}
+                        className={`rounded-xl border p-3 ${
+                          staged
+                            ? 'border-orange-200 bg-orange-50/80'
+                            : event.status === 'rejected'
+                              ? 'border-rose-200 bg-rose-50/60'
+                              : event.status === 'incomplete'
+                                ? 'border-amber-200 bg-amber-50/70'
+                                : 'border-teal-200 bg-teal-50/60'
+                        }`}
+                      >
+                        <p className="text-[10px] font-bold tracking-wider text-slate-600 uppercase">
+                          {event.status ?? 'action'} ·{' '}
+                          {actionLabel(event.action)}
+                        </p>
+                        {event.text && (
+                          <p className="mt-1 text-sm leading-5 text-slate-800">
+                            {event.text}
+                          </p>
+                        )}
+                        {event.attachmentId && (
+                          <div className="mt-2">
+                            <MatorAttachmentCanvas
+                              attachmentId={event.attachmentId}
+                              imageSrc={
+                                attachmentPreviews[event.attachmentId] ??
+                                matorAttachmentFileUrl(event.attachmentId)
+                              }
+                              markers={event.markers ?? []}
+                              draftText={markerDraft}
+                              interactive={Boolean(onSaveMarkers)}
+                              onMarkersChange={
+                                onSaveMarkers
+                                  ? (markers) =>
+                                      void onSaveMarkers(
+                                        event.attachmentId!,
+                                        markers,
+                                      )
+                                  : undefined
+                              }
+                            />
+                          </div>
+                        )}
+                        {staged && (
+                          <p className="mt-2 text-[11px] font-semibold text-orange-900">
+                            Confirm or reject below to apply this change.
+                          </p>
+                        )}
+                      </motion.div>
+                    </EventMotion>
+                  );
+                }
+
+                if (event.attachmentId) {
+                  return (
+                    <EventMotion key={event.id} id={event.id}>
+                      <MatorAttachmentCanvas
+                        attachmentId={event.attachmentId}
+                        imageSrc={
+                          attachmentPreviews[event.attachmentId] ??
+                          matorAttachmentFileUrl(event.attachmentId)
+                        }
+                        markers={event.markers ?? []}
+                        draftText={markerDraft}
+                        onMarkersChange={
+                          onSaveMarkers
+                            ? (markers) =>
+                                void onSaveMarkers(
+                                  event.attachmentId!,
+                                  markers,
+                                )
+                            : undefined
+                        }
+                      />
+                    </EventMotion>
+                  );
+                }
+
+                if (event.text) {
+                  return (
+                    <EventMotion key={event.id} id={event.id}>
+                      <Message>
+                        <MessageAvatar
+                          className={
+                            event.status === 'error'
+                              ? 'bg-rose-700'
+                              : 'bg-slate-700'
+                          }
+                        >
+                          {event.status === 'error' ? (
+                            <AlertCircle className="size-4" />
+                          ) : (
+                            <Activity className="size-4" />
+                          )}
+                        </MessageAvatar>
+                        <MessageContent>
+                          <MessageHeader>
+                            {(event.kind || 'event').toUpperCase()}
+                          </MessageHeader>
+                          <Bubble>
+                            <BubbleContent>{event.text}</BubbleContent>
+                          </Bubble>
+                        </MessageContent>
+                      </Message>
+                    </EventMotion>
+                  );
+                }
+
+                return null;
+              })}
+            </AnimatePresence>
+
+            {matorEvents.length === 0 &&
+              conversation.map((item) => (
+                <Message
+                  key={item.id}
+                  align={item.sender === 'user' ? 'end' : 'start'}
                 >
-                  {item.sender === 'assistant' ? (
-                    <Workflow className="size-4" />
-                  ) : (
-                    'ME'
-                  )}
-                </MessageAvatar>
-                <MessageContent>
-                  <MessageHeader>
-                    {item.sender === 'assistant'
-                      ? 'Utomator · Local assistant'
-                      : 'You'}
-                  </MessageHeader>
-                  <Bubble muted={item.sender === 'user'}>
-                    <BubbleContent>{item.text}</BubbleContent>
-                  </Bubble>
-                </MessageContent>
-              </Message>
-            ))}
+                  <MessageAvatar
+                    className={
+                      item.sender === 'assistant' ? 'bg-teal-700' : 'bg-slate-800'
+                    }
+                  >
+                    {item.sender === 'assistant' ? (
+                      <Workflow className="size-4" />
+                    ) : (
+                      'ME'
+                    )}
+                  </MessageAvatar>
+                  <MessageContent>
+                    <MessageHeader>
+                      {item.sender === 'assistant'
+                        ? 'Utomator · Local assistant'
+                        : 'You'}
+                    </MessageHeader>
+                    <Bubble muted={item.sender === 'user'}>
+                      <BubbleContent>{item.text}</BubbleContent>
+                    </Bubble>
+                    {item.sender === 'assistant' && (
+                      <MessageFooter>
+                        <button
+                          type="button"
+                          onClick={() => voice.speak(item.text, true)}
+                          aria-label="Hear this reply"
+                          className="inline-flex min-h-11 cursor-pointer items-center gap-1 rounded-lg px-2 text-xs font-semibold text-teal-800 hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                        >
+                          <Volume2 className="size-4" aria-hidden="true" />
+                          Hear this
+                        </button>
+                      </MessageFooter>
+                    )}
+                  </MessageContent>
+                </Message>
+              ))}
+
             {events.map((event) => (
               <Message key={'event-' + event.id}>
                 <MessageAvatar
@@ -416,56 +837,24 @@ export default function OperatorChatPanel({
                 </Message>
               ))}
           </div>
-          {imageError && (
+          {(imageError || chatError) && (
             <p role="alert" className="mt-2 text-xs text-rose-700">
-              {imageError}
+              {chatError || imageError}
             </p>
           )}
-          <form
-            onSubmit={onSendMessage}
-            className="mt-4 flex items-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 focus-within:ring-2 focus-within:ring-teal-600/20"
-          >
-            <label htmlFor="operatorMessage" className="sr-only">
-              Structured command
-            </label>
-            <textarea
-              id="operatorMessage"
-              className="max-h-28 min-h-[46px] flex-1 resize-y bg-transparent px-2 py-2 text-sm outline-none placeholder:text-slate-400"
-              rows={1}
-              placeholder="Try: audit · set headline: ... · add skill: ..."
-              value={message}
-              onChange={(event) => onMessageChange(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                  event.preventDefault();
-                  event.currentTarget.form?.requestSubmit();
-                }
-              }}
-            />
-            <label
-              title="Attach a PNG, JPEG or WebP image"
-              className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-teal-50"
-            >
-              <Paperclip className="size-4" />
-              <input
-                aria-label="Attach image to chat"
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                className="sr-only"
-                onChange={(e) => {
-                  void onAttachImage(e.target.files?.[0]);
-                  e.currentTarget.value = '';
-                }}
-              />
-            </label>
-            <Button
-              type="submit"
-              variant="primary"
-              aria-label="Send structured command"
-            >
-              <Send className="size-4" />
-            </Button>
-          </form>
+          <VoiceDeck
+            voice={voice}
+            pendingLabel={pendingLabel}
+            onConfirm={onConfirm}
+            onReject={onReject}
+            message={message}
+            onMessageChange={onMessageChange}
+            onSendMessage={onSendMessage}
+            onAttachFile={onAttachFile}
+            busy={busy}
+            incomplete={incomplete}
+            onIncompleteContinue={onIncompleteContinue}
+          />
         </CardContent>
       </Card>
     </aside>

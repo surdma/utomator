@@ -178,3 +178,86 @@ export async function restoreMatorPipeline(
   );
   return readJson(response, 'Unable to restore pipeline');
 }
+
+export type MatorAttachmentUpload = {
+  id: string;
+  mime: string;
+  size: number;
+  kind: 'image' | 'video' | 'other';
+};
+
+export type MatorImageMarkerDto = {
+  id: string;
+  x: number;
+  y: number;
+  text: string;
+};
+
+export type MatorAttachmentMetaDto = {
+  id: string;
+  conversationId: string;
+  filename: string;
+  mime: string;
+  size: number;
+  kind: 'image' | 'video' | 'other';
+  markers: MatorImageMarkerDto[];
+  createdAt: string;
+};
+
+export function matorAttachmentFileUrl(attachmentId: string) {
+  return matorPath(`attachments/${encodeURIComponent(attachmentId)}`);
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== 'string') {
+        reject(new Error('Unable to read attachment'));
+        return;
+      }
+      const comma = result.indexOf(',');
+      resolve(comma >= 0 ? result.slice(comma + 1) : result);
+    };
+    reader.onerror = () => reject(new Error('Unable to read attachment'));
+    reader.readAsDataURL(file);
+  });
+}
+
+export async function uploadMatorAttachment(
+  conversationId: string,
+  file: File,
+): Promise<MatorAttachmentUpload> {
+  const data = await fileToBase64(file);
+  const response = await fetch(
+    matorPath(
+      `conversations/${encodeURIComponent(conversationId)}/attachments`,
+    ),
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        filename: file.name,
+        mime: file.type || 'application/octet-stream',
+        data,
+      }),
+    },
+  );
+  return readJson(response, 'Unable to upload attachment');
+}
+
+export async function patchMatorMarkers(
+  attachmentId: string,
+  markers: MatorImageMarkerDto[],
+): Promise<MatorAttachmentMetaDto> {
+  const response = await fetch(
+    matorPath(`attachments/${encodeURIComponent(attachmentId)}/markers`),
+    {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ markers }),
+    },
+  );
+  return readJson(response, 'Unable to save markers');
+}

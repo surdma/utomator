@@ -26,7 +26,12 @@ import {
   type MatorSettings,
   type MatorSettingsPatch,
 } from './mator-settings.js';
-import { saveAttachment, upsertMarkers, type MatorImageMarker } from './mator-attachments.js';
+import {
+  getAttachmentFile,
+  saveAttachment,
+  upsertMarkers,
+  type MatorImageMarker,
+} from './mator-attachments.js';
 import type { DocumentStore } from '../db/documents.js';
 
 export type MatorRouteDeps = {
@@ -419,6 +424,30 @@ export function registerMatorRoutes(app: FastifyInstance, deps: MatorRouteDeps):
           return jsonError(reply, 400, 'markers array is required');
         const meta = await upsertMarkers(docs, request.params.id, request.body.markers);
         return meta;
+      } catch (error) {
+        return jsonError(reply, httpStatusForError(error), errorMessage(error));
+      }
+    },
+  );
+
+  app.get<{ Params: { id: string } }>(
+    '/mator/attachments/:id',
+    async (request, reply) => {
+      const docs = await requireDocuments(deps, reply);
+      if (!docs) return;
+      try {
+        const loaded = await getAttachmentFile(
+          docs,
+          request.params.id,
+          deps.attachmentRoot ? { root: deps.attachmentRoot } : undefined,
+        );
+        return reply
+          .header('content-type', loaded.meta.mime)
+          .header(
+            'content-disposition',
+            `inline; filename="${loaded.meta.filename.replace(/"/g, '')}"`,
+          )
+          .send(loaded.bytes);
       } catch (error) {
         return jsonError(reply, httpStatusForError(error), errorMessage(error));
       }
