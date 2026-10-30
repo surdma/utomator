@@ -378,6 +378,7 @@ export async function runMatorTurn(
   const live = await ports.workflows.get(workflowId);
   if (!live) throw Error('Workflow not found');
 
+  // Newly appended user turn is already in `produced` / history — do not push userText again.
   const history = [...priorEvents, ...produced];
   const { messages, nextSummary } = buildSlidingContext(
     history,
@@ -386,15 +387,6 @@ export async function runMatorTurn(
     input.attachmentIds,
   );
   if (nextSummary) await setContextSummary(docs, workflowId, input.conversationId, nextSummary);
-
-  if (input.userText) {
-    messages.push({ role: 'user', content: input.userText });
-  } else if (input.attachmentIds?.length) {
-    messages.push({
-      role: 'user',
-      content: `Process attachments: ${input.attachmentIds.join(', ')}`,
-    });
-  }
 
   const fetchImpl = options.fetch ?? globalThis.fetch;
   const groq = await callGroq({

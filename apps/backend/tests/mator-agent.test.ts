@@ -251,6 +251,40 @@ test('runMatorTurn parses Groq structured actions into staged events', async () 
   });
 });
 
+test('runMatorTurn includes current user text once in Groq messages', async () => {
+  await withEncryption(async () => {
+    const docs = new FakeDocuments('local-owner');
+    await seedWithKey(docs);
+    const workflow = fakeWorkflowPort(makeRecord(defaultPlan('x', 'audit')));
+    const ports = portsFor(workflow);
+    const conversation = await createConversation(docs, workflow.live.id, 'Once');
+    const userText = 'Rename inspect step exactly once';
+
+    let messageContents: string[] = [];
+    const fetchMock: typeof fetch = async (_input, init) => {
+      const body = JSON.parse(String(init?.body)) as {
+        messages: Array<{ role: string; content: string }>;
+      };
+      messageContents = body.messages.map((m) => m.content);
+      return groqJsonResponse({ actions: [{ type: 'noop', reason: 'ok' }] });
+    };
+
+    await runMatorTurn(
+      docs,
+      ports,
+      {
+        conversationId: conversation.id,
+        userText,
+        idempotencyKey: 'once-1',
+      },
+      { fetch: fetchMock },
+    );
+
+    const hits = messageContents.filter((content) => content.includes(userText));
+    assert.equal(hits.length, 1, `expected user text once, got ${hits.length}: ${JSON.stringify(hits)}`);
+  });
+});
+
 test('runMatorTurn caps action processing at 3 when model returns 5', async () => {
   await withEncryption(async () => {
     const docs = new FakeDocuments('local-owner');
