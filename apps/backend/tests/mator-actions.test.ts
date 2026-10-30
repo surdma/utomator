@@ -1,0 +1,384 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {
+  applyAction,
+  MatorActionValidationError,
+  parseMatorAction,
+  restoreConversationPipeline,
+  stageAction,
+  type MatorActionPorts,
+  type MatorWorkflowPort,
+} from '../src/core/mator-actions.js';
+import {
+  createConversation,
+  listConversations,
+  listEvents,
+  type MatorConversation,
+} from '../src/core/mator-conversations.js';
+import { defaultPlan, type WorkflowPlan } from '../src/core/workflow-plan.js';
+import type { WorkflowRecord } from '../src/core/workflow-registry.js';
+import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
+import type { RunRequest, RunSummary } from '../src/core/types.js';
+
+type Row = { version: number; value: unknown };
+class FakeDocuments implements DocumentStore {
+  readonly dialect = 'sqlite' as const;
+  readonly rows = new Map<string, Row>();
+  constructor(readonly ownerId: string) {}
+  async get<T>(namespace: string, key: string): Promise<DocumentRecord<T> | null> {
+    const row = this.rows.get(`${namespace}:${key}`);
+    return row ? { key, version: row.version, value: row.value as T } : null;
+  }
+  async put<T>(namespace: string, key: string, value: T, expectedVersion: number) {
+    const id = `${namespace}:${key}`,
+      existing = this.rows.get(id);
+    if (!expectedVersion) {
+      if (existing) throw Error('Database document changed. Reload before saving.');
+      this.rows.set(id, { version: 1, value });
+      return 1;
+    }
+    if (!existing || existing.version !== expectedVersion)
+      throw Error('Database document changed. Reload before saving.');
+    existing.version = expectedVersion + 1;
+    existing.value = value;
+    return existing.version;
+  }
+  async list<T>(namespace: string) {
+    return [...this.rows.entries()]
+      .filter(([id]) => id.startsWith(`${namespace}:`))
+      .map(([id, row]) => ({
+        key: id.slice(namespace.length + 1),
+        version: row.version,
+        value: row.value as T,
+      }));
+  }
+  async remove(namespace: string, key: string, expectedVersion: number) {
+    const id = `${namespace}:${key}`,
+      existing = this.rows.get(id);
+    if (!existing || existing.version !== expectedVersion)
+      throw Error('Database document changed. Reload before saving.');
+    this.rows.delete(id);
+  }
+  async close() {}
+}
+
+type TaggedRecord = WorkflowRecord & { conversationId?: string; eventId?: string };
+
+function makeRecord(plan: WorkflowPlan, revision = 1): TaggedRecord {
+  const now = new Date().toISOString();
+  return {
+    id: '11111111-1111-4111-8111-111111111111',
+    ownerId: 'local-owner',
+    templateId: null,
+    revision,
+    createdAt: now,
+    updatedAt: now,
+    plan,
+  };
+}
+
+function fakeWorkflowPort(initial: TaggedRecord): MatorWorkflowPort & {
+  live: TaggedRecord;
+  revisions: Map<number, TaggedRecord>;
+} {
+  const revisions = new Map<number, TaggedRecord>([[initial.revision, structuredClone(initial)]]);
+  const port = {
+    live: structuredClone(initial),
+    revisions,
+    async get(workflowId: string) {
+      if (workflowId !== port.live.id) return null;
+      return structuredClone(port.live);
+    },
+    async getRevision(workflowId: string, revision: number) {
+      if (workflowId !== port.live.id) return null;
+      const hit = revisions.get(revision);
+      return hit ? structuredClone(hit) : null;
+    },
+    async update(
+      workflowId: string,
+      expectedRevision: number,
+      plan: WorkflowPlan,
+      tags?: { conversationId: string; eventId: string },
+    ) {
+      if (workflowId !== port.live.id) throw Error('Workflow not found');
+      if (port.live.revision !== expectedRevision) throw Error('Version conflict: workflow changed');
+      const next: TaggedRecord = {
+        ...port.live,
+        revision: port.live.revision + 1,
+        updatedAt: new Date().toISOString(),
+        plan: structuredClone(plan),
+        ...(tags
+          ? { conversationId: tags.conversationId, eventId: tags.eventId }
+          : { conversationId: undefined, eventId: undefined }),
+      };
+      if (!tags) {
+        delete next.conversationId;
+        delete next.eventId;
+      }
+      port.live = next;
+      revisions.set(next.revision, structuredClone(next));
+      return structuredClone(next);
+    },
+  };
+  return port;
+}
+
+function portsFor(
+  workflow: ReturnType<typeof fakeWorkflowPort>,
+  runnerStarts: RunRequest[] = [],
+): MatorActionPorts {
+  return {
+    workflows: workflow,
+    runner: {
+      start(request) {
+        runnerStarts.push(request);
+        const summary: RunSummary = {
+          id: `run-${runnerStarts.length}`,
+          platform: request.platform,
+          action: request.action,
+          state: 'running',
+          createdAt: new Date().toISOString(),
+          workflowId: request.workflowId,
+          workflowRevision: request.workflowRevision,
+        };
+        return summary;
+      },
+    },
+    crafts: {
+      apply: async () => ({ ok: true }),
+    },
+  };
+}
+
+test('parseMatorAction rejects unknown action type and invalid shape', () => {
+  assert.throws(
+    () => parseMatorAction({ type: 'delete_universe' }),
+    (error: unknown) => error instanceof MatorActionValidationError,
+  );
+  assert.throws(
+    () => parseMatorAction({ type: 'edit_step' }),
+    (error: unknown) => error instanceof MatorActionValidationError,
+  );
+});
+
+test('apply/stage reject hallucinated step ids with typed validation error', async () => {
+  const docs = new FakeDocuments('local-owner');
+  const plan = defaultPlan('x', 'audit');
+  const workflow = fakeWorkflowPort(makeRecord(plan));
+  const ports = portsFor(workflow);
+  const conversation = await createConversation(docs, workflow.live.id, 'Thread');
+
+  const bad = parseMatorAction({
+    type: 'edit_step',
+    stepId: 'does-not-exist',
+    patch: { title: 'Nope' },
+  });
+
+  await assert.rejects(
+    () =>
+      stageAction(docs, ports, {
+        workflowId: workflow.live.id,
+        conversationId: conversation.id,
+        action: bad,
+      }),
+    (error: unknown) =>
+      error instanceof MatorActionValidationError && /does-not-exist|unknown step/i.test(error.message),
+  );
+
+  await assert.rejects(
+    () =>
+      applyAction(
+        docs,
+        ports,
+        {
+          workflowId: workflow.live.id,
+          conversationId: conversation.id,
+          eventId: 'evt-missing-step',
+          action: bad,
+        },
+        { squash: false },
+      ),
+    (error: unknown) => error instanceof MatorActionValidationError,
+  );
+});
+
+test('apply edit_step without squash tags revision and updates boundRevisionId', async () => {
+  const docs = new FakeDocuments('local-owner');
+  const plan = defaultPlan('x', 'audit');
+  const workflow = fakeWorkflowPort(makeRecord(plan));
+  const ports = portsFor(workflow);
+  const conversation = await createConversation(docs, workflow.live.id, 'Edit thread');
+  const beforeRevision = workflow.live.revision;
+
+  const action = parseMatorAction({
+    type: 'edit_step',
+    stepId: 'inspect',
+    patch: { title: 'Inspect more carefully' },
+  });
+
+  const staged = await stageAction(docs, ports, {
+    workflowId: workflow.live.id,
+    conversationId: conversation.id,
+    action,
+  });
+  assert.equal(staged.status, 'staged');
+  assert.equal(workflow.live.revision, beforeRevision);
+
+  const applied = await applyAction(
+    docs,
+    ports,
+    {
+      workflowId: workflow.live.id,
+      conversationId: conversation.id,
+      eventId: staged.id,
+      action,
+    },
+    { squash: false },
+  );
+
+  assert.equal(workflow.live.revision, beforeRevision + 1);
+  assert.equal(
+    workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title,
+    'Inspect more carefully',
+  );
+  assert.equal(applied.record?.conversationId, conversation.id);
+  assert.equal(applied.record?.eventId, staged.id);
+
+  const tagged = workflow.revisions.get(workflow.live.revision);
+  assert.equal(tagged?.conversationId, conversation.id);
+  assert.equal(tagged?.eventId, staged.id);
+
+  const [updated]: MatorConversation[] = await listConversations(docs, workflow.live.id);
+  assert.equal(updated?.boundRevisionId, `${workflow.live.id}:${workflow.live.revision}`);
+  assert.equal(applied.event.status, 'applied');
+});
+
+test('squash=true updates live plan only without conversation-bound revision trail', async () => {
+  const docs = new FakeDocuments('local-owner');
+  const plan = defaultPlan('x', 'audit');
+  const workflow = fakeWorkflowPort(makeRecord(plan));
+  const ports = portsFor(workflow);
+  const conversation = await createConversation(docs, workflow.live.id, 'Squash thread');
+  const beforeRevision = workflow.live.revision;
+
+  const action = parseMatorAction({
+    type: 'edit_step',
+    stepId: 'action',
+    patch: { title: 'Squashed edit' },
+  });
+
+  const result = await applyAction(
+    docs,
+    ports,
+    {
+      workflowId: workflow.live.id,
+      conversationId: conversation.id,
+      eventId: 'evt-squash',
+      action,
+    },
+    { squash: true },
+  );
+
+  assert.equal(workflow.live.revision, beforeRevision + 1);
+  assert.equal(workflow.live.plan.steps.find((s) => s.id === 'action')?.title, 'Squashed edit');
+  assert.equal(result.record?.conversationId, undefined);
+  assert.equal(result.record?.eventId, undefined);
+
+  const tagged = workflow.revisions.get(workflow.live.revision);
+  assert.equal(tagged?.conversationId, undefined);
+  assert.equal(tagged?.eventId, undefined);
+
+  const [updated] = await listConversations(docs, workflow.live.id);
+  assert.equal(updated?.boundRevisionId, null);
+});
+
+test('restoreConversationPipeline copies bound revision into live via CAS', async () => {
+  const docs = new FakeDocuments('local-owner');
+  const plan = defaultPlan('x', 'audit');
+  const workflow = fakeWorkflowPort(makeRecord(plan));
+  const ports = portsFor(workflow);
+  const conversation = await createConversation(docs, workflow.live.id, 'Restore thread');
+
+  const firstEdit = parseMatorAction({
+    type: 'edit_step',
+    stepId: 'inspect',
+    patch: { title: 'Bound title' },
+  });
+  await applyAction(
+    docs,
+    ports,
+    {
+      workflowId: workflow.live.id,
+      conversationId: conversation.id,
+      eventId: 'evt-bound',
+      action: firstEdit,
+    },
+    { squash: false },
+  );
+  const boundRevision = workflow.live.revision;
+  const boundTitle = workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title;
+
+  // Live drifts away (e.g. another editor) without binding to this conversation.
+  await workflow.update(workflow.live.id, workflow.live.revision, {
+    ...workflow.live.plan,
+    steps: workflow.live.plan.steps.map((s) =>
+      s.id === 'inspect' ? { ...s, title: 'Live drifted' } : s,
+    ),
+  });
+  assert.notEqual(workflow.live.revision, boundRevision);
+
+  const liveBeforeRestore = workflow.live.revision;
+  const restored = await restoreConversationPipeline(
+    docs,
+    ports.workflows,
+    workflow.live.id,
+    conversation.id,
+  );
+
+  assert.equal(restored.revision, liveBeforeRestore + 1);
+  assert.ok(restored.revision > boundRevision);
+  assert.equal(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title, boundTitle);
+  assert.equal(restored.plan.steps.find((s) => s.id === 'inspect')?.title, boundTitle);
+});
+
+test('run_step invokes injectable runner port', async () => {
+  const docs = new FakeDocuments('local-owner');
+  const plan = defaultPlan('linkedin', 'audit');
+  const workflow = fakeWorkflowPort(makeRecord(plan));
+  const started: RunRequest[] = [];
+  const ports = portsFor(workflow, started);
+  const conversation = await createConversation(docs, workflow.live.id, 'Run thread');
+
+  const action = parseMatorAction({
+    type: 'run_step',
+    stepId: 'action',
+    request: {
+      platform: 'linkedin',
+      action: 'audit',
+      profileUrl: 'https://www.linkedin.com/in/example',
+      workflowId: workflow.live.id,
+      workflowRevision: workflow.live.revision,
+    },
+  });
+
+  const result = await applyAction(
+    docs,
+    ports,
+    {
+      workflowId: workflow.live.id,
+      conversationId: conversation.id,
+      eventId: 'evt-run',
+      action,
+    },
+    { squash: true },
+  );
+
+  assert.equal(started.length, 1);
+  assert.equal(started[0]?.workflowId, workflow.live.id);
+  assert.equal(started[0]?.profileUrl, 'https://www.linkedin.com/in/example');
+  assert.equal(result.run?.id, 'run-1');
+  assert.equal(workflow.live.revision, 1);
+
+  const events = await listEvents(docs, conversation.id, {});
+  assert.ok(events.some((e) => e.status === 'applied' && e.kind === 'action'));
+});
