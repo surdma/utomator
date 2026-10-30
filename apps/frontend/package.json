@@ -8,7 +8,7 @@
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "eslint .",
-    "test": "node --experimental-strip-types --test tests/utomator-routes.test.mjs tests/routes.test.mjs tests/growth-graph-model.test.mjs tests/growth-run-journal.test.mjs tests/pipeline-command-parser.test.mjs tests/growth-profile-client.test.mjs tests/build-run-payload.test.mjs tests/pipeline-api-client.test.mjs tests/dashboard-route.test.mjs tests/craft-command-editor.test.mjs tests/craft-command-service.test.mjs tests/craft-category-titles.test.mjs tests/run-event-utils.test.mjs tests/default-workflow-plan.test.mjs tests/pipeline-controller-boundaries.test.mjs tests/visual-review-model.test.mjs tests/dashboard-component-structure.test.mjs tests/craft-mdx.test.mjs",
+    "test": "node --experimental-strip-types --test tests/utomator-routes.test.mjs tests/routes.test.mjs tests/growth-graph-model.test.mjs tests/growth-run-journal.test.mjs tests/pipeline-command-parser.test.mjs tests/pipeline-utterance.test.mjs tests/voice-support.test.mjs tests/annotation-voice.test.mjs tests/growth-profile-client.test.mjs tests/build-run-payload.test.mjs tests/pipeline-api-client.test.mjs tests/dashboard-route.test.mjs tests/craft-command-editor.test.mjs tests/craft-command-service.test.mjs tests/craft-category-titles.test.mjs tests/run-event-utils.test.mjs tests/default-workflow-plan.test.mjs tests/pipeline-controller-boundaries.test.mjs tests/visual-review-model.test.mjs tests/dashboard-component-structure.test.mjs tests/craft-mdx.test.mjs tests/mator-settings-client.test.mjs",
     "test:browser": "playwright test",
     "test:ui": "playwright test tests/frontend-quality.test.ts"
   },
