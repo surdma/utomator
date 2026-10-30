@@ -5,6 +5,7 @@ import {
   type MatorConversation,
   type MatorEvent,
 } from './mator-conversations.js';
+import { upsertMarkers } from './mator-attachments.js';
 import type { WorkflowPlan, WorkflowStep, StepKind } from './workflow-plan.js';
 import { validatePlan } from './workflow-plan.js';
 import type { WorkflowRecord } from './workflow-registry.js';
@@ -478,7 +479,10 @@ export async function applyAction(
       craftResult = await ports.crafts.apply(input.action);
       break;
     }
-    case 'annotate_image':
+    case 'annotate_image': {
+      await upsertMarkers(docs, input.action.attachmentId, input.action.markers);
+      break;
+    }
     case 'explain_how':
     case 'noop':
       break;

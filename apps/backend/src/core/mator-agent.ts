@@ -358,6 +358,10 @@ export async function runMatorTurn(
       return { events: priorEvents.slice(idx) };
     }
   }
+  // TODO(mator): turn-level idempotency is event-scoped only — concurrent in-flight
+  // duplicates with the same idempotencyKey can both pass this check, share one user
+  // event via CAS, then both call Groq. Consider an in-memory lock by idempotencyKey
+  // (and eventually per-owner Groq rate limiting).
 
   const produced: MatorEvent[] = [];
   if (input.userText !== undefined || input.attachmentIds?.length) {

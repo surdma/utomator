@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   applyAction,
   MatorActionValidationError,
@@ -9,6 +12,10 @@ import {
   type MatorActionPorts,
   type MatorWorkflowPort,
 } from '../src/core/mator-actions.js';
+import {
+  getAttachmentFile,
+  saveAttachment,
+} from '../src/core/mator-attachments.js';
 import {
   createConversation,
   listConversations,
@@ -381,4 +388,51 @@ test('run_step invokes injectable runner port', async () => {
 
   const events = await listEvents(docs, conversation.id, {});
   assert.ok(events.some((e) => e.status === 'applied' && e.kind === 'action'));
+});
+
+test('apply annotate_image upserts attachment markers', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mator-annotate-'));
+  try {
+    const docs = new FakeDocuments('local-owner');
+    const plan = defaultPlan('x', 'audit');
+    const workflow = fakeWorkflowPort(makeRecord(plan));
+    const ports = portsFor(workflow);
+    const conversation = await createConversation(docs, workflow.live.id, 'Annotate thread');
+    const saved = await saveAttachment(
+      docs,
+      {
+        conversationId: conversation.id,
+        filename: 'shot.png',
+        mime: 'image/png',
+        bytes: Buffer.from('png'),
+      },
+      { root },
+    );
+
+    const action = parseMatorAction({
+      type: 'annotate_image',
+      attachmentId: saved.id,
+      markers: [{ id: 'pin-1', x: 0.25, y: 0.75, text: 'look here' }],
+    });
+
+    const result = await applyAction(
+      docs,
+      ports,
+      {
+        workflowId: workflow.live.id,
+        conversationId: conversation.id,
+        eventId: 'evt-annotate',
+        action,
+      },
+      { squash: true },
+    );
+
+    assert.equal(result.event.status, 'applied');
+    const loaded = await getAttachmentFile(docs, saved.id, { root });
+    assert.deepEqual(loaded.meta.markers, [
+      { id: 'pin-1', x: 0.25, y: 0.75, text: 'look here' },
+    ]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
