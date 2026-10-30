@@ -38,6 +38,8 @@ import {
 import type { Platform } from './core/types.js';
 import type { RunRequest, StreamEvent } from './core/types.js';
 import { CraftLibrary, parseMdx, toMdx, craftArchive, type CraftInput } from './crafts/library.js';
+import { registerMatorRoutes } from './core/mator-routes.js';
+import { workflowRegistryPort } from './core/mator-actions.js';
 
 export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?: typeof fetch } = {}) {
   const app = Fastify({
@@ -217,6 +219,27 @@ export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?
     },
   } as const;
   app.get('/health', async () => ({ status: 'ok' }));
+
+  // Mator action chat: settings, conversations, agent turns, stage/restore, attachments, SSE.
+  const matorPorts = {
+    get workflows() {
+      return workflowRegistryPort(workflowRegistry, database);
+    },
+    runner: {
+      start: (request: Parameters<typeof runner.start>[0]) => runner.start(request),
+    },
+    crafts: {
+      apply: async (action: { craftId?: string }) => {
+        if (action.craftId) return craftLibrary.get(action.craftId);
+        return craftLibrary.list();
+      },
+    },
+  };
+  registerMatorRoutes(app, {
+    getDocuments: () => database,
+    ports: matorPorts,
+  });
+
   app.get('/connectors', async () => connectors.list());
   app.get('/connectors/capabilities', async () => connectors.capabilities());
   app.post<{
