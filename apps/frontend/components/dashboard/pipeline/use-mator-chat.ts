@@ -34,6 +34,13 @@ import {
   type MatorConversationSummary,
   type MatorSettingsToggles,
 } from './mator-chat-state.ts';
+import {
+  beginMatorSend,
+  createMatorSendGate,
+  finishMatorSendFailure,
+  finishMatorSendSuccess,
+  type MatorSendGate,
+} from './mator-send-gate.ts';
 
 function newIdempotencyKey() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -61,8 +68,8 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const sendGateRef = useRef<MatorSendGate>(createMatorSendGate());
   const inFlightRef = useRef(false);
-  const idempotencyKeyRef = useRef<string | null>(null);
   const howTtsRef = useRef(true);
   const onSpeakHowRef = useRef(onSpeakHow);
   const conversationIdRef = useRef<string | null>(null);
@@ -199,15 +206,16 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
     async (text?: string) => {
       const request = (text ?? message).trim();
       if (!request) return;
-      if (inFlightRef.current) return;
       const conversationId = conversationIdRef.current;
       if (!conversationId) {
         setError('Select or create a workflow conversation first');
         return;
       }
 
-      const key = idempotencyKeyRef.current ?? newIdempotencyKey();
-      idempotencyKeyRef.current = key;
+      // In-flight guard: second click while sending is a no-op (no second POST).
+      const started = beginMatorSend(sendGateRef.current, newIdempotencyKey);
+      if (!started) return;
+      sendGateRef.current = started.next;
       inFlightRef.current = true;
       setPending(true);
       setError(null);
@@ -217,12 +225,13 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
         const result = await postMatorMessage(
           conversationId,
           { text: request },
-          key,
+          started.key,
         );
         setEvents((previous) => mergeMatorEvents(previous, result.events));
         speakNewHow(result.events);
-        idempotencyKeyRef.current = null;
+        sendGateRef.current = finishMatorSendSuccess(sendGateRef.current);
       } catch (err) {
+        sendGateRef.current = finishMatorSendFailure(sendGateRef.current);
         setError(err instanceof Error ? err.message : 'Unable to send message');
       } finally {
         inFlightRef.current = false;
@@ -299,7 +308,7 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
       setConversationMeta(created);
       setEvents([]);
       setLocalNotices([]);
-      idempotencyKeyRef.current = null;
+      sendGateRef.current = createMatorSendGate();
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Unable to create conversation',
@@ -325,7 +334,7 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
         const loaded = await fetchMatorEvents(conversationId);
         setEvents(loaded);
         setLocalNotices([]);
-        idempotencyKeyRef.current = null;
+        sendGateRef.current = createMatorSendGate();
       } catch (err) {
         setError(
           err instanceof Error ? err.message : 'Unable to switch conversation',
