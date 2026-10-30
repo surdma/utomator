@@ -1,19 +1,32 @@
 'use client';
 
-import type { Dispatch, FormEvent, SetStateAction } from 'react';
+import {
+  useRef,
+  useState,
+  type Dispatch,
+  type FormEvent,
+  type SetStateAction,
+} from 'react';
 import { apiPost, getApi } from './api-client';
-import { explainCommand } from './command-parser';
-import { executeCraftCommand } from './craft-command-service';
 import { workflows, type Platform } from './workflow-catalog';
+import { executeCraftCommand } from './craft-command-service';
 import type { DashboardPane } from './dashboard-route';
 import type { ChatMessage } from './run-models';
 import type { WorkflowRecord } from './use-workflow-workspace';
+import type { ParsedCommand } from './command-parser';
+import {
+  decideUtterance,
+  nextCommandState,
+  pendingCommandLabel,
+  type UtteranceSource,
+} from './utterance';
 
 type Options = {
   message: string;
   setMessage: Dispatch<SetStateAction<string>>;
   setConversation: Dispatch<SetStateAction<ChatMessage[]>>;
   chatNotice: (text: string) => void;
+  onSpeak: (text: string) => void;
   platform: Platform;
   accountId: string | null;
   selectedCraftId: string | null;
@@ -33,6 +46,7 @@ export function useOperatorCommands({
   setMessage,
   setConversation,
   chatNotice,
+  onSpeak,
   platform,
   accountId,
   selectedCraftId,
@@ -46,6 +60,75 @@ export function useOperatorCommands({
   setForm,
   setSelectedNode,
 }: Options) {
+  const [pending, setPending] = useState<ParsedCommand | null>(null);
+  const pendingRef = useRef<ParsedCommand | null>(null);
+  function setPendingCommand(next: ParsedCommand | null) {
+    pendingRef.current = next;
+    setPending(next);
+  }
+
+  function reply(text: string) {
+    chatNotice(text);
+    try {
+      onSpeak(text);
+    } catch {
+      /* Speech is optional. The written reply still stands. */
+    }
+  }
+
+  function remember(text: string) {
+    void apiPost('intelligence/chat', {
+      text,
+      platform,
+      ...(accountId ? { accountId } : {}),
+    }).catch((error) =>
+      reply(
+        'This message was not stored in memory: ' +
+          (error instanceof Error ? error.message : 'Storage unavailable')
+      )
+    );
+  }
+
+  function stage(command: ParsedCommand) {
+    invalidateWorkflowSelection();
+    setActiveWorkflow(null);
+    setAction(command.action);
+    setForm(command.fields);
+    navigatePane('pipeline');
+  }
+
+  function unsupported() {
+    return (
+      'That operation is not supported on ' +
+      (platform === 'x' ? 'X' : 'LinkedIn') +
+      '. Choose another platform or supported workflow.'
+    );
+  }
+
+  function supported(action: string) {
+    return workflows[platform].some((workflow) => workflow.id === action);
+  }
+
+  function apply(decision: ReturnType<typeof decideUtterance>) {
+    if (
+      (decision.kind === 'stage-now' || decision.kind === 'needs-confirm') &&
+      !supported(decision.command.action)
+    ) {
+      setPendingCommand(null);
+      reply(unsupported());
+      return;
+    }
+    const next = nextCommandState(pendingRef.current, decision);
+    if (next.stage && !supported(next.stage.action)) {
+      setPendingCommand(null);
+      reply(unsupported());
+      return;
+    }
+    setPendingCommand(next.pending);
+    if (next.stage) stage(next.stage);
+    if (next.reply) reply(next.reply);
+  }
+
   async function handleCraftCommand(text: string) {
     try {
       const result = await executeCraftCommand(text, selectedCraftId);
@@ -55,38 +138,31 @@ export function useOperatorCommands({
         if (result.kind === 'updated') setCraftsRevision((value) => value + 1);
         navigateCraft(result.id, result.slug);
       }
-      chatNotice(result.notice);
+      reply(result.notice);
     } catch (error) {
-      chatNotice(
-        error instanceof Error ? error.message : 'Unable to edit craft'
-      );
+      reply(error instanceof Error ? error.message : 'Unable to edit craft');
     }
   }
-  function sendMessage(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!message.trim()) return;
-    const request = message.trim();
-    setMessage('');
-    setConversation((prev) => [
-      ...prev,
-      { id: Date.now(), sender: 'user', text: request },
+
+  function submitUtterance(text: string, source: UtteranceSource) {
+    const request = text.trim();
+    if (!request) return;
+    if (source === 'text') setMessage('');
+    setConversation((previous) => [
+      ...previous,
+      { id: Date.now() + Math.random(), sender: 'user', text: request },
     ]);
-    void apiPost('intelligence/chat', {
-      text: request,
-      platform,
-      ...(accountId ? { accountId } : {}),
-    }).catch((error) =>
-      chatNotice(
-        'This message was not stored in memory: ' +
-          (error instanceof Error ? error.message : 'Storage unavailable')
-      )
+    remember(request);
+    const decision = decideUtterance(
+      request,
+      source,
+      pendingRef.current !== null
     );
-    if (/^(?:\/?craft(?:\s|$)|crafts$)/i.test(request)) {
+    if (decision.kind === 'craft') {
       void handleCraftCommand(request === 'crafts' ? '/craft help' : request);
       return;
     }
-    const parsed = explainCommand(request);
-    if (/^(what do you remember\??|show memory|memory)$/i.test(request)) {
+    if (decision.kind === 'memory') {
       void fetch(getApi('intelligence'), { cache: 'no-store' })
         .then(async (response) => {
           if (!response.ok) throw Error('Memory unavailable');
@@ -99,54 +175,41 @@ export function useOperatorCommands({
             .slice(0, 5)
             .map((item) => '• ' + item.text)
             .join('\n');
-          chatNotice(summary || 'No chat-origin memory has been saved yet.');
+          reply(summary || 'No chat-origin memory has been saved yet.');
         })
-        .catch(() => chatNotice('Could not load local conversation memory.'));
+        .catch(() => reply('Could not load local conversation memory.'));
       return;
     }
-    if (/^(inspect this page|audit this page)$/i.test(request)) {
+    if (decision.kind === 'inspect-page') {
       invalidateWorkflowSelection();
       setActiveWorkflow(null);
       setAction('audit-page');
       navigatePane('pipeline');
       setSelectedNode('inspect');
-      setConversation((prev) => [
-        ...prev,
-        {
-          id: Date.now() + 1,
-          sender: 'assistant',
-          text:
-            'Scoped read-only inspection staged for ' +
-            selectedPage +
-            '. Use Start Inspect selected page in the artboard to open the real page.',
-        },
-      ]);
+      reply(
+        'Scoped read-only inspection staged for ' +
+          selectedPage +
+          '. Use Start Inspect selected page in the artboard to open the real page.'
+      );
       return;
     }
-    let answer: string;
-    if (!parsed) {
-      answer =
-        "No model is connected, so I will not guess. Use commands such as 'audit', 'set headline: …', 'add skill: …' or 'draft post: …'. You can also select a workflow from the left.";
-    } else if (
-      !workflows[platform].some((workflow) => workflow.id === parsed.action)
-    ) {
-      answer =
-        'That operation is not supported on ' +
-        (platform === 'x' ? 'X' : 'LinkedIn') +
-        '. Choose another platform or supported workflow.';
-    } else {
-      invalidateWorkflowSelection();
-      setActiveWorkflow(null);
-      setAction(parsed.action);
-      setForm(parsed.fields);
-      navigatePane('pipeline');
-      answer = parsed.note;
-    }
-    setConversation((prev) => [
-      ...prev,
-      { id: Date.now() + 1, sender: 'assistant', text: answer },
-    ]);
+    apply(decision);
   }
 
-  return { handleCraftCommand, sendMessage };
+  function sendMessage(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    submitUtterance(message, 'text');
+  }
+
+  function confirmPending() {
+    apply(decideUtterance('stage this', 'text', pendingRef.current !== null));
+  }
+
+  return {
+    handleCraftCommand,
+    sendMessage,
+    submitUtterance,
+    confirmPending,
+    pendingLabel: pending ? pendingCommandLabel(pending) : null,
+  };
 }

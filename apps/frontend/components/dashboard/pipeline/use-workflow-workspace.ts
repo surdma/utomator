@@ -109,7 +109,7 @@ export function useWorkflowWorkspace({
         const plan = (await response.json()) as WorkflowPlan;
         if (live) {
           setWorkflowPlan(plan);
-          setForm(plan.parameters ?? {});
+          setForm((current) => ({ ...(plan.parameters ?? {}), ...current }));
           setPlanDirty(false);
           setLoadingWorkflow(false);
         }

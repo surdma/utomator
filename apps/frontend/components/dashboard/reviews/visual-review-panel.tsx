@@ -13,6 +13,9 @@ import {
   Trash2,
 } from 'lucide-react';
 import StudioDialog from '@/components/ui/studio-dialog';
+import { VoiceMicButton } from '@/components/dashboard/pipeline/voice-deck';
+import { useVoiceSession } from '@/components/dashboard/pipeline/use-voice-session';
+import { matchAnnotationAction, mergeSpokenComment } from './annotation-voice';
 
 export type ImageSource =
   | { kind: 'capture'; src: string; runId: string; fileName: string }
@@ -189,6 +192,31 @@ export default function VisualReviewPanel({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const selected = annotations.find((a) => a.id === selectedId);
+  const allowedActions = actionOptions
+    .filter(
+      (option) =>
+        option.value === 'inspect' ||
+        option.value === 'suggest' ||
+        option.value === 'audit-page' ||
+        (platform === 'x'
+          ? [
+              'edit-profile',
+              'compose-post',
+              'pin-post',
+              'delete-post',
+              'upload-banner',
+            ].includes(option.value)
+          : [
+              'edit-profile',
+              'edit-experience',
+              'edit-website',
+              'edit-services',
+              'add-project',
+              'add-featured',
+              'add-skill',
+            ].includes(option.value))
+    )
+    .map((option) => option.value);
   const record = (
     kind: AnnotationEditEvent['kind'],
     annotationId: string,
@@ -275,6 +303,21 @@ export default function VisualReviewPanel({
     setAnnotations((prev) => prev.map((a) => (a.id === next.id ? next : a)));
     record(kind, next.id, next);
   }
+  const commentVoice = useVoiceSession({
+    onFinal: (utterance) => {
+      const current = annotations.find((item) => item.id === selectedId);
+      if (!current) return;
+      const action = matchAnnotationAction(utterance, allowedActions);
+      updateAnnotation(
+        {
+          ...current,
+          comment: mergeSpokenComment(current.comment, utterance),
+          ...(action ? { action: action as AnnotationAction } : {}),
+        },
+        'comment'
+      );
+    },
+  });
   function removeSelected() {
     if (!selected) return;
     setHistory((prev) => [...prev, annotations]);
@@ -518,29 +561,7 @@ export default function VisualReviewPanel({
                   className="mt-1.5 min-h-11 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs"
                 >
                   {actionOptions
-                    .filter(
-                      (option) =>
-                        option.value === 'inspect' ||
-                        option.value === 'suggest' ||
-                        option.value === 'audit-page' ||
-                        (platform === 'x'
-                          ? [
-                              'edit-profile',
-                              'compose-post',
-                              'pin-post',
-                              'delete-post',
-                              'upload-banner',
-                            ].includes(option.value)
-                          : [
-                              'edit-profile',
-                              'edit-experience',
-                              'edit-website',
-                              'edit-services',
-                              'add-project',
-                              'add-featured',
-                              'add-skill',
-                            ].includes(option.value))
-                    )
+                    .filter((option) => allowedActions.includes(option.value))
                     .map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
@@ -548,9 +569,24 @@ export default function VisualReviewPanel({
                     ))}
                 </select>
               </label>
-              <label className="block text-xs font-bold text-slate-800">
-                Comment (optional)
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <label
+                    htmlFor="annotation-comment"
+                    className="text-xs font-bold text-slate-800"
+                  >
+                    Comment
+                  </label>
+                  <VoiceMicButton
+                    size="md"
+                    listening={commentVoice.listening}
+                    disabled={commentVoice.support === 'unsupported'}
+                    onClick={commentVoice.toggleListen}
+                    label="Speak a comment"
+                  />
+                </div>
                 <textarea
+                  id="annotation-comment"
                   aria-label="Annotation comment"
                   rows={3}
                   maxLength={800}
@@ -571,10 +607,21 @@ export default function VisualReviewPanel({
                       annotations.find((item) => item.id === selected.id)
                     )
                   }
-                  placeholder="What should Mator review here?"
-                  className="mt-1.5 w-full resize-y rounded-lg border border-slate-200 bg-white p-2 text-xs"
+                  placeholder="Say what Mator should review here, or type it."
+                  className="w-full resize-y rounded-lg border border-slate-200 bg-white p-2 text-base"
                 />
-              </label>
+                <p aria-live="polite" className="text-sm text-slate-700">
+                  {commentVoice.interim ||
+                    (commentVoice.support === 'unsupported'
+                      ? 'Voice needs Chrome or Edge on this machine. Type a comment instead.'
+                      : 'Tap the mic to speak this comment.')}
+                </p>
+                {commentVoice.error && (
+                  <p role="alert" className="text-xs text-rose-700">
+                    {commentVoice.error}
+                  </p>
+                )}
+              </div>
               <p className="font-mono text-[10px] text-slate-500">
                 x {selected.x.toFixed(3)} · y {selected.y.toFixed(3)} · w{' '}
                 {selected.width.toFixed(3)} · h {selected.height.toFixed(3)}
