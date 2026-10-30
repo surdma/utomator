@@ -52,6 +52,10 @@ const validated = (namespace: string, key: string) => {
       'crafts',
       'craft-migrations',
       'growth-runs',
+      'mator-settings',
+      'mator-conversations',
+      'mator-messages',
+      'mator-attachments',
     ].includes(namespace)
   )
     throw Error('Unknown database document namespace');
