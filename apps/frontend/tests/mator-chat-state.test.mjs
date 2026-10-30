@@ -85,7 +85,7 @@ test('eventsToConversation maps user/how/message and keeps seed when empty', () 
   assert.equal(bubbles.length, 2);
 });
 
-test('findPendingStage and incomplete use the latest matching event', () => {
+test('findPendingStage returns latest unresolved staged', () => {
   const events = [
     {
       ...base,
@@ -123,6 +123,91 @@ test('findPendingStage and incomplete use the latest matching event', () => {
   assert.equal(findPendingStage(events)?.id, '3');
   assert.equal(findIncompleteEvent(events)?.id, '4');
   assert.equal(pendingStageLabel(findPendingStage(events)), 'add step');
+});
+
+test('findPendingStage clears after applied or rejected', () => {
+  const staged = {
+    ...base,
+    id: 's1',
+    role: 'assistant',
+    kind: 'action',
+    status: 'staged',
+    action: { type: 'edit_step' },
+  };
+  assert.equal(findPendingStage([staged])?.id, 's1');
+  assert.equal(
+    findPendingStage([
+      staged,
+      {
+        ...base,
+        id: 'a1',
+        role: 'assistant',
+        kind: 'action',
+        status: 'applied',
+        action: { type: 'edit_step' },
+      },
+    ]),
+    null,
+  );
+  assert.equal(
+    findPendingStage([
+      staged,
+      {
+        ...base,
+        id: 'r1',
+        role: 'assistant',
+        kind: 'action',
+        status: 'rejected',
+        action: { type: 'edit_step' },
+      },
+    ]),
+    null,
+  );
+});
+
+test('findIncompleteEvent clears after later assistant success', () => {
+  const incomplete = {
+    ...base,
+    id: 'i1',
+    role: 'assistant',
+    kind: 'message',
+    status: 'incomplete',
+    text: 'cut off',
+  };
+  assert.equal(findIncompleteEvent([incomplete])?.id, 'i1');
+  assert.equal(
+    findIncompleteEvent([
+      incomplete,
+      {
+        ...base,
+        id: 'u1',
+        role: 'user',
+        kind: 'message',
+        text: 'Continue',
+      },
+      {
+        ...base,
+        id: 'h1',
+        role: 'assistant',
+        kind: 'how',
+        text: 'Resumed and finished.',
+      },
+    ]),
+    null,
+  );
+  assert.equal(
+    findIncompleteEvent([
+      incomplete,
+      {
+        ...base,
+        id: 'm1',
+        role: 'assistant',
+        kind: 'message',
+        text: 'All done.',
+      },
+    ]),
+    null,
+  );
 });
 
 test('shouldSpeakHow only for assistant how when enabled; never user', () => {

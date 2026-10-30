@@ -76,20 +76,60 @@ export function eventsToConversation(
   return bubbles;
 }
 
+function resolvesStagedEvent(
+  candidate: MatorChatEvent,
+  staged: MatorChatEvent,
+): boolean {
+  if (candidate.status !== 'applied' && candidate.status !== 'rejected')
+    return false;
+  const resolvesId =
+    (candidate as { resolvesEventId?: string }).resolvesEventId ??
+    (candidate as { stagedEventId?: string }).stagedEventId ??
+    (candidate as { eventId?: string }).eventId;
+  if (typeof resolvesId === 'string' && resolvesId.trim())
+    return resolvesId === staged.id;
+  // Audit trail keeps staged rows; a later apply/reject after this staged
+  // resolves it when no explicit staged-event link is present.
+  return true;
+}
+
+function isAssistantTerminal(event: MatorChatEvent): boolean {
+  if (event.role !== 'assistant') return false;
+  if (
+    event.status === 'incomplete' ||
+    event.status === 'applied' ||
+    event.status === 'rejected' ||
+    event.status === 'error' ||
+    event.status === 'staged'
+  ) {
+    return true;
+  }
+  return event.kind === 'message' || event.kind === 'how';
+}
+
+/** Latest staged with no later applied/rejected resolution for that stage. */
 export function findPendingStage(
   events: MatorChatEvent[],
 ): MatorChatEvent | null {
   for (let index = events.length - 1; index >= 0; index -= 1) {
-    if (events[index]?.status === 'staged') return events[index]!;
+    const event = events[index];
+    if (event?.status !== 'staged') continue;
+    const resolved = events
+      .slice(index + 1)
+      .some((later) => resolvesStagedEvent(later, event));
+    if (!resolved) return event;
   }
   return null;
 }
 
+/** Incomplete only when it is the latest assistant terminal event. */
 export function findIncompleteEvent(
   events: MatorChatEvent[],
 ): MatorChatEvent | null {
   for (let index = events.length - 1; index >= 0; index -= 1) {
-    if (events[index]?.status === 'incomplete') return events[index]!;
+    const event = events[index];
+    if (!event || !isAssistantTerminal(event)) continue;
+    return event.status === 'incomplete' ? event : null;
   }
   return null;
 }
