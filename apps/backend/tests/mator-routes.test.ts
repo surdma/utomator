@@ -292,6 +292,55 @@ test('idempotent message POST returns same events; stage confirm applies plan ed
   }
 });
 
+test('POST messages with autoApprove applies action without staged-only outcome', async () => {
+  const previous = process.env.UTOMATOR_MATOR_ENCRYPTION_KEY;
+  process.env.UTOMATOR_MATOR_ENCRYPTION_KEY = hex(MASTER);
+  const docs = new FakeDocuments('local-owner');
+  const workflow = fakeWorkflowPort(makeRecord(defaultPlan('x', 'audit')));
+  const ports: MatorActionPorts = {
+    workflows: workflow,
+    runner: { start: () => ({ id: 'r', platform: 'x', action: 'audit', state: 'running', createdAt: '' }) },
+  };
+  await putMatorSettings(docs, { groqApiKey: 'gsk_auto_key', autoApprove: true }, 0);
+  const conversation = await createConversation(docs, workflow.live.id, 'Auto');
+
+  const fetchImpl: typeof fetch = async () =>
+    groqJsonResponse({
+      how: 'Auto renaming',
+      actions: [
+        { type: 'edit_step', stepId: 'inspect', patch: { title: 'Inspect auto-applied' } },
+      ],
+    });
+
+  const app = await buildMatorApp({ docs, ports, fetch: fetchImpl });
+  try {
+    const settings = await app.inject({ method: 'GET', url: '/mator/settings' });
+    assert.equal(settings.json().autoApprove, true);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/mator/conversations/${conversation.id}/messages`,
+      headers: { 'idempotency-key': randomUUID() },
+      payload: { text: 'auto rename inspect' },
+    });
+    assert.equal(res.statusCode, 200);
+    const events = res.json().events as Array<{ status?: string; kind: string }>;
+    assert.ok(events.some((e) => e.status === 'applied'), 'expected applied action event');
+    assert.ok(
+      events.some((e) => e.status === 'staged') && events.some((e) => e.status === 'applied'),
+      'autoApprove still records stage then apply audit trail',
+    );
+    assert.equal(
+      workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title,
+      'Inspect auto-applied',
+    );
+  } finally {
+    await app.close();
+    if (previous === undefined) delete process.env.UTOMATOR_MATOR_ENCRYPTION_KEY;
+    else process.env.UTOMATOR_MATOR_ENCRYPTION_KEY = previous;
+  }
+});
+
 test('switch current conversation does not swap YAML; restore changes plan with confirmDirty', async () => {
   const docs = new FakeDocuments('local-owner');
   const workflow = fakeWorkflowPort(makeRecord(defaultPlan('x', 'audit')));
