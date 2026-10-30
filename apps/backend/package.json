@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "biome lint --max-diagnostics=200 .",
     "lint:fix": "biome check --write .",
-    "test": "node --import tsx --test tests/core.test.mjs tests/server.test.ts tests/profile-context.test.ts tests/crafts.test.ts tests/workflow-plan.test.ts tests/growth-profile-workflow.test.ts tests/profile-planner.test.ts tests/career-store.test.ts tests/account-store.test.ts tests/session-vault.test.ts tests/connector-session.test.ts tests/activity-memory.test.ts tests/linkedin-creator-research.test.ts tests/linkedin-editorial.test.ts tests/linkedin-publishing.test.ts tests/linkedin-growth-capabilities.test.ts tests/connected-expiry.test.ts tests/database-documents.test.ts tests/tenant-isolation.test.ts",
+    "test": "node --import tsx --test tests/core.test.mjs tests/server.test.ts tests/profile-context.test.ts tests/crafts.test.ts tests/workflow-plan.test.ts tests/growth-profile-workflow.test.ts tests/profile-planner.test.ts tests/career-store.test.ts tests/account-store.test.ts tests/session-vault.test.ts tests/connector-session.test.ts tests/activity-memory.test.ts tests/linkedin-creator-research.test.ts tests/linkedin-editorial.test.ts tests/linkedin-publishing.test.ts tests/linkedin-growth-capabilities.test.ts tests/connected-expiry.test.ts tests/database-documents.test.ts tests/tenant-isolation.test.ts tests/mator-*.test.ts",
     "test:core": "node --experimental-strip-types --test tests/*.test.mjs",
     "test:integration": "node --import tsx --test tests/*.integration.test.ts",
     "db:generate": "drizzle-kit generate",

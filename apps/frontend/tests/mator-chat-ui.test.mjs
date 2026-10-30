@@ -60,3 +60,12 @@ test('dashboard shell wires mator chat chrome into the operator panel', () => {
   assert.match(shell, /attachFile/);
   assert.match(shell, /saveMarkers/);
 });
+
+test('incomplete Continue sends Continue via useMatorChat', () => {
+  const hook = readFileSync(pipeline('use-mator-chat.ts'), 'utf8');
+  assert.match(hook, /incompleteContinue\s*=\s*useCallback/);
+  assert.match(hook, /await send\(['"]Continue['"]\)/);
+  const deck = readFileSync(pipeline('voice-deck.tsx'), 'utf8');
+  assert.match(deck, /onIncompleteContinue/);
+  assert.match(deck, /data-testid="mator-incomplete-continue"/);
+});
