@@ -91,7 +91,7 @@ export type Checkpoint = {
   message: string;
 };
 export type ChatMessage = {
-  id: number;
+  id: string | number;
   sender: 'user' | 'assistant';
   text: string;
 };

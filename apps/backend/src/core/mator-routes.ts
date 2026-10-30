@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import {
   appendEvent,
   createConversation,
+  getCurrentConversationId,
   listConversations,
   listEvents,
   MATOR_CONVERSATIONS_NAMESPACE,
@@ -142,7 +143,12 @@ export function registerMatorRoutes(app: FastifyInstance, deps: MatorRouteDeps):
       const docs = await requireDocuments(deps, reply);
       if (!docs) return;
       try {
-        return listConversations(docs, request.params.workflowId);
+        const workflowId = request.params.workflowId;
+        const [items, currentId] = await Promise.all([
+          listConversations(docs, workflowId),
+          getCurrentConversationId(docs, workflowId),
+        ]);
+        return { currentId, items };
       } catch (error) {
         return jsonError(reply, httpStatusForError(error), errorMessage(error));
       }

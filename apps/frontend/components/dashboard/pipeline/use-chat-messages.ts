@@ -1,22 +1,27 @@
 'use client';
 
+/**
+ * @deprecated Prefer `useMatorChat` for server-backed conversations.
+ * Kept as a thin local-seed wrapper for tests / offline fallbacks.
+ */
 import { useState } from 'react';
 import type { ChatMessage } from './run-models';
+import { seedConversation } from './mator-chat-state';
 
 export function useChatMessages() {
   const [message, setMessage] = useState('');
-  const [conversation, setConversation] = useState<ChatMessage[]>([
-    {
-      id: 1,
-      sender: 'assistant',
-      text: 'Your automation pipeline is ready. Choose a workflow, or type a structured command. I can stage approved actions and explain the run, but no AI model is connected.',
-    },
-  ]);
+  const [conversation, setConversation] = useState<ChatMessage[]>(
+    seedConversation().map((item) => ({
+      id: item.id,
+      sender: item.sender,
+      text: item.text,
+    })),
+  );
 
   function chatNotice(text: string) {
     setConversation((previous) => [
       ...previous,
-      { id: Date.now() + Math.random(), sender: 'assistant', text },
+      { id: `local-${Date.now()}`, sender: 'assistant', text },
     ]);
   }
 

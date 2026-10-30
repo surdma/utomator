@@ -412,7 +412,12 @@ test('switch current conversation does not swap YAML; restore changes plan with 
       url: `/mator/workflows/${workflow.live.id}/conversations`,
     });
     assert.equal(list.statusCode, 200);
-    assert.ok((list.json() as unknown[]).some((c: { id: string }) => c.id === b.id));
+    const listed = list.json() as {
+      currentId: string | null;
+      items: Array<{ id: string }>;
+    };
+    assert.ok(listed.items.some((c) => c.id === b.id));
+    assert.equal(listed.currentId, a.id);
   } finally {
     await app.close();
   }

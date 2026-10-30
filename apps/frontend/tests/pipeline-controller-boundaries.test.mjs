@@ -14,6 +14,7 @@ test('pipeline coordinates dedicated controllers rather than owning run transpor
   const visual = read('pipeline/use-visual-reviews.ts');
   assert.match(page, /useRunMonitor\(/);
   assert.match(page, /useWorkflowWorkspace\(/);
+  assert.match(page, /useMatorChat\(/);
   assert.match(page, /useOperatorCommands\(/);
   assert.match(page, /useVisualReviews\(/);
   assert.match(page, /<PipelineWorkspace/);

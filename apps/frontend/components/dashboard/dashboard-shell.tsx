@@ -1,7 +1,14 @@
 'use client';
 
-import { useCallback, useState } from 'react';
-import { MessageSquareText } from 'lucide-react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
+import type { ChatMessage } from './pipeline/run-models';
+import { Mic } from 'lucide-react';
 import CraftsLibrary from '@/components/dashboard/crafts/crafts-library';
 import VisualReviewPanel from '@/components/dashboard/reviews/visual-review-panel';
 import { AutomationSettingsPage } from '@/components/dashboard/settings/owner-pages';
@@ -28,8 +35,9 @@ import {
   appendVisualReviewStep,
   reviewSection,
 } from './pipeline/visual-review-model';
-import { useChatMessages } from './pipeline/use-chat-messages';
+import { useMatorChat } from './pipeline/use-mator-chat';
 import { useOperatorCommands } from './pipeline/use-operator-commands';
+import { useVoiceSession } from './pipeline/use-voice-session';
 import { useWorkflowWorkspace } from './pipeline/use-workflow-workspace';
 import RunTrackingDialog from './pipeline/run-tracking-dialog';
 import CheckpointDialog from './pipeline/checkpoint-dialog';
@@ -74,8 +82,13 @@ export default function DashboardShell({
   const [scopeSection, setScopeSection] = useState('profile');
 
   const [runFormError, setRunFormError] = useState('');
-  const { message, setMessage, conversation, setConversation, chatNotice } =
-    useChatMessages();
+  const setConversationRef = useRef<
+    (
+      next:
+        | ChatMessage[]
+        | ((previous: ChatMessage[]) => ChatMessage[]),
+    ) => void
+  >(() => {});
   const {
     available,
     playbook,
@@ -98,7 +111,7 @@ export default function DashboardShell({
     cancelRun,
   } = useRunMonitor(
     (text) =>
-      setConversation((previous) => [
+      setConversationRef.current((previous) => [
         ...previous,
         { id: Date.now(), sender: 'assistant', text },
       ]),
@@ -166,11 +179,40 @@ export default function DashboardShell({
     activeConnector.status === 'connected';
   const PlatformIcon = platform === 'linkedin' ? LinkedInIcon : TwitterIcon;
   const platformLabel = platform === 'linkedin' ? 'LinkedIn' : 'X';
-  const { sendMessage, handleCraftCommand } = useOperatorCommands({
+  const submitRef = useRef<(text: string, source: 'voice' | 'text') => void>(
+    () => {}
+  );
+  const voice = useVoiceSession({
+    onFinal: (text) => submitRef.current(text, 'voice'),
+  });
+  const {
+    message,
+    setMessage,
+    conversation,
+    setConversation,
+    chatNotice,
+    send,
+    sendMessage: sendMatorMessage,
+    confirmStage,
+    pendingLabel: matorPendingLabel,
+    pending: matorPending,
+  } = useMatorChat({
+    workflowId: activeWorkflow?.id ?? null,
+    onSpeakHow: (text) => voice.speak(text),
+  });
+  const {
+    sendMessage: sendOperatorMessage,
+    submitUtterance,
+    confirmPending,
+    pendingLabel: operatorPendingLabel,
+    handleCraftCommand,
+  } = useOperatorCommands({
     message,
     setMessage,
     setConversation,
     chatNotice,
+    // Operator craft/memory replies may speak; Mator how TTS is separate via onSpeakHow.
+    onSpeak: voice.speak,
     platform,
     accountId: activeConnector?.id ?? null,
     selectedCraftId,
@@ -184,6 +226,55 @@ export default function DashboardShell({
     setForm,
     setSelectedNode,
   });
+  setConversationRef.current = setConversation;
+
+  const routeUtterance = useCallback(
+    (text: string, source: 'voice' | 'text') => {
+      const request = text.trim();
+      if (!request) return;
+      // Never TTS the user transcript (voice or typed).
+      if (
+        request.startsWith('/craft') ||
+        request === 'crafts' ||
+        request === 'memory' ||
+        request.startsWith('inspect')
+      ) {
+        submitUtterance(request, source);
+        return;
+      }
+      if (activeWorkflow?.id) {
+        if (source === 'text') setMessage('');
+        void send(request);
+        return;
+      }
+      submitUtterance(request, source);
+    },
+    [activeWorkflow?.id, send, setMessage, submitUtterance],
+  );
+
+  const sendMessage = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (matorPending) return;
+    if (activeWorkflow?.id && !message.trim().startsWith('/craft')) {
+      sendMatorMessage(event);
+      return;
+    }
+    sendOperatorMessage(event);
+  };
+
+  const confirmChat = () => {
+    if (matorPendingLabel) {
+      void confirmStage();
+      return;
+    }
+    confirmPending();
+  };
+
+  const pendingLabel = matorPendingLabel ?? operatorPendingLabel;
+
+  useEffect(() => {
+    submitRef.current = routeUtterance;
+  }, [routeUtterance]);
   const onConnectorSelect = useCallback(
     (account: Connector) => {
       if (account.platform !== 'linkedin') return;
@@ -525,6 +616,9 @@ export default function DashboardShell({
           onSendMessage={sendMessage}
           onAttachImage={attachImage}
           checkpoint={checkpoint}
+          voice={voice}
+          pendingLabel={pendingLabel}
+          onConfirm={confirmChat}
         />
       </div>
 
@@ -558,7 +652,7 @@ export default function DashboardShell({
             (mobileChatOpen ? ' hidden' : '')
           }
         >
-          <MessageSquareText className="size-5" />
+          <Mic className="size-5" aria-hidden="true" />
           Mator
         </button>
       )}
