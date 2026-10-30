@@ -110,6 +110,61 @@ test('two conversations, current pointer, idempotency, ordered events, setCurren
   assert.ok(messageKeys.some((k) => k.includes(`${first.id}:0`)));
 });
 
+test('concurrent append with same idempotencyKey stores one event', async () => {
+  const docs = new FakeDocuments('local-owner');
+  const conv = await createConversation(docs, 'wf-idempotency-race');
+  const input = { role: 'user' as const, kind: 'message', text: 'once' };
+
+  const [first, second] = await Promise.all([
+    appendEvent(docs, conv.id, input, { idempotencyKey: 'client-retry' }),
+    appendEvent(docs, conv.id, input, { idempotencyKey: 'client-retry' }),
+  ]);
+
+  assert.equal(first.id, second.id);
+  const events = await listEvents(docs, conv.id, {});
+  assert.equal(events.length, 1);
+  assert.equal(events.at(0)?.text, 'once');
+});
+
+test('appendEvent re-scans idempotencyKey after CAS conflict on first chunk', async () => {
+  class PeerWinsInsertDocuments extends FakeDocuments {
+    override async put<T>(namespace: string, key: string, value: T, expectedVersion: number) {
+      if (namespace === MATOR_MESSAGES_NAMESPACE && expectedVersion === 0) {
+        const peerEvent = {
+          id: 'peer-event-id',
+          conversationId: key.replace(/:0$/, ''),
+          role: 'user' as const,
+          kind: 'message',
+          text: 'peer-won',
+          idempotencyKey: 'shared-key',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        };
+        await super.put(
+          namespace,
+          key,
+          { events: [peerEvent], idempotencyKeys: { 'shared-key': peerEvent.id } },
+          0,
+        );
+        throw Error('Database document changed. Reload before saving.');
+      }
+      return super.put(namespace, key, value, expectedVersion);
+    }
+  }
+
+  const docs = new PeerWinsInsertDocuments('local-owner');
+  const conv = await createConversation(docs, 'wf-cas-retry');
+  const result = await appendEvent(
+    docs,
+    conv.id,
+    { role: 'user', kind: 'message', text: 'local-loser' },
+    { idempotencyKey: 'shared-key' },
+  );
+
+  assert.equal(result.id, 'peer-event-id');
+  assert.equal(result.text, 'peer-won');
+  assert.equal((await listEvents(docs, conv.id, {})).length, 1);
+});
+
 test('listEvents respects cursor and limit', async () => {
   const docs = new FakeDocuments('local-owner');
   const workflowId = 'wf-cursor';

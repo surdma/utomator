@@ -214,6 +214,11 @@ export async function appendEvent(
   };
 
   for (;;) {
+    if (idempotencyKey) {
+      const raced = await findEventByIdempotencyKey(docs, conversationId, idempotencyKey);
+      if (raced) return raced;
+    }
+
     const chunks = await listMessageChunks(docs, conversationId);
     const last = chunks.at(-1);
     let chunkIndex = last?.chunkIndex ?? -1;
