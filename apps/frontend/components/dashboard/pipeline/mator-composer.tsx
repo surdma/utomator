@@ -66,7 +66,7 @@ type Props = {
   message: string;
   onMessageChange: (message: string) => void;
   onSendMessage: (event: FormEvent<HTMLFormElement>) => void;
-  onAttachFile: (file?: File) => void | Promise<void>;
+  onAttachFile: (file?: File) => unknown | Promise<unknown>;
   busy?: boolean;
   incomplete?: boolean;
   onIncompleteContinue?: () => void;
@@ -182,7 +182,8 @@ export default function MatorComposer({
     };
     setPending((current) => [...current, chip]);
     try {
-      await onAttachFile(file);
+      const result = await onAttachFile(file);
+      if (result === null) throw new Error('File upload failed');
       setPending((current) =>
         current.map((item) =>
           item.id === chip.id ? { ...item, state: 'done' } : item
@@ -552,7 +553,7 @@ function Chip({
         </AttachmentDescription>
       </AttachmentContent>
       <AttachmentAction
-        aria-label={`Remove ${attachment.name}`}
+        aria-label={`Dismiss status for ${attachment.name}`}
         onClick={onRemove}
         className="size-6"
       >
