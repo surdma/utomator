@@ -111,7 +111,7 @@ type Props = {
   message: string;
   onMessageChange: (message: string) => void;
   onSendMessage: (event: FormEvent<HTMLFormElement>) => void;
-  onAttachFile: (file?: File) => void | Promise<void>;
+  onAttachFile: (file?: File) => unknown | Promise<unknown>;
   checkpoint: import('./run-models').Checkpoint | null;
   voice: VoiceSession;
   pendingLabel: string | null;
