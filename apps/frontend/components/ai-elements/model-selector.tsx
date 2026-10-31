@@ -45,13 +45,16 @@ export function ModelSelector({
           disabled={disabled}
           onClick={() => setOpen((value) => !value)}
           data-testid="mator-model-selector"
+          aria-label={current ? `Chat model: ${current.label}` : 'Choose chat model'}
           className={cn(
             'inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40',
-            compact && 'min-h-8 px-2'
+            compact && 'min-h-11 px-2'
           )}
         >
           <Sparkles className="size-3 text-teal-700" aria-hidden="true" />
-          <span className="max-w-28 truncate">{current?.label ?? 'Model'}</span>
+          <span className={cn('max-w-28 truncate', compact && 'hidden min-[420px]:inline')}>
+            {current?.label ?? 'Model'}
+          </span>
           <ChevronDown aria-hidden="true" className="size-3 text-slate-400" />
         </button>
       }

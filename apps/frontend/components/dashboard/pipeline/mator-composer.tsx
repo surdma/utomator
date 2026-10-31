@@ -66,7 +66,7 @@ type Props = {
   message: string;
   onMessageChange: (message: string) => void;
   onSendMessage: (event: FormEvent<HTMLFormElement>) => void;
-  onAttachFile: (file?: File) => void | Promise<void>;
+  onAttachFile: (file?: File) => unknown | Promise<unknown>;
   busy?: boolean;
   incomplete?: boolean;
   onIncompleteContinue?: () => void;
@@ -123,7 +123,7 @@ function iconButton(
   extra?: string
 ): string {
   return cn(
-    'inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40',
+    'inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40',
     tone === 'default' &&
       'text-slate-500 hover:bg-slate-100 hover:text-slate-800',
     tone === 'active' && 'bg-teal-700 text-white hover:bg-teal-600',
@@ -182,7 +182,8 @@ export default function MatorComposer({
     };
     setPending((current) => [...current, chip]);
     try {
-      await onAttachFile(file);
+      const result = await onAttachFile(file);
+      if (result === null) throw new Error('File upload failed');
       setPending((current) =>
         current.map((item) =>
           item.id === chip.id ? { ...item, state: 'done' } : item
@@ -439,7 +440,7 @@ export default function MatorComposer({
                 data-testid="mator-send"
                 disabled={!canSend}
                 className={cn(
-                  'inline-flex size-9 cursor-pointer items-center justify-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed',
+                  'inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed',
                   canSend
                     ? 'bg-teal-800 text-white hover:bg-teal-700'
                     : 'bg-slate-100 text-slate-300'
@@ -552,7 +553,7 @@ function Chip({
         </AttachmentDescription>
       </AttachmentContent>
       <AttachmentAction
-        aria-label={`Remove ${attachment.name}`}
+        aria-label={`Dismiss status for ${attachment.name}`}
         onClick={onRemove}
         className="size-6"
       >

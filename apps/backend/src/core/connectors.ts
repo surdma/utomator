@@ -748,6 +748,7 @@ export class ConnectorService {
           const limit = label === 'skills' ? 30 : 20;
           for (let index = start + 1; index < lines.length && chunk.length < limit; index += 1) {
             const line = lines[index];
+            if (line === undefined) continue;
             if (isHeading(line)) break;
             if (label === 'about' && /^top skills$/i.test(line)) break;
             if (/^(show all|see more|show more|… more|\.\.\. more|\d+\s+experiences?)$/i.test(line)) continue;

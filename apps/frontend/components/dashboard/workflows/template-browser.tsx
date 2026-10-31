@@ -47,6 +47,7 @@ export default function TemplateBrowser({
   const [picked, setPicked] = useState<string | null>(null);
   const [detail, setDetail] = useState<Program | null>(null);
   const [detailError, setDetailError] = useState('');
+  const [detailRefresh, setDetailRefresh] = useState(0);
   const [detailLoading, setDetailLoading] = useState(false);
   const [applying, setApplying] = useState(false);
   const [applyError, setApplyError] = useState('');
@@ -116,7 +117,7 @@ export default function TemplateBrowser({
     return () => {
       controller.abort();
     };
-  }, [selected?.id]);
+  }, [selected?.id, detailRefresh]);
 
   const currentDetail = detail?.id === selected?.id ? detail : null;
   async function loadSelected() {
@@ -254,14 +255,19 @@ export default function TemplateBrowser({
                 </div>
                 <h3 className="text-lg font-semibold leading-tight text-slate-950">{selected.title}</h3>
                 <p className="text-xs leading-5 text-slate-600">{selected.objective}</p>
-                {detailError && <p role="alert" className="text-xs text-rose-700">{detailError}</p>}
-                {detailLoading || !currentDetail ? (
+                {detailError && (
+                  <div className="flex flex-wrap items-center gap-2" role="alert">
+                    <p className="text-xs text-rose-700">{detailError}</p>
+                    <button type="button" onClick={() => setDetailRefresh((value) => value + 1)} className="min-h-11 rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700">Retry preview</button>
+                  </div>
+                )}
+                {detailLoading || (!currentDetail && !detailError) ? (
                   <div role="status" aria-label="Loading YAML pipeline preview" className="space-y-3 py-5">
                     <Skeleton className="h-6 w-1/2 rounded" />
                     <Skeleton className="h-24 w-full rounded-xl" />
                     <Skeleton className="h-24 w-full rounded-xl" />
                   </div>
-                ) : (
+                ) : currentDetail ? (
                   <div data-testid="growth-template-pipeline-preview" className="space-y-3">
                     <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
                       <GitBranch className="size-4" aria-hidden="true" />
@@ -298,7 +304,7 @@ export default function TemplateBrowser({
                       <FileCode2 className="size-4" aria-hidden="true" /> View source YAML
                     </a>
                   </div>
-                )}
+                ) : null}
                 {applyError && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-xs text-rose-800">{applyError}</p>}
               </div>
               <div className="shrink-0 border-t border-slate-200 bg-white p-3">
