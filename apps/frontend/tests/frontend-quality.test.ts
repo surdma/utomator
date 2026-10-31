@@ -378,7 +378,7 @@ test('Growth modal uses the YAML catalogue with actionable search and pipeline d
   await expect(dialog.getByTestId('growth-template-option')).toHaveCount(1);
   await expect(dialog.getByTestId('growth-template-pipeline-preview')).toBeVisible();
   await expect(dialog.getByText('Review procedure')).toBeVisible();
-  await expect(dialog.getByText('Planning only', { exact: true }).first()).toBeVisible();
+  await expect(dialog.getByText('Design only', { exact: true })).toBeVisible();
   await expect(dialog.getByRole('link', { name: 'View source YAML' })).toHaveAttribute('href', '/api/growth/templates/linkedin-analytics/yaml');
   await dialog.getByRole('searchbox', { name: 'Search Growth workflows' }).fill('not-a-template');
   await expect(dialog.getByTestId('growth-templates-empty')).toBeVisible();
