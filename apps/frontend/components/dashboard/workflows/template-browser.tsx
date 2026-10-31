@@ -87,9 +87,11 @@ export default function TemplateBrowser({
   useEffect(() => {
     if (!selected) return;
     const controller = new AbortController();
-    const frame = requestAnimationFrame(() => {
-      setDetailLoading(true);
-      setDetailError('');
+    queueMicrotask(() => {
+      if (!controller.signal.aborted) {
+        setDetailLoading(true);
+        setDetailError('');
+      }
     });
     void fetch('/api/growth/templates/' + encodeURIComponent(selected.id), {
       cache: 'no-store',
@@ -113,7 +115,6 @@ export default function TemplateBrowser({
       });
     return () => {
       controller.abort();
-      cancelAnimationFrame(frame);
     };
   }, [selected?.id]);
 
