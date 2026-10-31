@@ -162,6 +162,8 @@ export class ProfileGrowthCoordinator {
       const template = await readGrowthTemplate(templateId);
       if (!template) throw Error('Growth YAML template not found');
       const { program, yaml } = template;
+      if (program.kind === 'GrowthBlueprintWorkflow')
+        throw Error('Design-only Growth blueprints cannot execute through Runner');
       const run: ProfileGrowthRun = {
         id: randomUUID(),
         programId: program.id,

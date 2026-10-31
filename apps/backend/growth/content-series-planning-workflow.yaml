@@ -1,0 +1,34 @@
+apiVersion: "utomator.dev/v1"
+kind: "GrowthBlueprintWorkflow"
+metadata:
+  id: "linkedin-content-series-planning"
+  version: 1
+  title: "Content series planning"
+spec:
+  platform: "linkedin"
+  objective: "Use when designing a source-backed series of professional LinkedIn posts for a named audience and editorial goal."
+  requirements:
+    requirement01: "Review the owner goal and source evidence before action"
+    requirement02: "Complete actions manually when provider operations are unavailable"
+  coverage:
+    evidence: "Owner-supplied evidence and source links"
+    outcome: "Reviewed decisions, missing data and next steps"
+  pipelines:
+    discovery:
+      title: "Evidence and preparation"
+      dependsOn: "none"
+      tasks:
+        todo: "Define the series outcome"
+        procedure: "Research original material"
+        action: "Plan related episodes"
+        event: "Review publishing permissions"
+        verify: "Measure worthwhile response"
+    review:
+      title: "Review and owner handoff"
+      dependsOn: "discovery"
+      tasks:
+        todo: "Define the series outcome"
+        procedure: "Research original material"
+        action: "Plan related episodes"
+        event: "Review publishing permissions"
+        verify: "Measure worthwhile response"

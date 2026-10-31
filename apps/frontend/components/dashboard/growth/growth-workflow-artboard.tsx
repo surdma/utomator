@@ -96,6 +96,7 @@ function GraphContent({
   run: GrowthGraphRun;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const designOnly = program.kind === 'GrowthBlueprintWorkflow';
   const selected =
     program.stages.find((stage) => stage.id === selectedId) ?? null;
   const live = run?.pipelineRuns.find((item) => item.id === selectedId);
@@ -140,8 +141,12 @@ function GraphContent({
             </h3>
             <p className="text-[11px] text-slate-500">
               {selected
-                ? 'Real task chain from the validated Runner plan. Red identifies the exact failed task.'
-                : 'Select a pipeline to inspect session, authentication, actions, verification and approval tasks.'}
+                ? designOnly
+                  ? 'Owner-operated YAML tasks, procedures, actions, events and verification. These steps do not execute.'
+                  : 'Real task chain from the validated Runner plan. Red identifies the exact failed task.'
+                : designOnly
+                  ? 'Select a pipeline to inspect its planned tasks and handoffs.'
+                  : 'Select a pipeline to inspect session, authentication, actions, verification and approval tasks.'}
             </p>
           </div>
         </div>

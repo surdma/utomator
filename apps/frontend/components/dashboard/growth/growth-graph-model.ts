@@ -14,6 +14,7 @@ export type GrowthGraphStage = {
 
 export type GrowthGraphProgram = {
   id: string;
+  kind?: 'GrowthProfileWorkflow' | 'GrowthWorkflow' | 'GrowthBlueprintWorkflow';
   title: string;
   coverage: Array<{ id: string; label: string }>;
   stages: GrowthGraphStage[];

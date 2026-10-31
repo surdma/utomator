@@ -640,8 +640,8 @@ function EditorBody(props: Props) {
       <StudioDialog
         open={templateOpen}
         onDismiss={() => setTemplateOpen(false)}
-        title="Workflow template library"
-        description="Preview a pipeline and load it onto the dashboard. Connecting your account is required only when running it."
+        title="Growth workflow templates"
+        description="Browse 21 Growth workflows, inspect their YAML pipelines and steps, and distinguish supported Runner actions from planning-only procedures."
         size="wide"
         scrollMode="contained"
         testId="workflow-template-dialog"

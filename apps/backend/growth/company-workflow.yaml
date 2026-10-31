@@ -1,0 +1,34 @@
+apiVersion: "utomator.dev/v1"
+kind: "GrowthBlueprintWorkflow"
+metadata:
+  id: "linkedin-company"
+  version: 1
+  title: "Company Page & organization growth"
+spec:
+  platform: "linkedin"
+  objective: "A distinct organization identity and permission model, not a personal-profile clone."
+  requirements:
+    requirement01: "Review the owner goal and source evidence before action"
+    requirement02: "Complete actions manually when provider operations are unavailable"
+  coverage:
+    evidence: "Owner-supplied evidence and source links"
+    outcome: "Reviewed decisions, missing data and next steps"
+  pipelines:
+    discovery:
+      title: "Evidence and preparation"
+      dependsOn: "none"
+      tasks:
+        todo: "Audit Page description, tagline, logo, banner, website and call-to-action"
+        procedure: "Check Page administrator roles before each mutation"
+        action: "Coordinate founder and brand calendars without duplicate copy"
+        event: "Publish company announcements with organization-scoped permissions"
+        verify: "Review Page conversations, followers, visitors and content metrics when eligible"
+    review:
+      title: "Review and owner handoff"
+      dependsOn: "discovery"
+      tasks:
+        todo: "Coordinate founder and brand calendars without duplicate copy"
+        procedure: "Publish company announcements with organization-scoped permissions"
+        action: "Review Page conversations, followers, visitors and content metrics when eligible"
+        event: "Compare eligible competitor Page metrics and native benchmarks"
+        verify: "Plan employee advocacy, services, events, Showcase Pages and paid promotion"

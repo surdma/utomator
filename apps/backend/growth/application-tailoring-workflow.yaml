@@ -1,0 +1,34 @@
+apiVersion: "utomator.dev/v1"
+kind: "GrowthBlueprintWorkflow"
+metadata:
+  id: "linkedin-application-tailoring"
+  version: 1
+  title: "Application tailoring"
+spec:
+  platform: "linkedin"
+  objective: "Use when adapting truthful career documents to one verified vacancy without inventing results."
+  requirements:
+    requirement01: "Review the owner goal and source evidence before action"
+    requirement02: "Complete actions manually when provider operations are unavailable"
+  coverage:
+    evidence: "Owner-supplied evidence and source links"
+    outcome: "Reviewed decisions, missing data and next steps"
+  pipelines:
+    discovery:
+      title: "Evidence and preparation"
+      dependsOn: "none"
+      tasks:
+        todo: "Read actual job requirements"
+        procedure: "Match confirmed achievements"
+        action: "Tailor the resume"
+        event: "Prepare supporting materials"
+        verify: "Review for truthful submission"
+    review:
+      title: "Review and owner handoff"
+      dependsOn: "discovery"
+      tasks:
+        todo: "Read actual job requirements"
+        procedure: "Match confirmed achievements"
+        action: "Tailor the resume"
+        event: "Prepare supporting materials"
+        verify: "Review for truthful submission"

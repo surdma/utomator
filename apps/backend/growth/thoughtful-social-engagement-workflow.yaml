@@ -1,0 +1,34 @@
+apiVersion: "utomator.dev/v1"
+kind: "GrowthBlueprintWorkflow"
+metadata:
+  id: "linkedin-thoughtful-social-engagement"
+  version: 1
+  title: "Thoughtful social engagement"
+spec:
+  platform: "linkedin"
+  objective: "Use when contributing meaningfully to professional discussions without bulk engagement or unsolicited messaging."
+  requirements:
+    requirement01: "Review the owner goal and source evidence before action"
+    requirement02: "Complete actions manually when provider operations are unavailable"
+  coverage:
+    evidence: "Owner-supplied evidence and source links"
+    outcome: "Reviewed decisions, missing data and next steps"
+  pipelines:
+    discovery:
+      title: "Evidence and preparation"
+      dependsOn: "none"
+      tasks:
+        todo: "Choose contribution goal"
+        procedure: "Study accessible conversation"
+        action: "Draft useful context-aware reply"
+        event: "Review owner-operated action"
+        verify: "Track valuable dialogue"
+    review:
+      title: "Review and owner handoff"
+      dependsOn: "discovery"
+      tasks:
+        todo: "Choose contribution goal"
+        procedure: "Study accessible conversation"
+        action: "Draft useful context-aware reply"
+        event: "Review owner-operated action"
+        verify: "Track valuable dialogue"

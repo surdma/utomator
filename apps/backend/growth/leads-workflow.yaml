@@ -1,0 +1,34 @@
+apiVersion: "utomator.dev/v1"
+kind: "GrowthBlueprintWorkflow"
+metadata:
+  id: "linkedin-leads"
+  version: 1
+  title: "Lead, customer & partnership CRM"
+spec:
+  platform: "linkedin"
+  objective: "Track qualification, conversations, meetings and commercial outcomes."
+  requirements:
+    requirement01: "Review the owner goal and source evidence before action"
+    requirement02: "Complete actions manually when provider operations are unavailable"
+  coverage:
+    evidence: "Owner-supplied evidence and source links"
+    outcome: "Reviewed decisions, missing data and next steps"
+  pipelines:
+    discovery:
+      title: "Evidence and preparation"
+      dependsOn: "none"
+      tasks:
+        todo: "Define an ideal prospect or partner"
+        procedure: "Research companies and potential business needs with provenance"
+        action: "Qualify opportunities without inventing buyer intent"
+        event: "Draft proposals and discovery-call agendas"
+        verify: "Track discovered, researching, contacted, replied, qualified, meeting, proposal, won and lost"
+    review:
+      title: "Review and owner handoff"
+      dependsOn: "discovery"
+      tasks:
+        todo: "Research companies and potential business needs with provenance"
+        procedure: "Qualify opportunities without inventing buyer intent"
+        action: "Draft proposals and discovery-call agendas"
+        event: "Track discovered, researching, contacted, replied, qualified, meeting, proposal, won and lost"
+        verify: "Record do-not-contact preferences and genuine pipeline conversion"

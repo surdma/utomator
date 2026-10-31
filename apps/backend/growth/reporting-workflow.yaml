@@ -1,0 +1,34 @@
+apiVersion: "utomator.dev/v1"
+kind: "GrowthBlueprintWorkflow"
+metadata:
+  id: "linkedin-reporting"
+  version: 1
+  title: "Advanced reporting & multi-account governance"
+spec:
+  platform: "linkedin"
+  objective: "Separate personal and company ownership, maintain data boundaries and assemble decision-ready reports."
+  requirements:
+    requirement01: "Review the owner goal and source evidence before action"
+    requirement02: "Complete actions manually when provider operations are unavailable"
+  coverage:
+    evidence: "Owner-supplied evidence and source links"
+    outcome: "Reviewed decisions, missing data and next steps"
+  pipelines:
+    discovery:
+      title: "Evidence and preparation"
+      dependsOn: "none"
+      tasks:
+        todo: "Produce longitudinal multi-module growth reports"
+        procedure: "Compare personal and company indicators without mixing identity permissions"
+        action: "Export evidence, change receipts and experiment outcomes"
+        event: "Apply tenant and role-scoped access controls for teams"
+        verify: "Review connector permissions, audits and data retention"
+    review:
+      title: "Review and owner handoff"
+      dependsOn: "discovery"
+      tasks:
+        todo: "Compare personal and company indicators without mixing identity permissions"
+        procedure: "Export evidence, change receipts and experiment outcomes"
+        action: "Apply tenant and role-scoped access controls for teams"
+        event: "Review connector permissions, audits and data retention"
+        verify: "Track which operations were provider-executed versus owner-operated"

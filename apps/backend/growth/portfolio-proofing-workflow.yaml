@@ -1,0 +1,34 @@
+apiVersion: "utomator.dev/v1"
+kind: "GrowthBlueprintWorkflow"
+metadata:
+  id: "linkedin-portfolio-proofing"
+  version: 1
+  title: "Portfolio proofing"
+spec:
+  platform: "linkedin"
+  objective: "Use when turning demonstrable work into credible portfolio evidence for professional opportunities."
+  requirements:
+    requirement01: "Review the owner goal and source evidence before action"
+    requirement02: "Complete actions manually when provider operations are unavailable"
+  coverage:
+    evidence: "Owner-supplied evidence and source links"
+    outcome: "Reviewed decisions, missing data and next steps"
+  pipelines:
+    discovery:
+      title: "Evidence and preparation"
+      dependsOn: "none"
+      tasks:
+        todo: "Define proof target"
+        procedure: "Verify project contribution"
+        action: "Prepare a case study"
+        event: "Place supporting material"
+        verify: "Validate portfolio credibility"
+    review:
+      title: "Review and owner handoff"
+      dependsOn: "discovery"
+      tasks:
+        todo: "Define proof target"
+        procedure: "Verify project contribution"
+        action: "Prepare a case study"
+        event: "Place supporting material"
+        verify: "Validate portfolio credibility"

@@ -29,6 +29,7 @@ export default function GrowthProfilePipelines({
 }: Props) {
   const { endpoint, program, run, setRun, error, working, mutate } =
     useGrowthProfileWorkflow(platform, templateId, accountId);
+  const designOnly = program?.kind === 'GrowthBlueprintWorkflow';
   if (platform !== 'linkedin') return null;
   return (
     <section
@@ -70,9 +71,9 @@ export default function GrowthProfilePipelines({
       </header>
       <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
         <ShieldCheck className="mr-2 inline size-4" />
-        Connected Runner pipelines, not separate engines. Section coverage stays
-        missing until independent evidence is supplied. No automatic profile
-        edit or growth outcome is implied.
+        {designOnly
+          ? 'Planning-only YAML. These tasks, procedures, actions and events are owner-operated. No external Runner operation is registered for this blueprint.'
+          : 'Connected Runner pipelines, not separate engines. Coverage stays missing until independent evidence is supplied; no automatic edit or growth outcome is implied.'}
       </p>
       {error && (
         <p role="alert" className="text-sm text-rose-700">
@@ -80,13 +81,13 @@ export default function GrowthProfilePipelines({
         </p>
       )}
       {program && <GrowthWorkflowArtboard program={program} run={run} />}
-      {!accountId && (
+      {!designOnly && !accountId && (
         <p className="rounded-xl border border-slate-200 p-3 text-sm text-slate-600">
           Connect and verify the owner’s LinkedIn account to start this YAML
           Growth workflow.
         </p>
       )}
-      {accountId &&
+      {!designOnly && accountId &&
         (!run ||
           run.status !== 'active' ||
           ['failed', 'blocked', 'cancelled', 'unavailable'].includes(
@@ -107,7 +108,7 @@ export default function GrowthProfilePipelines({
             Start Growth workflow
           </button>
         )}
-      {run && (
+      {!designOnly && run && (
         <>
           <GrowthRunControls
             run={run}
@@ -141,15 +142,16 @@ export default function GrowthProfilePipelines({
             ))}
           </ol>
           <p className="mt-4 text-xs text-slate-500">
-            Editing actions use the existing guarded Pipeline editor separately;
-            the composed sample performs six read-only evidence workflows.
+            {designOnly
+              ? 'These YAML stages document proposed tasks and owner review. Open the source for full procedures; no provider actions can run from this blueprint.'
+              : 'Live execution remains restricted to reviewed Runner operations and independently verified evidence.'}
           </p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {program.pipelines.map((item) => (
               <button
                 key={item.id}
                 type="button"
-                disabled={busy}
+                disabled={busy || designOnly}
                 onClick={() => onSelectAction(item.action)}
                 className={
                   'rounded-lg border p-3 text-left text-xs font-semibold disabled:opacity-50 ' +

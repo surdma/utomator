@@ -1,0 +1,34 @@
+apiVersion: "utomator.dev/v1"
+kind: "GrowthBlueprintWorkflow"
+metadata:
+  id: "linkedin-outreach"
+  version: 1
+  title: "Outreach, messaging & relationships"
+spec:
+  platform: "linkedin"
+  objective: "Context-aware relationship assistance with owner-operated LinkedIn messaging."
+  requirements:
+    requirement01: "Review the owner goal and source evidence before action"
+    requirement02: "Complete actions manually when provider operations are unavailable"
+  coverage:
+    evidence: "Owner-supplied evidence and source links"
+    outcome: "Reviewed decisions, missing data and next steps"
+  pipelines:
+    discovery:
+      title: "Evidence and preparation"
+      dependsOn: "none"
+      tasks:
+        todo: "Research relevant professional context supplied or legitimately accessible"
+        procedure: "Draft non-generic connection notes, introductions and collaboration requests"
+        action: "Prepare recruiter, mentor, customer and partnership conversations"
+        event: "Summarize user-provided messages and track next steps"
+        verify: "Maintain a response queue and follow-up decisions"
+    review:
+      title: "Review and owner handoff"
+      dependsOn: "discovery"
+      tasks:
+        todo: "Prepare recruiter, mentor, customer and partnership conversations"
+        procedure: "Summarize user-provided messages and track next steps"
+        action: "Maintain a response queue and follow-up decisions"
+        event: "Offer respectful opt-out and do-not-contact controls"
+        verify: "Record meeting outcomes without falsely claiming a message was sent"

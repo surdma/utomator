@@ -1,0 +1,34 @@
+apiVersion: "utomator.dev/v1"
+kind: "GrowthBlueprintWorkflow"
+metadata:
+  id: "linkedin-job-search-research"
+  version: 1
+  title: "Job search research"
+spec:
+  platform: "linkedin"
+  objective: "Use when locating verifiable openings and assessing qualification fit before deciding which jobs to pursue."
+  requirements:
+    requirement01: "Review the owner goal and source evidence before action"
+    requirement02: "Complete actions manually when provider operations are unavailable"
+  coverage:
+    evidence: "Owner-supplied evidence and source links"
+    outcome: "Reviewed decisions, missing data and next steps"
+  pipelines:
+    discovery:
+      title: "Evidence and preparation"
+      dependsOn: "none"
+      tasks:
+        todo: "Specify career criteria"
+        procedure: "Verify fresh vacancies"
+        action: "Assess role fit"
+        event: "Prioritize opportunities"
+        verify: "Prepare the research handoff"
+    review:
+      title: "Review and owner handoff"
+      dependsOn: "discovery"
+      tasks:
+        todo: "Specify career criteria"
+        procedure: "Verify fresh vacancies"
+        action: "Assess role fit"
+        event: "Prioritize opportunities"
+        verify: "Prepare the research handoff"

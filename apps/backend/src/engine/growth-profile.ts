@@ -55,9 +55,110 @@ function entries(input: unknown, prefix: 'requirement' | '', min: number, max: n
     throw Error(`Invalid Growth profile YAML ${label}`);
   return Object.entries(input) as Array<[string, string]>;
 }
+
+/**
+ * Design-only Growth blueprints are intentionally not dispatched to Runner.
+ * Each stage has a typed, ordered set of procedures, owner tasks and events.
+ */
+function compileGrowthBlueprintYaml(parsed: Record<string, unknown>) {
+  fields(parsed.metadata, ['id', 'version', 'title'], 'blueprint metadata');
+  fields(parsed.spec, ['platform', 'objective', 'requirements', 'coverage', 'pipelines'], 'blueprint spec');
+  const metadata = parsed.metadata;
+  const spec = parsed.spec;
+  if (
+    parsed.apiVersion !== 'utomator.dev/v1' ||
+    parsed.kind !== 'GrowthBlueprintWorkflow' ||
+    typeof metadata.id !== 'string' ||
+    !/^linkedin-[a-z][a-z0-9-]{2,60}$/.test(metadata.id) ||
+    !Number.isSafeInteger(metadata.version) ||
+    (metadata.version as number) < 1 ||
+    typeof metadata.title !== 'string' ||
+    !metadata.title.trim() ||
+    metadata.title.length > 120 ||
+    spec.platform !== 'linkedin' ||
+    typeof spec.objective !== 'string' ||
+    !spec.objective.trim() ||
+    spec.objective.length > 300
+  ) throw Error('Invalid Growth blueprint identity');
+
+  const requirements = entries(spec.requirements, 'requirement', 1, 32, 'blueprint requirements');
+  const coverage = entries(spec.coverage, '', 1, 64, 'blueprint coverage');
+  if (!plain(spec.pipelines) || Object.keys(spec.pipelines).length < 1 ||
+    Object.keys(spec.pipelines).length > 8) {
+    throw Error('Growth blueprint requires 1–8 ordered pipelines');
+  }
+  const keys = Object.keys(spec.pipelines);
+  const taskKinds = ['todo', 'procedure', 'action', 'event', 'verify'] as const;
+  const stages = keys.map((id, index) => {
+    if (!/^[a-z][a-zA-Z0-9]*$/.test(id)) throw Error('Invalid Growth blueprint pipeline ID');
+    const raw = spec.pipelines[id];
+    fields(raw, ['title', 'dependsOn', 'tasks'], 'blueprint pipeline');
+    fields(raw.tasks, taskKinds, 'blueprint task types');
+    if (
+      typeof raw.title !== 'string' ||
+      !raw.title.trim() || raw.title.length > 120 ||
+      raw.dependsOn !== (index === 0 ? 'none' : keys[index - 1]) ||
+      taskKinds.some((kind) => typeof raw.tasks[kind] !== 'string' ||
+        !(raw.tasks[kind] as string).trim() || (raw.tasks[kind] as string).length > 200)
+    ) throw Error('Invalid Growth blueprint pipeline or task');
+    const steps = taskKinds.map((kind) => ({
+      id: kind,
+      kind: kind === 'procedure' ? 'assess' as const : kind === 'verify' ? 'verify' as const : 'note' as const,
+      title: raw.tasks[kind] as string,
+      message: kind + ' · Owner-operated planning step; not a provider command',
+    }));
+    const plan = {
+      version: 1 as const,
+      platform: 'linkedin' as const,
+      action: 'manual-review',
+      name: raw.title as string,
+      steps,
+      links: steps.slice(1).map((step, i) => ({ source: steps[i]!.id, target: step.id })),
+    };
+    return {
+      id,
+      title: raw.title as string,
+      action: 'manual' as const,
+      page: 'none' as const,
+      dependsOn: raw.dependsOn as string,
+      sectionIds: coverage.map(([sectionId]) => sectionId),
+      stepCount: steps.length,
+      plan,
+      execution: 'design-only' as const,
+      evidenceMode: 'owner-review-required' as const,
+    };
+  });
+  return {
+    apiVersion: 'utomator.dev/v1' as const,
+    kind: 'GrowthBlueprintWorkflow' as const,
+    id: metadata.id as string,
+    version: metadata.version as number,
+    title: metadata.title as string,
+    objective: spec.objective as string,
+    requirements: requirements.map(([id, text]) => ({ id, text })),
+    coverage: coverage.map(([id, label]) => ({
+      id, label, status: 'requires-independent-evidence' as const,
+    })),
+    pipelines: stages.map((stage) => ({
+      id: stage.id,
+      title: stage.title,
+      action: 'manual',
+      stepCount: stage.stepCount,
+      source: 'design-only' as const,
+      requiresConnectedAccount: false as const,
+      executionEndpoint: null,
+    })),
+    stages,
+    executable: false as const,
+    execution: 'design-only' as const,
+    limitation: 'This YAML defines planned or owner-operated procedures. No unsupported provider action or automated outcome is available.',
+  };
+}
+
 export function compileGrowthProfileYaml(yaml: string) {
   const parsed = parseRestrictedYaml(yaml);
   fields(parsed, ['apiVersion', 'kind', 'metadata', 'spec'], 'root');
+  if (parsed.kind === 'GrowthBlueprintWorkflow') return compileGrowthBlueprintYaml(parsed);
   fields(parsed.metadata, ['id', 'version', 'title'], 'metadata');
   fields(
     parsed.spec,

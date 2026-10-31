@@ -1,0 +1,34 @@
+apiVersion: "utomator.dev/v1"
+kind: "GrowthBlueprintWorkflow"
+metadata:
+  id: "linkedin-content"
+  version: 1
+  title: "Post creation, publishing & management"
+spec:
+  platform: "linkedin"
+  objective: "Source-aware editorial workflow from idea and approval to authorized publication and records."
+  requirements:
+    requirement01: "Review the owner goal and source evidence before action"
+    requirement02: "Complete actions manually when provider operations are unavailable"
+  coverage:
+    evidence: "Owner-supplied evidence and source links"
+    outcome: "Reviewed decisions, missing data and next steps"
+  pipelines:
+    discovery:
+      title: "Evidence and preparation"
+      dependsOn: "none"
+      tasks:
+        todo: "Research questions, trends, problems, original case studies and evidence"
+        procedure: "Draft educational, personal, project, research and hiring posts"
+        action: "Review hooks, readability, originality, citations, audience fit and calls to action"
+        event: "Save, revise, approve, reopen, archive and delete private drafts"
+        verify: "Publish approved text-only member posts with an authorized OAuth grant"
+    review:
+      title: "Review and owner handoff"
+      dependsOn: "discovery"
+      tasks:
+        todo: "Publish approved text-only member posts with an authorized OAuth grant"
+        procedure: "Track provider post URNs, failed deliveries and uncertain outcomes"
+        action: "Read, edit and delete owned provider posts only with appropriate permissions"
+        event: "Schedule, repurpose, create media assets and manage articles/polls when supported"
+        verify: "Associate post-level performance with a campaign or content pillar"

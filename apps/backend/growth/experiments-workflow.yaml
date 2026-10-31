@@ -1,0 +1,34 @@
+apiVersion: "utomator.dev/v1"
+kind: "GrowthBlueprintWorkflow"
+metadata:
+  id: "linkedin-experiments"
+  version: 1
+  title: "Growth experiments & strategy refinement"
+spec:
+  platform: "linkedin"
+  objective: "Test measurable changes with one clear hypothesis and a documented result."
+  requirements:
+    requirement01: "Review the owner goal and source evidence before action"
+    requirement02: "Complete actions manually when provider operations are unavailable"
+  coverage:
+    evidence: "Owner-supplied evidence and source links"
+    outcome: "Reviewed decisions, missing data and next steps"
+  pipelines:
+    discovery:
+      title: "Evidence and preparation"
+      dependsOn: "none"
+      tasks:
+        todo: "Record account-specific audience and professional goals"
+        procedure: "Define testable changes to headlines, pillars, formats, hooks or calls to action"
+        action: "Establish baseline, success metric and observation window before changing anything"
+        event: "Track experiment variants, source content and owner approval"
+        verify: "Analyze observed changes with caveats about causation and sample size"
+    review:
+      title: "Review and owner handoff"
+      dependsOn: "discovery"
+      tasks:
+        todo: "Define testable changes to headlines, pillars, formats, hooks or calls to action"
+        procedure: "Establish baseline, success metric and observation window before changing anything"
+        action: "Track experiment variants, source content and owner approval"
+        event: "Analyze observed changes with caveats about causation and sample size"
+        verify: "Choose a justified next iteration based on collected evidence"
