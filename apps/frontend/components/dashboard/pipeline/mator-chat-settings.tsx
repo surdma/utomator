@@ -101,7 +101,7 @@ export default function MatorChatSettings({ disabled }: Props) {
           onClick={() => setOpen((value) => !value)}
           className="block cursor-pointer rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <span className="inline-flex size-9 items-center justify-center">
+          <span className="inline-flex size-11 items-center justify-center">
             <Settings className="size-4" aria-hidden="true" />
           </span>
         </button>
