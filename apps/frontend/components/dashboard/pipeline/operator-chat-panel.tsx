@@ -1,23 +1,28 @@
 'use client';
 
-import { type FormEvent, type ReactNode } from 'react';
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import Image from 'next/image';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
-  Activity,
   AlertCircle,
-  Workflow,
-  X,
-  ImageIcon,
-  Crosshair,
-  Focus,
-  Volume2,
+  ChevronRight,
+  Image as ImageIcon,
+  MessageSquare,
   Plus,
   RotateCcw,
+  Volume2,
+  Workflow,
+  ClipboardCopy,
+  CircleCheck,
+  LoaderCircle,
 } from 'lucide-react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { useToast } from '@/components/ui/toast';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Popover } from '@/components/ui/popover';
+import { ThreadSkeleton } from '@/components/ui/skeleton';
 import {
   Message,
-  MessageAvatar,
   MessageContent,
   MessageFooter,
   MessageHeader,
@@ -31,21 +36,22 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller';
-import { Card, CardContent } from '@/components/ui/automate-card';
+import { Card } from '@/components/ui/automate-card';
+import { Confirmation } from '@/components/ai-elements/confirmation';
+import { Reasoning } from '@/components/ai-elements/reasoning';
+import { Task } from '@/components/ai-elements/task';
+import { Checkpoint } from '@/components/ai-elements/checkpoint';
+import { Queue } from '@/components/ai-elements/queue';
 import MatorClarifyForm from './mator-clarify-form';
-import { timeLabel, short } from './presentation-utils';
-import VoiceDeck from './voice-deck';
+import MatorComposer from './mator-composer';
+import MatorChatSettings from './mator-chat-settings';
+import { MarkdownReply } from './markdown-reply';
+import { getApi } from './api-client';
 import MatorAttachmentCanvas from './mator-attachment-canvas';
 import type { VoiceSession } from './use-voice-session';
-import { getApi } from './api-client';
-import { matorAttachmentFileUrl } from './mator-api';
+import type { MatorClarifyQuestion } from './mator-chat-state';
 import type { DashboardPane } from './dashboard-route';
-import type {
-  ChatMessage,
-  Event as RunEvent,
-  Review,
-  Checkpoint,
-} from './run-models';
+import type { ChatMessage, Event as RunEvent, Review } from './run-models';
 import type { Platform } from './workflow-catalog';
 import {
   findOpenClarify,
@@ -54,6 +60,20 @@ import {
   type MatorConversationSummary,
 } from './mator-chat-state';
 import type { MatorImageMarkerDto } from './mator-api';
+
+const PANE_LABEL: Partial<Record<DashboardPane, string>> = {
+  pipeline: 'Workflow',
+  crafts: 'Craft',
+  profile: 'Profile',
+  growth: 'Growth',
+  memory: 'Memory',
+  observer: 'Observer',
+  research: 'Research',
+  editorial: 'Editorial',
+  history: 'History',
+  resumes: 'Resumes',
+  settings: 'Settings',
+};
 
 type Props = {
   pane: DashboardPane;
@@ -73,7 +93,7 @@ type Props = {
   attachmentPreviews?: Record<string, string>;
   onSaveMarkers?: (
     attachmentId: string,
-    markers: MatorImageMarkerDto[],
+    markers: MatorImageMarkerDto[]
   ) => void | Promise<void>;
   reviews: Review[];
   platform: Platform;
@@ -88,7 +108,7 @@ type Props = {
   onMessageChange: (message: string) => void;
   onSendMessage: (event: FormEvent<HTMLFormElement>) => void;
   onAttachFile: (file?: File) => void | Promise<void>;
-  checkpoint: Checkpoint | null;
+  checkpoint: import('./run-models').Checkpoint | null;
   voice: VoiceSession;
   pendingLabel: string | null;
   onConfirm: () => void;
@@ -99,11 +119,12 @@ type Props = {
   chatError?: string | null;
 };
 
-function actionLabel(action: unknown): string {
-  const typed = action as { type?: string } | undefined;
-  if (typed?.type) return typed.type.replaceAll('_', ' ');
-  return 'action';
-}
+const START_SUGGESTIONS = [
+  { label: 'Audit my profile', prompt: 'Audit my profile' },
+  { label: 'Change my headline', prompt: 'Change my headline to ' },
+  { label: 'Add a skill', prompt: 'Add a skill called ' },
+  { label: 'Draft a post', prompt: 'Draft a post about ' },
+];
 
 function threadWhen(iso: string | null) {
   if (!iso) return '';
@@ -112,7 +133,12 @@ function threadWhen(iso: string | null) {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-function EventMotion({
+function clarifyCount(questions: MatorClarifyQuestion[]) {
+  return questions.length;
+}
+
+/** Mount-in-place row: transform/opacity only; disabled under reduced motion. */
+function ThreadRow({
   id,
   anchor = false,
   children,
@@ -121,10 +147,28 @@ function EventMotion({
   anchor?: boolean;
   children: ReactNode;
 }) {
+  const reduceMotion = useReducedMotion();
   return (
     <MessageScrollerItem messageId={id} scrollAnchor={anchor}>
-      {children}
+      <motion.div
+        initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.22, ease: 'easeOut' }}
+        className="min-w-0"
+      >
+        {children}
+      </motion.div>
     </MessageScrollerItem>
+  );
+}
+
+function AssistantAvatar() {
+  return (
+    <Avatar className="size-8 bg-gradient-to-br from-teal-700 to-teal-800 text-white">
+      <AvatarFallback>
+        <Workflow className="size-4" aria-hidden="true" />
+      </AvatarFallback>
+    </Avatar>
   );
 }
 
@@ -168,25 +212,65 @@ export default function OperatorChatPanel({
   chatError = null,
 }: Props) {
   const reduceMotion = useReducedMotion();
+  const toast = useToast();
+  const [threadOpen, setThreadOpen] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const showRestore = Boolean(conversationMeta?.boundRevisionId);
   const openClarify = findOpenClarify(matorEvents);
-  const threadList = [...conversations].sort((a, b) => {
-    if (a.id === conversationMeta?.id) return -1;
-    if (b.id === conversationMeta?.id) return 1;
-    return (b.updatedAt || '').localeCompare(a.updatedAt || '');
-  });
+  const clarifyQuestions = openClarify
+    ? readClarifyQuestions(openClarify.action)
+    : null;
+  const threadList = useMemo(
+    () =>
+      [...conversations].sort((a, b) => {
+        if (a.id === conversationMeta?.id) return -1;
+        if (b.id === conversationMeta?.id) return 1;
+        return (b.updatedAt || '').localeCompare(a.updatedAt || '');
+      }),
+    [conversations, conversationMeta?.id]
+  );
+  const threadTitle =
+    conversationMeta?.title || (threadList[0]?.title ?? 'New conversation');
+
+  const copyReply = async (event: MatorChatEvent) => {
+    if (!event.text) return;
+    try {
+      await navigator.clipboard.writeText(event.text);
+      setCopiedId(event.id);
+      window.setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      toast('Clipboard unavailable — select the text to copy', 'error');
+    }
+  };
 
   const markerDraft =
-    voice.interim?.trim() ||
-    (voice.listening ? '' : message.trim()) ||
-    '';
+    voice.interim?.trim() || (voice.listening ? '' : message.trim()) || '';
+
+  const attachmentFor = (event: MatorChatEvent) =>
+    event.attachmentId ? (
+      <MatorAttachmentCanvas
+        attachmentId={event.attachmentId}
+        imageSrc={
+          attachmentPreviews[event.attachmentId] ??
+          `mator preview ${event.attachmentId}`
+        }
+        markers={event.markers ?? []}
+        draftText={markerDraft}
+        interactive={Boolean(onSaveMarkers)}
+        onMarkersChange={
+          onSaveMarkers
+            ? (markers) => void onSaveMarkers(event.attachmentId!, markers)
+            : undefined
+        }
+      />
+    ) : undefined;
 
   return (
     <aside
       data-testid="automation-right-sidebar"
       className={
         (mobileChatOpen
-          ? 'fixed inset-y-0 right-0 z-50 flex w-[min(92vw,390px)] bg-[#f5f7f8] p-3 shadow-2xl'
+          ? 'fixed inset-y-0 right-0 z-50 flex w-[min(92vw,410px)] bg-[#f5f7f8] pr-1 pl-1 shadow-2xl'
           : 'hidden') +
         (showChat
           ? ' lg:static lg:flex lg:h-full lg:min-h-0 lg:w-auto lg:overflow-hidden lg:bg-transparent lg:p-0 lg:shadow-none'
@@ -196,643 +280,714 @@ export default function OperatorChatPanel({
     >
       <button
         type="button"
-        className="mb-2 inline-flex min-h-10 items-center justify-end gap-2 text-xs font-semibold text-slate-700 lg:hidden"
-        onClick={() => {
-          onClose();
-        }}
+        className="mb-2 inline-flex min-h-10 items-center justify-end gap-2 self-end px-2 text-xs font-semibold text-slate-700 lg:hidden"
+        onClick={onClose}
         aria-label="Close operator chat"
       >
-        <X className="size-4" />
         Close
+        <ChevronRight className="size-4" aria-hidden="true" />
       </button>
       <Card
         data-testid="mator-chat"
-        className="flex min-h-0 flex-1 flex-col overflow-hidden border-slate-200/70 bg-white shadow-none"
+        className="flex min-h-0 flex-1 flex-col overflow-hidden border-slate-200/80 bg-white shadow-none"
       >
-        <div className="shrink-0 px-4 pt-4 pb-3">
-          <div className="flex items-baseline justify-between gap-3">
-            <p className="text-[13px] text-slate-500">This workflow</p>
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-xs text-slate-400 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-            >
-              Hide
-            </button>
-          </div>
-          <nav
-            aria-label="Threads in this workflow"
-            data-testid="mator-conversation-switcher"
-            className="mt-3"
+        {/* ── Soft context row: thread pill · settings · hide ─────────── */}
+        <div className="flex shrink-0 items-center gap-1 border-b border-slate-100 px-2.5 pt-2.5 pb-2">
+          <Popover
+            open={threadOpen}
+            onOpenChange={setThreadOpen}
+            aria-label="Thread history"
+            contentClassName="w-[min(calc(100vw-1.5rem),21rem)]"
+            className="min-w-0 flex-1"
+            trigger={
+              <button
+                type="button"
+                aria-haspopup="dialog"
+                aria-expanded={threadOpen}
+                data-testid="mator-thread-pill"
+                onClick={() => setThreadOpen((value) => !value)}
+                className="group flex min-h-10 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-2xl bg-slate-50 px-3 py-1.5 text-left transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+              >
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-white text-teal-800 ring-1 ring-slate-200">
+                  <MessageSquare className="size-3.5" aria-hidden="true" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] leading-4 font-semibold text-slate-800">
+                    {threadTitle}
+                  </span>
+                  <span className="mt-0.5 flex items-center gap-1.5">
+                    <Badge tone="outline" size="xs">
+                      {PANE_LABEL[pane] ?? 'Thread'}
+                    </Badge>
+                    <span className="truncate text-[10px] text-slate-400">
+                      {threadList.length > 0
+                        ? `${threadList.length} thread${threadList.length === 1 ? '' : 's'}`
+                        : 'No earlier threads'}
+                    </span>
+                  </span>
+                </span>
+              </button>
+            }
           >
-            {threadList.length === 0 ? (
-              <p className="px-2.5 text-sm text-slate-400">No threads yet</p>
-            ) : (
-              <ul className="flex max-h-36 flex-col gap-0.5 overflow-y-auto">
-                <AnimatePresence initial={false}>
+            <nav
+              aria-label="Threads in this workflow"
+              data-testid="mator-conversation-switcher"
+              className="flex flex-col"
+            >
+              <div className="flex items-center justify-between px-2 pt-1 pb-1.5">
+                <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                  This workflow
+                </span>
+                <button
+                  type="button"
+                  data-testid="mator-new-conversation"
+                  disabled={!onNewConversation || busy}
+                  onClick={() => {
+                    onNewConversation?.();
+                    setThreadOpen(false);
+                  }}
+                  className="inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-full bg-slate-900 px-2.5 text-[11px] font-bold text-white transition-colors hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Plus className="size-3" aria-hidden="true" />
+                  New chat
+                </button>
+              </div>
+              {threadList.length === 0 ? (
+                <p className="px-2 pt-1 pb-2 text-xs text-slate-400">
+                  No threads yet — start the first one below.
+                </p>
+              ) : (
+                <ul className="flex max-h-56 flex-col gap-0.5 overflow-y-auto">
                   {threadList.map((item) => {
                     const current = item.id === conversationMeta?.id;
                     return (
-                      <motion.li
-                        key={item.id}
-                        initial={reduceMotion ? false : { opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: reduceMotion ? 0 : 0.18 }}
-                      >
+                      <li key={item.id}>
                         <button
                           type="button"
                           aria-current={current ? 'true' : undefined}
                           disabled={!onSwitchConversation || current}
-                          onClick={() => onSwitchConversation?.(item.id)}
+                          onClick={() => {
+                            onSwitchConversation?.(item.id);
+                            setThreadOpen(false);
+                          }}
                           className={
-                            'flex w-full items-baseline justify-between gap-3 rounded-lg px-2.5 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:opacity-100 ' +
+                            'flex w-full items-baseline justify-between gap-3 rounded-xl px-2.5 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:opacity-100 motion-reduce:transition-none ' +
                             (current
-                              ? 'bg-slate-50 text-slate-800'
+                              ? 'bg-slate-100 text-slate-900'
                               : 'text-slate-500 hover:bg-slate-50/80 hover:text-slate-700')
                           }
                         >
-                          <span className="truncate text-sm">
-                            {item.title || 'Conversation'}
+                          <span className="min-w-0 flex-1 space-y-0.5">
+                            <span className="block truncate text-[13px] font-medium">
+                              {item.title || 'Conversation'}
+                            </span>
+                            <span className="block text-[10px] text-slate-400">
+                              {threadWhen(item.createdAt)}
+                            </span>
                           </span>
-                          <span className="shrink-0 text-[11px] text-slate-400">
-                            {current ? 'Now' : threadWhen(item.updatedAt)}
-                          </span>
+                          {current ? (
+                            <Badge tone="teal" size="xs">
+                              Now
+                            </Badge>
+                          ) : (
+                            <span className="shrink-0 text-[11px] text-slate-400">
+                              {threadWhen(item.updatedAt)}
+                            </span>
+                          )}
                         </button>
-                      </motion.li>
+                      </li>
                     );
                   })}
-                </AnimatePresence>
-              </ul>
-            )}
-          </nav>
-          <div className="mt-2 flex flex-wrap items-center gap-3 px-2.5">
+                </ul>
+              )}
+              {showRestore && (
+                <div className="border-t border-slate-100 px-2 pt-2 pb-1">
+                  <button
+                    type="button"
+                    data-testid="mator-restore-pipeline"
+                    disabled={!onRestorePipeline || busy}
+                    onClick={() => {
+                      onRestorePipeline?.();
+                      setThreadOpen(false);
+                    }}
+                    className="inline-flex min-h-9 w-full cursor-pointer items-center gap-1.5 rounded-xl px-2 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <RotateCcw className="size-3.5" aria-hidden="true" />
+                    Restore pipeline
+                  </button>
+                </div>
+              )}
+            </nav>
+          </Popover>
+          <MatorChatSettings disabled={busy} />
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Hide Mator chat"
+            data-testid="mator-hide"
+            className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+          >
+            <ChevronRight className="size-4" aria-hidden="true" />
+          </button>
+        </div>
+
+        {pane === 'growth' && selectedCraftSlug && (
+          <p
+            data-testid="active-craft-context"
+            className="shrink-0 px-4 pt-1.5 pb-1.5 text-[11px] text-slate-500"
+          >
+            Craft{' '}
             <button
               type="button"
-              data-testid="mator-new-conversation"
-              disabled={!onNewConversation || busy}
-              onClick={() => onNewConversation?.()}
-              className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:opacity-40"
+              onClick={() => onMessageChange('/craft help')}
+              className="cursor-pointer font-mono text-slate-700 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
             >
-              <Plus className="size-3.5" aria-hidden="true" />
-              New thread
+              {selectedCraftSlug}
             </button>
-            {showRestore && (
-              <button
-                type="button"
-                data-testid="mator-restore-pipeline"
-                disabled={!onRestorePipeline || busy}
-                onClick={() => onRestorePipeline?.()}
-                className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:opacity-40"
-              >
-                <RotateCcw className="size-3.5" aria-hidden="true" />
-                Restore pipeline
-              </button>
-            )}
-          </div>
-        </div>
-        <CardContent className="flex min-h-0 flex-1 flex-col gap-0 px-0 pt-0 pb-0">
-          {pane === 'growth' && selectedCraftSlug && (
-            <p
-              data-testid="active-craft-context"
-              className="px-4 pb-1 text-xs text-slate-500"
-            >
-              Craft{' '}
-              <button
-                type="button"
-                onClick={() => onMessageChange('/craft help')}
-                className="font-mono text-slate-700 hover:underline"
-              >
-                {selectedCraftSlug}
-              </button>
-            </p>
-          )}
-          <MessageScrollerProvider
-            autoScroll
-            defaultScrollPosition="end"
-          >
-            <MessageScroller className="min-h-0 flex-1">
-              <MessageScrollerViewport aria-label="Thread history">
-                <MessageScrollerContent className="gap-5 px-4 py-3">
-              {matorEvents.map((event) => {
-                if (event.kind === 'message' && event.role === 'user') {
-                  return (
-                    <EventMotion key={event.id} id={event.id} anchor>
-                      <Message align="end">
-                        <MessageAvatar className="bg-slate-800">
-                          ME
-                        </MessageAvatar>
-                        <MessageContent>
-                          <MessageHeader>You</MessageHeader>
-                          <Bubble muted>
-                            <BubbleContent>
-                              {event.text || 'Attachment'}
-                            </BubbleContent>
-                          </Bubble>
-                          {event.attachmentId && (
-                            <div className="mt-2">
-                              <MatorAttachmentCanvas
-                                attachmentId={event.attachmentId}
-                                imageSrc={
-                                  attachmentPreviews[event.attachmentId] ??
-                                  matorAttachmentFileUrl(event.attachmentId)
-                                }
-                                markers={event.markers ?? []}
-                                draftText={markerDraft}
-                                onMarkersChange={
-                                  onSaveMarkers
-                                    ? (markers) =>
-                                        void onSaveMarkers(
-                                          event.attachmentId!,
-                                          markers,
-                                        )
-                                    : undefined
-                                }
-                              />
-                            </div>
-                          )}
-                        </MessageContent>
-                      </Message>
-                    </EventMotion>
-                  );
-                }
+          </p>
+        )}
 
-                if (event.kind === 'how' || event.kind === 'message') {
-                  return (
-                    <EventMotion key={event.id} id={event.id}>
-                      <Message>
-                        <MessageAvatar className="bg-teal-700">
-                          <Workflow className="size-4" />
-                        </MessageAvatar>
-                        <MessageContent>
-                          <MessageHeader>
-                            {event.kind === 'how'
-                              ? 'How · Mator'
-                              : 'Utomator · Mator'}
-                          </MessageHeader>
-                          <Bubble>
-                            <BubbleContent>
-                              {event.text || '…'}
-                            </BubbleContent>
-                          </Bubble>
-                          {event.kind === 'how' && event.text && (
-                            <MessageFooter>
-                              <button
-                                type="button"
-                                onClick={() => voice.speak(event.text!, true)}
-                                aria-label="Hear this reply"
-                                className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-lg px-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-                              >
-                                <Volume2
-                                  className="size-4"
+        {/* ── Transcript ─────────────────────────────────────────────── */}
+        <MessageScrollerProvider autoScroll defaultScrollPosition="end">
+          <MessageScroller>
+            <MessageScrollerViewport aria-label="Thread history">
+              <MessageScrollerContent className="gap-5 px-3 py-3">
+                {matorEvents.length === 0 ? (
+                  <ThreadSkeleton />
+                ) : (
+                  matorEvents.map((event) => {
+                    if (event.kind === 'message' && event.role === 'user') {
+                      return (
+                        <ThreadRow key={event.id} id={event.id} anchor>
+                          <Message align="end">
+                            <MessageContent className="max-w-[85%] min-w-0 flex-0">
+                              <MessageHeader>You</MessageHeader>
+                              <Bubble variant="muted" className="break-words">
+                                <BubbleContent>
+                                  {event.text || 'Attachment'}
+                                </BubbleContent>
+                              </Bubble>
+                              {event.attachmentId && (
+                                <div className="mt-2">
+                                  <MatorAttachmentCanvas
+                                    attachmentId={event.attachmentId}
+                                    imageSrc={
+                                      attachmentPreviews[event.attachmentId] ??
+                                      ''
+                                    }
+                                    markers={event.markers ?? []}
+                                    draftText={markerDraft}
+                                    onMarkersChange={
+                                      onSaveMarkers
+                                        ? (markers) =>
+                                            void onSaveMarkers(
+                                              event.attachmentId!,
+                                              markers
+                                            )
+                                        : undefined
+                                    }
+                                  />
+                                </div>
+                              )}
+                            </MessageContent>
+                            <Avatar className="bg-slate-800 text-white">
+                              <AvatarFallback>ME</AvatarFallback>
+                            </Avatar>
+                          </Message>
+                        </ThreadRow>
+                      );
+                    }
+
+                    if (event.kind === 'how') {
+                      return (
+                        <ThreadRow key={event.id} id={event.id}>
+                          {!event.text ? null : (
+                            <Reasoning
+                              title="Guidance from Mator"
+                              content={event.text}
+                              speakLabel="Read this guidance aloud"
+                              onSpeak={() => voice.speak(event.text!, true)}
+                            />
+                          )}
+                        </ThreadRow>
+                      );
+                    }
+
+                    if (event.kind === 'message') {
+                      return (
+                        <ThreadRow key={event.id} id={event.id}>
+                          <Message>
+                            <AssistantAvatar />
+                            <MessageContent className="min-w-0">
+                              <MessageHeader>Utomator · Mator</MessageHeader>
+                              <MarkdownReply text={event.text ?? ''} />
+                              <MessageFooter className="mt-1.5 flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => void copyReply(event)}
+                                  aria-label="Copy reply"
+                                  className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-lg px-1.5 text-[11px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                                >
+                                  {copiedId === event.id ? (
+                                    <CircleCheck
+                                      className="size-3.5"
+                                      aria-hidden="true"
+                                    />
+                                  ) : (
+                                    <ClipboardCopy
+                                      className="size-3.5"
+                                      aria-hidden="true"
+                                    />
+                                  )}
+                                  {copiedId === event.id ? 'Copied' : 'Copy'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    voice.speak(event.text ?? '', true)
+                                  }
+                                  aria-label="Hear this reply"
+                                  className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-lg px-1.5 text-[11px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                                >
+                                  <Volume2
+                                    className="size-3.5"
+                                    aria-hidden="true"
+                                  />
+                                  Hear this
+                                </button>
+                              </MessageFooter>
+                            </MessageContent>
+                          </Message>
+                        </ThreadRow>
+                      );
+                    }
+
+                    if (event.kind === 'clarify') {
+                      const questions = readClarifyQuestions(event.action);
+                      const open = openClarify?.id === event.id && questions;
+                      return (
+                        <ThreadRow key={event.id} id={event.id}>
+                          <Message>
+                            <Avatar className="bg-teal-50 text-teal-800 ring-1 ring-teal-200">
+                              <AvatarFallback>
+                                <Workflow
+                                  className="size-3.5"
                                   aria-hidden="true"
                                 />
-                                Hear this
-                              </button>
-                            </MessageFooter>
-                          )}
-                        </MessageContent>
-                      </Message>
-                    </EventMotion>
-                  );
-                }
-
-                if (event.kind === 'clarify') {
-                  const questions = readClarifyQuestions(event.action);
-                  const open = openClarify?.id === event.id && questions;
-                  return (
-                    <EventMotion key={event.id} id={event.id}>
-                      <Message>
-                        <MessageAvatar className="bg-teal-50 text-teal-800">
-                          <Workflow className="size-3.5" />
-                        </MessageAvatar>
-                        <MessageContent>
-                          <MessageHeader>Mator</MessageHeader>
-                          {event.text ? (
-                            <Bubble variant="outline">
-                              <BubbleContent>{event.text}</BubbleContent>
-                            </Bubble>
-                          ) : null}
-                          {open ? (
-                            <MatorClarifyForm
-                              questions={questions}
-                              disabled={busy}
-                              onSubmit={(text) => onSendText?.(text)}
-                            />
-                          ) : null}
-                        </MessageContent>
-                      </Message>
-                    </EventMotion>
-                  );
-                }
-
-                if (event.status === 'staged' || event.action) {
-                  const staged = event.status === 'staged';
-                  return (
-                    <EventMotion key={event.id} id={event.id}>
-                      <motion.div
-                        layout={!reduceMotion}
-                        className={`rounded-xl border p-3 ${
-                          staged
-                            ? 'border-orange-200 bg-orange-50/80'
-                            : event.status === 'rejected'
-                              ? 'border-rose-200 bg-rose-50/60'
-                              : event.status === 'incomplete'
-                                ? 'border-amber-200 bg-amber-50/70'
-                                : 'border-teal-200 bg-teal-50/60'
-                        }`}
-                      >
-                        <p className="text-[10px] font-bold tracking-wider text-slate-600 uppercase">
-                          {event.status ?? 'action'} ·{' '}
-                          {actionLabel(event.action)}
-                        </p>
-                        {event.text && (
-                          <p className="mt-1 text-sm leading-5 text-slate-800">
-                            {event.text}
-                          </p>
-                        )}
-                        {event.attachmentId && (
-                          <div className="mt-2">
-                            <MatorAttachmentCanvas
-                              attachmentId={event.attachmentId}
-                              imageSrc={
-                                attachmentPreviews[event.attachmentId] ??
-                                matorAttachmentFileUrl(event.attachmentId)
-                              }
-                              markers={event.markers ?? []}
-                              draftText={markerDraft}
-                              interactive={Boolean(onSaveMarkers)}
-                              onMarkersChange={
-                                onSaveMarkers
-                                  ? (markers) =>
-                                      void onSaveMarkers(
-                                        event.attachmentId!,
-                                        markers,
-                                      )
-                                  : undefined
-                              }
-                            />
-                          </div>
-                        )}
-                        {staged && (
-                          <p className="mt-2 text-[11px] font-semibold text-orange-900">
-                            Confirm or reject below to apply this change.
-                          </p>
-                        )}
-                      </motion.div>
-                    </EventMotion>
-                  );
-                }
-
-                if (event.attachmentId) {
-                  return (
-                    <EventMotion key={event.id} id={event.id}>
-                      <MatorAttachmentCanvas
-                        attachmentId={event.attachmentId}
-                        imageSrc={
-                          attachmentPreviews[event.attachmentId] ??
-                          matorAttachmentFileUrl(event.attachmentId)
-                        }
-                        markers={event.markers ?? []}
-                        draftText={markerDraft}
-                        onMarkersChange={
-                          onSaveMarkers
-                            ? (markers) =>
-                                void onSaveMarkers(
-                                  event.attachmentId!,
-                                  markers,
-                                )
-                            : undefined
-                        }
-                      />
-                    </EventMotion>
-                  );
-                }
-
-                if (event.text) {
-                  return (
-                    <EventMotion key={event.id} id={event.id}>
-                      <Message>
-                        <MessageAvatar
-                          className={
-                            event.status === 'error'
-                              ? 'bg-rose-700'
-                              : 'bg-slate-700'
-                          }
-                        >
-                          {event.status === 'error' ? (
-                            <AlertCircle className="size-4" />
-                          ) : (
-                            <Activity className="size-4" />
-                          )}
-                        </MessageAvatar>
-                        <MessageContent>
-                          <MessageHeader>
-                            {(event.kind || 'event').toUpperCase()}
-                          </MessageHeader>
-                          <Bubble>
-                            <BubbleContent>{event.text}</BubbleContent>
-                          </Bubble>
-                        </MessageContent>
-                      </Message>
-                    </EventMotion>
-                  );
-                }
-
-                return null;
-              })}
-
-            {matorEvents.length === 0 &&
-              conversation.map((item) => (
-                <MessageScrollerItem
-                  key={item.id}
-                  messageId={String(item.id)}
-                  scrollAnchor={item.sender === 'user'}
-                >
-                <Message
-                  align={item.sender === 'user' ? 'end' : 'start'}
-                >
-                  <MessageAvatar
-                    className={
-                      item.sender === 'assistant' ? 'bg-teal-700' : 'bg-slate-800'
-                    }
-                  >
-                    {item.sender === 'assistant' ? (
-                      <Workflow className="size-4" />
-                    ) : (
-                      'ME'
-                    )}
-                  </MessageAvatar>
-                  <MessageContent>
-                    <MessageHeader>
-                      {item.sender === 'assistant'
-                        ? 'Utomator · Local assistant'
-                        : 'You'}
-                    </MessageHeader>
-                    <Bubble muted={item.sender === 'user'}>
-                      <BubbleContent>{item.text}</BubbleContent>
-                    </Bubble>
-                    {item.sender === 'assistant' && (
-                      <MessageFooter>
-                        <button
-                          type="button"
-                          onClick={() => voice.speak(item.text, true)}
-                          aria-label="Hear this reply"
-                          className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-lg px-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-                        >
-                          <Volume2 className="size-4" aria-hidden="true" />
-                          Hear this
-                        </button>
-                      </MessageFooter>
-                    )}
-                  </MessageContent>
-                </Message>
-                </MessageScrollerItem>
-              ))}
-
-            {events.map((event) => (
-              <MessageScrollerItem
-                key={'event-' + event.id}
-                messageId={'event-' + event.id}
-              >
-              <Message>
-                <MessageAvatar
-                  className={
-                    event.kind === 'error' ? 'bg-rose-700' : 'bg-slate-700'
-                  }
-                >
-                  {event.kind === 'error' ? (
-                    <AlertCircle className="size-4" />
-                  ) : (
-                    <Activity className="size-4" />
-                  )}
-                </MessageAvatar>
-                <MessageContent>
-                  <MessageHeader>
-                    {event.kind.toUpperCase()} · {timeLabel(event.time)}
-                  </MessageHeader>
-                  <Bubble>
-                    <BubbleContent>{event.message}</BubbleContent>
-                  </Bubble>
-                  {event.kind === 'screenshot' &&
-                    typeof event.details?.fileName === 'string' &&
-                    /^[a-zA-Z0-9_-]+\.png$/.test(event.details.fileName) &&
-                    event.runId === currentRunId && (
-                      <button
-                        data-testid="workflow-screenshot"
-                        type="button"
-                        onClick={() =>
-                          onAnnotateCapture(
-                            event.runId,
-                            event.details!.fileName!
-                          )
-                        }
-                        data-evidence-url={getApi(
-                          'runs/' +
-                            event.runId +
-                            '/evidence/' +
-                            event.details.fileName
-                        )}
-                        className="mt-2 block w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-left hover:border-teal-400 focus-visible:outline-2 focus-visible:outline-teal-600"
-                        aria-label={
-                          'Annotate captured image: ' + event.details.fileName
-                        }
-                      >
-                        <Image
-                          unoptimized
-                          src={getApi(
-                            'runs/' +
-                              event.runId +
-                              '/evidence/' +
-                              event.details.fileName
-                          )}
-                          width={640}
-                          height={400}
-                          alt={'Actual browser capture: ' + event.message}
-                          className="h-auto w-full object-contain"
-                        />
-                        <div className="flex items-center gap-2 px-3 py-2 text-[11px] text-slate-500">
-                          <ImageIcon className="size-3.5" />
-                          {event.details.fileName} · Click image to annotate
-                        </div>
-                      </button>
-                    )}
-                  <MessageFooter>
-                    Event {event.id} · Run {short(event.runId)}
-                  </MessageFooter>
-                </MessageContent>
-              </Message>
-              </MessageScrollerItem>
-            ))}
-            {reviews
-              .filter(
-                (r) =>
-                  r.platform === platform &&
-                  r.handle.toLowerCase() === normalizedHandle.toLowerCase()
-              )
-              .map((review) => (
-                <MessageScrollerItem
-                  key={'review-' + review.id}
-                  messageId={'review-' + review.id}
-                >
-                <Message>
-                  <MessageAvatar className="bg-teal-800">
-                    <Crosshair className="size-4" />
-                  </MessageAvatar>
-                  <MessageContent>
-                    <MessageHeader>
-                      Saved visual review · {review.nodeId} node
-                    </MessageHeader>
-                    <div
-                      data-testid="saved-visual-review"
-                      className="overflow-hidden rounded-xl border border-teal-200 bg-teal-50/40"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => onEditReview(review)}
-                        aria-label={'Edit annotated image ' + review.id}
-                        className="relative block w-full overflow-hidden bg-slate-50 text-left"
-                      >
-                        <Image
-                          unoptimized
-                          src={reviewImage(review)}
-                          width={640}
-                          height={400}
-                          alt={'Annotated ' + review.pageUrl}
-                          className="pointer-events-none h-auto w-full"
-                        />
-                        <svg
-                          aria-hidden="true"
-                          viewBox="0 0 1000 1000"
-                          preserveAspectRatio="none"
-                          className="pointer-events-none absolute inset-0 size-full"
-                        >
-                          {(review.annotations ?? []).map((a, index) => (
-                            <g key={a.id}>
-                              {a.shape === 'freehand' ? (
-                                <polyline
-                                  fill="none"
-                                  stroke="#0f766e"
-                                  strokeWidth="5"
-                                  points={(a.points ?? [])
-                                    .map((p) => p.x * 1000 + ',' + p.y * 1000)
-                                    .join(' ')}
-                                />
-                              ) : a.shape === 'ellipse' ? (
-                                <ellipse
-                                  cx={(a.x + a.width / 2) * 1000}
-                                  cy={(a.y + a.height / 2) * 1000}
-                                  rx={a.width * 500}
-                                  ry={a.height * 500}
-                                  fill="#0f766e"
-                                  fillOpacity=".08"
-                                  stroke="#0f766e"
-                                  strokeWidth="4"
-                                />
-                              ) : (
-                                <rect
-                                  x={a.x * 1000}
-                                  y={a.y * 1000}
-                                  width={a.width * 1000}
-                                  height={a.height * 1000}
-                                  fill="#0f766e"
-                                  fillOpacity=".08"
-                                  stroke="#0f766e"
-                                  strokeWidth="4"
-                                />
-                              )}
-                              <text
-                                x={a.x * 1000 + 10}
-                                y={a.y * 1000 + 23}
-                                fill="#0f766e"
-                                fontSize="22"
-                                fontWeight="bold"
-                              >
-                                {index + 1}
-                              </text>
-                            </g>
-                          ))}
-                        </svg>
-                        <span className="block border-t border-teal-100 px-3 py-2 text-[11px] font-bold text-teal-800">
-                          Open annotation editor
-                        </span>
-                      </button>
-                      <div className="space-y-1 p-3 text-[11px]">
-                        <p className="font-bold text-teal-900">
-                          {review.regions.length} marked region(s)
-                        </p>
-                        {review.regions.map((r, i) => (
-                          <p key={i} className="text-slate-600">
-                            {i + 1}. {r.label}: {r.request}
-                          </p>
-                        ))}
-                        <p className="font-mono text-[10px] break-all text-slate-500">
-                          {review.pageUrl}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => onInspectReview(review)}
-                          className="mt-2 inline-flex gap-2 font-bold text-teal-800 hover:underline"
-                        >
-                          <Focus className="size-3.5" />
-                          Inspect this exact page on the artboard
-                        </button>
-                        {review.annotations?.length ? (
-                          <>
-                            <div className="mt-3 space-y-1 border-t border-teal-100 pt-3">
-                              {review.annotations.map((a, index) => (
-                                <p
-                                  key={a.id}
-                                  className="text-[11px] text-slate-700"
+                              </AvatarFallback>
+                            </Avatar>
+                            <MessageContent className="min-w-0">
+                              <MessageHeader>Mator</MessageHeader>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <Badge
+                                  tone={open ? 'orange' : 'default'}
+                                  size="xs"
                                 >
-                                  <strong>
-                                    {index + 1}. {a.action.replaceAll('-', ' ')}
-                                  </strong>
-                                  {a.comment ? ' · ' + a.comment : ''}
-                                </p>
-                              ))}
+                                  {open
+                                    ? `Answers needed · ${clarifyCount(questions!)} question${clarifyCount(questions!) === 1 ? '' : 's'}`
+                                    : 'Clarified'}
+                                </Badge>
+                              </div>
+                              {event.text && (
+                                <Bubble variant="outline" className="mt-1">
+                                  <BubbleContent>{event.text}</BubbleContent>
+                                </Bubble>
+                              )}
+                            </MessageContent>
+                          </Message>
+                        </ThreadRow>
+                      );
+                    }
+
+                    if (event.status || event.action) {
+                      return (
+                        <ThreadRow key={event.id} id={event.id}>
+                          <Confirmation
+                            status={
+                              (event.status as
+                                | 'staged'
+                                | 'applied'
+                                | 'rejected'
+                                | 'incomplete'
+                                | 'error'
+                                | undefined) ?? 'staged'
+                            }
+                            action={
+                              event.action &&
+                              typeof event.action === 'object' &&
+                              'type' in event.action
+                                ? String(
+                                    (event.action as { type: unknown }).type
+                                  ).replaceAll('_', ' ')
+                                : event.text
+                                  ? event.text.slice(0, 48)
+                                  : null
+                            }
+                            text={event.action ? event.text : null}
+                            attachment={attachmentFor(event)}
+                            onConfirm={onConfirm}
+                            onReject={onReject}
+                            busy={busy}
+                          />
+                        </ThreadRow>
+                      );
+                    }
+
+                    if (event.attachmentId) {
+                      return (
+                        <ThreadRow key={event.id} id={event.id}>
+                          <MatorAttachmentCanvas
+                            attachmentId={event.attachmentId}
+                            imageSrc={
+                              attachmentPreviews[event.attachmentId] ?? ''
+                            }
+                            markers={event.markers ?? []}
+                            draftText={markerDraft}
+                            onMarkersChange={
+                              onSaveMarkers
+                                ? (markers) =>
+                                    void onSaveMarkers(
+                                      event.attachmentId!,
+                                      markers
+                                    )
+                                : undefined
+                            }
+                          />
+                        </ThreadRow>
+                      );
+                    }
+
+                    if (event.text) {
+                      return (
+                        <ThreadRow key={event.id} id={event.id}>
+                          <Message>
+                            <Avatar
+                              className={
+                                event.status === 'error'
+                                  ? 'bg-rose-700 text-white'
+                                  : 'bg-slate-700 text-white'
+                              }
+                            >
+                              <AvatarFallback>
+                                {event.status === 'error' ? (
+                                  <AlertCircle
+                                    className="size-4"
+                                    aria-hidden="true"
+                                  />
+                                ) : (
+                                  <Workflow
+                                    className="size-4"
+                                    aria-hidden="true"
+                                  />
+                                )}
+                              </AvatarFallback>
+                            </Avatar>
+                            <MessageContent className="min-w-0">
+                              <MessageHeader>
+                                {(event.kind || 'event').toUpperCase()}
+                              </MessageHeader>
+                              <Bubble>
+                                <BubbleContent>{event.text}</BubbleContent>
+                              </Bubble>
+                            </MessageContent>
+                          </Message>
+                        </ThreadRow>
+                      );
+                    }
+
+                    return null;
+                  })
+                )}
+
+                {/* Legacy local conversation view (belt: kept for hook parity) */}
+                {matorEvents.length === 0 &&
+                  conversation
+                    .filter((item) => item.sender === 'user')
+                    .map((item) => (
+                      <MessageScrollerItem
+                        key={item.id}
+                        messageId={String(item.id)}
+                        scrollAnchor={item.sender === 'user'}
+                      >
+                        <Message align="end">
+                          <MessageContent className="max-w-[85%] min-w-0 flex-0">
+                            <Bubble variant="muted">
+                              <BubbleContent>{item.text}</BubbleContent>
+                            </Bubble>
+                          </MessageContent>
+                          <Avatar className="bg-slate-800 text-white">
+                            <AvatarFallback>ME</AvatarFallback>
+                          </Avatar>
+                        </Message>
+                      </MessageScrollerItem>
+                    ))}
+
+                {(() => {
+                  const rows: ReactNode[] = [];
+                  let lastRun: string | null = null;
+                  let steps: RunEvent[] = [];
+                  const flush = (key: string) => {
+                    if (steps.length === 0) return;
+                    const runId = steps[0]?.runId ?? null;
+                    rows.push(
+                      <Checkpoint
+                        key={`checkpoint-${key}`}
+                        label="Run segment"
+                        runId={runId}
+                        time={steps[0]?.time ?? null}
+                      />
+                    );
+                    // Screenshot evidence stays clickable for the current run.
+                    const capture = steps.find(
+                      (event) =>
+                        event.kind === 'screenshot' &&
+                        typeof event.details?.fileName === 'string' &&
+                        /^[a-zA-Z0-9_-]+\.png$/.test(event.details.fileName) &&
+                        event.runId === currentRunId
+                    );
+                    rows.push(
+                      <MessageScrollerItem key={`task-${key}`}>
+                        <TaskBlock
+                          steps={steps}
+                          evidence={
+                            capture ? (
+                              <ScreenshotEvidence
+                                event={capture}
+                                onAnnotate={onAnnotateCapture}
+                              />
+                            ) : null
+                          }
+                        />
+                      </MessageScrollerItem>
+                    );
+                    steps = [];
+                  };
+                  for (const event of events) {
+                    if (lastRun !== null && event.runId !== lastRun) {
+                      flush(String(event.id));
+                    }
+                    lastRun = event.runId;
+                    steps.push(event);
+                  }
+                  flush(String(lastRun ?? 'events'));
+                  return rows;
+                })()}
+
+                {reviews
+                  .filter(
+                    (r) =>
+                      r.platform === platform &&
+                      r.handle.toLowerCase() === normalizedHandle.toLowerCase()
+                  )
+                  .map((review) => (
+                    <MessageScrollerItem
+                      key={`review-${review.id}`}
+                      messageId={`review-${review.id}`}
+                    >
+                      <Message>
+                        <Avatar className="bg-teal-800 text-white">
+                          <AvatarFallback>
+                            <Workflow className="size-4" aria-hidden="true" />
+                          </AvatarFallback>
+                        </Avatar>
+                        <MessageContent className="min-w-0">
+                          <MessageHeader>
+                            Saved visual review · {review.nodeId} node
+                          </MessageHeader>
+                          <div
+                            data-testid="saved-visual-review"
+                            className="overflow-hidden rounded-xl border border-teal-200 bg-teal-50/40"
+                          >
+                            <div className="flex items-center justify-between gap-2 border-b border-teal-100 bg-teal-50/80 px-3 py-2">
+                              <Badge tone="teal" size="xs">
+                                {review.regions.length} marked region
+                                {review.regions.length === 1 ? '' : 's'}
+                              </Badge>
+                              <button
+                                type="button"
+                                onClick={() => onInspectReview(review)}
+                                className="inline-flex cursor-pointer items-center gap-1 text-[11px] font-bold text-teal-800 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                              >
+                                Inspect this page
+                              </button>
                             </div>
-                            <p className="mt-1 text-[10px] leading-4 text-slate-500">
-                              Tagged instructions are linked to the workflow;
-                              they cannot execute unapproved browser actions.
-                            </p>
-                          </>
-                        ) : (
-                          <p className="mt-2 text-[10px] text-slate-500">
-                            Earlier image review. Click the image to add
-                            detailed actions and comments.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </MessageContent>
-                </Message>
-                </MessageScrollerItem>
-              ))}
-                </MessageScrollerContent>
-              </MessageScrollerViewport>
-              <MessageScrollerButton />
-            </MessageScroller>
-          </MessageScrollerProvider>
-          {(imageError || chatError) && (
-            <p role="alert" className="px-4 pt-2 text-xs text-rose-700">
-              {chatError || imageError}
-            </p>
+                            <button
+                              type="button"
+                              onClick={() => onEditReview(review)}
+                              aria-label={'Edit annotated image ' + review.id}
+                              className="relative block w-full cursor-pointer overflow-hidden bg-slate-50 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                            >
+                              {/* Annotated image + markers */}
+                              <ReviewImage
+                                review={review}
+                                src={reviewImage(review)}
+                              />
+                              {review.annotations?.length ? (
+                                <div className="space-y-1 border-t border-teal-100 bg-white px-3 py-2.5">
+                                  {review.annotations.map((a, index) => (
+                                    <p
+                                      key={a.id}
+                                      className="text-[11px] text-slate-600"
+                                    >
+                                      <strong>
+                                        {index + 1}.{' '}
+                                        {a.action.replaceAll('-', ' ')}
+                                      </strong>
+                                      {a.comment ? ' · ' + a.comment : ''}
+                                    </p>
+                                  ))}
+                                  <p className="pt-1 text-[10px] leading-4 text-slate-400">
+                                    Tagged instructions are linked to the
+                                    workflow; they cannot execute unapproved
+                                    browser actions.
+                                  </p>
+                                </div>
+                              ) : (
+                                <div className="border-t border-teal-100 bg-white px-3 py-2 text-[10px] text-slate-400">
+                                  Earlier image review. Click the image to add
+                                  detailed actions and comments.
+                                </div>
+                              )}
+                            </button>
+                          </div>
+                        </MessageContent>
+                      </Message>
+                    </MessageScrollerItem>
+                  ))}
+              </MessageScrollerContent>
+            </MessageScrollerViewport>
+            <MessageScrollerButton />
+          </MessageScroller>
+        </MessageScrollerProvider>
+
+        {/* ── Clarify dialog card (anchored above composer) ───────────── */}
+        <AnimatePresence initial={false}>
+          {openClarify && clarifyQuestions && (
+            <motion.div
+              key="clarify-card"
+              initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 8 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              data-testid="mator-clarify-card"
+              className="mx-2 mb-1 shrink-0 rounded-2xl border border-orange-200 bg-white shadow-[0_12px_32px_-16px_rgba(0,0,0,.25)]"
+            >
+              <div className="flex items-center justify-between gap-2 border-b border-orange-100 bg-orange-50/60 px-3.5 py-2">
+                <span className="flex items-center gap-1.5 text-[11px] font-bold tracking-wide text-orange-900 uppercase">
+                  <LoaderCircle
+                    className="size-3.5 animate-spin"
+                    aria-hidden="true"
+                  />
+                  Mator needs clarity
+                </span>
+                <Badge tone="orange" size="xs">
+                  {clarifyCount(clarifyQuestions)} question
+                  {clarifyCount(clarifyQuestions) === 1 ? '' : 's'}
+                </Badge>
+              </div>
+              <div className="px-3.5 py-3">
+                <MatorClarifyForm
+                  questions={clarifyQuestions}
+                  disabled={busy}
+                  onSubmit={(text) => onSendText?.(text)}
+                />
+              </div>
+            </motion.div>
           )}
-          <VoiceDeck
-            voice={voice}
-            pendingLabel={pendingLabel}
-            onConfirm={onConfirm}
-            onReject={onReject}
-            message={message}
-            onMessageChange={onMessageChange}
-            onSendMessage={onSendMessage}
-            onAttachFile={onAttachFile}
-            busy={busy}
-            incomplete={incomplete}
-            onIncompleteContinue={onIncompleteContinue}
-          />
-        </CardContent>
+        </AnimatePresence>
+
+        {(imageError || chatError) && (
+          <p role="alert" className="px-4 pt-1.5 text-xs text-rose-700">
+            {chatError || imageError}
+          </p>
+        )}
+        <Queue active={busy} className="px-4 pt-2 pb-0" />
+
+        <MatorComposer
+          voice={voice}
+          pendingLabel={pendingLabel}
+          onConfirm={onConfirm}
+          onReject={onReject}
+          message={message}
+          onMessageChange={onMessageChange}
+          onSendMessage={onSendMessage}
+          onAttachFile={onAttachFile}
+          busy={busy}
+          incomplete={incomplete}
+          onIncompleteContinue={onIncompleteContinue}
+          emptyThread={matorEvents.length === 0}
+          startPrompt={START_SUGGESTIONS[0]?.prompt ?? null}
+        />
       </Card>
     </aside>
+  );
+}
+
+/* Localized evidence + review rendering helpers. */
+
+function TaskBlock({
+  steps,
+  evidence,
+}: {
+  steps: RunEvent[];
+  evidence?: ReactNode;
+}) {
+  const itemSteps = steps.map((event) => ({
+    id: String(event.id),
+    title: `${event.kind === 'error' ? 'Failed' : event.kind}: ${event.message}`,
+    status: event.kind === 'error' ? ('error' as const) : ('done' as const),
+  }));
+  return (
+    <div className="min-w-0 space-y-2">
+      <Task steps={itemSteps} running={false} />
+      {evidence}
+    </div>
+  );
+}
+
+function ScreenshotEvidence({
+  event,
+  onAnnotate,
+}: {
+  event: RunEvent;
+  onAnnotate: (runId: string, fileName: string) => void;
+}) {
+  const fileName = event.details?.fileName ?? '';
+  const evidenceUrl = getApi('runs/' + event.runId + '/evidence/' + fileName);
+  return (
+    <button
+      type="button"
+      data-testid="workflow-screenshot"
+      data-evidence-url={evidenceUrl}
+      onClick={() => onAnnotate(event.runId, fileName)}
+      aria-label={'Annotate captured image: ' + fileName}
+      className="block w-full cursor-pointer overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-left transition-colors hover:border-teal-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+    >
+      <Image
+        unoptimized
+        src={evidenceUrl}
+        width={640}
+        height={400}
+        alt={'Actual browser capture: ' + event.message}
+        className="h-auto w-full object-contain"
+      />
+      <span className="flex items-center gap-2 px-3 py-2 text-[11px] text-slate-500">
+        <ImageIcon className="size-3.5" aria-hidden="true" />
+        {fileName} · Click image to annotate
+      </span>
+    </button>
+  );
+}
+
+function ReviewImage({ review, src }: { review: Review; src: string }) {
+  return (
+    <Image
+      unoptimized
+      src={src}
+      alt={'Annotated ' + review.pageUrl}
+      width={640}
+      height={400}
+      className="pointer-events-none h-auto w-full select-none"
+    />
   );
 }
