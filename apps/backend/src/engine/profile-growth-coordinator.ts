@@ -6,9 +6,9 @@ import type { DocumentStore } from '../db/documents.js';
 import { readGrowthTemplate } from './growth-profile.js';
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-type ProfileStage = NonNullable<
-  Awaited<ReturnType<typeof readGrowthTemplate>>
->['program']['stages'][number];
+type GrowthProgram = NonNullable<Awaited<ReturnType<typeof readGrowthTemplate>>>['program'];
+type RunnerProgram = Extract<GrowthProgram, { kind: 'GrowthProfileWorkflow' | 'GrowthWorkflow' }>;
+type ProfileStage = RunnerProgram['stages'][number];
 type CoverageInput = { sectionId: string; text: string };
 type StoredStage = {
   id: string;
