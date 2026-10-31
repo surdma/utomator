@@ -11,6 +11,7 @@ type SliderProps = {
   step?: number;
   disabled?: boolean;
   'aria-label': string;
+  'aria-valuetext'?: string;
   className?: string;
   /** Optional labels under the track, one per stop. */
   stops?: readonly string[];
@@ -24,6 +25,7 @@ export function Slider({
   step = 1,
   disabled,
   'aria-label': ariaLabel,
+  'aria-valuetext': ariaValueText,
   className,
   stops,
 }: SliderProps) {
@@ -39,6 +41,7 @@ export function Slider({
         step={step}
         disabled={disabled}
         aria-label={ariaLabel}
+        aria-valuetext={ariaValueText}
         onChange={(event) => onValueChange(Number(event.target.value))}
         className="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-teal-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
       />
