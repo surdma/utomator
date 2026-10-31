@@ -83,28 +83,30 @@ function compileGrowthBlueprintYaml(parsed: Record<string, unknown>) {
 
   const requirements = entries(spec.requirements, 'requirement', 1, 32, 'blueprint requirements');
   const coverage = entries(spec.coverage, '', 1, 64, 'blueprint coverage');
-  if (!plain(spec.pipelines) || Object.keys(spec.pipelines).length < 1 ||
-    Object.keys(spec.pipelines).length > 8) {
+  const pipelineMap = spec.pipelines;
+  if (!plain(pipelineMap) || Object.keys(pipelineMap).length < 1 ||
+    Object.keys(pipelineMap).length > 8) {
     throw Error('Growth blueprint requires 1–8 ordered pipelines');
   }
-  const keys = Object.keys(spec.pipelines);
+  const keys = Object.keys(pipelineMap);
   const taskKinds = ['todo', 'procedure', 'action', 'event', 'verify'] as const;
   const stages = keys.map((id, index) => {
     if (!/^[a-z][a-zA-Z0-9]*$/.test(id)) throw Error('Invalid Growth blueprint pipeline ID');
-    const raw = spec.pipelines[id];
+    const raw = pipelineMap[id];
     fields(raw, ['title', 'dependsOn', 'tasks'], 'blueprint pipeline');
-    fields(raw.tasks, taskKinds, 'blueprint task types');
+    const rawTasks = raw.tasks;
+    fields(rawTasks, taskKinds, 'blueprint task types');
     if (
       typeof raw.title !== 'string' ||
       !raw.title.trim() || raw.title.length > 120 ||
       raw.dependsOn !== (index === 0 ? 'none' : keys[index - 1]) ||
-      taskKinds.some((kind) => typeof raw.tasks[kind] !== 'string' ||
-        !(raw.tasks[kind] as string).trim() || (raw.tasks[kind] as string).length > 200)
+      taskKinds.some((kind) => typeof rawTasks[kind] !== 'string' ||
+        !(rawTasks[kind] as string).trim() || (rawTasks[kind] as string).length > 200)
     ) throw Error('Invalid Growth blueprint pipeline or task');
     const steps = taskKinds.map((kind) => ({
       id: kind,
       kind: kind === 'procedure' ? 'assess' as const : kind === 'verify' ? 'verify' as const : 'note' as const,
-      title: raw.tasks[kind] as string,
+      title: rawTasks[kind] as string,
       message: kind + ' · Owner-operated planning step; not a provider command',
     }));
     const plan = {
