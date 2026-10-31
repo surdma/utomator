@@ -1,0 +1,77 @@
+name: Utomator code quality
+
+on:
+  pull_request:
+    branches: [main, feat/unified-linkedin-growth-workspace]
+    paths:
+      - "apps/backend/**"
+      - "apps/frontend/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/utomator-code-quality.yml"
+  push:
+    branches: [main, feat/yaml-growth-profile-pipeline]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  statuses: write
+
+concurrency:
+  group: utomator-code-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-format-and-lint:
+    name: Backend Biome formatting and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Verify backend formatting
+        run: pnpm --filter @utomator/backend exec biome format --max-diagnostics=200 .
+      - name: Verify backend lint, including warnings
+        run: pnpm --filter @utomator/backend exec biome lint --error-on-warnings .
+
+  frontend-format-and-lint:
+    name: Frontend formatting and ESLint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Verify frontend formatting
+        run: >-
+          pnpm exec prettier --check
+          'apps/frontend/{app,components,lib,tests}/**/*.{js,jsx,mjs,ts,tsx,css,md,json}'
+          'apps/frontend/*.{js,mjs,ts,tsx,json}'
+      - name: Verify frontend ESLint, including warnings
+        run: pnpm --filter @utomator/frontend exec eslint . --max-warnings 0
+
+  react-doctor:
+    name: React Doctor
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: millionco/react-doctor@v2
+        with:
+          directory: apps/frontend
+          scope: full
+          blocking: warning

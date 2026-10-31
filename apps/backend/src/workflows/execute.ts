@@ -20,16 +20,16 @@ function assertActive(ctx: WorkflowContext): void {
   if (ctx.signal.aborted) throw new Error('Run cancelled');
 }
 
-
-const AUTH_ROUTE = /\/(?:authwall|login|uas\/login|checkpoint|challenge|i\/flow\/login|security|signup)(?:\/|$)/i;
+const AUTH_ROUTE =
+  /\/(?:authwall|login|uas\/login|checkpoint|challenge|i\/flow\/login|security|signup)(?:\/|$)/i;
 const LOGIN_POLL_MS = 120;
 const LOGIN_OBSERVATION_MS = 2160;
 
 // Preserve the provider allowlist on every redirect, not only the first one.
 function officialUrl(platform: RunRequest['platform'], url: string): URL {
   const current = new URL(url);
-  const allowed = platform === 'linkedin'
-    ? ['linkedin.com', 'www.linkedin.com'] : ['x.com', 'www.x.com'];
+  const allowed =
+    platform === 'linkedin' ? ['linkedin.com', 'www.linkedin.com'] : ['x.com', 'www.x.com'];
   if (current.protocol !== 'https:' || !allowed.includes(current.hostname)) {
     throw new Error('Browser navigation left the expected platform');
   }
@@ -40,8 +40,11 @@ async function loginScreen(page: Page, platform: RunRequest['platform']): Promis
   const current = officialUrl(platform, page.url());
   if (AUTH_ROUTE.test(current.pathname)) return true;
   // Some providers replace the page with a sign-in form without changing URL.
-  return page.locator('input[type="password"], input[name="session_key"]').first()
-    .isVisible().catch(() => false);
+  return page
+    .locator('input[type="password"], input[name="session_key"]')
+    .first()
+    .isVisible()
+    .catch(() => false);
 }
 
 async function waitForLoginRedirect(ctx: WorkflowContext): Promise<boolean> {
@@ -59,18 +62,23 @@ async function navigate(ctx: WorkflowContext, url: string): Promise<void> {
   assertActive(ctx);
   const target = officialUrl(ctx.input.platform, url);
   ctx.emit('step', 'Navigating to ' + target.pathname);
-  await ctx.page.goto(target.href, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await ctx.page.goto(target.href, {
+    waitUntil: 'domcontentloaded',
+    timeout: 30000,
+  });
   let autoAttempted = false;
   // Every approved login re-opens the intended page and verifies it again.
   for (let promptNumber = 0; promptNumber <= 2; promptNumber++) {
-    if (!await waitForLoginRedirect(ctx)) {
+    if (!(await waitForLoginRedirect(ctx))) {
       officialUrl(ctx.input.platform, ctx.page.url());
       return;
     }
     if (ctx.input.accountId) {
       // Connected sessions are recovered by the connector, not by an in-run
       // password prompt. The runner invalidates the connection on this error.
-      throw new Error('Not authenticated: connected account session expired. Reconnect and sync this account before retrying.');
+      throw new Error(
+        'Not authenticated: connected account session expired. Reconnect and sync this account before retrying.',
+      );
     }
     if (!autoAttempted && ctx.input.login) {
       autoAttempted = true;
@@ -79,8 +87,15 @@ async function navigate(ctx: WorkflowContext, url: string): Promise<void> {
       try {
         const submitted = await attemptLogin(ctx.page, ctx.input.platform, credentials, ctx.signal);
         if (submitted) {
-          await ctx.page.waitForURL((next) => !AUTH_ROUTE.test(next.pathname), { timeout: 10000 }).catch(() => {});
-          await ctx.page.goto(target.href, { waitUntil: 'domcontentloaded', timeout: 30000 });
+          await ctx.page
+            .waitForURL((next) => !AUTH_ROUTE.test(next.pathname), {
+              timeout: 10000,
+            })
+            .catch(() => {});
+          await ctx.page.goto(target.href, {
+            waitUntil: 'domcontentloaded',
+            timeout: 30000,
+          });
           continue;
         }
       } catch {
@@ -95,9 +110,14 @@ async function navigate(ctx: WorkflowContext, url: string): Promise<void> {
       throw new Error('Not authenticated; complete sign-in or security verification before retrying');
     }
     ctx.emit('step', 'Sign-in required: Chrome stays open during manual login');
-    await ctx.approve('Sign in to the official account in Chrome (including MFA), then approve to retry the profile. Reject or cancel to close the session.');
+    await ctx.approve(
+      'Sign in to the official account in Chrome (including MFA), then approve to retry the profile. Reject or cancel to close the session.',
+    );
     assertActive(ctx);
-    await ctx.page.goto(target.href, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await ctx.page.goto(target.href, {
+      waitUntil: 'domcontentloaded',
+      timeout: 30000,
+    });
   }
 }
 
@@ -110,7 +130,9 @@ async function image(ctx: WorkflowContext, label: string): Promise<string> {
   await chmod(output, 0o600);
   // Emit an addressable screenshot only after Playwright wrote the real PNG.
   // The renderer gets the exact run/file pair, never a filesystem path.
-  ctx.emit('screenshot', `Captured ${label.replace(/-/g, ' ')}`, { fileName: name });
+  ctx.emit('screenshot', `Captured ${label.replace(/-/g, ' ')}`, {
+    fileName: name,
+  });
   // Playwright's ariaSnapshot is the readable YAML-style accessibility evidence
   // used by the original browser workflow. Keep it with the matching screenshot.
   const snapshotName = name.replace(/\.png$/, '.yml');
@@ -126,18 +148,23 @@ async function image(ctx: WorkflowContext, label: string): Promise<string> {
 
 async function one(locator: Locator, label: string): Promise<Locator> {
   const n = await locator.count();
-  if (n !== 1 || !await locator.isVisible()) throw new Error(`Expected one visible ${label}; found ${n}`);
+  if (n !== 1 || !(await locator.isVisible()))
+    throw new Error(`Expected one visible ${label}; found ${n}`);
   return locator;
 }
 
 async function save(ctx: WorkflowContext): Promise<void> {
   assertActive(ctx);
-  const visibleButtons = ctx.page.getByRole('button', { name: 'Save', exact: true });
+  const visibleButtons = ctx.page.getByRole('button', {
+    name: 'Save',
+    exact: true,
+  });
   const count = await visibleButtons.count();
   // Save controls sometimes also occur in the underlying page. Prefer the open modal.
   const dialog = ctx.page.getByRole('dialog').last();
-  const button = await dialog.isVisible().catch(() => false)
-    ? dialog.getByRole('button', { name: 'Save', exact: true }) : visibleButtons;
+  const button = (await dialog.isVisible().catch(() => false))
+    ? dialog.getByRole('button', { name: 'Save', exact: true })
+    : visibleButtons;
   if (count === 0) throw new Error('Save button not visible');
   assertActive(ctx);
   await (await one(button, 'Save button')).click();
@@ -147,21 +174,27 @@ async function save(ctx: WorkflowContext): Promise<void> {
 async function ensureLinkedInOwner(ctx: WorkflowContext): Promise<void> {
   await navigate(ctx, ctx.profile.href);
   let affordance = ctx.page.getByRole('button', { name: /edit intro/i });
-  if (await affordance.count() === 0) affordance = ctx.page.locator('button[aria-label*="Edit intro"]');
-  if (await affordance.count() === 0) {
+  if ((await affordance.count()) === 0)
+    affordance = ctx.page.locator('button[aria-label*="Edit intro"]');
+  if ((await affordance.count()) === 0) {
     if (ctx.input.accountId) {
-      throw new Error('Not authenticated: connected account ownership could not be verified. Reconnect and sync this account.');
+      throw new Error(
+        'Not authenticated: connected account ownership could not be verified. Reconnect and sync this account.',
+      );
     }
-    await ctx.approve('Open the correct signed-in LinkedIn account, confirm it is your profile, then continue');
+    await ctx.approve(
+      'Open the correct signed-in LinkedIn account, confirm it is your profile, then continue',
+    );
     await navigate(ctx, ctx.profile.href);
-    if (await affordance.count() === 0) throw new Error('Cannot establish edit ownership of LinkedIn profile');
+    if ((await affordance.count()) === 0)
+      throw new Error('Cannot establish edit ownership of LinkedIn profile');
   }
 }
 
 async function ensureXOwner(ctx: WorkflowContext): Promise<void> {
   await navigate(ctx, ctx.profile.href);
   const btn = ctx.page.locator('[data-testid="editProfileButton"]');
-  if (await btn.count() === 0) {
+  if ((await btn.count()) === 0) {
     await ctx.approve('Sign into the X account that owns this profile, then approve');
     await navigate(ctx, ctx.profile.href);
   }
@@ -187,15 +220,26 @@ export async function observeAfterNavigation<T>(
       const actualPath = observed.pathname.replace(/\/$/, '');
       const expectedPath = expectedUrl.pathname.replace(/\/$/, '');
       const permittedHosts = expectedUrl.hostname.endsWith('linkedin.com')
-        ? ['linkedin.com', 'www.linkedin.com'] : ['x.com', 'www.x.com'];
-      if (observed.protocol !== 'https:' || !permittedHosts.includes(observed.hostname) ||
-          actualPath !== expectedPath) {
-        throw new Error('Profile navigation changed to a different page during audit; recheck sign-in and the requested profile');
+        ? ['linkedin.com', 'www.linkedin.com']
+        : ['x.com', 'www.x.com'];
+      if (
+        observed.protocol !== 'https:' ||
+        !permittedHosts.includes(observed.hostname) ||
+        actualPath !== expectedPath
+      ) {
+        throw new Error(
+          'Profile navigation changed to a different page during audit; recheck sign-in and the requested profile',
+        );
       }
       return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      if (!/execution context was destroyed|cannot find context with specified id|navigation.*interrupted/i.test(message) || attempt === 2) {
+      if (
+        !/execution context was destroyed|cannot find context with specified id|navigation.*interrupted/i.test(
+          message,
+        ) ||
+        attempt === 2
+      ) {
         throw error;
       }
       if (options.signal?.aborted) throw new Error('Run cancelled');
@@ -211,25 +255,34 @@ export async function observeAfterNavigation<T>(
 async function audit(ctx: WorkflowContext): Promise<void> {
   await navigate(ctx, ctx.profile.href);
   const data = await observeAfterNavigation(
-    ctx.page, ctx.profile,
-    () => ctx.page.evaluate((platform) => {
-    // Playwright serializes this function to run in the page context.
-    // Keep it self-contained: nested TSX helpers can compile to references
-    // to Node-side __name, which is not defined in the browser.
-    const main = document.querySelector('main') || document.body;
-    const headline = document.querySelector('.text-body-medium-breakwords') as HTMLElement | null;
-    const bio = document.querySelector('[data-testid="UserDescription"]') as HTMLElement | null;
-    const xName = document.querySelector('[data-testid="UserName"]') as HTMLElement | null;
-    return {
-      title: document.title,
-      url: location.href,
-      headline: platform === 'linkedin' ? headline?.innerText.trim() ?? null : null,
-      bio: platform === 'x' ? bio?.innerText.trim() ?? null : null,
-      xName: platform === 'x' ? xName?.innerText.trim() ?? null : null,
-      excerpt: ((main as HTMLElement).innerText || '').replace(/\s+/g, ' ').slice(0, 1800),
-    };
-    }, ctx.input.platform),
-    { signal: ctx.signal, onRetry: (attempt) => ctx.emit('step', `Profile navigated while reading; retrying read-only observation (${attempt}/2)`) },
+    ctx.page,
+    ctx.profile,
+    () =>
+      ctx.page.evaluate((platform) => {
+        // Playwright serializes this function to run in the page context.
+        // Keep it self-contained: nested TSX helpers can compile to references
+        // to Node-side __name, which is not defined in the browser.
+        const main = document.querySelector('main') || document.body;
+        const headline = document.querySelector('.text-body-medium-breakwords') as HTMLElement | null;
+        const bio = document.querySelector('[data-testid="UserDescription"]') as HTMLElement | null;
+        const xName = document.querySelector('[data-testid="UserName"]') as HTMLElement | null;
+        return {
+          title: document.title,
+          url: location.href,
+          headline: platform === 'linkedin' ? (headline?.innerText.trim() ?? null) : null,
+          bio: platform === 'x' ? (bio?.innerText.trim() ?? null) : null,
+          xName: platform === 'x' ? (xName?.innerText.trim() ?? null) : null,
+          excerpt: ((main as HTMLElement).innerText || '').replace(/\s+/g, ' ').slice(0, 1800),
+        };
+      }, ctx.input.platform),
+    {
+      signal: ctx.signal,
+      onRetry: (attempt) =>
+        ctx.emit(
+          'step',
+          `Profile navigated while reading; retrying read-only observation (${attempt}/2)`,
+        ),
+    },
   );
   await image(ctx, 'audit-profile');
   ctx.emit('audit', 'Profile UI observed (no changes made)', data);
@@ -241,10 +294,15 @@ async function audit(ctx: WorkflowContext): Promise<void> {
     for (const section of ['experience', 'skills', 'projects', 'featured']) {
       assertActive(ctx);
       await navigate(ctx, `${base}/details/${section}/`);
-      const excerpt = await ctx.page.locator('main').innerText().catch(() => '');
+      const excerpt = await ctx.page
+        .locator('main')
+        .innerText()
+        .catch(() => '');
       await image(ctx, `audit-${section}`);
       ctx.emit('audit', `Observed LinkedIn ${section} section`, {
-        section, url: ctx.page.url(), excerpt: excerpt.slice(0, 3500),
+        section,
+        url: ctx.page.url(),
+        excerpt: excerpt.slice(0, 3500),
       });
     }
   }
@@ -257,31 +315,46 @@ async function editLinkedIn(ctx: WorkflowContext): Promise<void> {
   const prefix = ctx.profile.href.replace(/\/$/, '');
   if (headline) {
     await navigate(ctx, `${prefix}/edit/intro/`);
-    const field = await one(ctx.page.getByRole('textbox', { name: 'Headline', exact: true }), 'LinkedIn headline');
+    const field = await one(
+      ctx.page.getByRole('textbox', { name: 'Headline', exact: true }),
+      'LinkedIn headline',
+    );
     await field.fill(headline);
-    if (await field.inputValue() !== headline) throw new Error('HEADLINE_PRE_SAVE_MISMATCH');
+    if ((await field.inputValue()) !== headline) throw new Error('HEADLINE_PRE_SAVE_MISMATCH');
     await image(ctx, 'headline-before-save');
     await ctx.approve(`Review LinkedIn headline (${headline.length} characters) and approve Save`);
-    if (await field.inputValue() !== headline) throw new Error('HEADLINE_CHANGED_DURING_APPROVAL');
+    if ((await field.inputValue()) !== headline) throw new Error('HEADLINE_CHANGED_DURING_APPROVAL');
     await save(ctx);
     await navigate(ctx, ctx.profile.href);
     const observed = await ctx.page.locator('.text-body-medium-breakwords').first().innerText();
     if (!observed.includes(headline)) throw new Error('HEADLINE_POST_SAVE_UNVERIFIED');
-    ctx.emit('result', 'LinkedIn headline verified on a fresh profile load', { chars: headline.length });
+    ctx.emit('result', 'LinkedIn headline verified on a fresh profile load', {
+      chars: headline.length,
+    });
   }
   if (about) {
     await navigate(ctx, `${prefix}/edit/forms/summary/new/`);
-    const editor = await one(ctx.page.locator('.tiptap.ProseMirror[contenteditable="true"]'), 'LinkedIn About editor');
+    const editor = await one(
+      ctx.page.locator('.tiptap.ProseMirror[contenteditable="true"]'),
+      'LinkedIn About editor',
+    );
     await editor.click();
     await ctx.page.keyboard.press('ControlOrMeta+A');
     await ctx.page.keyboard.press('Backspace');
-    const paragraphs = about.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+    const paragraphs = about
+      .split(/\n\s*\n/)
+      .map((p) => p.trim())
+      .filter(Boolean);
     for (const [index, paragraph] of paragraphs.entries()) {
-      if (index > 0) { await ctx.page.keyboard.press('Enter'); await ctx.page.keyboard.press('Enter'); }
+      if (index > 0) {
+        await ctx.page.keyboard.press('Enter');
+        await ctx.page.keyboard.press('Enter');
+      }
       await ctx.page.keyboard.insertText(paragraph);
     }
     const value = (await editor.innerText()).replace(/\s+/g, ' ').trim();
-    if (value !== paragraphs.join(' ').replace(/\s+/g, ' ').trim()) throw new Error('ABOUT_PRE_SAVE_MISMATCH');
+    if (value !== paragraphs.join(' ').replace(/\s+/g, ' ').trim())
+      throw new Error('ABOUT_PRE_SAVE_MISMATCH');
     await image(ctx, 'about-before-save');
     await ctx.approve('Review the LinkedIn About paragraphs in Chrome and approve Save');
     const afterApproval = (await editor.innerText()).replace(/\s+/g, ' ').trim();
@@ -290,7 +363,10 @@ async function editLinkedIn(ctx: WorkflowContext): Promise<void> {
     await navigate(ctx, ctx.profile.href);
     // Reopen the known edit form to read the persisted value rather than a collapsed preview.
     await navigate(ctx, `${prefix}/edit/forms/summary/new/`);
-    const reopened = await one(ctx.page.locator('.tiptap.ProseMirror[contenteditable="true"]'), 'saved About editor');
+    const reopened = await one(
+      ctx.page.locator('.tiptap.ProseMirror[contenteditable="true"]'),
+      'saved About editor',
+    );
     const savedText = (await reopened.innerText()).replace(/\s+/g, ' ').trim();
     if (savedText !== value) throw new Error('ABOUT_POST_SAVE_UNVERIFIED');
     ctx.emit('result', 'LinkedIn About verified by reopening the saved editor', { chars: about.length });
@@ -303,17 +379,24 @@ async function addLinkedInSkill(ctx: WorkflowContext): Promise<void> {
   const prefix = ctx.profile.href.replace(/\/$/, '');
   await navigate(ctx, `${prefix}/details/skills/`);
   if ((await ctx.page.locator('main').innerText()).toLowerCase().includes(skill.toLowerCase())) {
-    ctx.emit('result', 'Skill appears to be present; no edit made', { skill }); return;
+    ctx.emit('result', 'Skill appears to be present; no edit made', { skill });
+    return;
   }
   await navigate(ctx, `${prefix}/skills/edit/forms/new/`);
   const input = ctx.page.getByRole('textbox', { name: 'Skill*', exact: true });
   await (await one(input, 'Skill textbox')).fill(skill);
   let option = ctx.page.getByRole('option', { name: skill, exact: true });
-  if (await option.count() !== 1) {
-    const labels = (await ctx.page.getByRole('option').allInnerTexts()).map(s => s.trim()).filter(Boolean).slice(0, 12);
+  if ((await option.count()) !== 1) {
+    const labels = (await ctx.page.getByRole('option').allInnerTexts())
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(0, 12);
     if (!labels.length) throw new Error('LinkedIn returned no skill options');
-    const selected = await ctx.ask(`Enter one exact LinkedIn skill option shown in Chrome: ${labels.join(' | ')}`);
-    if (!labels.includes(selected)) throw new Error('Selected skill was not in the observed suggestions');
+    const selected = await ctx.ask(
+      `Enter one exact LinkedIn skill option shown in Chrome: ${labels.join(' | ')}`,
+    );
+    if (!labels.includes(selected))
+      throw new Error('Selected skill was not in the observed suggestions');
     option = ctx.page.getByRole('option', { name: selected, exact: true });
   }
   await (await one(option, `chosen skill option for ${skill}`)).click();
@@ -324,7 +407,10 @@ async function addLinkedInSkill(ctx: WorkflowContext): Promise<void> {
   // Scroll to load long skill sections. No infinite loops.
   let found = false;
   for (let i = 0; i < 12; i++) {
-    if ((await ctx.page.locator('main').innerText()).toLowerCase().includes(skill.toLowerCase())) { found = true; break; }
+    if ((await ctx.page.locator('main').innerText()).toLowerCase().includes(skill.toLowerCase())) {
+      found = true;
+      break;
+    }
     await ctx.page.mouse.wheel(0, 1100);
   }
   if (!found) throw new Error('SKILL_POST_SAVE_UNVERIFIED');
@@ -345,12 +431,14 @@ async function editX(ctx: WorkflowContext): Promise<void> {
   for (const [field, value, loc] of fields) {
     if (value === undefined) continue;
     await (await one(loc, `X ${field}`)).fill(value);
-    if (await loc.inputValue() !== value) throw new Error(`X_${field.toUpperCase()}_PRE_SAVE_MISMATCH`);
+    if ((await loc.inputValue()) !== value)
+      throw new Error(`X_${field.toUpperCase()}_PRE_SAVE_MISMATCH`);
   }
   await image(ctx, 'x-profile-before-save');
   await ctx.approve('Review X profile fields and approve Save');
   for (const [field, value, loc] of fields) {
-    if (value !== undefined && await loc.inputValue() !== value) throw new Error(`X_${field.toUpperCase()}_CHANGED`);
+    if (value !== undefined && (await loc.inputValue()) !== value)
+      throw new Error(`X_${field.toUpperCase()}_CHANGED`);
   }
   await save(ctx);
   await navigate(ctx, ctx.profile.href);
@@ -360,8 +448,10 @@ async function editX(ctx: WorkflowContext): Promise<void> {
   }
   if (ctx.input.website || ctx.input.location) {
     const header = await ctx.page.locator('[data-testid="UserProfileHeader_Items"]').innerText();
-    if (ctx.input.location && !header.includes(ctx.input.location)) throw new Error('X_LOCATION_POST_SAVE_UNVERIFIED');
-    if (ctx.input.website && !header.includes(new URL(ctx.input.website).hostname)) throw new Error('X_WEBSITE_POST_SAVE_UNVERIFIED');
+    if (ctx.input.location && !header.includes(ctx.input.location))
+      throw new Error('X_LOCATION_POST_SAVE_UNVERIFIED');
+    if (ctx.input.website && !header.includes(new URL(ctx.input.website).hostname))
+      throw new Error('X_WEBSITE_POST_SAVE_UNVERIFIED');
   }
   ctx.emit('result', 'X profile updates observed after a fresh page load');
 }
@@ -371,18 +461,26 @@ async function composeX(ctx: WorkflowContext): Promise<void> {
   const text = ctx.input.postText!.trim();
   await navigate(ctx, 'https://x.com/compose/post');
   let editor = ctx.page.locator('[data-testid="tweetTextarea_0"]');
-  if (await editor.count() !== 1) { await navigate(ctx, 'https://x.com/home'); editor = ctx.page.locator('[data-testid="tweetTextarea_0"]'); }
+  if ((await editor.count()) !== 1) {
+    await navigate(ctx, 'https://x.com/home');
+    editor = ctx.page.locator('[data-testid="tweetTextarea_0"]');
+  }
   await (await one(editor, 'X post composer')).fill(text);
   if ((await editor.innerText()).trim() !== text) throw new Error('COMPOSER_PRE_PUBLISH_MISMATCH');
   await image(ctx, 'x-post-before-publish');
-  await ctx.approve('Publishing is public and irreversible from this tool. Review the post and approve Publish');
+  await ctx.approve(
+    'Publishing is public and irreversible from this tool. Review the post and approve Publish',
+  );
   if ((await editor.innerText()).trim() !== text) throw new Error('COMPOSER_CHANGED');
-  const button = ctx.page.locator('[data-testid="tweetButton"], [data-testid="tweetButtonInline"]:visible');
+  const button = ctx.page.locator(
+    '[data-testid="tweetButton"], [data-testid="tweetButtonInline"]:visible',
+  );
   assertActive(ctx);
   await (await one(button, 'X publish button')).click();
   await navigate(ctx, ctx.profile.href);
   // Treat missing immediate timeline evidence as unverified, not success.
-  if (!(await ctx.page.locator('article').allInnerTexts()).some(t => t.includes(text))) throw new Error('POST_PUBLISH_NOT_VERIFIED');
+  if (!(await ctx.page.locator('article').allInnerTexts()).some((t) => t.includes(text)))
+    throw new Error('POST_PUBLISH_NOT_VERIFIED');
   ctx.emit('result', 'X post appeared on the profile after publication');
 }
 
@@ -392,16 +490,21 @@ async function mutateXPost(ctx: WorkflowContext): Promise<void> {
   await navigate(ctx, target);
   const article = await one(ctx.page.locator('article'), 'target post');
   const text = (await article.innerText()).slice(0, 300);
-  ctx.emit('step', 'Identified exact post for review', { target, excerpt: text });
+  ctx.emit('step', 'Identified exact post for review', {
+    target,
+    excerpt: text,
+  });
   await image(ctx, 'x-post-target');
   const kind = ctx.input.action === 'delete-post' ? 'Delete post permanently' : 'Pin post to profile';
   await ctx.approve(`${kind}: verify this is your intended post: ${target}`);
   assertActive(ctx);
   await (await one(article.locator('[data-testid="caret"]'), 'post menu')).click();
   if (ctx.input.action === 'pin-post') {
-    await (await one(ctx.page.getByRole('menuitem', { name: /pin to your profile/i }), 'pin menu')).click();
+    await (
+      await one(ctx.page.getByRole('menuitem', { name: /pin to your profile/i }), 'pin menu')
+    ).click();
     const confirm = ctx.page.getByRole('button', { name: /pin/i });
-    if (await confirm.count() === 1) await confirm.click();
+    if ((await confirm.count()) === 1) await confirm.click();
     await navigate(ctx, target);
     const liveText = await ctx.page.locator('article').first().innerText();
     if (!/pinned/i.test(liveText)) throw new Error('PIN_POST_SAVE_UNVERIFIED');
@@ -410,27 +513,38 @@ async function mutateXPost(ctx: WorkflowContext): Promise<void> {
     await (await one(ctx.page.getByRole('menuitem', { name: /^delete$/i }), 'delete menu')).click();
     await ctx.approve(`FINAL CONFIRMATION: permanently delete exactly this post? ${target}`);
     assertActive(ctx);
-  await (await one(ctx.page.getByRole('button', { name: /^delete$/i }), 'confirm Delete')).click();
+    await (await one(ctx.page.getByRole('button', { name: /^delete$/i }), 'confirm Delete')).click();
     await navigate(ctx, target);
     const visible = await ctx.page.locator('article').count();
-    const state = (await ctx.page.locator('main').innerText().catch(() => '')).toLowerCase();
+    const state = (
+      await ctx.page
+        .locator('main')
+        .innerText()
+        .catch(() => '')
+    ).toLowerCase();
     // An empty article list may be a loading screen; only explicit confirmation counts.
     if (visible !== 0 || !/this post (was|has been) deleted/i.test(state)) {
       throw new Error('DELETE_POST_NOT_VERIFIED: no explicit deletion confirmation');
     }
-    ctx.emit('result', 'Platform confirmed deletion of target post', { target });
+    ctx.emit('result', 'Platform confirmed deletion of target post', {
+      target,
+    });
   }
 }
-
-
 
 async function editLinkedInExperience(ctx: WorkflowContext): Promise<void> {
   await ensureLinkedInOwner(ctx);
   const prefix = ctx.profile.href.replace(/\/$/, '');
   const url = `${prefix}/edit/forms/position/${ctx.input.positionId}/`;
   await navigate(ctx, url);
-  const editor = await one(ctx.page.locator('.tiptap.ProseMirror[contenteditable="true"]'), 'experience description editor');
-  const paragraphs = ctx.input.description!.split(/\n+/).map(v => v.trim()).filter(Boolean);
+  const editor = await one(
+    ctx.page.locator('.tiptap.ProseMirror[contenteditable="true"]'),
+    'experience description editor',
+  );
+  const paragraphs = ctx.input
+    .description!.split(/\n+/)
+    .map((v) => v.trim())
+    .filter(Boolean);
   await editor.click();
   await ctx.page.keyboard.press('ControlOrMeta+A');
   await ctx.page.keyboard.press('Backspace');
@@ -443,22 +557,37 @@ async function editLinkedInExperience(ctx: WorkflowContext): Promise<void> {
     throw new Error('EXPERIENCE_STRUCT_PRE_SAVE_MISMATCH');
   }
   if (ctx.input.startMonth && ctx.input.startYear) {
-    await (await one(ctx.page.getByLabel('Start month'), 'start month')).selectOption({ label: ctx.input.startMonth });
-    await (await one(ctx.page.getByLabel(/Start year/), 'start year')).selectOption({ label: ctx.input.startYear });
+    await (await one(ctx.page.getByLabel('Start month'), 'start month')).selectOption({
+      label: ctx.input.startMonth,
+    });
+    await (await one(ctx.page.getByLabel(/Start year/), 'start year')).selectOption({
+      label: ctx.input.startYear,
+    });
   }
   await image(ctx, 'experience-before-save');
-  await ctx.approve(`Check the existing position ${ctx.input.positionId} and dates in Chrome, then approve Save`);
+  await ctx.approve(
+    `Check the existing position ${ctx.input.positionId} and dates in Chrome, then approve Save`,
+  );
   const checked = await editor.locator(':scope > *').allInnerTexts();
   if (!checked.every((n, i) => n.trim() === paragraphs[i]) || checked.length !== paragraphs.length) {
     throw new Error('EXPERIENCE_CHANGED_DURING_APPROVAL');
   }
   await save(ctx);
   await navigate(ctx, url);
-  const persisted = await (await one(ctx.page.locator('.tiptap.ProseMirror[contenteditable="true"]'), 'reopened experience editor')).locator(':scope > *').allInnerTexts();
+  const persisted = await (
+    await one(
+      ctx.page.locator('.tiptap.ProseMirror[contenteditable="true"]'),
+      'reopened experience editor',
+    )
+  )
+    .locator(':scope > *')
+    .allInnerTexts();
   if (persisted.length !== paragraphs.length || !persisted.every((n, i) => n.trim() === paragraphs[i])) {
     throw new Error('EXPERIENCE_POST_SAVE_UNVERIFIED');
   }
-  ctx.emit('result', 'Existing LinkedIn experience description verified after reopening', { positionId: ctx.input.positionId });
+  ctx.emit('result', 'Existing LinkedIn experience description verified after reopening', {
+    positionId: ctx.input.positionId,
+  });
 }
 
 async function editLinkedInWebsite(ctx: WorkflowContext): Promise<void> {
@@ -467,31 +596,37 @@ async function editLinkedInWebsite(ctx: WorkflowContext): Promise<void> {
   await navigate(ctx, url);
   const index = ctx.input.websiteIndex ?? 0;
   let fields = ctx.page.getByLabel('Website URL', { exact: true });
-  if (await fields.count() === index) {
-    await (await one(ctx.page.getByRole('button', { name: 'Add website', exact: true }), 'Add website')).click();
+  if ((await fields.count()) === index) {
+    await (
+      await one(ctx.page.getByRole('button', { name: 'Add website', exact: true }), 'Add website')
+    ).click();
     fields = ctx.page.getByLabel('Website URL', { exact: true });
   }
-  if (await fields.count() <= index) throw new Error('Specified website row is unavailable');
+  if ((await fields.count()) <= index) throw new Error('Specified website row is unavailable');
   await fields.nth(index).fill(ctx.input.website!);
   if (ctx.input.websiteType) {
     const types = ctx.page.getByLabel('Website type', { exact: true });
-    if (await types.count() <= index) throw new Error('Website type selector missing');
+    if ((await types.count()) <= index) throw new Error('Website type selector missing');
     await types.nth(index).selectOption({ label: ctx.input.websiteType });
   }
-  if (await fields.nth(index).inputValue() !== ctx.input.website) throw new Error('WEBSITE_PRE_SAVE_MISMATCH');
+  if ((await fields.nth(index).inputValue()) !== ctx.input.website)
+    throw new Error('WEBSITE_PRE_SAVE_MISMATCH');
   await image(ctx, 'website-before-save');
   await ctx.approve('Review the LinkedIn website row and type in Chrome, then approve Save');
-  if (await fields.nth(index).inputValue() !== ctx.input.website) throw new Error('WEBSITE_CHANGED_DURING_APPROVAL');
+  if ((await fields.nth(index).inputValue()) !== ctx.input.website)
+    throw new Error('WEBSITE_CHANGED_DURING_APPROVAL');
   await save(ctx);
   await navigate(ctx, url);
   fields = ctx.page.getByLabel('Website URL', { exact: true });
-  if (await fields.count() <= index || await fields.nth(index).inputValue() !== ctx.input.website) {
+  if ((await fields.count()) <= index || (await fields.nth(index).inputValue()) !== ctx.input.website) {
     throw new Error('WEBSITE_POST_SAVE_UNVERIFIED');
   }
   if (ctx.input.websiteType) {
     const types = ctx.page.getByLabel('Website type', { exact: true });
-    if (await types.count() <= index ||
-      (await types.nth(index).locator('option:checked').innerText()) !== ctx.input.websiteType) {
+    if (
+      (await types.count()) <= index ||
+      (await types.nth(index).locator('option:checked').innerText()) !== ctx.input.websiteType
+    ) {
       throw new Error('WEBSITE_TYPE_POST_SAVE_UNVERIFIED');
     }
   }
@@ -504,14 +639,16 @@ async function editLinkedInServices(ctx: WorkflowContext): Promise<void> {
   await navigate(ctx, url);
   const area = await one(ctx.page.locator('textarea'), 'services description');
   await area.fill(ctx.input.description!);
-  if (await area.inputValue() !== ctx.input.description) throw new Error('SERVICES_PRE_SAVE_MISMATCH');
+  if ((await area.inputValue()) !== ctx.input.description) throw new Error('SERVICES_PRE_SAVE_MISMATCH');
   await image(ctx, 'services-before-save');
   await ctx.approve('Review service categories, visibility and description before Save');
-  if (await area.inputValue() !== ctx.input.description) throw new Error('SERVICES_CHANGED_DURING_APPROVAL');
+  if ((await area.inputValue()) !== ctx.input.description)
+    throw new Error('SERVICES_CHANGED_DURING_APPROVAL');
   await save(ctx);
   await navigate(ctx, url);
   const saved = await one(ctx.page.locator('textarea'), 'persisted services description');
-  if (await saved.inputValue() !== ctx.input.description) throw new Error('SERVICES_POST_SAVE_UNVERIFIED');
+  if ((await saved.inputValue()) !== ctx.input.description)
+    throw new Error('SERVICES_POST_SAVE_UNVERIFIED');
   ctx.emit('result', 'LinkedIn services description verified after reopening');
 }
 
@@ -520,7 +657,9 @@ async function addLinkedInProject(ctx: WorkflowContext): Promise<void> {
   const prefix = ctx.profile.href.replace(/\/$/, '');
   await navigate(ctx, `${prefix}/details/projects/`);
   if ((await ctx.page.locator('main').innerText()).includes(ctx.input.projectName!)) {
-    ctx.emit('result', 'Project name already found; no duplicate created', { name: ctx.input.projectName });
+    ctx.emit('result', 'Project name already found; no duplicate created', {
+      name: ctx.input.projectName,
+    });
     return;
   }
   await navigate(ctx, `${prefix}/edit/forms/project/new/`);
@@ -528,18 +667,32 @@ async function addLinkedInProject(ctx: WorkflowContext): Promise<void> {
   const description = await one(ctx.page.locator('textarea'), 'project description');
   await name.fill(ctx.input.projectName!);
   await description.fill(ctx.input.description!);
-  if (await name.inputValue() !== ctx.input.projectName || await description.inputValue() !== ctx.input.description) {
+  if (
+    (await name.inputValue()) !== ctx.input.projectName ||
+    (await description.inputValue()) !== ctx.input.description
+  ) {
     throw new Error('PROJECT_PRE_SAVE_MISMATCH');
   }
   // Link previews are asynchronous and can fail. Never silently save a project without its requested media.
   if (ctx.input.projectUrl) {
     await (await one(ctx.page.getByRole('button', { name: 'Add media' }), 'Add media')).click();
     await (await one(ctx.page.getByRole('menuitem', { name: 'Add a link' }), 'Add a link')).click();
-    const link = await one(ctx.page.getByRole('textbox', { name: /Paste or type a link/i }), 'project media URL');
+    const link = await one(
+      ctx.page.getByRole('textbox', { name: /Paste or type a link/i }),
+      'project media URL',
+    );
     await link.fill(ctx.input.projectUrl);
-    await (await one(ctx.page.getByRole('button', { name: 'Add', exact: true }), 'add media link')).click();
-    const previewSave = ctx.page.getByRole('button', { name: 'Save', exact: true });
-    const enabled = await previewSave.last().isEnabled().catch(() => false);
+    await (
+      await one(ctx.page.getByRole('button', { name: 'Add', exact: true }), 'add media link')
+    ).click();
+    const previewSave = ctx.page.getByRole('button', {
+      name: 'Save',
+      exact: true,
+    });
+    const enabled = await previewSave
+      .last()
+      .isEnabled()
+      .catch(() => false);
     if (!enabled) throw new Error('PROJECT_MEDIA_PREVIEW_FAILED');
     await image(ctx, 'project-media-preview');
     await ctx.approve('Review the requested project media preview, then approve adding the link');
@@ -548,15 +701,19 @@ async function addLinkedInProject(ctx: WorkflowContext): Promise<void> {
   }
   await image(ctx, 'project-before-save');
   await ctx.approve('Review project name, description and association, then approve project Save');
-  if (await name.inputValue() !== ctx.input.projectName ||
-      await description.inputValue() !== ctx.input.description) {
+  if (
+    (await name.inputValue()) !== ctx.input.projectName ||
+    (await description.inputValue()) !== ctx.input.description
+  ) {
     throw new Error('PROJECT_FIELDS_CHANGED');
   }
   await save(ctx);
   await navigate(ctx, `${prefix}/details/projects/`);
   const live = await ctx.page.locator('main').innerText();
   if (!live.includes(ctx.input.projectName!)) throw new Error('PROJECT_POST_SAVE_UNVERIFIED');
-  ctx.emit('result', 'LinkedIn project appeared after a fresh load', { name: ctx.input.projectName });
+  ctx.emit('result', 'LinkedIn project appeared after a fresh load', {
+    name: ctx.input.projectName,
+  });
 }
 
 async function addLinkedInFeatured(ctx: WorkflowContext): Promise<void> {
@@ -564,20 +721,26 @@ async function addLinkedInFeatured(ctx: WorkflowContext): Promise<void> {
   const url = `${ctx.profile.href.replace(/\/$/, '')}/details/featured/`;
   await navigate(ctx, url);
   if ((await ctx.page.locator('main').innerText()).includes(ctx.input.featuredTitle!)) {
-    ctx.emit('result', 'Featured title already visible; duplicate avoided'); return;
+    ctx.emit('result', 'Featured title already visible; duplicate avoided');
+    return;
   }
-  await (await one(ctx.page.getByRole('button', { name: 'Featured overflow menu' }), 'Featured menu')).click();
+  await (
+    await one(ctx.page.getByRole('button', { name: 'Featured overflow menu' }), 'Featured menu')
+  ).click();
   await (await one(ctx.page.getByRole('menuitem', { name: 'Add a link' }), 'Add a link')).click();
-  const input = await one(ctx.page.getByRole('textbox', { name: /Paste or type a link/i }), 'featured URL');
+  const input = await one(
+    ctx.page.getByRole('textbox', { name: /Paste or type a link/i }),
+    'featured URL',
+  );
   await input.fill(ctx.input.projectUrl!);
   await (await one(ctx.page.getByRole('button', { name: 'Add', exact: true }), 'Add link')).click();
   // Inspect the current dialog. If we cannot uniquely identify title, stop for a manual update.
   const named = ctx.page.getByRole('textbox', { name: /title/i });
-  if (await named.count() !== 1) throw new Error('FEATURED_TITLE_SELECTOR_AMBIGUOUS');
+  if ((await named.count()) !== 1) throw new Error('FEATURED_TITLE_SELECTOR_AMBIGUOUS');
   await named.fill(ctx.input.featuredTitle!);
   await image(ctx, 'featured-before-save');
   await ctx.approve('Review LinkedIn Featured link and title before Save');
-  if (await named.inputValue() !== ctx.input.featuredTitle) throw new Error('FEATURED_CHANGED');
+  if ((await named.inputValue()) !== ctx.input.featuredTitle) throw new Error('FEATURED_CHANGED');
   await save(ctx);
   await navigate(ctx, url);
   if (!(await ctx.page.locator('main').innerText()).includes(ctx.input.featuredTitle!)) {
@@ -595,16 +758,23 @@ async function uploadXBanner(ctx: WorkflowContext): Promise<void> {
     throw new Error('Banner must be a PNG/JPEG/WebP file within utomator/assets/');
   }
   const file = await stat(filename);
-  if (!file.isFile() || file.size > 10 * 1024 * 1024) throw new Error('Banner must be an image under 10MB');
+  if (!file.isFile() || file.size > 10 * 1024 * 1024)
+    throw new Error('Banner must be an image under 10MB');
   await ensureXOwner(ctx);
-  const previous = await ctx.page.locator('img[src*="profile_banners"]').first().getAttribute('src').catch(() => null);
+  const previous = await ctx.page
+    .locator('img[src*="profile_banners"]')
+    .first()
+    .getAttribute('src')
+    .catch(() => null);
   await ctx.page.locator('[data-testid="editProfileButton"]').click();
   const dialog = await one(ctx.page.getByRole('dialog'), 'X profile editor');
   const picker = ctx.page.waitForEvent('filechooser', { timeout: 15000 });
-  await (await one(dialog.getByRole('button', { name: 'Add banner photo' }), 'Add banner photo')).click();
+  await (
+    await one(dialog.getByRole('button', { name: 'Add banner photo' }), 'Add banner photo')
+  ).click();
   await (await picker).setFiles(filename);
   const apply = ctx.page.getByRole('button', { name: /^(Apply|Crop|Done)$/i });
-  if (await apply.count() !== 1) throw new Error('X_BANNER_CROP_CONTROL_AMBIGUOUS');
+  if ((await apply.count()) !== 1) throw new Error('X_BANNER_CROP_CONTROL_AMBIGUOUS');
   await image(ctx, 'banner-crop-preview');
   await ctx.approve('Review banner crop and approve applying the crop');
   assertActive(ctx);
@@ -613,7 +783,11 @@ async function uploadXBanner(ctx: WorkflowContext): Promise<void> {
   await ctx.approve('Review the entire X profile and approve saving the new banner');
   await save(ctx);
   await navigate(ctx, ctx.profile.href);
-  const current = await ctx.page.locator('img[src*="profile_banners"]').first().getAttribute('src').catch(() => null);
+  const current = await ctx.page
+    .locator('img[src*="profile_banners"]')
+    .first()
+    .getAttribute('src')
+    .catch(() => null);
   if (!current || current === previous) throw new Error('X_BANNER_POST_SAVE_UNVERIFIED');
   ctx.emit('result', 'X banner changed after a fresh profile load');
 }
@@ -624,13 +798,28 @@ async function auditSelectedPage(ctx: WorkflowContext): Promise<void> {
   // validateRun has constrained this to a profile or one allowed details page.
   await navigate(ctx, target);
   const data = await observeAfterNavigation(
-    ctx.page, new URL(target),
-    async () => ctx.page.evaluate(() => ({
-      title: document.title, url: location.href,
-      excerpt: ((document.querySelector('main') as HTMLElement | null)?.innerText || document.body.innerText || '')
-        .replace(/\s+/g, ' ').slice(0, 3500),
-    })),
-    { signal: ctx.signal, onRetry: (attempt) => ctx.emit('step', 'Page navigated during inspection; retrying read-only read (' + attempt + '/2)') },
+    ctx.page,
+    new URL(target),
+    async () =>
+      ctx.page.evaluate(() => ({
+        title: document.title,
+        url: location.href,
+        excerpt: (
+          (document.querySelector('main') as HTMLElement | null)?.innerText ||
+          document.body.innerText ||
+          ''
+        )
+          .replace(/\s+/g, ' ')
+          .slice(0, 3500),
+      })),
+    {
+      signal: ctx.signal,
+      onRetry: (attempt) =>
+        ctx.emit(
+          'step',
+          'Page navigated during inspection; retrying read-only read (' + attempt + '/2)',
+        ),
+    },
   );
   await image(ctx, 'audit-selected-page');
   ctx.emit('audit', 'Selected page observed (read-only)', data);
@@ -640,21 +829,33 @@ async function auditSelectedPage(ctx: WorkflowContext): Promise<void> {
 export async function execute(ctx: WorkflowContext): Promise<void> {
   ctx.emit('status', 'Browser session connected');
   await (async () => {
-  switch (ctx.input.action) {
-    case 'audit': return audit(ctx);
-    case 'audit-page': return auditSelectedPage(ctx);
-    case 'edit-profile': return ctx.input.platform === 'linkedin' ? editLinkedIn(ctx) : editX(ctx);
-    case 'add-skill': return addLinkedInSkill(ctx);
-    case 'edit-experience': return editLinkedInExperience(ctx);
-    case 'edit-website': return editLinkedInWebsite(ctx);
-    case 'edit-services': return editLinkedInServices(ctx);
-    case 'add-project': return addLinkedInProject(ctx);
-    case 'add-featured': return addLinkedInFeatured(ctx);
-    case 'upload-banner': return uploadXBanner(ctx);
-    case 'compose-post': return composeX(ctx);
-    case 'pin-post':
-    case 'delete-post': return mutateXPost(ctx);
-  }
+    switch (ctx.input.action) {
+      case 'audit':
+        return audit(ctx);
+      case 'audit-page':
+        return auditSelectedPage(ctx);
+      case 'edit-profile':
+        return ctx.input.platform === 'linkedin' ? editLinkedIn(ctx) : editX(ctx);
+      case 'add-skill':
+        return addLinkedInSkill(ctx);
+      case 'edit-experience':
+        return editLinkedInExperience(ctx);
+      case 'edit-website':
+        return editLinkedInWebsite(ctx);
+      case 'edit-services':
+        return editLinkedInServices(ctx);
+      case 'add-project':
+        return addLinkedInProject(ctx);
+      case 'add-featured':
+        return addLinkedInFeatured(ctx);
+      case 'upload-banner':
+        return uploadXBanner(ctx);
+      case 'compose-post':
+        return composeX(ctx);
+      case 'pin-post':
+      case 'delete-post':
+        return mutateXPost(ctx);
+    }
   })();
   // Mutating handlers have already performed their read-back verification.
   // Capture the actual final browser state separately from the pre-save evidence.
@@ -662,14 +863,23 @@ export async function execute(ctx: WorkflowContext): Promise<void> {
     try {
       await image(ctx, 'run-final-state');
       const observed = await ctx.page.evaluate(() => ({
-        title: document.title, url: location.href,
-        excerpt: ((document.querySelector('main') as HTMLElement | null)?.innerText ||
-          document.body.innerText || '').replace(/\s+/g, ' ').slice(0, 1800),
+        title: document.title,
+        url: location.href,
+        excerpt: (
+          (document.querySelector('main') as HTMLElement | null)?.innerText ||
+          document.body.innerText ||
+          ''
+        )
+          .replace(/\s+/g, ' ')
+          .slice(0, 1800),
       }));
       ctx.emit('audit', 'Post-run browser page observed', observed);
     } catch (error) {
-      ctx.emit('error', 'Result was verified, but post-run visual evidence is unavailable: ' +
-        (error instanceof Error ? error.message : String(error)));
+      ctx.emit(
+        'error',
+        'Result was verified, but post-run visual evidence is unavailable: ' +
+          (error instanceof Error ? error.message : String(error)),
+      );
     }
   }
 }

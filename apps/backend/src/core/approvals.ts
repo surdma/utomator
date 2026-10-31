@@ -1,9 +1,21 @@
 import { randomUUID } from 'node:crypto';
 
 export class ApprovalGate {
-  private waiting = new Map<string, { checkpointId: string; resolve: (approved: boolean) => void; timer: NodeJS.Timeout }>();
+  private waiting = new Map<
+    string,
+    {
+      checkpointId: string;
+      resolve: (approved: boolean) => void;
+      timer: NodeJS.Timeout;
+    }
+  >();
 
-  request(runId: string, onCheckpoint: (id: string) => void, signal: AbortSignal, timeoutMs = 600000): Promise<boolean> {
+  request(
+    runId: string,
+    onCheckpoint: (id: string) => void,
+    signal: AbortSignal,
+    timeoutMs = 600000,
+  ): Promise<boolean> {
     if (this.waiting.has(runId)) throw new Error('A checkpoint is already pending');
     const checkpointId = randomUUID();
     return new Promise<boolean>((resolve) => {

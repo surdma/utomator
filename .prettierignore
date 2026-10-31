@@ -1,0 +1,27 @@
+# Dependency directories
+node_modules/
+.pnpm-store/
+
+# Build outputs & artifacts
+dist/
+build/
+.next/
+.output/
+out/
+public/build/
+
+# Turborepo & local caches
+.turbo/
+.cache/
+
+# Coverage reports & logs
+coverage/
+*.log
+
+# Environment & lock files (often best left untouched or explicitly handled)
+pnpm-lock.yaml
+.env*
+!.env.example
+
+# Generated types or schema outputs
+generated/

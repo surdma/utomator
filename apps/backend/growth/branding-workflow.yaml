@@ -1,0 +1,32 @@
+apiVersion: "utomator.dev/v1"
+kind: "GrowthWorkflow"
+metadata:
+  id: "linkedin-branding"
+  version: 1
+  title: "Personal positioning & professional authority"
+spec:
+  platform: "linkedin"
+  objective: "Read-only positioning baseline. Field details require owner-supplied evidence; brand strategy, edits and growth outcomes are not automated."
+  requirements:
+    requirement01: "Observe the authenticated owner profile without editing it"
+    requirement02: "Separate visible page evidence from owner-reported field details"
+    requirement03: "Identify positioning gaps without inventing achievements"
+  coverage:
+    headline: "Headline positioning"
+    about: "About narrative"
+    banner: "Banner and visual identity"
+    featured: "Featured credibility signals"
+    projects: "Projects and proof of work"
+  pipelines:
+    baseline: "audit"
+  stages:
+    positioning:
+      tasks:
+        start: "Begin read-only positioning baseline"
+        session: "Verify the authorized LinkedIn session"
+        action: "Observe the current profile without making changes"
+      title: "Collect professional positioning evidence"
+      action: "audit"
+      page: "profile"
+      sections: "*"
+      dependsOn: "none"

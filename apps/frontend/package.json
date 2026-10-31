@@ -8,11 +8,13 @@
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "eslint .",
-    "test": "node --test tests/utomator-routes.test.mjs tests/routes.test.mjs",
-    "test:browser": "playwright test"
+    "test": "node --experimental-strip-types --test tests/utomator-routes.test.mjs tests/routes.test.mjs tests/growth-graph-model.test.mjs tests/growth-run-journal.test.mjs tests/pipeline-command-parser.test.mjs tests/pipeline-utterance.test.mjs tests/voice-support.test.mjs tests/annotation-voice.test.mjs tests/growth-profile-client.test.mjs tests/build-run-payload.test.mjs tests/pipeline-api-client.test.mjs tests/dashboard-route.test.mjs tests/craft-command-editor.test.mjs tests/craft-command-service.test.mjs tests/craft-category-titles.test.mjs tests/run-event-utils.test.mjs tests/default-workflow-plan.test.mjs tests/pipeline-controller-boundaries.test.mjs tests/visual-review-model.test.mjs tests/dashboard-component-structure.test.mjs tests/craft-mdx.test.mjs tests/mator-settings-client.test.mjs tests/mator-chat-state.test.mjs tests/mator-send-gate.test.mjs tests/mator-chat-ui.test.mjs",
+    "test:browser": "playwright test",
+    "test:ui": "playwright test tests/frontend-quality.test.ts"
   },
   "dependencies": {
     "@react-pdf/renderer": "4.9.0",
+    "@shadcn/react": "^0.3.1",
     "@xyflow/react": "12.12.0",
     "clsx": "2.1.1",
     "flowbite": "^4.0.1",
@@ -31,7 +33,8 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.4.27",
-    "eslint": "^10.1.0",
+    "axe-core": "4.11.2",
+    "eslint": "^9.39.1",
     "eslint-config-next": "16.2.2",
     "playwright": "^1.55.0",
     "postcss": "^8.5.8",

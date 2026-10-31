@@ -1,11 +1,11 @@
-import React from "react";
+import React from 'react';
 
 const PageLayout: React.FC<{
   children: React.ReactNode;
   className?: string;
-}> = ({ children, className = "" }) => {
+}> = ({ children, className = '' }) => {
   return (
-    <div className={`w-full max-w-7xl mx-auto px-6 md:px-8 ${className}`}>
+    <div className={`mx-auto w-full max-w-7xl px-6 md:px-8 ${className}`}>
       {children}
     </div>
   );

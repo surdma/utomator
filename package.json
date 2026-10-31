@@ -15,9 +15,13 @@
     "test:backend": "pnpm --filter @utomator/backend test",
     "test:frontend": "pnpm --filter @utomator/frontend test",
     "lint:backend": "pnpm --filter @utomator/backend lint",
-    "typecheck:backend": "pnpm --filter @utomator/backend typecheck"
+    "typecheck:backend": "pnpm --filter @utomator/backend typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml,css,scss}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml,css,scss}\""
   },
   "devDependencies": {
+    "prettier": "^3.9.10",
+    "prettier-plugin-tailwindcss": "^0.8.1",
     "turbo": "^2.11.10"
   }
 }

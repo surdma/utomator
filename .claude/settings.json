@@ -1,0 +1,5 @@
+{
+  "enabledPlugins": {
+    "supabase@supabase-agent-skills": true
+  }
+}

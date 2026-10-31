@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { motion } from "framer-motion";
-import Link from "next/link";
+import { motion } from 'framer-motion';
+import Link from 'next/link';
 
 function ArrowIcon({ className }: { className?: string }) {
   return (
@@ -48,10 +48,16 @@ export default function HeroButton() {
       transition={{ delay: 0.6 }}
       className="flex flex-wrap items-center gap-4"
     >
-      <Link href="/dashboard/pipeline" className="site-action site-action--primary">
+      <Link
+        href="/dashboard/pipeline"
+        className="site-action site-action--primary"
+      >
         Open workspace <DownloadIcon className="h-4 w-4" />
       </Link>
-      <Link href="/dashboard/growth" className="site-action site-action--secondary">
+      <Link
+        href="/dashboard/growth"
+        className="site-action site-action--secondary"
+      >
         Explore capabilities <ArrowIcon className="h-4 w-4" />
       </Link>
     </motion.div>
