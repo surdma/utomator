@@ -123,7 +123,7 @@ function iconButton(
   extra?: string
 ): string {
   return cn(
-    'inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40',
+    'inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40',
     tone === 'default' &&
       'text-slate-500 hover:bg-slate-100 hover:text-slate-800',
     tone === 'active' && 'bg-teal-700 text-white hover:bg-teal-600',
@@ -440,7 +440,7 @@ export default function MatorComposer({
                 data-testid="mator-send"
                 disabled={!canSend}
                 className={cn(
-                  'inline-flex size-9 cursor-pointer items-center justify-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed',
+                  'inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed',
                   canSend
                     ? 'bg-teal-800 text-white hover:bg-teal-700'
                     : 'bg-slate-100 text-slate-300'
