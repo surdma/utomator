@@ -14,12 +14,20 @@ test('LinkedIn fixture receives credentials with no logging or external request'
       });
     });
     await page.goto('https://www.linkedin.com/login');
-    const submitted = await attemptLogin(page, 'linkedin', {
-      identifier: 'fixture@example.test', password: 'a-test-secret',
-    }, new AbortController().signal);
+    const submitted = await attemptLogin(
+      page,
+      'linkedin',
+      {
+        identifier: 'fixture@example.test',
+        password: 'a-test-secret',
+      },
+      new AbortController().signal,
+    );
     assert.equal(submitted, true);
     assert.equal(await page.locator('body').getAttribute('data-sent'), 'yes');
-  } finally { await browser.close(); }
+  } finally {
+    await browser.close();
+  }
 });
 
 test('credentials are never used on an untrusted origin', async () => {
@@ -27,10 +35,21 @@ test('credentials are never used on an untrusted origin', async () => {
   try {
     const page = await browser.newPage();
     await page.goto('about:blank');
-    await assert.rejects(attemptLogin(page, 'linkedin', {
-      identifier: 'someone@example.test', password: 'not-real',
-    }, new AbortController().signal), /official platform/);
-  } finally { await browser.close(); }
+    await assert.rejects(
+      attemptLogin(
+        page,
+        'linkedin',
+        {
+          identifier: 'someone@example.test',
+          password: 'not-real',
+        },
+        new AbortController().signal,
+      ),
+      /official platform/,
+    );
+  } finally {
+    await browser.close();
+  }
 });
 
 test('X two-step fixture logs in without writing credentials to run history', async () => {
@@ -38,18 +57,32 @@ test('X two-step fixture logs in without writing credentials to run history', as
   try {
     const page = await browser.newPage();
     await page.route('https://x.com/**', async (route) => {
-      await route.fulfill({ contentType: 'text/html', body: `<!doctype html><body>
+      await route.fulfill({
+        contentType: 'text/html',
+        body: `<!doctype html><body>
         <input autocomplete="username">
         <button onclick="this.hidden=true;document.getElementById('second').hidden=false">Next</button>
         <div id="second" hidden>
           <input type="password"><button onclick="document.body.dataset.sent='yes'">Log in</button>
         </div>
-      </body>` });
+      </body>`,
+      });
     });
     await page.goto('https://x.com/i/flow/login');
-    assert.equal(await attemptLogin(page, 'x', {
-      identifier: 'surdma_fixture', password: 'one-time-only',
-    }, new AbortController().signal), true);
+    assert.equal(
+      await attemptLogin(
+        page,
+        'x',
+        {
+          identifier: 'surdma_fixture',
+          password: 'one-time-only',
+        },
+        new AbortController().signal,
+      ),
+      true,
+    );
     assert.equal(await page.locator('body').getAttribute('data-sent'), 'yes');
-  } finally {await browser.close();}
+  } finally {
+    await browser.close();
+  }
 });

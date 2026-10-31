@@ -1,0 +1,19 @@
+flowchart LR
+    subgraph DESIGN["GROWTH / CRAFT · authoring"]
+        direction TB
+        CAT["Growth catalogue<br/>15 capabilities and Craft designs"]
+        MDX["CraftProject<br/>brief • research • draft • review"]
+        CAT --> MDX
+    end
+    subgraph EXEC["PIPELINE · execution"]
+        direction TB
+        PLAN["WorkflowPlan<br/>start • inspect • action • verify"]
+        COMP["compileWorkflow()"]
+        RUN["Runner<br/>registered operations"]
+        PLAN --> COMP --> RUN
+    end
+    MDX -.->|"Missing compiler bridge"| COMP
+    classDef gray fill:#f1f5f9,color:#0f172a,stroke:#94a3b8
+    classDef blue fill:#dbeafe,color:#1e40af,stroke:#2563eb
+    class CAT,MDX gray
+    class PLAN,COMP,RUN blue

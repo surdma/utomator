@@ -1,6 +1,6 @@
-import { chromium } from "playwright";
+import { chromium } from 'playwright';
 
-const BASE = "http://127.0.0.1:3000";
+const BASE = 'http://127.0.0.1:3000';
 
 async function main() {
   const browser = await chromium.launch({ headless: true });
@@ -12,21 +12,23 @@ async function main() {
 
   function assert(condition, name) {
     if (condition) {
-      console.log("  PASS: " + name);
+      console.log('  PASS: ' + name);
       passed++;
     } else {
-      console.log("  FAIL: " + name);
+      console.log('  FAIL: ' + name);
       failed++;
     }
   }
 
   try {
-    console.log("\nTest 1: Connector onboarding dialog");
-    await page.goto(BASE + "/dashboard/pipeline", { waitUntil: "domcontentloaded" });
+    console.log('\nTest 1: Connector onboarding dialog');
+    await page.goto(BASE + '/dashboard/pipeline', {
+      waitUntil: 'domcontentloaded',
+    });
     await page.waitForTimeout(3000);
 
     const floatBtn = page.locator("[data-testid='floating-connector-button']");
-    assert(await floatBtn.isVisible(), "Floating connector button visible");
+    assert(await floatBtn.isVisible(), 'Floating connector button visible');
 
     await floatBtn.click();
     await page.waitForTimeout(2000);
@@ -37,36 +39,39 @@ async function main() {
       await floatBtn.click();
       await page.waitForTimeout(2000);
     }
-    await dialog.waitFor({ state: "visible", timeout: 5000 });
-    assert(await dialog.isVisible(), "Dialog is visible");
+    await dialog.waitFor({ state: 'visible', timeout: 5000 });
+    assert(await dialog.isVisible(), 'Dialog is visible');
 
     const accountBtns = dialog.locator("button:has-text('@surdma')");
     const count = await accountBtns.count();
-    assert(count > 0, "LinkedIn account @surdma visible in dialog");
+    assert(count > 0, 'LinkedIn account @surdma visible in dialog');
 
     if (count > 0) {
       await accountBtns.first().click();
 
       const syncBtn = dialog.locator("button:has-text('Sync')");
-      assert(await syncBtn.count() > 0, "Sync button visible");
+      assert((await syncBtn.count()) > 0, 'Sync button visible');
 
       const disconnectBtn = dialog.locator("button:has-text('Disconnect')");
-      assert(await disconnectBtn.count() > 0, "Disconnect button visible");
+      assert((await disconnectBtn.count()) > 0, 'Disconnect button visible');
     }
 
-    await page.keyboard.press("Escape");
-    assert(!(await dialog.isVisible()), "Dialog closes on Escape");
+    await page.keyboard.press('Escape');
+    assert(!(await dialog.isVisible()), 'Dialog closes on Escape');
 
-    console.log("\nTest 2: Sync button calls API");
+    console.log('\nTest 2: Sync button calls API');
     const syncUrls = [];
-    page.on("request", (request) => {
-      if (request.url().includes("/connectors/") && request.method() === "POST") {
+    page.on('request', (request) => {
+      if (
+        request.url().includes('/connectors/') &&
+        request.method() === 'POST'
+      ) {
         syncUrls.push(request.url());
       }
     });
 
     await floatBtn.click();
-    await dialog.waitFor({ state: "visible", timeout: 5000 });
+    await dialog.waitFor({ state: 'visible', timeout: 5000 });
 
     if ((await accountBtns.count()) > 0) {
       await accountBtns.first().click();
@@ -75,37 +80,45 @@ async function main() {
       if ((await syncBtn.count()) > 0) {
         await syncBtn.click();
         await page.waitForTimeout(3000);
-        assert(syncUrls.length > 0, "Sync API was called (" + syncUrls.length + " requests)");
+        assert(
+          syncUrls.length > 0,
+          'Sync API was called (' + syncUrls.length + ' requests)'
+        );
       }
     }
 
-    await page.keyboard.press("Escape");
+    await page.keyboard.press('Escape');
 
-    console.log("\nTest 3: Server-managed session survives reload");
-    await page.goto(BASE + "/dashboard/profile/connections", {
-      waitUntil: "domcontentloaded",
+    console.log('\nTest 3: Server-managed session survives reload');
+    await page.goto(BASE + '/dashboard/profile/connections', {
+      waitUntil: 'domcontentloaded',
     });
     await page.waitForTimeout(2000);
 
-    const heading = page.locator("text=Social profile directory");
-    assert(await heading.isVisible(), "Connections page loads");
+    const heading = page.locator('text=Social profile directory');
+    assert(await heading.isVisible(), 'Connections page loads');
 
-    const linkedinText = page.locator("text=LinkedIn");
-    assert(await linkedinText.isVisible(), "LinkedIn accounts visible from server");
+    const linkedinText = page.locator('text=LinkedIn');
+    assert(
+      await linkedinText.isVisible(),
+      'LinkedIn accounts visible from server'
+    );
 
     await page.reload();
     await page.waitForTimeout(2000);
-    assert(await heading.isVisible(), "Connections page survives reload");
-    assert(await linkedinText.isVisible(), "LinkedIn accounts still visible after reload");
-
+    assert(await heading.isVisible(), 'Connections page survives reload');
+    assert(
+      await linkedinText.isVisible(),
+      'LinkedIn accounts still visible after reload'
+    );
   } catch (error) {
-    console.log("  ERROR: " + error.message);
+    console.log('  ERROR: ' + error.message);
     failed++;
   }
 
   await browser.close();
 
-  console.log("\nResults: " + passed + " passed, " + failed + " failed");
+  console.log('\nResults: ' + passed + ' passed, ' + failed + ' failed');
   process.exit(failed > 0 ? 1 : 0);
 }
 

@@ -1,0 +1,54 @@
+flowchart TB
+    G(["GROWTH INITIATIVE<br/>Objective · Audience · Baseline · KPIs"])
+    C[["CRAFT TEMPLATES<br/>Versioned reusable procedures"]]
+    subgraph CANON["ONE AUTHORITATIVE WORKFLOW GRAPH"]
+        direction LR
+        VIS["Visual editor"] <-->|"same structure"| IR{{"CANONICAL GRAPH<br/>Typed nodes · Edges · Data contracts"}}
+        MDX["MDX source"] <-->|"same structure"| IR
+    end
+    VALIDATE["COMPILER<br/>Schema · Dependencies · Capabilities · Policy"]
+    DECIDE{"Executable<br/>and authorized?"}
+    MANUAL["BLOCKED / MANUAL HANDOFF<br/>Missing handler or permissions"]
+    RELEASE[/"IMMUTABLE PIPELINE RELEASE<br/>Account · Inputs · Handler versions"/]
+    subgraph ENGINE["SINGLE UTOMATOR EXECUTION ENGINE"]
+        direction LR
+        REG["Operation registry"] --> ORCH["Orchestrator"]
+        ORCH --> DISPATCH["Dispatcher"]
+        DISPATCH --> STATE[("Durable run state")]
+        POLICY["Permissions"] -.-> DISPATCH
+        HUMAN["Human approvals"] -.-> ORCH
+    end
+    subgraph DOMAIN["SPECIALIZED CAPABILITIES"]
+        direction LR
+        PROFILE["Profile"]
+        RESEARCH["Research"]
+        EDITORIAL["Editorial"]
+        ANALYTICS["Analytics"]
+    end
+    PROVIDERS["LinkedIn API · Verified browser · Other providers"]
+    OUT[("VERIFIED RESULTS<br/>Receipts · Artifacts · Measurements")]
+    G --> C
+    G --> IR
+    C --> IR
+    IR --> VALIDATE --> DECIDE
+    DECIDE -->|"No"| MANUAL
+    DECIDE -->|"Yes"| RELEASE --> REG
+    DISPATCH --> PROFILE
+    DISPATCH --> RESEARCH
+    DISPATCH --> EDITORIAL
+    DISPATCH --> ANALYTICS
+    PROFILE --> PROVIDERS
+    EDITORIAL --> PROVIDERS
+    RESEARCH --> OUT
+    ANALYTICS --> OUT
+    PROVIDERS --> OUT
+    OUT --> STATE
+    OUT -.->|"Measured feedback"| G
+    classDef dark fill:#0f172a,color:#fff,stroke:#0f172a,stroke-width:2px
+    classDef blue fill:#dbeafe,color:#1e40af,stroke:#2563eb,stroke-width:1.5px
+    classDef green fill:#d1fae5,color:#065f46,stroke:#10b981
+    classDef red fill:#ffe4e6,color:#9f1239,stroke:#fb7185
+    class G dark
+    class C,IR,VIS,MDX,VALIDATE,RELEASE,REG,ORCH,DISPATCH,STATE,POLICY,HUMAN blue
+    class OUT green
+    class MANUAL red

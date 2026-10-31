@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef } from 'react';
 
 export default function HeroGrid() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -9,11 +9,12 @@ export default function HeroGrid() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     let animationId: number;
-    let dots: { x: number; y: number; baseOpacity: number; phase: number }[] = [];
+    let dots: { x: number; y: number; baseOpacity: number; phase: number }[] =
+      [];
 
     const resize = () => {
       canvas.width = window.innerWidth;
@@ -43,8 +44,7 @@ export default function HeroGrid() {
 
       for (const dot of dots) {
         const opacity =
-          dot.baseOpacity *
-          (0.5 + 0.5 * Math.sin(time * 0.001 + dot.phase));
+          dot.baseOpacity * (0.5 + 0.5 * Math.sin(time * 0.001 + dot.phase));
         ctx.fillStyle = `rgba(6, 182, 212, ${opacity})`;
         ctx.beginPath();
         ctx.arc(dot.x, dot.y, 1, 0, Math.PI * 2);
@@ -56,18 +56,18 @@ export default function HeroGrid() {
 
     resize();
     animationId = requestAnimationFrame(draw);
-    window.addEventListener("resize", resize);
+    window.addEventListener('resize', resize);
 
     return () => {
       cancelAnimationFrame(animationId);
-      window.removeEventListener("resize", resize);
+      window.removeEventListener('resize', resize);
     };
   }, []);
 
   return (
     <canvas
       ref={canvasRef}
-      className="absolute inset-0 pointer-events-none"
+      className="pointer-events-none absolute inset-0"
       style={{ opacity: 0.6 }}
     />
   );

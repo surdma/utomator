@@ -1,0 +1,22 @@
+flowchart TB
+    G(["GROWTH INITIATIVE<br/>Job-seeking objective"])
+    P["Profile intelligence"]
+    R["Career research"]
+    C["Content development"]
+    O[("Opportunity measurement")]
+    T[["Shared versioned Craft templates"]]
+    G --> P
+    G --> R
+    G --> O
+    P -->|"Approved evidence"| C
+    R -->|"Permitted niche findings"| C
+    C -->|"Real publication or owner handoff"| O
+    T -.-> P
+    T -.-> R
+    T -.-> C
+    classDef goal fill:#0f172a,color:#fff,stroke:#0f172a
+    classDef work fill:#dbeafe,color:#1e40af,stroke:#2563eb
+    classDef outcome fill:#d1fae5,color:#065f46,stroke:#10b981
+    class G goal
+    class P,R,C,T work
+    class O outcome

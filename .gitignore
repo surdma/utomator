@@ -58,3 +58,206 @@ automation(linkedin)/pnpm-lock.yaml
 /apps/backend/dist/
 /apps/backend/.runtime/
 /workspace/
+.runtime/chrome/linkedin/Last Version
+.runtime/chrome/linkedin/Local State
+.runtime/chrome/linkedin/Variations
+.runtime/chrome/linkedin/VariationsSafeSeedV2
+.runtime/chrome/linkedin/VariationsSeedV2
+.runtime/chrome/linkedin/BrowserMetrics/BrowserMetrics-6ADE1AF0-53B0.pma
+.runtime/chrome/linkedin/BrowserMetrics/BrowserMetrics-6ADE1B02-2074.pma
+.runtime/chrome/linkedin/BrowserMetrics/BrowserMetrics-6ADE1B3E-2E9C.pma
+.runtime/chrome/linkedin/BrowserMetrics/BrowserMetrics-6ADE1B4A-4BF8.pma
+.runtime/chrome/linkedin/BrowserMetrics/BrowserMetrics-6ADE1B5D-1D0C.pma
+.runtime/chrome/linkedin/BrowserMetrics/BrowserMetrics-6ADE1B23-624.pma
+.runtime/chrome/linkedin/BrowserMetrics/BrowserMetrics-6ADE1B89-4164.pma
+.runtime/chrome/linkedin/BrowserMetrics/BrowserMetrics-6ADE1D67-5AC8.pma
+.runtime/chrome/linkedin/BrowserMetrics/BrowserMetrics-6ADE1D79-2020.pma
+.runtime/chrome/linkedin/BrowserMetrics/BrowserMetrics-6ADE25A3-6C10.pma
+.runtime/chrome/linkedin/BrowserMetrics/BrowserMetrics-6ADE26E2-3FE8.pma
+.runtime/chrome/linkedin/BrowserMetrics/BrowserMetrics-6ADE2596-5A7C.pma
+.runtime/chrome/linkedin/Crashpad/metadata
+.runtime/chrome/linkedin/Crashpad/settings.dat
+.runtime/chrome/linkedin/Default/Account Web Data
+.runtime/chrome/linkedin/Default/Account Web Data-journal
+.runtime/chrome/linkedin/Default/Affiliation Database
+.runtime/chrome/linkedin/Default/Affiliation Database-journal
+.runtime/chrome/linkedin/Default/BookmarkMergedSurfaceOrdering
+.runtime/chrome/linkedin/Default/declarative_performance_observer.db
+.runtime/chrome/linkedin/Default/declarative_performance_observer.db-journal
+.runtime/chrome/linkedin/Default/Favicons
+.runtime/chrome/linkedin/Default/Favicons-journal
+.runtime/chrome/linkedin/Default/History
+.runtime/chrome/linkedin/Default/History-journal
+.runtime/chrome/linkedin/Default/LOCK
+.runtime/chrome/linkedin/Default/LOG
+.runtime/chrome/linkedin/Default/LOG.old
+.runtime/chrome/linkedin/Default/Login Data
+.runtime/chrome/linkedin/Default/Login Data For Account
+.runtime/chrome/linkedin/Default/Login Data For Account-journal
+.runtime/chrome/linkedin/Default/Login Data-journal
+.runtime/chrome/linkedin/Default/Preferences
+.runtime/chrome/linkedin/Default/README
+.runtime/chrome/linkedin/Default/Secure Preferences
+.runtime/chrome/linkedin/Default/ServerCertificate
+.runtime/chrome/linkedin/Default/ServerCertificate-journal
+.runtime/chrome/linkedin/Default/Top Sites
+.runtime/chrome/linkedin/Default/Top Sites-journal
+.runtime/chrome/linkedin/Default/Web Data
+.runtime/chrome/linkedin/Default/Web Data-journal
+.runtime/chrome/linkedin/Default/Cache/Cache_Data/data_0
+.runtime/chrome/linkedin/Default/Cache/Cache_Data/data_1
+.runtime/chrome/linkedin/Default/Cache/Cache_Data/data_2
+.runtime/chrome/linkedin/Default/Cache/Cache_Data/data_3
+.runtime/chrome/linkedin/Default/Cache/Cache_Data/index
+.runtime/chrome/linkedin/Default/Cache/No_Vary_Search/journal.baj
+.runtime/chrome/linkedin/Default/Cache/No_Vary_Search/snapshot.baf
+.runtime/chrome/linkedin/Default/ClientCertificates/LOCK
+.runtime/chrome/linkedin/Default/ClientCertificates/LOG
+.runtime/chrome/linkedin/Default/ClientCertificates/LOG.old
+.runtime/chrome/linkedin/Default/Code Cache/js/index
+.runtime/chrome/linkedin/Default/Code Cache/js/index-dir/the-real-index
+.runtime/chrome/linkedin/Default/Code Cache/wasm/index
+.runtime/chrome/linkedin/Default/Code Cache/wasm/index-dir/the-real-index
+.runtime/chrome/linkedin/Default/DawnGraphiteCache/data_0
+.runtime/chrome/linkedin/Default/DawnGraphiteCache/data_1
+.runtime/chrome/linkedin/Default/DawnGraphiteCache/data_2
+.runtime/chrome/linkedin/Default/DawnGraphiteCache/data_3
+.runtime/chrome/linkedin/Default/DawnGraphiteCache/index
+.runtime/chrome/linkedin/Default/DawnWebGPUCache/data_0
+.runtime/chrome/linkedin/Default/DawnWebGPUCache/data_1
+.runtime/chrome/linkedin/Default/DawnWebGPUCache/data_2
+.runtime/chrome/linkedin/Default/DawnWebGPUCache/data_3
+.runtime/chrome/linkedin/Default/DawnWebGPUCache/index
+.runtime/chrome/linkedin/Default/Extension Rules/000003.log
+.runtime/chrome/linkedin/Default/Extension Rules/CURRENT
+.runtime/chrome/linkedin/Default/Extension Rules/LOCK
+.runtime/chrome/linkedin/Default/Extension Rules/LOG
+.runtime/chrome/linkedin/Default/Extension Rules/MANIFEST-000001
+.runtime/chrome/linkedin/Default/Extension Scripts/000003.log
+.runtime/chrome/linkedin/Default/Extension Scripts/CURRENT
+.runtime/chrome/linkedin/Default/Extension Scripts/LOCK
+.runtime/chrome/linkedin/Default/Extension Scripts/LOG
+.runtime/chrome/linkedin/Default/Extension Scripts/MANIFEST-000001
+.runtime/chrome/linkedin/Default/Extension State/000003.log
+.runtime/chrome/linkedin/Default/Extension State/CURRENT
+.runtime/chrome/linkedin/Default/Extension State/LOCK
+.runtime/chrome/linkedin/Default/Extension State/LOG
+.runtime/chrome/linkedin/Default/Extension State/LOG.old
+.runtime/chrome/linkedin/Default/Extension State/MANIFEST-000001
+.runtime/chrome/linkedin/Default/GPUCache/data_0
+.runtime/chrome/linkedin/Default/GPUCache/data_1
+.runtime/chrome/linkedin/Default/GPUCache/data_2
+.runtime/chrome/linkedin/Default/GPUCache/data_3
+.runtime/chrome/linkedin/Default/GPUCache/index
+.runtime/chrome/linkedin/Default/Local Storage/leveldb/000003.log
+.runtime/chrome/linkedin/Default/Local Storage/leveldb/CURRENT
+.runtime/chrome/linkedin/Default/Local Storage/leveldb/LOCK
+.runtime/chrome/linkedin/Default/Local Storage/leveldb/LOG
+.runtime/chrome/linkedin/Default/Local Storage/leveldb/LOG.old
+.runtime/chrome/linkedin/Default/Local Storage/leveldb/MANIFEST-000001
+.runtime/chrome/linkedin/Default/Network/Cookies
+.runtime/chrome/linkedin/Default/Network/Cookies-journal
+.runtime/chrome/linkedin/Default/Network/Device Bound Sessions
+.runtime/chrome/linkedin/Default/Network/Device Bound Sessions-journal
+.runtime/chrome/linkedin/Default/Network/Network Persistent State
+.runtime/chrome/linkedin/Default/Network/NetworkDataMigrated
+.runtime/chrome/linkedin/Default/Network/Reporting and NEL
+.runtime/chrome/linkedin/Default/Network/Reporting and NEL-journal
+.runtime/chrome/linkedin/Default/Network/TransportSecurity
+.runtime/chrome/linkedin/Default/Network/Trust Tokens
+.runtime/chrome/linkedin/Default/Network/Trust Tokens-journal
+.runtime/chrome/linkedin/Default/PersistentOriginTrials/LOCK
+.runtime/chrome/linkedin/Default/PersistentOriginTrials/LOG
+.runtime/chrome/linkedin/Default/PersistentOriginTrials/LOG.old
+.runtime/chrome/linkedin/Default/Safe Browsing Network/NetworkDataMigrated
+.runtime/chrome/linkedin/Default/Segmentation Platform/SegmentInfoDB/LOCK
+.runtime/chrome/linkedin/Default/Segmentation Platform/SegmentInfoDB/LOG
+.runtime/chrome/linkedin/Default/Segmentation Platform/SegmentInfoDB/LOG.old
+.runtime/chrome/linkedin/Default/Segmentation Platform/SignalDB/LOCK
+.runtime/chrome/linkedin/Default/Segmentation Platform/SignalDB/LOG
+.runtime/chrome/linkedin/Default/Segmentation Platform/SignalDB/LOG.old
+.runtime/chrome/linkedin/Default/Segmentation Platform/SignalStorageConfigDB/LOCK
+.runtime/chrome/linkedin/Default/Segmentation Platform/SignalStorageConfigDB/LOG
+.runtime/chrome/linkedin/Default/Segmentation Platform/SignalStorageConfigDB/LOG.old
+.runtime/chrome/linkedin/Default/Session Storage/000003.log
+.runtime/chrome/linkedin/Default/Session Storage/CURRENT
+.runtime/chrome/linkedin/Default/Session Storage/LOCK
+.runtime/chrome/linkedin/Default/Session Storage/LOG
+.runtime/chrome/linkedin/Default/Session Storage/MANIFEST-000001
+.runtime/chrome/linkedin/Default/Sessions/Session_13437417124705047
+.runtime/chrome/linkedin/Default/Sessions/Session_13437417444696866
+.runtime/chrome/linkedin/Default/Sessions/Tabs_13437417124817985
+.runtime/chrome/linkedin/Default/Sessions/Tabs_13437417444795012
+.runtime/chrome/linkedin/Default/Shared Dictionary/db
+.runtime/chrome/linkedin/Default/Shared Dictionary/db-journal
+.runtime/chrome/linkedin/Default/Shared Dictionary/cache/index
+.runtime/chrome/linkedin/Default/Shared Dictionary/cache/index-dir/the-real-index
+.runtime/chrome/linkedin/Default/Site Characteristics Database/000003.log
+.runtime/chrome/linkedin/Default/Site Characteristics Database/CURRENT
+.runtime/chrome/linkedin/Default/Site Characteristics Database/LOCK
+.runtime/chrome/linkedin/Default/Site Characteristics Database/LOG
+.runtime/chrome/linkedin/Default/Site Characteristics Database/LOG.old
+.runtime/chrome/linkedin/Default/Site Characteristics Database/MANIFEST-000001
+.runtime/chrome/linkedin/Default/Sync Data/LevelDB/000003.log
+.runtime/chrome/linkedin/Default/Sync Data/LevelDB/CURRENT
+.runtime/chrome/linkedin/Default/Sync Data/LevelDB/LOCK
+.runtime/chrome/linkedin/Default/Sync Data/LevelDB/LOG
+.runtime/chrome/linkedin/Default/Sync Data/LevelDB/LOG.old
+.runtime/chrome/linkedin/Default/Sync Data/LevelDB/MANIFEST-000001
+.runtime/chrome/linkedin/Default/WebStorage/QuotaManager
+.runtime/chrome/linkedin/Default/WebStorage/QuotaManager-journal
+.runtime/chrome/linkedin/Default/chrome_cart_db/LOCK
+.runtime/chrome/linkedin/Default/chrome_cart_db/LOG
+.runtime/chrome/linkedin/Default/chrome_cart_db/LOG.old
+.runtime/chrome/linkedin/Default/commerce_subscription_db/LOCK
+.runtime/chrome/linkedin/Default/commerce_subscription_db/LOG
+.runtime/chrome/linkedin/Default/commerce_subscription_db/LOG.old
+.runtime/chrome/linkedin/Default/discount_infos_db/LOCK
+.runtime/chrome/linkedin/Default/discount_infos_db/LOG
+.runtime/chrome/linkedin/Default/discount_infos_db/LOG.old
+.runtime/chrome/linkedin/Default/discounts_db/LOCK
+.runtime/chrome/linkedin/Default/discounts_db/LOG
+.runtime/chrome/linkedin/Default/discounts_db/LOG.old
+.runtime/chrome/linkedin/Default/parcel_tracking_db/LOCK
+.runtime/chrome/linkedin/Default/parcel_tracking_db/LOG
+.runtime/chrome/linkedin/Default/parcel_tracking_db/LOG.old
+.runtime/chrome/linkedin/Default/shared_proto_db/000003.log
+.runtime/chrome/linkedin/Default/shared_proto_db/CURRENT
+.runtime/chrome/linkedin/Default/shared_proto_db/LOCK
+.runtime/chrome/linkedin/Default/shared_proto_db/LOG
+.runtime/chrome/linkedin/Default/shared_proto_db/LOG.old
+.runtime/chrome/linkedin/Default/shared_proto_db/MANIFEST-000001
+.runtime/chrome/linkedin/Default/shared_proto_db/metadata/000003.log
+.runtime/chrome/linkedin/Default/shared_proto_db/metadata/CURRENT
+.runtime/chrome/linkedin/Default/shared_proto_db/metadata/LOCK
+.runtime/chrome/linkedin/Default/shared_proto_db/metadata/LOG
+.runtime/chrome/linkedin/Default/shared_proto_db/metadata/LOG.old
+.runtime/chrome/linkedin/Default/shared_proto_db/metadata/MANIFEST-000001
+.runtime/chrome/linkedin/GPUPersistentCache/DawnGraphiteCache/NR2GNA44OGQUBFRRNDBXIX2VC7JXKYAS/cache.db
+.runtime/chrome/linkedin/GPUPersistentCache/DawnGraphiteCache/NR2GNA44OGQUBFRRNDBXIX2VC7JXKYAS/cache.db-wal
+.runtime/chrome/linkedin/GPUPersistentCache/DawnGraphiteCache/NR2GNA44OGQUBFRRNDBXIX2VC7JXKYAS/cache.journal
+.runtime/chrome/linkedin/GrShaderCache/data_0
+.runtime/chrome/linkedin/GrShaderCache/data_1
+.runtime/chrome/linkedin/GrShaderCache/data_2
+.runtime/chrome/linkedin/GrShaderCache/data_3
+.runtime/chrome/linkedin/GrShaderCache/f_000001
+.runtime/chrome/linkedin/GrShaderCache/index
+.runtime/chrome/linkedin/ShaderCache/data_0
+.runtime/chrome/linkedin/ShaderCache/data_1
+.runtime/chrome/linkedin/ShaderCache/data_2
+.runtime/chrome/linkedin/ShaderCache/data_3
+.runtime/chrome/linkedin/ShaderCache/index
+.runtime/chrome/linkedin/segmentation_platform/ukm_db
+.runtime/runs/02d7142c-22ce-41a1-8625-241c5f7380bf.jsonl
+.runtime/runs/2dc6a11e-3ceb-42af-931a-623d5c7b0fdb.jsonl
+.runtime/runs/7b9e3085-7e3b-4ee0-be64-dfd0244e522f.jsonl
+.runtime/runs/27b04ba1-2f04-4959-b389-47efd85adea3.jsonl
+.runtime/runs/48e85a07-2a8c-443e-b236-fe1870b021ca.jsonl
+.runtime/runs/374a824b-d526-465f-9e4b-6416dc5e2348.jsonl
+.runtime/runs/2701e6b4-e8b3-4d4f-a0f1-611d78743149.jsonl
+.runtime/runs/6607d304-9a26-456e-b18f-fd965c923efd.jsonl
+.runtime/runs/30437d9a-e554-43a5-b3a1-1314a1ce2812.jsonl
+.runtime/runs/a306153e-868c-456e-91d3-51fd5aaf97d1.jsonl
+.runtime/runs/b0f373ff-4e07-4aa7-89ad-6ec5c6700da9.jsonl
+.runtime/runs/c6b494d6-0f05-4070-bb24-e1349d2d8cd7.jsonl
+/apps/backend/local.db

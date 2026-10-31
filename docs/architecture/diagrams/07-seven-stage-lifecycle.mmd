@@ -1,0 +1,15 @@
+flowchart LR
+    GOAL(["1 · Define goal"]) --> DESIGN["2 · Compose graph"]
+    DESIGN --> CHECK{"3 · Validate"}
+    CHECK -->|"Valid"| RELEASE[/"4 · Release pipeline"/]
+    CHECK -->|"Unavailable"| MANUAL["Design / manual task"]
+    RELEASE --> EXEC["5 · Execute with policy"]
+    EXEC --> EVIDENCE[("6 · Verify evidence")]
+    EVIDENCE --> GROWTH(["7 · Measure and iterate"])
+    GROWTH -.->|"New approved version"| DESIGN
+    classDef blue fill:#dbeafe,color:#1e40af,stroke:#2563eb
+    classDef amber fill:#fef3c7,color:#92400e,stroke:#d97706
+    classDef green fill:#d1fae5,color:#065f46,stroke:#10b981
+    class GOAL,DESIGN,RELEASE,EXEC blue
+    class CHECK amber
+    class EVIDENCE,GROWTH green

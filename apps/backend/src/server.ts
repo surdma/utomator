@@ -9,16 +9,28 @@ const app = buildApp();
 if (process.env.UTOMATOR_INTERNAL_OWNER_ID && process.connected) {
   process.once('disconnect', () => {
     if (process.platform !== 'win32') {
-      try { process.kill(-process.pid, 'SIGTERM'); return; } catch { /* fallback */ }
+      try {
+        process.kill(-process.pid, 'SIGTERM');
+        return;
+      } catch {
+        /* fallback */
+      }
     }
     process.kill(process.pid, 'SIGTERM');
   });
 }
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
-  process.once(signal, () => { void app.close().then(() => { process.exitCode = 0; }); });
+  process.once(signal, () => {
+    void app.close().then(() => {
+      process.exitCode = 0;
+    });
+  });
 }
-app.listen({ host: '127.0.0.1', port })
-  .then((address) => { app.log.info({ address }, 'Automation API ready; use /workspace in the frontend'); })
+app
+  .listen({ host: '127.0.0.1', port })
+  .then((address) => {
+    app.log.info({ address }, 'Automation API ready; use /workspace in the frontend');
+  })
   .catch((error: unknown) => {
     app.log.error(error, 'Cannot start Utomator API');
     process.exitCode = 1;

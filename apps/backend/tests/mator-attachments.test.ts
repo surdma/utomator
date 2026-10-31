@@ -1,0 +1,169 @@
+import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import test from 'node:test';
+import { createConversation } from '../src/core/mator-conversations.js';
+import {
+  getAttachmentFile,
+  MATOR_ATTACHMENT_IMAGE_MAX_BYTES,
+  MATOR_ATTACHMENTS_NAMESPACE,
+  saveAttachment,
+  upsertMarkers,
+} from '../src/core/mator-attachments.js';
+import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
+
+type Row = { version: number; value: unknown };
+class FakeDocuments implements DocumentStore {
+  readonly dialect = 'sqlite' as const;
+  readonly rows = new Map<string, Row>();
+  constructor(readonly ownerId: string) {}
+  async get<T>(namespace: string, key: string): Promise<DocumentRecord<T> | null> {
+    const row = this.rows.get(`${namespace}:${key}`);
+    return row ? { key, version: row.version, value: row.value as T } : null;
+  }
+  async put<T>(namespace: string, key: string, value: T, expectedVersion: number) {
+    const id = `${namespace}:${key}`,
+      existing = this.rows.get(id);
+    if (!expectedVersion) {
+      if (existing) throw Error('Database document changed. Reload before saving.');
+      this.rows.set(id, { version: 1, value });
+      return 1;
+    }
+    if (!existing || existing.version !== expectedVersion)
+      throw Error('Database document changed. Reload before saving.');
+    existing.version = expectedVersion + 1;
+    existing.value = value;
+    return existing.version;
+  }
+  async list<T>(namespace: string) {
+    return [...this.rows.entries()]
+      .filter(([id]) => id.startsWith(`${namespace}:`))
+      .map(([id, row]) => ({
+        key: id.slice(namespace.length + 1),
+        version: row.version,
+        value: row.value as T,
+      }));
+  }
+  async remove(namespace: string, key: string, expectedVersion: number) {
+    const id = `${namespace}:${key}`,
+      existing = this.rows.get(id);
+    if (!existing || existing.version !== expectedVersion)
+      throw Error('Database document changed. Reload before saving.');
+    this.rows.delete(id);
+  }
+  async close() {}
+}
+
+test('saveAttachment roundtrips bytes and metadata via getAttachmentFile', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mator-attach-'));
+  try {
+    const docs = new FakeDocuments('local-owner');
+    const conv = await createConversation(docs, 'wf-attachments');
+    const bytes = Buffer.from('fake-png-bytes');
+    const saved = await saveAttachment(docs, {
+      conversationId: conv.id,
+      filename: 'screenshot.png',
+      mime: 'image/png',
+      bytes,
+    }, { root });
+
+    assert.equal(saved.kind, 'image');
+    assert.equal(saved.mime, 'image/png');
+    assert.equal(saved.size, bytes.length);
+
+    const loaded = await getAttachmentFile(docs, saved.id, { root });
+    assert.deepEqual(loaded.bytes, bytes);
+    assert.equal(loaded.meta.conversationId, conv.id);
+    assert.equal(loaded.meta.filename, 'screenshot.png');
+    assert.ok(docs.rows.has(`${MATOR_ATTACHMENTS_NAMESPACE}:${saved.id}`));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('upsertMarkers clamps x/y to [0,1] and requires text', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mator-attach-'));
+  try {
+    const docs = new FakeDocuments('local-owner');
+    const conv = await createConversation(docs, 'wf-markers');
+    const saved = await saveAttachment(docs, {
+      conversationId: conv.id,
+      filename: 'frame.jpg',
+      mime: 'image/jpeg',
+      bytes: Buffer.from([1, 2, 3]),
+    }, { root });
+
+    const updated = await upsertMarkers(docs, saved.id, [
+      { id: 'm1', x: -0.25, y: 1.75, text: '  pin here  ' },
+    ]);
+    assert.equal(updated.markers?.length, 1);
+    assert.deepEqual(updated.markers?.[0], { id: 'm1', x: 0, y: 1, text: 'pin here' });
+
+    await assert.rejects(
+      () => upsertMarkers(docs, saved.id, [{ id: 'm2', x: 0.5, y: 0.5, text: '   ' }]),
+      /Marker text is required/,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('saveAttachment rejects unknown conversation', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mator-attach-'));
+  try {
+    const docs = new FakeDocuments('local-owner');
+    await assert.rejects(
+      () =>
+        saveAttachment(docs, {
+          conversationId: '00000000-0000-4000-8000-000000000099',
+          filename: 'orphan.png',
+          mime: 'image/png',
+          bytes: Buffer.from('x'),
+        }, { root }),
+      /Conversation not found/,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('getAttachmentFile is scoped to document owner', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mator-attach-'));
+  try {
+    const ownerA = new FakeDocuments('00000000-0000-4000-8000-0000000000aa');
+    const ownerB = new FakeDocuments('00000000-0000-4000-8000-0000000000bb');
+    const conv = await createConversation(ownerA, 'wf-owner-scope');
+    const saved = await saveAttachment(ownerA, {
+      conversationId: conv.id,
+      filename: 'secret.png',
+      mime: 'image/png',
+      bytes: Buffer.from('secret'),
+    }, { root });
+
+    await assert.rejects(() => getAttachmentFile(ownerB, saved.id, { root }), /Attachment not found/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('saveAttachment rejects oversized images', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mator-attach-'));
+  try {
+    const docs = new FakeDocuments('local-owner');
+    const conv = await createConversation(docs, 'wf-oversize');
+    const tooLarge = Buffer.alloc(MATOR_ATTACHMENT_IMAGE_MAX_BYTES + 1);
+    await assert.rejects(
+      () =>
+        saveAttachment(docs, {
+          conversationId: conv.id,
+          filename: 'huge.png',
+          mime: 'image/png',
+          bytes: tooLarge,
+        }, { root }),
+      /Attachment size limit exceeded/,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

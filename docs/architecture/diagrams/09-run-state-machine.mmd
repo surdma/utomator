@@ -1,0 +1,20 @@
+stateDiagram-v2
+    [*] --> Draft
+    Draft --> Validated: schema and graph valid
+    Validated --> Ready: compile and bind release
+    Ready --> Running: authorized start
+    Running --> AwaitingApproval: owner approval needed
+    AwaitingApproval --> Running: approved
+    AwaitingApproval --> Cancelled: rejected
+    Running --> AwaitingInput: manual input needed
+    AwaitingInput --> Running: verified input
+    Running --> Blocked: provider unavailable
+    Blocked --> Running: revalidate and resume
+    Running --> Completed: real outputs verified
+    Running --> PartiallyCompleted: explicit partial outcome
+    Running --> Failed: nonrecoverable error
+    Running --> Cancelled: owner cancellation
+    Completed --> [*]
+    PartiallyCompleted --> [*]
+    Failed --> [*]
+    Cancelled --> [*]

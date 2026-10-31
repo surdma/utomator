@@ -48,33 +48,55 @@ async function collect(file: string, names: readonly string[]): Promise<Record<s
     }
   }
   for (const name of names) {
-    if (!(name in result)) throw new Error('Portfolio context missing declaration: ' + file + ':' + name);
+    if (!(name in result))
+      throw new Error('Portfolio context missing declaration: ' + file + ':' + name);
   }
   return result;
 }
 
 export async function loadOwnerContext() {
   const root = fileURLToPath(new URL('../../data/seed-profile/', import.meta.url));
-  const [portfolio, resume, about, roles, photo, provenance, claims, linkedinGuidance] = await Promise.all([
-    collect('lib/data.ts', ['siteConfig', 'socialLinks', 'projects', 'experiences', 'education']),
-    collect('lib/resume-data.ts', [
-      'resumeProfile', 'resumeContacts', 'resumeSummary', 'resumeEducation',
-      'resumeExperience', 'resumeSelectedWork', 'resumeSkills', 'resumeCourses',
-    ]),
-    collect('lib/about-evidence.ts', ['technologyGroups']),
-    collect('lib/about-profile.ts', ['professionalRoles', 'strengths']),
-    collect('lib/profile-image.ts', ['profileImage']),
-    readFile(resolve(root, 'docs/portfolio-evidence.md'), 'utf8'),
-    readFile(resolve(root, 'docs/about-evidence.md'), 'utf8'),
-    readFile(resolve(root, 'docs/linkedin-profile-optimization.md'), 'utf8'),
-  ]);
+  const [portfolio, resume, about, roles, photo, provenance, claims, linkedinGuidance] =
+    await Promise.all([
+      collect('lib/data.ts', ['siteConfig', 'socialLinks', 'projects', 'experiences', 'education']),
+      collect('lib/resume-data.ts', [
+        'resumeProfile',
+        'resumeContacts',
+        'resumeSummary',
+        'resumeEducation',
+        'resumeExperience',
+        'resumeSelectedWork',
+        'resumeSkills',
+        'resumeCourses',
+      ]),
+      collect('lib/about-evidence.ts', ['technologyGroups']),
+      collect('lib/about-profile.ts', ['professionalRoles', 'strengths']),
+      collect('lib/profile-image.ts', ['profileImage']),
+      readFile(resolve(root, 'docs/portfolio-evidence.md'), 'utf8'),
+      readFile(resolve(root, 'docs/about-evidence.md'), 'utf8'),
+      readFile(resolve(root, 'docs/linkedin-profile-optimization.md'), 'utf8'),
+    ]);
   return {
-    source: 'apps/backend/data/seed-profile', sourceFiles: [
-      'lib/data.ts', 'lib/resume-data.ts', 'lib/about-evidence.ts',
-      'lib/about-profile.ts', 'lib/profile-image.ts', 'docs/portfolio-evidence.md',
-      'docs/about-evidence.md', 'docs/linkedin-profile-optimization.md',
+    source: 'apps/backend/data/seed-profile',
+    sourceFiles: [
+      'lib/data.ts',
+      'lib/resume-data.ts',
+      'lib/about-evidence.ts',
+      'lib/about-profile.ts',
+      'lib/profile-image.ts',
+      'docs/portfolio-evidence.md',
+      'docs/about-evidence.md',
+      'docs/linkedin-profile-optimization.md',
     ],
-    portfolio, resume, about, roles, photo,
-    evidence: { portfolio: provenance, about: claims, linkedin: linkedinGuidance },
+    portfolio,
+    resume,
+    about,
+    roles,
+    photo,
+    evidence: {
+      portfolio: provenance,
+      about: claims,
+      linkedin: linkedinGuidance,
+    },
   };
 }

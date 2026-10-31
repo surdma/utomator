@@ -1,0 +1,13 @@
+flowchart TB
+    GOAL(["Objective and authorized account"]) --> INSPECT["Read real supported profile evidence"]
+    INSPECT --> AUDIT["Evaluate factual gaps and positioning"]
+    AUDIT --> DRAFT["Draft proposed changes and alternatives"]
+    DRAFT --> APPROVE{"Owner approves exact version?"}
+    APPROVE -->|"No"| REVISE["Revise or stop; no mutation"]
+    APPROVE -->|"Yes"| AVAILABLE{"Supported authorized<br/>provider handler?"}
+    AVAILABLE -->|"Yes"| ACT["Execute bounded provider operation"]
+    AVAILABLE -->|"No"| MANUAL["Owner manual task: awaiting action"]
+    ACT --> VERIFY["Fresh verification and genuine receipt"]
+    VERIFY --> RECORD[("Record observed result")]
+    MANUAL --> RECORD
+    RECORD --> MEASURE["Measure real opportunity outcomes over time"]

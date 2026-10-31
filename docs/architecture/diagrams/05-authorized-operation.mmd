@@ -1,0 +1,20 @@
+flowchart LR
+    START(["Start"]) --> INSPECT["Inspect actual evidence"]
+    INSPECT --> ASSESS["Evaluate verified facts"]
+    ASSESS --> DRAFT["Prepare proposed changes"]
+    DRAFT --> APPROVE{"Owner approved?"}
+    APPROVE -->|"No"| STOP(["Stop without mutation"])
+    APPROVE -->|"Yes"| AVAILABLE{"Provider action<br/>available?"}
+    AVAILABLE -->|"Yes"| ACT["Authorized operation"]
+    AVAILABLE -->|"No"| MANUAL["Manual owner task"]
+    ACT --> VERIFY["Verify provider state"]
+    VERIFY --> EVIDENCE[("Record genuine evidence")]
+    MANUAL --> EVIDENCE
+    classDef step fill:#dbeafe,color:#1e40af,stroke:#2563eb
+    classDef gate fill:#fef3c7,color:#92400e,stroke:#f59e0b
+    classDef outcome fill:#d1fae5,color:#065f46,stroke:#10b981
+    classDef stop fill:#ffe4e6,color:#9f1239,stroke:#fb7185
+    class INSPECT,ASSESS,DRAFT,ACT,VERIFY,MANUAL step
+    class APPROVE,AVAILABLE gate
+    class EVIDENCE outcome
+    class STOP stop

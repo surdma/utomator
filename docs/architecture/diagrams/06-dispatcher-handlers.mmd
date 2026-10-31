@@ -1,0 +1,30 @@
+flowchart TB
+    PLAN[/"Compiled pipeline release"/] --> ORCH["One orchestrator"]
+    ORCH --> AUTH{"Owner, account and<br/>provider scope valid?"}
+    AUTH -->|"No"| BLOCK(["Blocked"])
+    AUTH -->|"Yes"| REG{{"Operation registry<br/>name and handler version"}}
+    subgraph ADAPTERS["REGISTERED DOMAIN OPERATIONS"]
+        direction LR
+        PROFILE["Profile"]
+        RESEARCH["Research"]
+        EDITORIAL["Editorial"]
+        HUMAN["Human task"]
+        METRIC["Analytics"]
+    end
+    REG --> PROFILE
+    REG --> RESEARCH
+    REG --> EDITORIAL
+    REG --> HUMAN
+    REG --> METRIC
+    PROFILE --> RESULT[("Typed output and evidence")]
+    RESEARCH --> RESULT
+    EDITORIAL --> RESULT
+    HUMAN --> RESULT
+    METRIC --> RESULT
+    RESULT --> ORCH
+    classDef core fill:#dbeafe,color:#1e40af,stroke:#2563eb
+    classDef gate fill:#fef3c7,color:#92400e,stroke:#d97706
+    classDef green fill:#d1fae5,color:#065f46,stroke:#10b981
+    class PLAN,ORCH,REG,PROFILE,RESEARCH,EDITORIAL,HUMAN,METRIC core
+    class AUTH gate
+    class RESULT green

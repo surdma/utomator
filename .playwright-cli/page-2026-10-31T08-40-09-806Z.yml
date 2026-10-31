@@ -1,0 +1,249 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - generic [ref=e12]:
+        - paragraph [ref=e13]: Utomator / Studio
+        - paragraph [ref=e14]: Local automation, evidence first
+      - generic [ref=e15]:
+        - generic [ref=e16]: Engine connected
+        - button "Open run tracking" [ref=e18]:
+          - generic [ref=e21]: Tracking
+        - button "Refresh" [ref=e22]
+        - link "Portfolio" [ref=e27] [cursor=pointer]:
+          - /url: /
+    - generic [ref=e32]:
+      - complementary [ref=e33]:
+        - generic [ref=e34]:
+          - button "Pipeline" [ref=e35]
+          - button "Run history" [ref=e38]
+          - button "Account" [ref=e43]
+          - button "Résumés" [ref=e47]
+          - button "Intelligence" [ref=e51]
+          - button "Creator research" [ref=e55]
+          - button "Editorial drafts" [ref=e58]
+          - button "Growth" [ref=e62]
+      - main [ref=e66]:
+        - generic [ref=e67]:
+          - generic [ref=e68]:
+            - generic [ref=e69]:
+              - heading "Workflow artboard" [level=2] [ref=e70]
+              - paragraph [ref=e71]: Section-specific profile audit · 10 pipeline tasks
+              - status [ref=e72]: "Execution target: surdma. The server verifies this account when you run."
+            - generic [ref=e73]:
+              - combobox "Saved workflow" [ref=e74]:
+                - option "Action default (unsaved)"
+                - option "Section-specific profile audit · r1" [selected]
+                - option "Profile baseline and evidence · r1"
+              - button "Choose workflow template" [ref=e75]: Templates
+              - button "Add workflow step" [ref=e76]: Add step
+              - button "Save workflow" [disabled] [ref=e78]: Saved
+              - button "Configure action" [ref=e83]: Config
+              - button "Stop workflow" [disabled] [ref=e87]: Stop
+          - generic [ref=e90]:
+            - application [ref=e91]:
+              - generic [ref=e93]:
+                - generic:
+                  - generic:
+                    - img:
+                      - group "Edge from start to session"
+                    - img:
+                      - group "Edge from session to prepare"
+                    - img:
+                      - group "Edge from prepare to checkpoint"
+                    - img:
+                      - group "Edge from checkpoint to action" [ref=e516] [cursor=pointer]
+                    - img:
+                      - group "Edge from action to verify"
+                    - img:
+                      - group "Edge from verify to sectionEvidence"
+                    - img:
+                      - group "Edge from sectionEvidence to sectionApproval"
+                    - img:
+                      - group "Edge from sectionApproval to outcome" [ref=e519] [cursor=pointer]
+                    - img:
+                      - group "Edge from outcome to finish"
+                  - generic:
+                    - group [ref=e207]:
+                      - generic [ref=e208]:
+                        - generic [ref=e210]:
+                          - generic [ref=e211]: STEP 01
+                          - generic [ref=e212]: idle
+                        - generic [ref=e217]:
+                          - paragraph [ref=e218]: Confirm selected account and goal
+                          - paragraph [ref=e219]: start step
+                        - generic [ref=e220]: REQUIRED · PROTECTED
+                    - group [ref=e226]:
+                      - generic [ref=e227]:
+                        - generic [ref=e229]:
+                          - generic [ref=e230]: STEP 02
+                          - generic [ref=e231]: idle
+                        - generic [ref=e237]:
+                          - paragraph [ref=e238]: Verify selected LinkedIn session
+                          - paragraph [ref=e239]: session step
+                        - generic [ref=e240]: REQUIRED · PROTECTED
+                    - group [ref=e246]:
+                      - generic [ref=e247]:
+                        - generic [ref=e249]:
+                          - generic [ref=e250]: STEP 03
+                          - generic [ref=e251]: idle
+                        - generic [ref=e257]:
+                          - paragraph [ref=e258]: Confirm verified task input
+                          - paragraph [ref=e259]: note step
+                        - generic [ref=e260]: EDITABLE · CONNECTABLE
+                    - group [ref=e266]:
+                      - generic [ref=e267]:
+                        - generic [ref=e269]:
+                          - generic [ref=e270]: STEP 04
+                          - generic [ref=e271]: idle
+                        - generic [ref=e277]:
+                          - paragraph [ref=e278]: Wait for explicit operator review
+                          - paragraph [ref=e279]: pause step
+                        - generic [ref=e280]: EDITABLE · CONNECTABLE
+                    - group [ref=e286]:
+                      - generic [ref=e287]:
+                        - generic [ref=e289]:
+                          - generic [ref=e290]: STEP 05
+                          - generic [ref=e291]: idle
+                        - generic [ref=e296]:
+                          - paragraph [ref=e297]: Inspect the selected page
+                          - paragraph [ref=e298]: action step
+                        - generic [ref=e299]: REQUIRED · PROTECTED
+                    - group [ref=e305]:
+                      - generic [ref=e306]:
+                        - generic [ref=e308]:
+                          - generic [ref=e309]: STEP 06
+                          - generic [ref=e310]: idle
+                        - generic [ref=e316]:
+                          - paragraph [ref=e317]: Verify result on LinkedIn
+                          - paragraph [ref=e318]: verify step
+                        - generic [ref=e319]: EDITABLE · CONNECTABLE
+                    - group [ref=e325]:
+                      - generic [ref=e326]:
+                        - generic [ref=e328]:
+                          - generic [ref=e329]: STEP 07
+                          - generic [ref=e330]: idle
+                        - generic [ref=e336]:
+                          - paragraph [ref=e337]: Record section evidence
+                          - paragraph [ref=e338]: evidence step
+                        - generic [ref=e339]: EDITABLE · CONNECTABLE
+                    - group [ref=e345]:
+                      - generic [ref=e346]:
+                        - generic [ref=e348]:
+                          - generic [ref=e349]: STEP 08
+                          - generic [ref=e350]: idle
+                        - generic [ref=e356]:
+                          - paragraph [ref=e357]: Review section evidence
+                          - paragraph [ref=e358]: approve step
+                        - generic [ref=e359]: EDITABLE · CONNECTABLE
+                    - group [ref=e365]:
+                      - generic [ref=e366]:
+                        - generic [ref=e368]:
+                          - generic [ref=e369]: STEP 09
+                          - generic [ref=e370]: idle
+                        - generic [ref=e376]:
+                          - paragraph [ref=e377]: Section audit recorded
+                          - paragraph [ref=e378]: note step
+                        - generic [ref=e379]: EDITABLE · CONNECTABLE
+                    - group [ref=e385]:
+                      - generic [ref=e386]:
+                        - generic [ref=e388]:
+                          - generic [ref=e389]: STEP 10
+                          - generic [ref=e390]: idle
+                        - generic [ref=e395]:
+                          - paragraph [ref=e396]: Save results and review receipts
+                          - paragraph [ref=e397]: finish step
+                        - generic [ref=e398]: REQUIRED · PROTECTED
+              - generic "Control Panel" [ref=e94]:
+                - button "Zoom In" [ref=e95] [cursor=pointer]
+                - button "Zoom Out" [ref=e98] [cursor=pointer]
+                - button "Fit View" [ref=e101] [cursor=pointer]
+              - link "React Flow attribution" [ref=e105] [cursor=pointer]:
+                - /url: https://reactflow.dev/attribution
+                - text: React Flow
+            - generic: Drag nodes to arrange · Drag connector to insert/reorder optional tasks · Click to edit
+          - generic [ref=e107]:
+            - generic [ref=e108]:
+              - text: "Live status:"
+              - strong [ref=e109]: idle
+            - button "View recorded output" [ref=e110]
+        - generic:
+          - button "Start workflow" [ref=e113]: Run workflow
+          - button "Manage LinkedIn account" [ref=e404]
+      - complementary [ref=e126]:
+        - generic [ref=e127]:
+          - generic [ref=e128]:
+            - button "New conversation Workflow 2 threads" [ref=e407] [cursor=pointer]:
+              - generic [ref=e134]:
+                - generic [ref=e135]: New conversation
+                - generic [ref=e136]:
+                  - generic [ref=e137]: Workflow
+                  - generic [ref=e138]: 2 threads
+            - button "Chat settings" [ref=e140] [cursor=pointer]
+            - button "Hide Mator chat" [ref=e145] [cursor=pointer]
+          - region "Thread history" [ref=e149]:
+            - log [ref=e150]:
+              - generic [ref=e429]:
+                - generic:
+                  - generic: You
+                  - generic [ref=e430]: Reply with a short how note only. Do not change any workflow step. Say ready.
+                - generic [ref=e431]: ME
+              - generic [ref=e436]:
+                - button "Guidance from Mator" [ref=e437] [cursor=pointer]
+                - button "Read this guidance aloud" [ref=e444] [cursor=pointer]
+              - generic [ref=e452]:
+                - generic:
+                  - generic: You
+                  - generic [ref=e453]: Hmm.
+                - generic [ref=e454]: ME
+              - generic [ref=e465]:
+                - generic [ref=e466]: Mator
+                - generic [ref=e467]: Clarified
+                - generic [ref=e469]: What would you like to do next?
+              - generic [ref=e473]:
+                - generic:
+                  - generic: You
+                  - generic [ref=e474]: What is your goal? review
+                - generic [ref=e475]: ME
+              - generic [ref=e480]:
+                - button "Guidance from Mator" [ref=e481] [cursor=pointer]
+                - button "Read this guidance aloud" [ref=e488] [cursor=pointer]
+              - generic [ref=e496]:
+                - generic [ref=e497]:
+                  - generic [ref=e498]: Staged · awaiting approval
+                  - generic [ref=e499]: noop
+                - generic [ref=e500]:
+                  - paragraph [ref=e501]: Confirm to apply, or reject to leave everything untouched.
+                  - button "Reject" [ref=e502] [cursor=pointer]
+                  - button "Confirm" [ref=e505] [cursor=pointer]
+              - generic [ref=e512]:
+                - generic [ref=e513]: Applied
+                - generic [ref=e514]: noop
+              - generic [ref=e524]:
+                - generic:
+                  - generic: You
+                  - generic [ref=e525]: Audit my profile
+                - generic [ref=e526]: ME
+              - generic [ref=e531]:
+                - button "Guidance from Mator" [ref=e532] [cursor=pointer]
+                - button "Read this guidance aloud" [ref=e539] [cursor=pointer]
+              - generic [ref=e547]:
+                - generic [ref=e548]:
+                  - generic [ref=e549]: Failed
+                  - generic [ref=e550]: run
+                - paragraph [ref=e551]: "Unknown action type: run"
+          - generic [ref=e167]:
+            - generic [ref=e168]:
+              - textbox "Message Mator" [ref=e169]:
+                - /placeholder: Message Mator…
+              - generic [ref=e170]:
+                - button "Attach a file" [ref=e171] [cursor=pointer]
+                - button [aria-hidden] [ref=e174]
+                - button "Speak to Mator" [ref=e175] [cursor=pointer]
+                - generic [ref=e179]:
+                  - generic [ref=e180] [cursor=pointer]:
+                    - switch "Switch to voice-only conversation" [ref=e181]
+                    - generic [ref=e182]: Voice-only
+                  - button "Send message" [disabled] [ref=e183]
+            - generic [ref=e186]: Enter sends · Shift+Enter adds a line
+  - button "Open Next.js Dev Tools" [ref=e197] [cursor=pointer]
+  - alert [ref=e515]

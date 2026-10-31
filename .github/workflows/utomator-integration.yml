@@ -4,14 +4,14 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'apps/backend/**'
-      - 'apps/frontend/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - '.github/workflows/utomator-integration.yml'
+      - "apps/backend/**"
+      - "apps/frontend/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/utomator-integration.yml"
   push:
-    branches: [main]
+    branches: [main, feat/yaml-growth-profile-pipeline]
   workflow_dispatch:
 
 permissions:
@@ -30,7 +30,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
       - name: Verify React Flow stylesheet is installed
@@ -72,7 +72,11 @@ jobs:
         run: pnpm --filter @utomator/backend test:integration
         env:
           NODE_ENV: test
-          HEADLESS: 'true'
+          HEADLESS: "true"
+      - name: Frontend connection browser regression tests
+        run: pnpm --filter @utomator/frontend exec playwright test tests/connector-states.test.ts tests/connector-sync.test.ts
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:3100
       - name: Upload local mock-browser evidence on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -81,3 +85,46 @@ jobs:
           path: apps/backend/.runtime/evidence/
           retention-days: 3
           if-no-files-found: ignore
+
+  frontend-ui-quality:
+    name: Frontend responsive and accessibility quality gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build production frontend
+        run: pnpm --filter @utomator/frontend build
+      - name: Install Chromium and WebKit browser dependencies
+        run: pnpm --filter @utomator/frontend exec playwright install --with-deps chromium webkit
+      - name: Start built frontend
+        run: |
+          pnpm --filter @utomator/frontend exec next start -p 3100 > /tmp/utomator-ui-quality.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:3100/ > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/utomator-ui-quality.log
+          exit 1
+      - name: Responsive, touch, keyboard and WCAG browser tests
+        run: pnpm --filter @utomator/frontend exec playwright test tests/frontend-quality.test.ts
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:3100
+      - name: Preserve frontend browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-ui-quality-evidence
+          path: |
+            apps/frontend/playwright-report/
+            apps/frontend/test-results/
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Print frontend server logs after failure
+        if: failure()
+        run: cat /tmp/utomator-ui-quality.log || true

@@ -1,0 +1,6 @@
+<testsuites id="" name="" tests="1" failures="0" skipped="0" errors="0" time="57.014103000000006">
+<testsuite name="mator-groq.e2e.test.ts" timestamp="2026-10-30T15:47:03.429Z" hostname="connector-regression" tests="1" failures="0" skipped="0" time="46.955" errors="0">
+<testcase name="Mator Groq settings and chat › settings show free and paid models, and a chat turn reaches the backend" classname="mator-groq.e2e.test.ts" time="46.955">
+</testcase>
+</testsuite>
+</testsuites>

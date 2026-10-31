@@ -1,0 +1,88 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - generic [ref=e12]:
+        - paragraph [ref=e13]: Utomator / Studio
+        - paragraph [ref=e14]: Local automation, evidence first
+      - generic [ref=e15]:
+        - generic [ref=e16]: Connecting
+        - button "Open run tracking" [ref=e18]:
+          - generic [ref=e21]: Tracking
+        - button "Refresh" [ref=e22]
+        - link "Portfolio" [ref=e27] [cursor=pointer]:
+          - /url: /
+    - generic [ref=e32]:
+      - complementary [ref=e33]:
+        - generic [ref=e34]:
+          - button "Pipeline" [ref=e35]
+          - button "Run history" [ref=e38]
+          - button "Account" [ref=e43]
+          - button "Résumés" [ref=e47]
+          - button "Intelligence" [ref=e51]
+          - button "Creator research" [ref=e55]
+          - button "Editorial drafts" [ref=e58]
+          - button "Growth" [ref=e62]
+      - main [ref=e66]:
+        - generic [ref=e67]:
+          - generic [ref=e68]:
+            - generic [ref=e69]:
+              - heading "Workflow artboard" [level=2] [ref=e70]
+              - paragraph [ref=e71]: Profile audit · 6 pipeline tasks
+              - status [ref=e72]: You can edit this workflow now. Connect and sync the selected LinkedIn account to run it.
+            - generic [ref=e73]:
+              - combobox "Saved workflow" [ref=e74]:
+                - option "Action default (unsaved)" [selected]
+              - button "Choose workflow template" [ref=e75]: Templates
+              - button "Add workflow step" [ref=e76]: Add step
+              - button "Save workflow" [disabled] [ref=e78]: Saved
+              - button "Configure action" [ref=e83]: Config
+              - button "Stop workflow" [disabled] [ref=e87]: Stop
+          - generic [ref=e90]:
+            - application [ref=e91]:
+              - generic "Control Panel" [ref=e94]:
+                - button "Zoom In" [ref=e95] [cursor=pointer]
+                - button "Zoom Out" [ref=e98] [cursor=pointer]
+                - button "Fit View" [ref=e101] [cursor=pointer]
+              - link "React Flow attribution" [ref=e105] [cursor=pointer]:
+                - /url: https://reactflow.dev/attribution
+                - text: React Flow
+            - generic: Drag nodes to arrange · Drag connector to insert/reorder optional tasks · Click to edit
+          - generic [ref=e107]:
+            - generic [ref=e108]:
+              - text: "Live status:"
+              - strong [ref=e109]: idle
+            - button "View recorded output" [ref=e110]
+        - generic:
+          - button "Start workflow" [disabled] [ref=e113]: Run workflow
+          - button "Connect LinkedIn account" [ref=e116]
+      - complementary [ref=e126]:
+        - generic [ref=e127]:
+          - generic [ref=e128]:
+            - button "New conversation Workflow No earlier threads" [ref=e130] [cursor=pointer]:
+              - generic [ref=e134]:
+                - generic [ref=e135]: New conversation
+                - generic [ref=e136]:
+                  - generic [ref=e137]: Workflow
+                  - generic [ref=e138]: No earlier threads
+            - button "Chat settings" [ref=e140] [cursor=pointer]
+            - button "Hide Mator chat" [ref=e145] [cursor=pointer]
+          - region "Thread history" [ref=e149]:
+            - log [ref=e150]:
+              - status "Loading conversation" [ref=e151]
+          - generic [ref=e164]:
+            - button "Audit my profile" [ref=e166] [cursor=pointer]
+            - generic [ref=e167]:
+              - generic [ref=e168]:
+                - textbox "Message Mator" [ref=e169]:
+                  - /placeholder: Message Mator…
+                - generic [ref=e170]:
+                  - button "Attach a file" [ref=e171] [cursor=pointer]
+                  - button [aria-hidden] [ref=e174]
+                  - button "Speak to Mator" [ref=e175] [cursor=pointer]
+                  - generic [ref=e179]:
+                    - generic [ref=e180] [cursor=pointer]:
+                      - switch "Switch to voice-only conversation" [ref=e181]
+                      - generic [ref=e182]: Voice-only
+                    - button "Send message" [disabled] [ref=e183]
+              - generic [ref=e186]: Enter sends · Shift+Enter adds a line
+  - button "Open Next.js Dev Tools" [ref=e197] [cursor=pointer]

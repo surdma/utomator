@@ -8,12 +8,15 @@ test('expired connected sessions fail fast and never request an in-run password 
   let approvalCount = 0;
   const page = {
     url: () => 'https://www.linkedin.com/checkpoint/',
-    goto: async () => { navigationCount += 1; },
+    goto: async () => {
+      navigationCount += 1;
+    },
   } as unknown as Page;
   const context: WorkflowContext = {
     page,
     input: {
-      platform: 'linkedin', action: 'audit',
+      platform: 'linkedin',
+      action: 'audit',
       profileUrl: 'https://www.linkedin.com/in/connector-owner/',
       accountId: '00000000-0000-4000-8000-000000000001',
     },
@@ -21,8 +24,12 @@ test('expired connected sessions fail fast and never request an in-run password 
     runId: 'test-expired-connection',
     signal: new AbortController().signal,
     emit: () => {},
-    approve: async () => { approvalCount += 1; },
-    ask: async () => { throw Error('Connected runs should not ask for credentials'); },
+    approve: async () => {
+      approvalCount += 1;
+    },
+    ask: async () => {
+      throw Error('Connected runs should not ask for credentials');
+    },
   };
   await assert.rejects(
     execute(context),

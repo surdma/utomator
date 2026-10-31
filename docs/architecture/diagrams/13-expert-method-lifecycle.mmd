@@ -1,0 +1,12 @@
+flowchart LR
+    SOURCE["Original expert method<br/>Source and conditions"] --> EVIDENCE["Evidence and claim review"]
+    EVIDENCE --> FIT{"Suitable for user<br/>and permitted?"}
+    FIT -->|"No"| ADAPT["Reject, adapt or<br/>manual owner task"]
+    FIT -->|"Yes"| CRAFT[["Versioned Craft<br/>Procedure and rules"]]
+    ADAPT --> CRAFT
+    CRAFT --> GRAPH["Canonical workflow graph"]
+    GRAPH --> BIND["Bind real account<br/>goals and inputs"]
+    BIND --> RELEASE[/"Validated Pipeline release"/]
+    RELEASE --> ENGINE["One engine<br/>with approval gates"]
+    ENGINE --> RESULT[("Real outputs, evidence<br/>and outcomes")]
+    RESULT -.->|"Learn and revise a new version"| CRAFT

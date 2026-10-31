@@ -1,15 +1,13 @@
-import { headers } from "next/headers";
-import { notFound } from "next/navigation";
-import type { Metadata } from "next";
-import AutomationPipeline from "@/components/automate/pipeline";
+import { headers } from 'next/headers';
+import { notFound, redirect } from 'next/navigation';
 
-export const metadata: Metadata = {
-  title: "Craft source | Utomator",
-  robots: { index: false, follow: false },
-};
-
-export default async function CraftSourcePage() {
-  const host = (await headers()).get("host") || "";
+export default async function LegacyCraftPage({
+  params,
+}: {
+  params: Promise<{ craftId: string }>;
+}) {
+  const host = (await headers()).get('host') || '';
   if (!/^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host)) notFound();
-  return <AutomationPipeline initialPane="crafts" />;
+  const { craftId } = await params;
+  redirect('/dashboard/growth/' + encodeURIComponent(craftId) + '/source');
 }
