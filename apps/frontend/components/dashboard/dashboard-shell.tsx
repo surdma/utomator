@@ -196,6 +196,9 @@ export default function DashboardShell({
     attachFile,
     saveMarkers,
     attachmentPreviews,
+    loading: matorLoading,
+    settingsToggles,
+    patchSettings,
     conversations: matorConversations,
     conversationMeta,
     events: matorEvents,
@@ -636,6 +639,9 @@ export default function DashboardShell({
           matorEvents={matorEvents}
           conversations={matorConversations}
           conversationMeta={conversationMeta}
+          loading={matorLoading}
+          modelId={settingsToggles.modelId ?? null}
+          onModelChange={(modelId) => patchSettings({ modelId })}
           onSwitchConversation={(id) => void switchConversation(id)}
           onNewConversation={() => void newConversation()}
           onRestorePipeline={() => void restoreMatorPipelineUi()}
@@ -660,11 +666,8 @@ export default function DashboardShell({
           onSendMessage={sendMessage}
           onAttachFile={(file) => {
             if (!file) return;
-            if (activeWorkflow?.id) {
-              void attachFile(file);
-              return;
-            }
-            void attachImage(file);
+            if (activeWorkflow?.id) return attachFile(file);
+            return attachImage(file);
           }}
           checkpoint={checkpoint}
           voice={voice}
