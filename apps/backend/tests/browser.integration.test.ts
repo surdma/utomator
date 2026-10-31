@@ -88,9 +88,7 @@ async function exercise(mode: 'audit' | 'audit-race' | 'reject') {
       templates,
     );
     await templates.getByTestId('growth-template-count').getByText('21 workflows').waitFor();
-    await templates
-      .getByRole('searchbox', { name: 'Search Growth workflows' })
-      .fill('Profile auditing');
+    await templates.getByRole('searchbox', { name: 'Search Growth workflows' }).fill('Profile auditing');
     await templates.getByTestId('growth-template-option').click();
     const preview = templates.getByTestId('growth-template-pipeline-preview');
     await preview.waitFor();
@@ -105,7 +103,7 @@ async function exercise(mode: 'audit' | 'audit-race' | 'reject') {
     await templates
       .getByRole('searchbox', { name: 'Search Growth workflows' })
       .fill('Personal brand positioning');
-    await preview.waitFor();
+    await preview.getByText('Evidence and preparation').waitFor();
     assert.equal(
       await templates.getByRole('button', { name: 'Inspect planning workflow' }).isDisabled(),
       false,
@@ -337,11 +335,7 @@ test('planning-only Growth YAML opens without triggering Runner', async () => {
     });
     const before = (await app.inject('/runs')).json().length;
     const modal = page.getByRole('dialog', { name: 'Growth workflow templates' });
-    await clickUntilVisible(
-      page,
-      page.getByRole('button', { name: 'Choose workflow template' }),
-      modal,
-    );
+    await clickUntilVisible(page, page.getByRole('button', { name: 'Choose workflow template' }), modal);
     await modal
       .getByRole('searchbox', { name: 'Search Growth workflows' })
       .fill('Personal brand positioning');
@@ -645,14 +639,8 @@ test('Growth profile YAML opens on the nested artboard without running a browser
     });
     const before = (await app.inject('/runs')).json().length;
     const modal = page.getByRole('dialog', { name: 'Growth workflow templates' });
-    await clickUntilVisible(
-      page,
-      page.getByRole('button', { name: 'Choose workflow template' }),
-      modal,
-    );
-    await modal
-      .getByRole('searchbox', { name: 'Search Growth workflows' })
-      .fill('Profile auditing');
+    await clickUntilVisible(page, page.getByRole('button', { name: 'Choose workflow template' }), modal);
+    await modal.getByRole('searchbox', { name: 'Search Growth workflows' }).fill('Profile auditing');
     await modal.getByTestId('growth-template-option').click();
     const preview = modal.getByTestId('growth-template-pipeline-preview');
     await preview.waitFor();
@@ -696,11 +684,7 @@ test('second Growth YAML shows planned tasks, not unregistered Runner actions', 
     });
     const before = (await app.inject('/runs')).json().length;
     const modal = page.getByRole('dialog', { name: 'Growth workflow templates' });
-    await clickUntilVisible(
-      page,
-      page.getByRole('button', { name: 'Choose workflow template' }),
-      modal,
-    );
+    await clickUntilVisible(page, page.getByRole('button', { name: 'Choose workflow template' }), modal);
     await modal
       .getByRole('searchbox', { name: 'Search Growth workflows' })
       .fill('Personal brand positioning');
