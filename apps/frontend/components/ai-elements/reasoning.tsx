@@ -82,9 +82,9 @@ export function Reasoning({
             id={contentId}
             role="region"
             aria-labelledby={triggerId}
-            initial={reducedMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+            initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className="overflow-hidden border-t border-slate-100 px-3 pt-2 pb-2.5"
           >

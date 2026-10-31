@@ -309,3 +309,82 @@ test('dashboard navigation stays usable after extracting the shell', async ({
   await sidebar.getByRole('button', { name: 'Pipeline', exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard\/pipeline$/);
 });
+
+
+test('Mator dock has a usable empty state, thread history, model picker, and voice-only switch', async ({
+  page,
+}, info) => {
+  await page.route('**/api/mator/models', async (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        models: [
+          {
+            id: 'openai/gpt-oss-20b',
+            name: 'GPT-OSS 20B',
+            label: 'Fast reasoning chat',
+            role: 'chat',
+            tier: 'free',
+            price: 'Free',
+            notes: 'Chat model',
+          },
+        ],
+        voices: [],
+      }),
+    })
+  );
+
+  await page.route('**/api/mator/settings', async (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        groqKeyConfigured: false,
+        keySource: 'none',
+        autoApprove: false,
+        squashPipelineHistory: false,
+        howTtsEnabled: false,
+        moderationEnabled: true,
+        modelId: 'openai/gpt-oss-20b',
+        modelName: 'GPT-OSS 20B',
+        modelLabel: 'Fast reasoning chat',
+        modelTier: 'free',
+        modelPrice: 'Free',
+        reasoningEffort: 'medium',
+        visionModelId: '',
+        sttModelId: '',
+        ttsModelId: '',
+        ttsVoice: '',
+      }),
+    })
+  );
+
+  await page.goto('/dashboard/pipeline');
+  const dock = page.getByTestId('mator-chat');
+  if (!(await dock.isVisible())) {
+    await page.getByRole('button', { name: 'Open Mator' }).click();
+  }
+
+  await expect(dock).toBeVisible();
+  await expect(dock.getByTestId('mator-input')).toBeVisible();
+  await expect(dock.getByTestId('mator-empty-thread')).toBeVisible();
+  await expect(dock.getByTestId('mator-model-selector')).toBeVisible();
+
+  await dock.getByTestId('mator-thread-pill').click();
+  await expect(dock.getByTestId('mator-conversation-switcher')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dock.getByTestId('mator-conversation-switcher')).toBeHidden();
+
+  await dock.getByTestId('mator-settings-trigger').click();
+  await expect(dock.getByRole('dialog', { name: 'Chat settings' })).toBeVisible();
+  await expect(dock.getByRole('slider', { name: 'Reasoning effort' })).toHaveValue('1');
+  await page.keyboard.press('Escape');
+
+  await dock.getByTestId('mator-voice-switch').click();
+  await expect(dock.getByTestId('mator-composer')).toHaveAttribute('data-mode', 'voice-only');
+  await expect(dock.getByTestId('mator-voice-only')).toHaveAttribute('aria-checked', 'true');
+  await dock.getByTestId('mator-voice-only').click();
+  await expect(dock.getByTestId('mator-composer')).toHaveAttribute('data-mode', 'text');
+  await capture(page, info, 'mator-dock-text-first');
+});

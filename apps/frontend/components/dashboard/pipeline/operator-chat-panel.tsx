@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import Image from 'next/image';
 import {
   AlertCircle,
@@ -42,6 +42,7 @@ import { Reasoning } from '@/components/ai-elements/reasoning';
 import { Task } from '@/components/ai-elements/task';
 import { Checkpoint } from '@/components/ai-elements/checkpoint';
 import { Queue } from '@/components/ai-elements/queue';
+import { Suggestion } from '@/components/ai-elements/suggestion';
 import MatorClarifyForm from './mator-clarify-form';
 import MatorComposer from './mator-composer';
 import MatorChatSettings from './mator-chat-settings';
@@ -59,7 +60,7 @@ import {
   type MatorChatEvent,
   type MatorConversationSummary,
 } from './mator-chat-state';
-import type { MatorImageMarkerDto } from './mator-api';
+import { fetchMatorModels, matorAttachmentFileUrl, type MatorImageMarkerDto, type MatorModelOption } from './mator-api';
 
 const PANE_LABEL: Partial<Record<DashboardPane, string>> = {
   pipeline: 'Workflow',
@@ -86,7 +87,10 @@ type Props = {
   matorEvents?: MatorChatEvent[];
   conversations?: MatorConversationSummary[];
   conversationMeta?: MatorConversationSummary | null;
-  onSwitchConversation?: (conversationId: string) => void;
+  loading?: boolean;
+  modelId?: string | null;
+  onModelChange?: (modelId: string) => Promise<unknown>;
+  onSwitchConversation?:  (conversationId: string) => void;
   onNewConversation?: () => void;
   onRestorePipeline?: () => void;
   onSendText?: (text: string) => void;
@@ -107,7 +111,7 @@ type Props = {
   message: string;
   onMessageChange: (message: string) => void;
   onSendMessage: (event: FormEvent<HTMLFormElement>) => void;
-  onAttachFile: (file?: File) => void | Promise<void>;
+  onAttachFile: (file?: File) => unknown | Promise<unknown>;
   checkpoint: import('./run-models').Checkpoint | null;
   voice: VoiceSession;
   pendingLabel: string | null;
@@ -183,6 +187,9 @@ export default function OperatorChatPanel({
   matorEvents = [],
   conversations = [],
   conversationMeta = null,
+  loading = false,
+  modelId = null,
+  onModelChange,
   onSwitchConversation,
   onNewConversation,
   onRestorePipeline,
@@ -215,6 +222,19 @@ export default function OperatorChatPanel({
   const toast = useToast();
   const [threadOpen, setThreadOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [models, setModels] = useState<MatorModelOption[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    void fetchMatorModels()
+      .then(({ models: available }) => {
+        if (mounted) setModels(available.filter((model) => model.role === 'chat'));
+      })
+      .catch(() => {
+        // Model selection is optional while the engine is unavailable.
+      });
+    return () => { mounted = false; };
+  }, []);
   const showRestore = Boolean(conversationMeta?.boundRevisionId);
   const openClarify = findOpenClarify(matorEvents);
   const clarifyQuestions = openClarify
@@ -229,8 +249,7 @@ export default function OperatorChatPanel({
       }),
     [conversations, conversationMeta?.id]
   );
-  const threadTitle =
-    conversationMeta?.title || (threadList[0]?.title ?? 'New conversation');
+  const threadTitle = conversationMeta?.title || 'New conversation';
 
   const copyReply = async (event: MatorChatEvent) => {
     if (!event.text) return;
@@ -252,7 +271,7 @@ export default function OperatorChatPanel({
         attachmentId={event.attachmentId}
         imageSrc={
           attachmentPreviews[event.attachmentId] ??
-          `mator preview ${event.attachmentId}`
+          matorAttachmentFileUrl(event.attachmentId)
         }
         markers={event.markers ?? []}
         draftText={markerDraft}
@@ -306,7 +325,7 @@ export default function OperatorChatPanel({
                 aria-expanded={threadOpen}
                 data-testid="mator-thread-pill"
                 onClick={() => setThreadOpen((value) => !value)}
-                className="group flex min-h-10 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-2xl bg-slate-50 px-3 py-1.5 text-left transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                className="group flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-2xl bg-slate-50 px-3 py-1.5 text-left transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
               >
                 <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-white text-teal-800 ring-1 ring-slate-200">
                   <MessageSquare className="size-3.5" aria-hidden="true" />
@@ -346,7 +365,7 @@ export default function OperatorChatPanel({
                     onNewConversation?.();
                     setThreadOpen(false);
                   }}
-                  className="inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-full bg-slate-900 px-2.5 text-[11px] font-bold text-white transition-colors hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="inline-flex min-h-11 cursor-pointer items-center gap-1 rounded-full bg-slate-900 px-2.5 text-[11px] font-bold text-white transition-colors hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <Plus className="size-3" aria-hidden="true" />
                   New chat
@@ -425,7 +444,7 @@ export default function OperatorChatPanel({
             onClick={onClose}
             aria-label="Hide Mator chat"
             data-testid="mator-hide"
-            className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+            className="inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
           >
             <ChevronRight className="size-4" aria-hidden="true" />
           </button>
@@ -453,7 +472,22 @@ export default function OperatorChatPanel({
             <MessageScrollerViewport aria-label="Thread history">
               <MessageScrollerContent className="gap-5 px-3 py-3">
                 {matorEvents.length === 0 ? (
-                  <ThreadSkeleton />
+                  loading ? (
+                    <ThreadSkeleton />
+                  ) : (
+                    <div data-testid="mator-empty-thread" className="flex min-h-56 flex-col justify-center gap-4 px-3 py-8">
+                      <div className="flex items-center gap-3">
+                        <AssistantAvatar />
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">What would you like to do?</p>
+                          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+                            Ask Mator for help with this workflow, or start with a suggestion.
+                          </p>
+                        </div>
+                      </div>
+                      <Suggestion suggestions={START_SUGGESTIONS} onSelect={onMessageChange} disabled={busy} />
+                    </div>
+                  )
                 ) : (
                   matorEvents.map((event) => {
                     if (event.kind === 'message' && event.role === 'user') {
@@ -473,7 +507,7 @@ export default function OperatorChatPanel({
                                     attachmentId={event.attachmentId}
                                     imageSrc={
                                       attachmentPreviews[event.attachmentId] ??
-                                      ''
+                                      matorAttachmentFileUrl(event.attachmentId)
                                     }
                                     markers={event.markers ?? []}
                                     draftText={markerDraft}
@@ -487,6 +521,7 @@ export default function OperatorChatPanel({
                                         : undefined
                                     }
                                   />
+                                  <a href={matorAttachmentFileUrl(event.attachmentId)} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex min-h-9 items-center text-xs font-medium text-teal-800 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-teal-700">Open attached file</a>
                                 </div>
                               )}
                             </MessageContent>
@@ -639,7 +674,7 @@ export default function OperatorChatPanel({
                           <MatorAttachmentCanvas
                             attachmentId={event.attachmentId}
                             imageSrc={
-                              attachmentPreviews[event.attachmentId] ?? ''
+                              attachmentPreviews[event.attachmentId] ?? matorAttachmentFileUrl(event.attachmentId)
                             }
                             markers={event.markers ?? []}
                             draftText={markerDraft}
@@ -915,8 +950,14 @@ export default function OperatorChatPanel({
           busy={busy}
           incomplete={incomplete}
           onIncompleteContinue={onIncompleteContinue}
-          emptyThread={matorEvents.length === 0}
-          startPrompt={START_SUGGESTIONS[0]?.prompt ?? null}
+          emptyThread={false}
+          models={models}
+          modelId={modelId}
+          onModelChange={(selectedModelId) => {
+            void onModelChange?.(selectedModelId).catch((cause: unknown) =>
+              toast(cause instanceof Error ? cause.message : 'Unable to change chat model', 'error')
+            );
+          }}
         />
       </Card>
     </aside>

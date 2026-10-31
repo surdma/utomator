@@ -17,7 +17,8 @@ import {
   type MatorSettingsMasked,
 } from './mator-api';
 
-const EFFORT_STOPS = ['Low', 'Medium', 'High'] as const;
+const EFFORT_STOPS = ['low', 'medium', 'high'] as const;
+const EFFORT_LABELS = ['Low', 'Medium', 'High'] as const;
 
 type Props = { disabled?: boolean };
 
@@ -76,8 +77,8 @@ export default function MatorChatSettings({ disabled }: Props) {
   );
 
   useEffect(() => {
-    if (open && !settings && !loading) void load();
-  }, [open, settings, loading, load]);
+    if (open) void load();
+  }, [open, load]);
 
   return (
     <Popover
@@ -98,7 +99,7 @@ export default function MatorChatSettings({ disabled }: Props) {
           onClick={() => setOpen((value) => !value)}
           className="block cursor-pointer rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <span className="inline-flex size-9 items-center justify-center">
+          <span className="inline-flex size-11 items-center justify-center">
             <Settings className="size-4" aria-hidden="true" />
           </span>
         </button>
@@ -112,9 +113,16 @@ export default function MatorChatSettings({ disabled }: Props) {
             <Skeleton className="h-6 w-full" />
           </div>
         ) : error ? (
-          <p role="alert" className="text-xs text-rose-700">
-            {error}
-          </p>
+          <div className="space-y-2" role="alert">
+            <p className="text-xs text-rose-700">{error}</p>
+            <button
+              type="button"
+              onClick={() => void load()}
+              className="min-h-10 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+            >
+              Retry loading settings
+            </button>
+          </div>
         ) : settings ? (
           <>
             <div>
@@ -141,20 +149,17 @@ export default function MatorChatSettings({ disabled }: Props) {
               </div>
               <div className="mt-2">
                 <Slider
-                  value={EFFORT_STOPS.indexOf(
-                    settings.reasoningEffort as (typeof EFFORT_STOPS)[number]
-                  )}
+                  value={EFFORT_STOPS.indexOf(settings.reasoningEffort)}
                   min={0}
                   max={2}
                   step={1}
-                  stops={EFFORT_STOPS}
+                  stops={EFFORT_LABELS}
                   disabled={saving}
                   aria-label="Reasoning effort"
                   aria-valuetext={settings.reasoningEffort}
                   onValueChange={(value) =>
                     void patch({
-                      reasoningEffort: EFFORT_STOPS[value]?.toLowerCase() as
-                        'low' | 'medium' | 'high',
+                      reasoningEffort: EFFORT_STOPS[value] ?? 'medium',
                     })
                   }
                 />

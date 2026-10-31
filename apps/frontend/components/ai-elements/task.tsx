@@ -60,7 +60,7 @@ export function Task({ running, steps, className }: Props) {
         aria-expanded={open}
         data-testid="task-trace-trigger"
         onClick={() => setOpen((value) => !value)}
-        className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+        className="flex min-h-11 w-full cursor-pointer items-center gap-2 px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
       >
         {running ? (
           <LoaderCircle
@@ -99,9 +99,9 @@ export function Task({ running, steps, className }: Props) {
             id={contentId}
             role="region"
             aria-labelledby={triggerId}
-            initial={reducedMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+            initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className="overflow-hidden border-t border-slate-100 px-3 py-2"
           >
