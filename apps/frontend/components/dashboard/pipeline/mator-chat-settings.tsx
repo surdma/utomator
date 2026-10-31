@@ -34,11 +34,9 @@ export default function MatorChatSettings({ disabled }: Props) {
   const [settings, setSettings] = useState<MatorSettingsMasked | null>(null);
   const [models, setModels] = useState<MatorModelOption[]>([]);
   const [error, setError] = useState('');
-  const [attempted, setAttempted] = useState(false);
   const toast = useToast();
 
   const load = useCallback(async () => {
-    setAttempted(true);
     setLoading(true);
     setError('');
     try {
@@ -79,8 +77,8 @@ export default function MatorChatSettings({ disabled }: Props) {
   );
 
   useEffect(() => {
-    if (open && !attempted) void load();
-  }, [open, attempted, load]);
+    if (open) void load();
+  }, [open, load]);
 
   return (
     <Popover
