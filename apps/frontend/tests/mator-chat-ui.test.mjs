@@ -136,3 +136,33 @@ test('incomplete Continue sends Continue via useMatorChat through the composer',
   assert.match(hook, /incompleteContinue\s*=\s*useCallback/);
   assert.match(hook, /await send\(['"]Continue['"]\)/);
 });
+
+
+test('new chat displays suggestions instead of a permanent loading skeleton', () => {
+  const panel = readFileSync(pipeline('operator-chat-panel.tsx'), 'utf8');
+  assert.match(panel, /data-testid="mator-empty-thread"/);
+  assert.match(panel, /loading \? \(/);
+  assert.match(panel, /<Suggestion suggestions=\{START_SUGGESTIONS\}/);
+  assert.match(panel, /matorAttachmentFileUrl/);
+  assert.match(panel, /Open attached file/);
+});
+
+test('model picker is connected to real chat settings and handles failures', () => {
+  const panel = readFileSync(pipeline('operator-chat-panel.tsx'), 'utf8');
+  const shell = readFileSync(resolve(root, 'components/dashboard/dashboard-shell.tsx'), 'utf8');
+  const settings = readFileSync(pipeline('mator-chat-settings.tsx'), 'utf8');
+  assert.match(panel, /fetchMatorModels/);
+  assert.match(panel, /models=\{models\}/);
+  assert.match(panel, /onModelChange=\{/);
+  assert.match(shell, /modelId=\{settingsToggles\.modelId/);
+  assert.match(shell, /patchSettings\(\{ modelId \}\)/);
+  assert.match(settings, /EFFORT_STOPS = \['low', 'medium', 'high'\]/);
+  assert.match(settings, /Retry loading settings/);
+});
+
+test('attachment upload failures remain visible in the composer', () => {
+  const composer = readFileSync(pipeline('mator-composer.tsx'), 'utf8');
+  const shell = readFileSync(resolve(root, 'components/dashboard/dashboard-shell.tsx'), 'utf8');
+  assert.match(composer, /if \(result === null\) throw new Error/);
+  assert.match(shell, /return attachFile\(file\)/);
+});
