@@ -211,10 +211,10 @@ test('Growth YAML loads through the existing Templates modal and nested artboard
     resolve(root, 'components/dashboard/workflows/template-options.ts'),
     'utf8'
   );
-  assert.match(
-    modal,
-    /buildTemplateOptions\(growthTemplates, toolkits, growthSupported\)/
-  );
+  assert.match(modal, /buildTemplateOptions\(catalog\)/);
+  assert.match(modal, /growthTemplateCategories/);
+  assert.match(modal, /growth-template-pipeline-preview/);
+  assert.match(modal, /Filter workflow availability/);
   assert.match(optionsModel, /growthCapabilities\.map/);
   assert.match(modal, /\/api\/growth\/templates/);
   assert.match(modal, /onGrowthApply/);
