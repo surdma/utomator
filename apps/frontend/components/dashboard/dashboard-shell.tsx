@@ -8,14 +8,13 @@ import {
   type FormEvent,
 } from 'react';
 import type { ChatMessage } from './pipeline/run-models';
-import { Mic } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 import CraftsLibrary from '@/components/dashboard/crafts/crafts-library';
 import VisualReviewPanel from '@/components/dashboard/reviews/visual-review-panel';
-import { AutomationSettingsPage } from '@/components/dashboard/settings/owner-pages';
 import CareerStudio from '@/components/dashboard/career/career-studio';
-import AccountStudio, {
+import AccountHome, {
   type SocialAccount,
-} from '@/components/dashboard/connections/account-studio';
+} from '@/components/dashboard/account/account-home';
 import ActivityIntelligence from '@/components/dashboard/intelligence/activity-intelligence';
 import LinkedInResearchStudio from '@/components/dashboard/research/linkedin-research-studio';
 import LinkedInEditorialStudio from '@/components/dashboard/editorial/linkedin-editorial-studio';
@@ -204,8 +203,6 @@ export default function DashboardShell({
     conversations: matorConversations,
     conversationMeta,
     events: matorEvents,
-    settingsToggles,
-    patchSettings,
     incomplete,
     incompleteContinue,
     error: matorError,
@@ -447,6 +444,7 @@ export default function DashboardShell({
   const showChat =
     chatVisible &&
     pane !== 'profile' &&
+    pane !== 'settings' &&
     pane !== 'resumes' &&
     (pane !== 'growth' || libraryView !== 'catalog');
   return (
@@ -477,10 +475,10 @@ export default function DashboardShell({
       )}
       <div
         className={
-          'mx-auto grid w-full max-w-[1920px] grid-cols-1 gap-4 px-4 py-4 md:px-5 lg:min-h-0 lg:flex-1 lg:overflow-hidden ' +
+          'mx-auto grid w-full max-w-[1920px] grid-cols-1 gap-5 px-4 py-5 md:px-6 lg:min-h-0 lg:flex-1 lg:overflow-hidden ' +
           (showChat
-            ? 'lg:grid-cols-[190px_minmax(0,1fr)_300px] 2xl:grid-cols-[220px_minmax(0,1fr)_360px]'
-            : 'lg:grid-cols-[190px_minmax(0,1fr)] 2xl:grid-cols-[220px_minmax(0,1fr)]')
+            ? 'lg:grid-cols-[220px_minmax(0,1fr)_minmax(360px,420px)] xl:grid-cols-[232px_minmax(0,1fr)_440px]'
+            : 'lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[232px_minmax(0,1fr)]')
         }
       >
         <DashboardSidebar
@@ -577,14 +575,21 @@ export default function DashboardShell({
               revision={craftsRevision}
             />
           )}
-          {pane === 'profile' && (
-            <AccountStudio
-              view={
-                pathname.endsWith('/details')
-                  ? 'details'
-                  : pathname.endsWith('/connections')
-                    ? 'connections'
-                    : 'overview'
+          {(pane === 'profile' || pane === 'settings') && (
+            <AccountHome
+              pathname={pathname}
+              pane={pane}
+              available={available}
+              selectedAccount={
+                activeConnector
+                  ? {
+                      platform: activeConnector.platform,
+                      label: activeConnector.label,
+                      handle: activeConnector.handle,
+                      profileUrl: activeConnector.profileUrl,
+                      status: activeConnector.status,
+                    }
+                  : null
               }
               onNavigate={navigateSubpage}
               onSelectAccount={selectSocialAccount}
@@ -618,14 +623,6 @@ export default function DashboardShell({
           )}
           {pane === 'research' && <LinkedInResearchStudio />}
           {pane === 'editorial' && <LinkedInEditorialStudio />}
-
-          {pane === 'settings' && (
-            <AutomationSettingsPage
-              available={available}
-              platform={platform}
-              selectedAccount={activeConnector}
-            />
-          )}
         </main>
         <OperatorChatPanel
           pane={pane}
@@ -636,7 +633,6 @@ export default function DashboardShell({
             setChatVisible(false);
             setMobileChatOpen(false);
           }}
-          onOpenTracking={() => setTrackingOpen(true)}
           conversation={conversation}
           events={events}
           matorEvents={matorEvents}
@@ -645,22 +641,9 @@ export default function DashboardShell({
           onSwitchConversation={(id) => void switchConversation(id)}
           onNewConversation={() => void newConversation()}
           onRestorePipeline={() => void restoreMatorPipelineUi()}
-          settingsToggles={settingsToggles}
-          onToggleHowTts={() =>
-            void patchSettings({
-              howTtsEnabled: !settingsToggles.howTtsEnabled,
-            })
-          }
-          onToggleAutoApprove={() =>
-            void patchSettings({
-              autoApprove: !settingsToggles.autoApprove,
-            })
-          }
-          onToggleSquash={() =>
-            void patchSettings({
-              squashPipelineHistory: !settingsToggles.squashPipelineHistory,
-            })
-          }
+          onSendText={(text) => {
+            void send(text);
+          }}
           attachmentPreviews={attachmentPreviews}
           onSaveMarkers={(attachmentId, markers) =>
             void saveMarkers(attachmentId, markers)
@@ -723,11 +706,11 @@ export default function DashboardShell({
           }}
           className={
             'fixed right-5 bottom-24 z-30 inline-flex min-h-12 items-center gap-2 rounded-full bg-slate-950 px-5 text-sm font-bold text-white shadow-2xl ring-2 ring-white/80 hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-teal-600 lg:bottom-5 ' +
-            (chatVisible ? 'lg:hidden' : '') +
+            (showChat ? 'lg:hidden' : '') +
             (mobileChatOpen ? ' hidden' : '')
           }
         >
-          <Mic className="size-5" aria-hidden="true" />
+          <MessageSquare className="size-5" aria-hidden="true" />
           Mator
         </button>
       )}

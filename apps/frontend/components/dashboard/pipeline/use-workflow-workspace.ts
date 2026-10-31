@@ -13,6 +13,31 @@ import type { Platform } from './workflow-catalog';
 import { getApi } from './api-client';
 import { defaultWorkflowPlan } from './default-workflow-plan';
 
+let workflowBootstrapStarted = false;
+
+function adoptWorkflow(
+  record: WorkflowRecord,
+  setters: {
+    setActiveWorkflow: Dispatch<SetStateAction<WorkflowRecord | null>>;
+    setPlatform: Dispatch<SetStateAction<Platform>>;
+    setAction: Dispatch<SetStateAction<string>>;
+    setWorkflowPlan: Dispatch<SetStateAction<WorkflowPlan>>;
+    setForm: Dispatch<SetStateAction<Record<string, string>>>;
+    setPlanDirty: Dispatch<SetStateAction<boolean>>;
+    setLoadingWorkflow: Dispatch<SetStateAction<boolean>>;
+    setRunFormError: Dispatch<SetStateAction<string>>;
+  },
+) {
+  setters.setLoadingWorkflow(false);
+  setters.setActiveWorkflow(record);
+  setters.setPlatform(record.plan.platform);
+  setters.setAction(record.plan.action);
+  setters.setWorkflowPlan(record.plan);
+  setters.setForm(record.plan.parameters ?? {});
+  setters.setPlanDirty(false);
+  setters.setRunFormError('');
+}
+
 export type WorkflowRecord = {
   id: string;
   ownerId: 'local-owner';
@@ -58,8 +83,47 @@ export function useWorkflowWorkspace({
       .then(async (response) => {
         if (!response.ok) throw Error('Saved workflows unavailable');
         const records = (await response.json()) as WorkflowRecord[];
-        if (live && savedListEpoch.current === generation)
-          setSavedWorkflows(records);
+        if (!live || savedListEpoch.current !== generation) return;
+        setSavedWorkflows(records);
+        if (records[0]) {
+          setActiveWorkflow((current) => {
+            if (current) return current;
+            setPlatform(records[0].plan.platform);
+            setAction(records[0].plan.action);
+            setWorkflowPlan(records[0].plan);
+            setForm(records[0].plan.parameters ?? {});
+            setPlanDirty(false);
+            setLoadingWorkflow(false);
+            return records[0];
+          });
+          return;
+        }
+        if (workflowBootstrapStarted) return;
+        workflowBootstrapStarted = true;
+        const created = await fetch(getApi('workflows'), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ plan: defaultWorkflowPlan() }),
+        });
+        const record = (await created.json()) as WorkflowRecord & {
+          error?: string;
+        };
+        if (!live || savedListEpoch.current !== generation) return;
+        if (!created.ok) {
+          setRunFormError(record.error || 'Could not create the default workflow');
+          return;
+        }
+        setSavedWorkflows([record]);
+        adoptWorkflow(record, {
+          setActiveWorkflow,
+          setPlatform,
+          setAction,
+          setWorkflowPlan,
+          setForm,
+          setPlanDirty,
+          setLoadingWorkflow,
+          setRunFormError,
+        });
       })
       .catch(() => {
         if (live)

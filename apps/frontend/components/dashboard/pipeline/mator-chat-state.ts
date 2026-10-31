@@ -32,10 +32,14 @@ export type MatorSettingsToggles = {
   autoApprove: boolean;
   squashPipelineHistory: boolean;
   howTtsEnabled: boolean;
+  modelId?: string;
+  modelName?: string;
+  modelLabel?: string;
+  modelTier?: 'free' | 'paid';
 };
 
 const SEED_TEXT =
-  'Say what you want changed. I can audit a profile, change a headline, add a skill, or draft a post.';
+  'Message this thread. I can audit a profile, change a headline, add a skill, or draft a post.';
 
 export function seedConversation(): MatorChatBubble[] {
   return [{ id: 'seed', sender: 'assistant', text: SEED_TEXT }];
@@ -144,6 +148,102 @@ export function shouldSpeakHow(
     event.role === 'assistant' &&
     Boolean(event.text?.trim())
   );
+}
+
+export type MatorClarifyChoice = {
+  value: string;
+  label: string;
+  description?: string;
+};
+
+export type MatorClarifyQuestion = {
+  name: string;
+  prompt: string;
+  description?: string;
+  required: boolean;
+  multiple: boolean;
+  choices: MatorClarifyChoice[];
+  freeformLabel?: string;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+export function readClarifyQuestions(
+  action: unknown,
+): MatorClarifyQuestion[] | null {
+  if (!isRecord(action) || action.type !== 'clarify') return null;
+  if (!Array.isArray(action.questions) || action.questions.length === 0)
+    return null;
+  const questions: MatorClarifyQuestion[] = [];
+  for (const item of action.questions) {
+    if (!isRecord(item) || typeof item.name !== 'string' || typeof item.prompt !== 'string')
+      return null;
+    const choices: MatorClarifyChoice[] = [];
+    if (Array.isArray(item.choices)) {
+      for (const choice of item.choices) {
+        if (!isRecord(choice) || typeof choice.value !== 'string' || typeof choice.label !== 'string')
+          return null;
+        choices.push({
+          value: choice.value,
+          label: choice.label,
+          ...(typeof choice.description === 'string'
+            ? { description: choice.description }
+            : {}),
+        });
+      }
+    }
+    const freeformLabel =
+      isRecord(item.freeform) && typeof item.freeform.label === 'string'
+        ? item.freeform.label
+        : typeof item.freeformLabel === 'string'
+          ? item.freeformLabel
+          : undefined;
+    questions.push({
+      name: item.name,
+      prompt: item.prompt,
+      required: item.required === true,
+      multiple: item.multiple === true,
+      choices,
+      ...(typeof item.description === 'string'
+        ? { description: item.description }
+        : {}),
+      ...(freeformLabel ? { freeformLabel } : {}),
+    });
+  }
+  return questions;
+}
+
+/** Latest clarify that the user has not answered yet. */
+export function findOpenClarify(
+  events: MatorChatEvent[],
+): MatorChatEvent | null {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index];
+    if (!event) continue;
+    if (event.role === 'user') return null;
+    if (event.kind === 'clarify' && readClarifyQuestions(event.action))
+      return event;
+  }
+  return null;
+}
+
+export function formatClarifyReply(
+  questions: MatorClarifyQuestion[],
+  formData: FormData,
+): string {
+  return questions
+    .map((question) => {
+      const values = formData
+        .getAll(question.name)
+        .map(String)
+        .map((value) => value.trim())
+        .filter(Boolean);
+      const answer = values.length > 0 ? values.join(', ') : 'Skipped';
+      return `${question.prompt} ${answer}`;
+    })
+    .join('\n');
 }
 
 export function pendingStageLabel(event: MatorChatEvent | null): string | null {

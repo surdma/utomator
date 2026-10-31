@@ -26,6 +26,7 @@ import type { Action } from './core/types.js';
 import { profileUrlForHandle } from './core/validate.js';
 import { CareerStore } from './profile/career-store.js';
 import { AccountStore } from './profile/account-store.js';
+import type { BrokerInput } from './browser/streaming-signin.js';
 import { loadAutomationPlaybook } from './profile/playbook.js';
 import { assessAudit } from './core/assessment.js';
 import { loadIdentityTimeline } from './profile/timeline.js';
@@ -250,6 +251,25 @@ export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?
     } catch (error) {
       return reply.code(400).send({
         error: error instanceof Error ? error.message : 'Could not start connection',
+      });
+    }
+  });
+  app.get<{ Params: { id: string } }>('/connectors/:id/view', async (request, reply) => {
+    try {
+      return await connectors.signInFrame(request.params.id);
+    } catch (error) {
+      return reply.code(400).send({
+        error: error instanceof Error ? error.message : 'Sign-in view unavailable',
+      });
+    }
+  });
+  app.post<{ Params: { id: string }; Body: BrokerInput }>('/connectors/:id/input', async (request, reply) => {
+    try {
+      await connectors.signInInput(request.params.id, request.body);
+      return { ok: true };
+    } catch (error) {
+      return reply.code(400).send({
+        error: error instanceof Error ? error.message : 'Could not send sign-in input',
       });
     }
   });

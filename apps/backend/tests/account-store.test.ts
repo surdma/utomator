@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AccountStore, parseSocialAccount } from '../src/profile/account-store.js';
+import { AccountStore, blankProfile, mergeEmptyProfile, parseSocialAccount } from '../src/profile/account-store.js';
 
 async function withStore(fn: (store: AccountStore, root: string) => Promise<void>) {
   const root = await mkdtemp(join(tmpdir(), 'account-store-'));
@@ -19,12 +19,7 @@ test('fresh workspace does not inherit portfolio owner or social handles', async
     const first = await store.get();
     assert.equal(first.revision, 0);
     assert.deepEqual(first.socialAccounts, []);
-    assert.deepEqual(first.profile, {
-      displayName: '',
-      email: '',
-      location: '',
-      about: '',
-    });
+    assert.deepEqual(first.profile, blankProfile());
     const social = await store.addSocial(first.revision, {
       platform: 'linkedin',
       label: 'First owner',
@@ -195,4 +190,27 @@ test('manual account API write is not a valid linking mechanism', async () => {
   } finally {
     await app.close();
   }
+});
+
+test('sync fills empty profile fields and leaves a completed field unchanged', async () => {
+  const current = {
+    ...blankProfile(),
+    displayName: 'Ada Lovelace',
+    email: 'ada@example.com',
+    about: 'Already written',
+  };
+  const merged = mergeEmptyProfile(current, {
+    displayName: 'Someone Else',
+    headline: 'Engineer',
+    location: 'Lagos',
+    about: 'From LinkedIn',
+    avatarUrl: 'https://media.licdn.com/dms/image/profile-displaybackgroundimage-shrink_200_800/banner',
+    website: 'https://example.com/ada',
+  });
+  assert.equal(merged.displayName, 'Ada Lovelace');
+  assert.equal(merged.about, 'Already written');
+  assert.equal(merged.headline, 'Engineer');
+  assert.equal(merged.location, 'Lagos');
+  assert.equal(merged.website, 'https://example.com/ada');
+  assert.equal(merged.avatarUrl, '');
 });

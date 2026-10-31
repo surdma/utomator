@@ -3,6 +3,8 @@ import { chmod, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path';
 import type { Page } from 'playwright';
 import { BrowserSession } from '../browser/session.js';
+import type { BrokerInput } from '../browser/streaming-signin.js';
+import { streamSignInUrl } from '../browser/navigation.js';
 import { isConnectionTimeout, navigateWithRetry } from '../browser/navigation.js';
 import { AccountStore, type SocialAccount, type SocialPlatform } from '../profile/account-store.js';
 import type { DocumentStore } from '../db/documents.js';
@@ -30,6 +32,20 @@ const providerHome = {
 } as const;
 
 const allowId = (id: string) => /^[0-9a-fA-F-]{36}$/.test(id);
+
+/** LinkedIn cover art uses displaybackgroundimage. Profile photos use displayphoto. */
+function portraitUrl(value: string | null | undefined) {
+  if (!value || !value.startsWith('https://')) return undefined;
+  const lower = value.toLowerCase();
+  if (
+    lower.includes('displaybackground') ||
+    lower.includes('backgroundimage') ||
+    lower.includes('cover-image') ||
+    lower.includes('profile-displaybackground')
+  )
+    return undefined;
+  return value;
+}
 
 /**
  * Platforms served by the conduct-based browser-session connector.
@@ -136,7 +152,7 @@ export class ConnectorService {
     return account;
   }
   capabilities() {
-    const browserAvailable = process.env.HEADLESS !== 'true' && !process.env.UTOMATOR_INTERNAL_OWNER_ID;
+    const browserAvailable = !process.env.UTOMATOR_INTERNAL_OWNER_ID;
     return {
       browserAvailable: Boolean(browserAvailable),
       mode: process.env.UTOMATOR_BROWSER_MODE === 'attached' ? 'attached' : 'isolated',
@@ -249,7 +265,7 @@ export class ConnectorService {
     this.pending.set(id, { platform, browser });
     try {
       const page = await browser.open(platform, id);
-      await navigateWithRetry(page, providerHome[platform], {
+      await navigateWithRetry(page, streamSignInUrl[platform], {
         waitUntil: 'domcontentloaded',
         timeout: 12000,
         maxAttempts: 2,
@@ -288,16 +304,40 @@ export class ConnectorService {
             'a[data-control-name="identity_profile_photo"][href*="/in/"]',
             '.feed-identity-module a[href*="/in/"]',
             'a.global-nav__secondary-item[href*="/in/"]',
+            'a.global-nav__primary-link[href*="/in/"]',
+            'header a[href*="/in/"]',
+            'nav a[href*="/in/"]',
           ]
-        : ['a[data-testid="AppTabBar_Profile_Link"]'];
+        : [
+            'a[data-testid="AppTabBar_Profile_Link"]',
+            'a[aria-label="Profile"]',
+            'nav a[data-testid="AppTabBar_Profile_Link"]',
+          ];
     let profileUrl: URL | null = null;
+    let avatarUrl: string | undefined;
+    let displayName: string | undefined;
     for (const selector of candidates) {
-      const href = await page
-        .locator(selector)
-        .first()
-        .getAttribute('href', { timeout: 1500 })
-        .catch(() => null);
+      const link = page.locator(selector).first();
+      const href = await link.getAttribute('href', { timeout: 1500 }).catch(() => null);
       if (!href) continue;
+      const imageNode =
+        typeof link.locator === 'function' ? link.locator('img') : null;
+      const sources = imageNode
+        ? await imageNode
+            .evaluateAll((images) =>
+              images.map((image) => ({
+                src: image.getAttribute('src') || '',
+                alt: image.getAttribute('alt') || '',
+              })),
+            )
+            .catch(() => [] as Array<{ src: string; alt: string }>)
+        : [];
+      const portrait = sources.find((image) => portraitUrl(image.src));
+      const image = portrait?.src ?? null;
+      const alt = portrait?.alt ?? null;
+      if (image) avatarUrl = image;
+      const named = alt?.replace(/^photo of\s+/i, '').trim();
+      if (named) displayName = named;
       try {
         const candidate = new URL(href, here.origin);
         if (
@@ -319,22 +359,114 @@ export class ConnectorService {
         /* Invalid provider link is not owner identity evidence. */
       }
     }
+    if (!profileUrl && typeof page.evaluate === 'function') {
+      const found = await page
+        .evaluate((network) => {
+          const anchors = Array.from(document.querySelectorAll('a[href]'));
+          const rows = anchors
+            .map((anchor) => {
+              const href = anchor.getAttribute('href') || '';
+              const img = anchor.querySelector('img');
+              return {
+                href,
+                inChrome: Boolean(anchor.closest('header, nav, [role="banner"]')),
+                avatar: img?.getAttribute('src') || '',
+                alt: img?.getAttribute('alt') || '',
+              };
+            })
+            .map((row) => ({
+              ...row,
+              avatar:
+                row.avatar.startsWith('https://') &&
+                !row.avatar.toLowerCase().includes('displaybackground') &&
+                !row.avatar.toLowerCase().includes('backgroundimage')
+                  ? row.avatar
+                  : '',
+            }))
+            .filter((row) =>
+              network === 'linkedin'
+                ? /\/in\/[A-Za-z0-9_-]{3,100}\/?$/.test(row.href.split('?')[0] || '')
+                : /^\/[A-Za-z0-9_]{1,15}\/?$/.test(row.href.split('?')[0] || ''),
+            );
+          return (
+            rows.find((row) => row.inChrome && row.avatar.includes('displayphoto')) ||
+            rows.find((row) => row.avatar.includes('displayphoto')) ||
+            rows.find((row) => row.inChrome && row.avatar) ||
+            rows.find((row) => row.inChrome) ||
+            null
+          );
+        }, platform)
+        .catch(() => null);
+      if (found?.href) {
+        try {
+          const candidate = new URL(found.href, here.origin);
+          const path =
+            platform === 'linkedin'
+              ? /^\/in\/([a-zA-Z0-9_-]{3,100})\/?$/
+              : /^\/([a-zA-Z0-9_]{1,15})\/?$/;
+          if (
+            candidate.protocol === 'https:' &&
+            trustedHosts.includes(candidate.hostname) &&
+            !candidate.username &&
+            !candidate.password &&
+            !candidate.port &&
+            path.test(candidate.pathname)
+          ) {
+            profileUrl = candidate;
+            if (portraitUrl(found.avatar)) avatarUrl = found.avatar;
+            const named = found.alt.replace(/^photo of\s+/i, '').trim();
+            if (named) displayName = named;
+          }
+        } catch {
+          profileUrl = null;
+        }
+      }
+    }
     if (!profileUrl) return null; // Not signed in yet. Leave the page intact.
     const handle = profileUrl.pathname.split('/').filter(Boolean).at(-1);
     if (!handle) return null;
     const normalized =
       platform === 'linkedin' ? `https://www.linkedin.com/in/${handle}/` : `https://x.com/${handle}`;
+    const safeAvatar = portraitUrl(avatarUrl);
+    const label = displayName && displayName.length <= 100 ? displayName : handle;
     // Prove ownership at the discovered profile before it is persisted.
     const verified = await this.verify(page, {
       id: '',
       platform,
-      label: handle,
+      label,
       handle,
       profileUrl: normalized,
+      ...(safeAvatar ? { avatarUrl: safeAvatar } : {}),
     });
     if (verified === 'temporarily-unavailable') return null;
     if (verified !== 'verified') throw Error('Provider profile ownership could not be verified');
-    return { platform, label: handle, handle, profileUrl: normalized };
+    return {
+      platform,
+      label,
+      handle,
+      profileUrl: normalized,
+      ...(safeAvatar ? { avatarUrl: safeAvatar } : {}),
+    };
+  }
+
+  private liveBrowser(id: string): BrowserSession | undefined {
+    const pending = this.pending.get(id)?.browser;
+    const session = this.sessions.get(id);
+    const browser = pending || session;
+    return browser instanceof BrowserSession ? browser : undefined;
+  }
+
+  async signInFrame(id: string): Promise<{ frame: string | null; status: string }> {
+    const browser = this.liveBrowser(id);
+    if (!browser?.currentPage) return { frame: null, status: 'closed' };
+    await browser.beginView().catch(() => undefined);
+    return { frame: browser.frame() ?? null, status: 'sign-in-open' };
+  }
+
+  async signInInput(id: string, event: BrokerInput): Promise<void> {
+    const browser = this.liveBrowser(id);
+    if (!browser?.currentPage) throw Error('Sign-in is not open');
+    await browser.relay(event);
   }
 
   async begin(id: string) {
@@ -475,6 +607,7 @@ export class ConnectorService {
         verifiedAt: new Date().toISOString(),
         ...identity,
       });
+      await this.absorbProfile(page, pending.platform);
       this.pending.delete(id);
       await pending.browser.close().catch(() => {});
       return { status: 'connected' as const, accountId: id };
@@ -520,6 +653,8 @@ export class ConnectorService {
         handle: account.handle,
         profileUrl: account.profileUrl,
       });
+      if (account.platform === 'linkedin' || account.platform === 'x')
+        await this.absorbProfile(page, account.platform);
       await this.audit('session-verified', account);
       return { status: 'connected' as const, accountId: id };
     } finally {
@@ -529,6 +664,171 @@ export class ConnectorService {
       }
     }
   }
+  private async absorbProfile(page: Page, platform: 'linkedin' | 'x') {
+    try {
+      await page.evaluate(() => {
+        (globalThis as { __name?: (target: unknown) => unknown }).__name = (target) => target;
+      });
+      const captured = await page.evaluate(async (network) => {
+        const clean = (node: Element | null) =>
+          (node?.textContent || '').replace(/\s+/g, ' ').trim();
+        const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+        const main = document.querySelector('main');
+        if (main && network === 'linkedin') {
+          for (let attempt = 0; attempt < 8 && !main.querySelector('h1, h2'); attempt += 1) await pause(250);
+          const step = Math.max(main.clientHeight - 80, 400);
+          const limit = Math.min(main.scrollHeight, 14000);
+          for (let top = 0; top <= limit; top += step) {
+            main.scrollTop = top;
+            await pause(220);
+          }
+        }
+        const images = Array.from(document.images).map((image) => image.currentSrc || image.src || '');
+        const avatar =
+          images.find((src) => {
+            const lower = src.toLowerCase();
+            if (!lower.startsWith('https://')) return false;
+            if (
+              lower.includes('displaybackground') ||
+              lower.includes('backgroundimage') ||
+              lower.includes('profile_banners')
+            )
+              return false;
+            return (
+              lower.includes('displayphoto') ||
+              lower.includes('profile-framedphoto') ||
+              lower.includes('profile_images') ||
+              lower.includes('profile_photo')
+            );
+          }) || '';
+        if (network === 'x') {
+          return {
+            displayName: clean(document.querySelector('[data-testid="UserName"]')),
+            about: clean(document.querySelector('[data-testid="UserDescription"]')),
+            location: clean(document.querySelector('[data-testid="UserLocation"]')),
+            website: (document.querySelector('[data-testid="UserUrl"] a') as HTMLAnchorElement | null)?.href || '',
+            avatarUrl: avatar,
+          };
+        }
+        const lines = (main?.innerText || '')
+          .split('\n')
+          .map((line) => line.replace(/\s+/g, ' ').trim())
+          .filter(Boolean);
+        const headingLabels = [
+          'about',
+          'services',
+          'featured',
+          'activity',
+          'experience',
+          'education',
+          'skills',
+          'licenses & certifications',
+          'projects',
+          'interests',
+          'analytics',
+          'profile language',
+          'public profile & url',
+          'suggested for you',
+          'ad options',
+          'connected apps',
+          'you might like',
+          'people you may know',
+        ];
+        const isHeading = (line: string) => {
+          const lower = line.toLowerCase();
+          return headingLabels.some((label) => lower === label || lower.startsWith(label + ' ('));
+        };
+        const section = (label: string) => {
+          const start = lines.findIndex((line) => {
+            const lower = line.toLowerCase();
+            return lower === label || lower.startsWith(label + ' (');
+          });
+          if (start < 0) return '';
+          const chunk: string[] = [];
+          const limit = label === 'skills' ? 30 : 20;
+          for (let index = start + 1; index < lines.length && chunk.length < limit; index += 1) {
+            const line = lines[index];
+            if (isHeading(line)) break;
+            if (label === 'about' && /^top skills$/i.test(line)) break;
+            if (/^(show all|see more|show more|… more|\.\.\. more|\d+\s+experiences?)$/i.test(line)) continue;
+            if (line.length < 2) continue;
+            chunk.push(line);
+          }
+          return chunk.join('\n');
+        };
+        const chrome =
+          /^(suggested for you|analytics|about|services|featured|activity|profile language|public profile & url|ad options|experience|education|connected apps|licenses & certifications|projects|skills|interests|you might like|people you may know)/i;
+        const headings = Array.from((main || document).querySelectorAll('h1, h2'))
+          .map((node) => clean(node))
+          .filter(Boolean);
+        const displayName =
+          headings.find((text) => text.length < 80 && !chrome.test(text)) ||
+          clean(document.querySelector('main h1, h1'));
+        const nameAt = displayName ? lines.findIndex((line) => line === displayName) : -1;
+        const following = nameAt >= 0 ? lines.slice(nameAt + 1) : lines;
+        const noise =
+          /^(contact info|portfolio|open to|add section|show details|show all|see more|·|\d[\d,]* followers|\d[\d,]* connections)$/i;
+        const headline =
+          following.find((line) => !noise.test(line) && !isHeading(line) && line.length > 2 && line.length < 220) ||
+          clean(document.querySelector('.text-body-medium'));
+        const location =
+          following.find(
+            (line) => line.includes(',') && line.length < 90 && !/follower|connection/i.test(line) && !isHeading(line),
+          ) ||
+          clean(document.querySelector('.text-body-small.inline, .pv-text-details__left-panel .text-body-small'));
+        const aboutHead = Array.from((main || document).querySelectorAll('h1, h2')).find(
+          (node) => clean(node).toLowerCase() === 'about',
+        );
+        let website = '';
+        if (main) {
+          const links = Array.from(main.querySelectorAll('a[href^="https://"]'));
+          const top = aboutHead
+            ? links.filter((link) => (aboutHead.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_PRECEDING) !== 0)
+            : links;
+          website =
+            top
+              .map((link) => (link as HTMLAnchorElement).href)
+              .find((href) => {
+                try {
+                  const host = new URL(href).hostname;
+                  return !/(^|\.)linkedin\.com$|(^|\.)licdn\.com$/i.test(host);
+                } catch {
+                  return false;
+                }
+              }) || '';
+        }
+        const about = section('about');
+        const experience = section('experience');
+        let skills = section('skills');
+        const topSkillsAt = lines.findIndex((line) => line.toLowerCase() === 'top skills');
+        const topSkills = topSkillsAt >= 0 ? lines[topSkillsAt + 1] || '' : '';
+        if (topSkills.includes('•') && topSkills.length > skills.length) skills = topSkills.replace(/ • /g, '\n');
+        if (!website) {
+          const mentioned = (about + '\n' + experience).match(/https:\/\/[^\s)]+/);
+          if (mentioned && !/linkedin\.com|licdn\.com/i.test(mentioned[0]))
+            website = mentioned[0].replace(/[.,;]+$/, '');
+        }
+        return {
+          displayName,
+          headline,
+          location,
+          about,
+          experience,
+          education: section('education'),
+          skills,
+          website,
+          avatarUrl: avatar,
+        };
+      }, platform);
+      await this.accounts.fillEmptyProfile(captured);
+    } catch (error) {
+      console.error(
+        'profile-capture-failed',
+        error instanceof Error ? error.message : 'unreadable profile',
+      );
+    }
+  }
+
   async verify(
     page: Page,
     account: SocialAccount,
@@ -560,19 +860,25 @@ export class ConnectorService {
     //   LinkedIn  â€“ the "Edit intro" button on the owned profile
     //   X         â€“ the "Edit profile" link on the owned profile
     // A signed-out visitor sees "Follow" buttons instead, never these controls.
-    const ownerOnlyControl =
+    const ownerOnlyControls =
       account.platform === 'x'
-        ? page.getByRole('link', { name: /edit profile/i })
-        : page.getByRole('button', { name: /edit intro/i });
+        ? [page.getByRole('link', { name: /edit profile/i })]
+        : [
+            page.getByRole('button', { name: /edit intro/i }),
+            page.getByRole('link', { name: /edit profile/i }),
+            page.getByRole('button', { name: /edit profile/i }),
+          ];
     // DOMContentLoaded fires before the provider's profile controls finish
-    // rendering. Wait for the actual owner-only control instead of requiring a
-    // page refresh. Verification failures degrade to reconnect-required.
-    try {
-      await ownerOnlyControl.first().waitFor({ state: 'visible', timeout: 8000 });
-      return isOwnedProfilePage() ? 'verified' : 'not-authenticated';
-    } catch {
-      return 'not-authenticated';
+    // rendering. Wait for an owner-only control instead of requiring a refresh.
+    for (const control of ownerOnlyControls) {
+      try {
+        await control.first().waitFor({ state: 'visible', timeout: 4000 });
+        return isOwnedProfilePage() ? 'verified' : 'not-authenticated';
+      } catch {
+        /* Try the next owner-only control. */
+      }
     }
+    return 'not-authenticated';
   }
   async expire(id: string) {
     if (allowId(id)) {

@@ -23,11 +23,12 @@ test('operator chat panel exposes required mator testids and chrome', () => {
   assert.match(source, /framer-motion/);
   assert.match(source, /useReducedMotion/);
   assert.match(source, /AnimatePresence/);
-  assert.match(source, /onToggleAutoApprove/);
-  assert.match(source, /onToggleSquash/);
-  assert.match(source, /onToggleHowTts/);
+  assert.match(source, /MessageScroller/);
+  assert.match(source, /MatorClarifyForm/);
+  assert.match(source, /This workflow/);
   assert.match(source, /onNewConversation/);
   assert.match(source, /MatorAttachmentCanvas/);
+  assert.doesNotMatch(source, /Groq capabilities/);
 });
 
 test('voice deck exposes stage confirm and multi-type attach composer', () => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, type FormEvent, type ReactNode } from 'react';
+import { type FormEvent, type ReactNode } from 'react';
 import Image from 'next/image';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
@@ -12,11 +12,8 @@ import {
   Crosshair,
   Focus,
   Volume2,
-  VolumeX,
   Plus,
   RotateCcw,
-  ShieldCheck,
-  Layers,
 } from 'lucide-react';
 import {
   Message,
@@ -27,13 +24,15 @@ import {
 } from '@/components/ui/message';
 import { Bubble, BubbleContent } from '@/components/ui/bubble';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Button,
-} from '@/components/ui/automate-card';
+  MessageScroller,
+  MessageScrollerButton,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from '@/components/ui/message-scroller';
+import { Card, CardContent } from '@/components/ui/automate-card';
+import MatorClarifyForm from './mator-clarify-form';
 import { timeLabel, short } from './presentation-utils';
 import VoiceDeck from './voice-deck';
 import MatorAttachmentCanvas from './mator-attachment-canvas';
@@ -48,10 +47,11 @@ import type {
   Checkpoint,
 } from './run-models';
 import type { Platform } from './workflow-catalog';
-import type {
-  MatorChatEvent,
-  MatorConversationSummary,
-  MatorSettingsToggles,
+import {
+  findOpenClarify,
+  readClarifyQuestions,
+  type MatorChatEvent,
+  type MatorConversationSummary,
 } from './mator-chat-state';
 import type { MatorImageMarkerDto } from './mator-api';
 
@@ -61,7 +61,6 @@ type Props = {
   mobileChatOpen: boolean;
   showChat: boolean;
   onClose: () => void;
-  onOpenTracking: () => void;
   conversation: ChatMessage[];
   events: RunEvent[];
   matorEvents?: MatorChatEvent[];
@@ -70,10 +69,7 @@ type Props = {
   onSwitchConversation?: (conversationId: string) => void;
   onNewConversation?: () => void;
   onRestorePipeline?: () => void;
-  settingsToggles?: MatorSettingsToggles;
-  onToggleHowTts?: () => void;
-  onToggleAutoApprove?: () => void;
-  onToggleSquash?: () => void;
+  onSendText?: (text: string) => void;
   attachmentPreviews?: Record<string, string>;
   onSaveMarkers?: (
     attachmentId: string,
@@ -109,27 +105,26 @@ function actionLabel(action: unknown): string {
   return 'action';
 }
 
+function threadWhen(iso: string | null) {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
 function EventMotion({
   id,
+  anchor = false,
   children,
 }: {
   id: string;
+  anchor?: boolean;
   children: ReactNode;
 }) {
-  const reduceMotion = useReducedMotion();
   return (
-    <motion.div
-      key={id}
-      layout={!reduceMotion}
-      initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={reduceMotion ? undefined : { opacity: 0, y: -6 }}
-      transition={
-        reduceMotion ? { duration: 0 } : { duration: 0.2, ease: 'easeOut' }
-      }
-    >
+    <MessageScrollerItem messageId={id} scrollAnchor={anchor}>
       {children}
-    </motion.div>
+    </MessageScrollerItem>
   );
 }
 
@@ -139,7 +134,6 @@ export default function OperatorChatPanel({
   mobileChatOpen,
   showChat,
   onClose,
-  onOpenTracking,
   conversation,
   events,
   matorEvents = [],
@@ -148,10 +142,7 @@ export default function OperatorChatPanel({
   onSwitchConversation,
   onNewConversation,
   onRestorePipeline,
-  settingsToggles,
-  onToggleHowTts,
-  onToggleAutoApprove,
-  onToggleSquash,
+  onSendText,
   attachmentPreviews = {},
   onSaveMarkers,
   reviews,
@@ -167,7 +158,6 @@ export default function OperatorChatPanel({
   onMessageChange,
   onSendMessage,
   onAttachFile,
-  checkpoint,
   voice,
   pendingLabel,
   onConfirm,
@@ -177,17 +167,14 @@ export default function OperatorChatPanel({
   onIncompleteContinue,
   chatError = null,
 }: Props) {
-  const logRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useReducedMotion();
-  const howMuted = !(settingsToggles?.howTtsEnabled ?? true);
   const showRestore = Boolean(conversationMeta?.boundRevisionId);
-
-  useEffect(() => {
-    logRef.current?.scrollTo({
-      top: logRef.current.scrollHeight,
-      behavior: reduceMotion ? 'auto' : 'smooth',
-    });
-  }, [events, conversation, checkpoint, matorEvents, reduceMotion]);
+  const openClarify = findOpenClarify(matorEvents);
+  const threadList = [...conversations].sort((a, b) => {
+    if (a.id === conversationMeta?.id) return -1;
+    if (b.id === conversationMeta?.id) return 1;
+    return (b.updatedAt || '').localeCompare(a.updatedAt || '');
+  });
 
   const markerDraft =
     voice.interim?.trim() ||
@@ -220,124 +207,74 @@ export default function OperatorChatPanel({
       </button>
       <Card
         data-testid="mator-chat"
-        className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        className="flex min-h-0 flex-1 flex-col overflow-hidden border-slate-200/70 bg-white shadow-none"
       >
-        <CardHeader className="space-y-3 border-b border-slate-100 pb-3">
-          <div className="flex flex-row items-start justify-between gap-3">
-            <div className="min-w-0">
-              <CardTitle>Mator</CardTitle>
-              <CardDescription>
-                Speak or stage what you want changed.
-              </CardDescription>
-            </div>
-            <div className="flex shrink-0 items-center gap-1">
-              <button
-                type="button"
-                onClick={() => onToggleHowTts?.()}
-                aria-label={howMuted ? 'Unmute how TTS' : 'Mute how TTS'}
-                aria-pressed={howMuted}
-                className="inline-flex size-11 cursor-pointer items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-                title={howMuted ? 'Unmute how TTS' : 'Mute how TTS'}
-              >
-                {howMuted ? (
-                  <VolumeX className="size-4" aria-hidden="true" />
-                ) : (
-                  <Volume2 className="size-4" aria-hidden="true" />
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={onOpenTracking}
-                aria-label="Open tracking"
-                className="inline-flex size-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"
-                title="Tracking"
-              >
-                <Activity className="size-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                }}
-                aria-label="Minimize Mator"
-                className="inline-flex size-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"
-                title="Minimize chat"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <label className="sr-only" htmlFor="mator-conversation-switcher">
-              Conversation
-            </label>
-            <select
-              id="mator-conversation-switcher"
-              data-testid="mator-conversation-switcher"
-              value={conversationMeta?.id ?? ''}
-              disabled={!onSwitchConversation || conversations.length === 0}
-              onChange={(event) =>
-                onSwitchConversation?.(event.target.value)
-              }
-              className="min-h-10 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:opacity-50"
-            >
-              {conversations.length === 0 ? (
-                <option value="">No conversations</option>
-              ) : (
-                conversations.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.title || 'Conversation'}
-                  </option>
-                ))
-              )}
-            </select>
-            <Button
+        <div className="shrink-0 px-4 pt-4 pb-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <p className="text-[13px] text-slate-500">This workflow</p>
+            <button
               type="button"
-              variant="secondary"
-              size="sm"
+              onClick={onClose}
+              className="text-xs text-slate-400 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+            >
+              Hide
+            </button>
+          </div>
+          <nav
+            aria-label="Threads in this workflow"
+            data-testid="mator-conversation-switcher"
+            className="mt-3"
+          >
+            {threadList.length === 0 ? (
+              <p className="px-2.5 text-sm text-slate-400">No threads yet</p>
+            ) : (
+              <ul className="flex max-h-36 flex-col gap-0.5 overflow-y-auto">
+                <AnimatePresence initial={false}>
+                  {threadList.map((item) => {
+                    const current = item.id === conversationMeta?.id;
+                    return (
+                      <motion.li
+                        key={item.id}
+                        initial={reduceMotion ? false : { opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: reduceMotion ? 0 : 0.18 }}
+                      >
+                        <button
+                          type="button"
+                          aria-current={current ? 'true' : undefined}
+                          disabled={!onSwitchConversation || current}
+                          onClick={() => onSwitchConversation?.(item.id)}
+                          className={
+                            'flex w-full items-baseline justify-between gap-3 rounded-lg px-2.5 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:opacity-100 ' +
+                            (current
+                              ? 'bg-slate-50 text-slate-800'
+                              : 'text-slate-500 hover:bg-slate-50/80 hover:text-slate-700')
+                          }
+                        >
+                          <span className="truncate text-sm">
+                            {item.title || 'Conversation'}
+                          </span>
+                          <span className="shrink-0 text-[11px] text-slate-400">
+                            {current ? 'Now' : threadWhen(item.updatedAt)}
+                          </span>
+                        </button>
+                      </motion.li>
+                    );
+                  })}
+                </AnimatePresence>
+              </ul>
+            )}
+          </nav>
+          <div className="mt-2 flex flex-wrap items-center gap-3 px-2.5">
+            <button
+              type="button"
               data-testid="mator-new-conversation"
               disabled={!onNewConversation || busy}
               onClick={() => onNewConversation?.()}
-              className="shrink-0"
+              className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:opacity-40"
             >
               <Plus className="size-3.5" aria-hidden="true" />
-              New
-            </Button>
-          </div>
-
-          <div className="flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              data-testid="mator-toggle-auto-approve"
-              aria-pressed={settingsToggles?.autoApprove ?? false}
-              disabled={!onToggleAutoApprove}
-              onClick={() => onToggleAutoApprove?.()}
-              className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:opacity-40 ${
-                settingsToggles?.autoApprove
-                  ? 'bg-teal-800 text-white'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-              title="Auto-approve staged actions"
-            >
-              <ShieldCheck className="size-3.5" aria-hidden="true" />
-              Auto-approve
-            </button>
-            <button
-              type="button"
-              data-testid="mator-toggle-squash"
-              aria-pressed={settingsToggles?.squashPipelineHistory ?? false}
-              disabled={!onToggleSquash}
-              onClick={() => onToggleSquash?.()}
-              className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:opacity-40 ${
-                settingsToggles?.squashPipelineHistory
-                  ? 'bg-teal-800 text-white'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-              title="Squash pipeline history on apply"
-            >
-              <Layers className="size-3.5" aria-hidden="true" />
-              Squash
+              New thread
             </button>
             {showRestore && (
               <button
@@ -345,49 +282,41 @@ export default function OperatorChatPanel({
                 data-testid="mator-restore-pipeline"
                 disabled={!onRestorePipeline || busy}
                 onClick={() => onRestorePipeline?.()}
-                className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-slate-900 px-2.5 text-[11px] font-semibold text-white hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:opacity-40"
-                title="Restore this conversation's pipeline"
+                className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:opacity-40"
               >
                 <RotateCcw className="size-3.5" aria-hidden="true" />
                 Restore pipeline
               </button>
             )}
           </div>
-        </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col pt-3">
+        </div>
+        <CardContent className="flex min-h-0 flex-1 flex-col gap-0 px-0 pt-0 pb-0">
           {pane === 'growth' && selectedCraftSlug && (
-            <div
+            <p
               data-testid="active-craft-context"
-              className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-teal-200 bg-teal-50 p-3"
+              className="px-4 pb-1 text-xs text-slate-500"
             >
-              <div className="min-w-0">
-                <p className="text-[10px] font-bold tracking-wider text-teal-800 uppercase">
-                  Active craft
-                </p>
-                <p className="mt-0.5 truncate font-mono text-[11px] text-teal-950">
-                  {selectedCraftSlug}
-                </p>
-              </div>
+              Craft{' '}
               <button
                 type="button"
                 onClick={() => onMessageChange('/craft help')}
-                className="rounded-lg bg-white px-2.5 py-2 text-[11px] font-semibold text-teal-800 hover:bg-teal-100"
+                className="font-mono text-slate-700 hover:underline"
               >
-                Commands
+                {selectedCraftSlug}
               </button>
-            </div>
+            </p>
           )}
-          <div
-            className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1"
-            ref={logRef}
-            role="log"
-            aria-live="polite"
+          <MessageScrollerProvider
+            autoScroll
+            defaultScrollPosition="end"
           >
-            <AnimatePresence initial={false}>
+            <MessageScroller className="min-h-0 flex-1">
+              <MessageScrollerViewport aria-label="Thread history">
+                <MessageScrollerContent className="gap-5 px-4 py-3">
               {matorEvents.map((event) => {
                 if (event.kind === 'message' && event.role === 'user') {
                   return (
-                    <EventMotion key={event.id} id={event.id}>
+                    <EventMotion key={event.id} id={event.id} anchor>
                       <Message align="end">
                         <MessageAvatar className="bg-slate-800">
                           ME
@@ -451,7 +380,7 @@ export default function OperatorChatPanel({
                                 type="button"
                                 onClick={() => voice.speak(event.text!, true)}
                                 aria-label="Hear this reply"
-                                className="inline-flex min-h-11 cursor-pointer items-center gap-1 rounded-lg px-2 text-xs font-semibold text-teal-800 hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                                className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-lg px-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
                               >
                                 <Volume2
                                   className="size-4"
@@ -461,6 +390,35 @@ export default function OperatorChatPanel({
                               </button>
                             </MessageFooter>
                           )}
+                        </MessageContent>
+                      </Message>
+                    </EventMotion>
+                  );
+                }
+
+                if (event.kind === 'clarify') {
+                  const questions = readClarifyQuestions(event.action);
+                  const open = openClarify?.id === event.id && questions;
+                  return (
+                    <EventMotion key={event.id} id={event.id}>
+                      <Message>
+                        <MessageAvatar className="bg-teal-50 text-teal-800">
+                          <Workflow className="size-3.5" />
+                        </MessageAvatar>
+                        <MessageContent>
+                          <MessageHeader>Mator</MessageHeader>
+                          {event.text ? (
+                            <Bubble variant="outline">
+                              <BubbleContent>{event.text}</BubbleContent>
+                            </Bubble>
+                          ) : null}
+                          {open ? (
+                            <MatorClarifyForm
+                              questions={questions}
+                              disabled={busy}
+                              onSubmit={(text) => onSendText?.(text)}
+                            />
+                          ) : null}
                         </MessageContent>
                       </Message>
                     </EventMotion>
@@ -582,12 +540,15 @@ export default function OperatorChatPanel({
 
                 return null;
               })}
-            </AnimatePresence>
 
             {matorEvents.length === 0 &&
               conversation.map((item) => (
-                <Message
+                <MessageScrollerItem
                   key={item.id}
+                  messageId={String(item.id)}
+                  scrollAnchor={item.sender === 'user'}
+                >
+                <Message
                   align={item.sender === 'user' ? 'end' : 'start'}
                 >
                   <MessageAvatar
@@ -616,7 +577,7 @@ export default function OperatorChatPanel({
                           type="button"
                           onClick={() => voice.speak(item.text, true)}
                           aria-label="Hear this reply"
-                          className="inline-flex min-h-11 cursor-pointer items-center gap-1 rounded-lg px-2 text-xs font-semibold text-teal-800 hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                          className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-lg px-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
                         >
                           <Volume2 className="size-4" aria-hidden="true" />
                           Hear this
@@ -625,10 +586,15 @@ export default function OperatorChatPanel({
                     )}
                   </MessageContent>
                 </Message>
+                </MessageScrollerItem>
               ))}
 
             {events.map((event) => (
-              <Message key={'event-' + event.id}>
+              <MessageScrollerItem
+                key={'event-' + event.id}
+                messageId={'event-' + event.id}
+              >
+              <Message>
                 <MessageAvatar
                   className={
                     event.kind === 'error' ? 'bg-rose-700' : 'bg-slate-700'
@@ -695,6 +661,7 @@ export default function OperatorChatPanel({
                   </MessageFooter>
                 </MessageContent>
               </Message>
+              </MessageScrollerItem>
             ))}
             {reviews
               .filter(
@@ -703,7 +670,11 @@ export default function OperatorChatPanel({
                   r.handle.toLowerCase() === normalizedHandle.toLowerCase()
               )
               .map((review) => (
-                <Message key={'review-' + review.id}>
+                <MessageScrollerItem
+                  key={'review-' + review.id}
+                  messageId={'review-' + review.id}
+                >
+                <Message>
                   <MessageAvatar className="bg-teal-800">
                     <Crosshair className="size-4" />
                   </MessageAvatar>
@@ -835,10 +806,15 @@ export default function OperatorChatPanel({
                     </div>
                   </MessageContent>
                 </Message>
+                </MessageScrollerItem>
               ))}
-          </div>
+                </MessageScrollerContent>
+              </MessageScrollerViewport>
+              <MessageScrollerButton />
+            </MessageScroller>
+          </MessageScrollerProvider>
           {(imageError || chatError) && (
-            <p role="alert" className="mt-2 text-xs text-rose-700">
+            <p role="alert" className="px-4 pt-2 text-xs text-rose-700">
               {chatError || imageError}
             </p>
           )}

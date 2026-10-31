@@ -7,7 +7,6 @@ import {
   FileText,
   History,
   NotebookPen,
-  Settings2,
   UserRound,
   X,
 } from 'lucide-react';
@@ -70,7 +69,7 @@ export default function DashboardSidebar({
         ))}
         {(
           [
-            { id: 'profile', label: 'Profile', icon: UserRound },
+            { id: 'profile', label: 'Account', icon: UserRound },
             { id: 'resumes', label: 'Résumés', icon: FileText },
             { id: 'memory', label: 'Intelligence', icon: NotebookPen },
             { id: 'research', label: 'Creator research', icon: Crosshair },
@@ -82,10 +81,18 @@ export default function DashboardSidebar({
             key={item.id}
             type="button"
             onClick={() => onNavigate(item.id)}
-            aria-current={pane === item.id ? 'page' : undefined}
+            aria-current={
+              (item.id === 'profile'
+                ? pane === 'profile' || pane === 'settings'
+                : pane === item.id)
+                ? 'page'
+                : undefined
+            }
             className={
               'flex min-h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-xs font-semibold transition ' +
-              (pane === item.id
+              ((item.id === 'profile'
+                ? pane === 'profile' || pane === 'settings'
+                : pane === item.id)
                 ? 'bg-teal-500/15 text-teal-200'
                 : 'text-slate-300 hover:bg-slate-800')
             }
@@ -94,20 +101,6 @@ export default function DashboardSidebar({
             {item.label}
           </button>
         ))}
-        <button
-          type="button"
-          onClick={() => onNavigate('settings')}
-          aria-current={pane === 'settings' ? 'page' : undefined}
-          className={
-            'flex min-h-10 w-full items-center gap-2.5 rounded-xl px-3 text-xs font-semibold transition ' +
-            (pane === 'settings'
-              ? 'bg-teal-500/15 text-teal-200'
-              : 'text-slate-300 hover:bg-slate-800')
-          }
-        >
-          <Settings2 className="size-4" />
-          Settings
-        </button>
       </div>
     </aside>
   );

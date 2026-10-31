@@ -9,6 +9,12 @@ export type AccountProfile = {
   email: string;
   location: string;
   about: string;
+  headline: string;
+  website: string;
+  skills: string;
+  experience: string;
+  education: string;
+  avatarUrl: string;
 };
 export type SocialAccount = {
   id: string;
@@ -16,6 +22,7 @@ export type SocialAccount = {
   label: string;
   handle: string;
   profileUrl: string;
+  avatarUrl?: string;
 };
 export type AccountState = {
   revision: number;
@@ -32,15 +39,84 @@ const asRecord = (value: unknown) => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error('Expected object');
   return value as Record<string, unknown>;
 };
+const profileLimits = {
+  displayName: 150,
+  email: 240,
+  location: 180,
+  about: 2600,
+  headline: 220,
+  website: 400,
+  skills: 800,
+  experience: 2000,
+  education: 1500,
+  avatarUrl: 2000,
+} as const;
+
+export function blankProfile(): AccountProfile {
+  return {
+    displayName: '',
+    email: '',
+    location: '',
+    about: '',
+    headline: '',
+    website: '',
+    skills: '',
+    experience: '',
+    education: '',
+    avatarUrl: '',
+  };
+}
+
+function clipProfileField(key: keyof AccountProfile, value: string) {
+  const text = value.trim().slice(0, profileLimits[key]);
+  if (!text) return '';
+  if (key === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)) return '';
+  if (key === 'website' || key === 'avatarUrl') {
+    try {
+      const parsed = new URL(text);
+      if (parsed.protocol !== 'https:' || parsed.username || parsed.password) return '';
+      if (key === 'avatarUrl' && /displaybackground|backgroundimage|profile_banners/i.test(parsed.href))
+        return '';
+      return parsed.href;
+    } catch {
+      return '';
+    }
+  }
+  return text;
+}
+
+export function readStoredProfile(raw: unknown): AccountProfile {
+  const value = asRecord(raw);
+  const profile = blankProfile();
+  for (const key of Object.keys(profile) as (keyof AccountProfile)[]) {
+    const incoming = value[key];
+    profile[key] = typeof incoming === 'string' ? clipProfileField(key, incoming) : '';
+  }
+  return profile;
+}
+
+/** Fill only fields the account does not already have. */
+export function mergeEmptyProfile(current: AccountProfile, incoming: Partial<AccountProfile>): AccountProfile {
+  const next = { ...current };
+  for (const key of Object.keys(blankProfile()) as (keyof AccountProfile)[]) {
+    if (next[key].trim()) continue;
+    const value = incoming[key];
+    if (typeof value !== 'string') continue;
+    const clipped = clipProfileField(key, value);
+    if (clipped) next[key] = clipped;
+  }
+  return next;
+}
+
 export function parseAccountProfile(raw: unknown): AccountProfile {
   const value = asRecord(raw);
-  const displayName = field(value.displayName, 150, 'name');
-  const email = field(value.email, 240, 'email');
-  const location = field(value.location, 180, 'location');
-  const about = field(value.about, 1200, 'about');
+  const displayName = field(value.displayName, profileLimits.displayName, 'name');
+  const email = field(value.email, profileLimits.email, 'email');
+  const location = field(value.location, profileLimits.location, 'location');
+  const about = field(value.about, profileLimits.about, 'about');
   if (!displayName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     throw Error('A name and valid email are required');
-  return { displayName, email, location, about };
+  return { ...blankProfile(), displayName, email, location, about };
 }
 export function parseSocialAccount(raw: unknown, id: string = randomUUID()): SocialAccount {
   const value = asRecord(raw);
@@ -86,27 +162,35 @@ export function parseSocialAccount(raw: unknown, id: string = randomUUID()): Soc
   }
   if (platform === 'x' && parsed.pathname.replace(/\/$/, '') !== '/' + handle)
     throw Error('X profile handle must match its URL');
+  const avatarUrl = optionalAvatar(value.avatarUrl);
   return {
     id,
     platform: platform as SocialPlatform,
     label,
     handle,
     profileUrl: parsed.href,
+    ...(avatarUrl ? { avatarUrl } : {}),
   };
 }
 
-const emptyProfile = (): AccountProfile => ({
-  displayName: '',
-  email: '',
-  location: '',
-  about: '',
-});
+function optionalAvatar(value: unknown) {
+  if (value == null || value === '') return undefined;
+  if (typeof value !== 'string' || value.length > 2000) throw Error('Invalid profile image');
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw Error('Invalid profile image');
+  }
+  if (parsed.protocol !== 'https:' || parsed.username || parsed.password)
+    throw Error('Invalid profile image');
+  return parsed.href;
+}
+
+const emptyProfile = blankProfile;
 
 function storedProfile(value: unknown): AccountProfile {
-  const record = asRecord(value);
-  // Empty personal details are permitted until the workspace owner fills them in.
-  if (Object.keys(emptyProfile()).every((key) => record[key] === '')) return emptyProfile();
-  return parseAccountProfile(value);
+  return readStoredProfile(value);
 }
 
 export class AccountStore {
@@ -186,8 +270,24 @@ export class AccountStore {
     return operation;
   }
   updateProfile(revision: number, value: unknown) {
-    const profile = parseAccountProfile(value);
-    return this.change(revision, (state) => ({ ...state, profile }));
+    const submitted = parseAccountProfile(value);
+    return this.change(revision, (state) => ({
+      ...state,
+      profile: {
+        ...state.profile,
+        displayName: submitted.displayName,
+        email: submitted.email,
+        location: submitted.location,
+        about: submitted.about,
+      },
+    }));
+  }
+  async fillEmptyProfile(patch: Partial<AccountProfile>) {
+    const current = await this.get();
+    return this.change(current.revision, (state) => ({
+      ...state,
+      profile: mergeEmptyProfile(state.profile, patch),
+    }));
   }
   addSocial(revision: number, value: unknown) {
     const social = parseSocialAccount(value);
@@ -223,8 +323,15 @@ export class AccountStore {
           same.platform === social.platform &&
           same.handle === social.handle &&
           same.profileUrl === social.profileUrl
-        )
-          return state;
+        ) {
+          if (!social.avatarUrl || social.avatarUrl === same.avatarUrl) return state;
+          return {
+            ...state,
+            socialAccounts: state.socialAccounts.map((item) =>
+              item.id === id ? { ...item, avatarUrl: social.avatarUrl } : item,
+            ),
+          };
+        }
         throw Error('Linked account identity cannot be replaced');
       }
       if (state.socialAccounts.some((item) => item.platform === social.platform))

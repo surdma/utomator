@@ -33,7 +33,24 @@ export type MatorAction =
   | { type: 'craft'; command: string; craftId?: string }
   | { type: 'annotate_image'; attachmentId: string; markers: MatorImageMarker[] }
   | { type: 'explain_how'; text: string }
-  | { type: 'noop'; reason?: string };
+  | { type: 'noop'; reason?: string }
+  | { type: 'clarify'; prompt?: string; questions: MatorClarifyQuestion[] };
+
+export type MatorClarifyChoice = {
+  value: string;
+  label: string;
+  description?: string;
+};
+
+export type MatorClarifyQuestion = {
+  name: string;
+  prompt: string;
+  description?: string;
+  required: boolean;
+  multiple: boolean;
+  choices: MatorClarifyChoice[];
+  freeform?: { label: string; placeholder?: string };
+};
 
 export type TaggedWorkflowRecord = WorkflowRecord & {
   conversationId?: string;
@@ -74,6 +91,7 @@ const ACTION_TYPES = new Set<MatorAction['type']>([
   'annotate_image',
   'explain_how',
   'noop',
+  'clarify',
 ]);
 
 const STEP_KINDS = new Set<StepKind>([
@@ -289,7 +307,76 @@ export function parseMatorAction(raw: unknown): MatorAction {
       }
       return action;
     }
+    case 'clarify':
+      return parseClarifyAction(raw);
   }
+}
+
+function parseClarifyAction(raw: Record<string, unknown>): Extract<MatorAction, { type: 'clarify' }> {
+  if (!Array.isArray(raw.questions) || raw.questions.length < 1 || raw.questions.length > 4)
+    throw new MatorActionValidationError('clarify needs 1 to 4 questions', 'questions');
+  const questions = raw.questions.map((item, index) => {
+    if (!isPlainObject(item))
+      throw new MatorActionValidationError(`Invalid questions[${index}]`, `questions[${index}]`);
+    const name = requireString(item.name, `questions[${index}].name`);
+    if (!idPattern.test(name))
+      throw new MatorActionValidationError(`Invalid questions[${index}].name`, `questions[${index}].name`);
+    const prompt = requireString(item.prompt, `questions[${index}].prompt`);
+    const choices = Array.isArray(item.choices) ? item.choices : [];
+    if (choices.length > 6)
+      throw new MatorActionValidationError(`Too many choices on questions[${index}]`, `questions[${index}].choices`);
+    const parsedChoices = choices.map((choice, choiceIndex) => {
+      if (!isPlainObject(choice))
+        throw new MatorActionValidationError(
+          `Invalid questions[${index}].choices[${choiceIndex}]`,
+          `questions[${index}].choices`,
+        );
+      const value = requireString(choice.value, `questions[${index}].choices[${choiceIndex}].value`);
+      const label = requireString(choice.label, `questions[${index}].choices[${choiceIndex}].label`);
+      const parsed: MatorClarifyChoice = { value, label };
+      if (choice.description !== undefined)
+        parsed.description = requireString(
+          choice.description,
+          `questions[${index}].choices[${choiceIndex}].description`,
+        );
+      return parsed;
+    });
+    let freeform: MatorClarifyQuestion['freeform'];
+    if (item.freeform !== undefined) {
+      if (!isPlainObject(item.freeform))
+        throw new MatorActionValidationError(`Invalid questions[${index}].freeform`, `questions[${index}].freeform`);
+      freeform = { label: requireString(item.freeform.label, `questions[${index}].freeform.label`) };
+      if (item.freeform.placeholder !== undefined)
+        freeform.placeholder = requireString(
+          item.freeform.placeholder,
+          `questions[${index}].freeform.placeholder`,
+        );
+    }
+    if (parsedChoices.length === 0 && !freeform)
+      throw new MatorActionValidationError(
+        `questions[${index}] needs choices or a freeform answer`,
+        `questions[${index}]`,
+      );
+    if (parsedChoices.length === 1)
+      throw new MatorActionValidationError(
+        `questions[${index}] needs at least 2 choices`,
+        `questions[${index}].choices`,
+      );
+    const question: MatorClarifyQuestion = {
+      name,
+      prompt,
+      required: item.required === true,
+      multiple: item.multiple === true,
+      choices: parsedChoices,
+    };
+    if (item.description !== undefined)
+      question.description = requireString(item.description, `questions[${index}].description`);
+    if (freeform) question.freeform = freeform;
+    return question;
+  });
+  const action: Extract<MatorAction, { type: 'clarify' }> = { type: 'clarify', questions };
+  if (raw.prompt !== undefined) action.prompt = requireString(raw.prompt, 'prompt');
+  return action;
 }
 
 function findStep(plan: WorkflowPlan, stepId: string): WorkflowStep | undefined {
@@ -485,6 +572,7 @@ export async function applyAction(
     }
     case 'explain_how':
     case 'noop':
+    case 'clarify':
       break;
   }
 

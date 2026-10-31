@@ -98,7 +98,13 @@ test('getMatorSettings returns defaults when document is missing', async () => {
     autoApprove: false,
     squashPipelineHistory: false,
     howTtsEnabled: true,
+    moderationEnabled: true,
     modelId: DEFAULT_MATOR_GROQ_MODEL_ID,
+    reasoningEffort: 'low',
+    visionModelId: 'qwen/qwen3.8-27b',
+    sttModelId: 'whisper-large-v3-turbo',
+    ttsModelId: 'canopylabs/orpheus-v1-english',
+    ttsVoice: 'hannah',
   });
   assert.equal(isGroqKeyConfigured(settings), false);
 });

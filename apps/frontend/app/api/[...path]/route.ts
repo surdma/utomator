@@ -22,7 +22,62 @@ function allowedHost(request: NextRequest) {
   }
 }
 const id = '[0-9a-fA-F-]{36}';
+function matorPermitted(path: string, method: string): boolean {
+  const id = '[0-9a-fA-F-]{36}';
+  if (path === 'mator/models' && method === 'GET') return true;
+  if (path === 'mator/settings' && (method === 'GET' || method === 'PUT')) return true;
+  if (path === 'mator/audio/transcriptions' && method === 'POST') return true;
+  if (path === 'mator/audio/speech' && method === 'POST') return true;
+  if (
+    new RegExp(`^mator/workflows/${id}/conversations$`).test(path) &&
+    (method === 'GET' || method === 'POST')
+  )
+    return true;
+  if (new RegExp(`^mator/workflows/${id}/current$`).test(path) && method === 'POST')
+    return true;
+  if (new RegExp(`^mator/conversations/${id}$`).test(path) && method === 'GET')
+    return true;
+  if (
+    new RegExp(`^mator/conversations/${id}/messages$`).test(path) &&
+    method === 'POST'
+  )
+    return true;
+  if (new RegExp(`^mator/conversations/${id}/events$`).test(path) && method === 'GET')
+    return true;
+  if (
+    new RegExp(`^mator/conversations/${id}/events/stream$`).test(path) &&
+    method === 'GET'
+  )
+    return true;
+  if (
+    new RegExp(`^mator/conversations/${id}/stage/${id}/(confirm|reject)$`).test(
+      path
+    ) &&
+    method === 'POST'
+  )
+    return true;
+  if (
+    new RegExp(`^mator/conversations/${id}/restore-pipeline$`).test(path) &&
+    method === 'POST'
+  )
+    return true;
+  if (
+    new RegExp(`^mator/conversations/${id}/attachments$`).test(path) &&
+    method === 'POST'
+  )
+    return true;
+  if (new RegExp(`^mator/attachments/${id}$`).test(path) && method === 'GET')
+    return true;
+  if (
+    new RegExp(`^mator/attachments/${id}/markers$`).test(path) &&
+    (method === 'PATCH' || method === 'PUT')
+  )
+    return true;
+  return false;
+}
+
 function permitted(path: string, method: string): boolean {
+  if (matorPermitted(path, method)) return true;
   const growthRun = /^growth\/workflows\/profile\/runs\/[0-9a-fA-F-]{36}$/;
   if (
     method === 'GET' &&
@@ -67,6 +122,7 @@ function permitted(path: string, method: string): boolean {
     return true;
   if (method === 'GET') {
     if (path === 'connectors/capabilities') return true;
+    if (/^connectors\/[0-9a-fA-F-]{36}\/view$/.test(path)) return true;
     if (/^linkedin\/oauth\/(status|callback)$/.test(path)) return true;
     if (
       path === 'linkedin/research' ||
@@ -132,7 +188,7 @@ function permitted(path: string, method: string): boolean {
     if (
       path === 'connectors/start' ||
       path === 'intelligence/chat' ||
-      /^connectors\/[0-9a-fA-F-]{36}\/(connect|sync|check|disconnect)$/.test(
+      /^connectors\/[0-9a-fA-F-]{36}\/(connect|sync|check|disconnect|input)$/.test(
         path
       )
     )
@@ -233,7 +289,7 @@ async function forward(req: NextRequest, params: Promise<{ path: string[] }>) {
     );
   }
   try {
-    const incomingBody = ['POST', 'PUT', 'DELETE'].includes(req.method)
+    const incomingBody = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)
       ? await req.text()
       : undefined;
     // Fastify rejects an empty body advertised as JSON. Clone and other bodyless
@@ -250,7 +306,12 @@ async function forward(req: NextRequest, params: Promise<{ path: string[] }>) {
                 target.startsWith('workflow-plans/') ||
                 target.startsWith('workflows')
               ? 128 * 1024
-              : 32768;
+              : target.startsWith('mator/audio/transcriptions') ||
+                  /\/attachments$/.test(target)
+                ? 26 * 1024 * 1024
+                : target.startsWith('mator/')
+                  ? 512 * 1024
+                  : 32768;
     if (body && new TextEncoder().encode(body).byteLength > maxBytes)
       return Response.json({ error: 'Request too large' }, { status: 413 });
     const upstream = await fetch(
@@ -258,7 +319,13 @@ async function forward(req: NextRequest, params: Promise<{ path: string[] }>) {
       {
         method: req.method,
         // Craft cloning can legitimately send an empty POST. Fastify rejects empty JSON bodies.
-        headers: body?.length ? { 'content-type': 'application/json' } : {},
+        // Mator message posts are ignored without the client idempotency key.
+        headers: {
+          ...(body?.length ? { 'content-type': 'application/json' } : {}),
+          ...(req.headers.get('idempotency-key')
+            ? { 'idempotency-key': req.headers.get('idempotency-key') as string }
+            : {}),
+        },
         body: body?.length ? body : undefined,
         cache: 'no-store',
         signal: req.signal,
@@ -295,6 +362,12 @@ export async function POST(
 }
 
 export async function PUT(
+  req: NextRequest,
+  context: { params: Promise<{ path: string[] }> }
+) {
+  return forward(req, context.params);
+}
+export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ path: string[] }> }
 ) {

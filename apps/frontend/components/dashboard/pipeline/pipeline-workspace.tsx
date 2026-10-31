@@ -1,6 +1,7 @@
 'use client';
 
 import { type ComponentType, type Dispatch, type SetStateAction } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Check, Crosshair, Focus, Pause, Play, Plus } from 'lucide-react';
 import WorkflowPlanEditor, {
   type WorkflowPlan,
@@ -107,6 +108,7 @@ export default function PipelineWorkspace({
   setConnectorOpenSignal,
   PlatformIcon,
 }: Props) {
+  const reduceMotion = useReducedMotion();
   return (
     <>
       {pane === 'pipeline' && (
@@ -165,10 +167,26 @@ export default function PipelineWorkspace({
             }
             onEvidenceOpen={annotateCapture}
           >
-            <form
-              className="space-y-4"
+            <motion.form
+              className="space-y-6 rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4 sm:p-5"
               onSubmit={(event) => event.preventDefault()}
+              initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={
+                reduceMotion
+                  ? { duration: 0 }
+                  : { type: 'spring', stiffness: 380, damping: 32 }
+              }
             >
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold tracking-tight text-slate-950">
+                  Run setup
+                </h3>
+                <p className="text-xs leading-5 text-slate-500">
+                  Choose the action and page, then start from the dock. Mator
+                  stages pipeline edits in the chat beside this board.
+                </p>
+              </div>
               {runFormError && (
                 <p
                   role="alert"
@@ -270,7 +288,7 @@ export default function PipelineWorkspace({
                       ) : (
                         <input
                           id={'automation-' + field.key}
-                          className="min-h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-teal-600"
+                          className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-teal-600"
                           maxLength={field.max || 500}
                           placeholder={field.placeholder}
                           required={field.required}
@@ -293,12 +311,12 @@ export default function PipelineWorkspace({
                   another identity is not auto-filled.
                 </p>
               )}
-              <p className="rounded-xl bg-slate-50 p-3 text-xs leading-6 text-slate-500">
+              <p className="rounded-xl bg-white p-3 text-xs leading-6 text-slate-500">
                 Authentication is managed by the selected connection. Use the{' '}
                 {platformLabel} icon in the floating toolbar to connect, verify,
                 or sync an expired session.
               </p>
-            </form>
+            </motion.form>
           </WorkflowPlanEditor>
         </>
       )}

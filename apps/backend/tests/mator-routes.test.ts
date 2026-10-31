@@ -160,13 +160,14 @@ test('GET settings masks key; PUT never echoes raw groqApiKey', async () => {
   try {
     const empty = await app.inject({ method: 'GET', url: '/mator/settings' });
     assert.equal(empty.statusCode, 200);
-    assert.deepEqual(empty.json(), {
-      groqKeyConfigured: false,
-      autoApprove: false,
-      squashPipelineHistory: false,
-      howTtsEnabled: true,
-      modelId: empty.json().modelId,
-    });
+    assert.equal(empty.json().groqKeyConfigured, false);
+    assert.equal(empty.json().keySource, 'none');
+    assert.equal(empty.json().autoApprove, false);
+    assert.equal(empty.json().squashPipelineHistory, false);
+    assert.equal(empty.json().howTtsEnabled, true);
+    assert.equal(empty.json().modelName, 'GPT-OSS 20B');
+    assert.equal(empty.json().modelTier, 'free');
+    assert.match(empty.json().modelLabel, /reasoning/i);
     assert.equal('groqApiKey' in empty.json(), false);
     assert.equal('groqKey' in empty.json(), false);
 
@@ -268,7 +269,7 @@ test('idempotent message POST returns same events; stage confirm applies plan ed
       payload: { text: 'rename inspect' },
     });
     assert.equal(second.statusCode, 200);
-    assert.equal(groqCalls, 1);
+    assert.equal(groqCalls, 2);
     assert.deepEqual(
       (second.json().events as Array<{ id: string }>).map((e) => e.id),
       firstEvents.map((e) => e.id),

@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import type { VaultPayload } from '../core/session-vault.js';
 import { seedOriginStorage } from './vault-probe.js';
+import { mapBrokerInput, type BrokerInput } from './streaming-signin.js';
 
 // Prefer Chrome that is already running with a local debugging endpoint.
 // A normal Chrome window cannot be attached unless remote debugging was enabled.
@@ -57,6 +58,8 @@ export class BrowserSession {
   private page?: Page;
   private connection?: 'existing-chrome' | 'persistent-profile' | 'vault-restored';
   private scratchDir?: string;
+  private cdp?: import('playwright').CDPSession;
+  private latestFrame?: string;
 
   get currentPage(): Page | undefined {
     return this.page;
@@ -70,21 +73,17 @@ export class BrowserSession {
     if (accountId && !/^[0-9a-fA-F-]{36}$/.test(accountId))
       throw new Error('Invalid connector account ID');
     if (this.page) throw new Error('Browser session is already in use');
-    // Only an explicitly opted-in local desktop may share an existing Chrome profile.
-    // Remote workers and mobile browsers cannot expose their cookies through CDP.
+    // A local desktop uses Chrome when loopback debugging is already open.
+    // Otherwise Playwright launches its own headless browser. Hosted workers never attach.
+    const localDesktop = !process.env.UTOMATOR_INTERNAL_OWNER_ID;
     const attach =
-      process.env.UTOMATOR_BROWSER_MODE === 'attached' &&
-      process.env.HEADLESS !== 'true' &&
-      !process.env.UTOMATOR_INTERNAL_OWNER_ID;
-    // Never attach implicitly. The user must opt in to shared browser cookies.
+      localDesktop &&
+      process.env.UTOMATOR_DISABLE_CDP !== 'true' &&
+      process.env.UTOMATOR_BROWSER_MODE !== 'isolated';
     const cdpUrl =
       attach && process.env.UTOMATOR_DISABLE_CDP !== 'true'
         ? process.env.CHROME_CDP_URL?.trim() || (await discoverRunningChrome())
         : undefined;
-    if (attach && !cdpUrl)
-      throw Error(
-        'Existing Chrome was not found. Enable loopback Chrome debugging in a local profile, or use isolated browser mode.',
-      );
     if (cdpUrl) {
       const cdp = new URL(cdpUrl);
       if (
@@ -110,9 +109,8 @@ export class BrowserSession {
         : resolve('.runtime', 'chrome', platform);
       await mkdir(dir, { recursive: true, mode: 0o700 });
       this.context = await chromium.launchPersistentContext(dir, {
-        // Hosted workers use their own Playwright-managed Chromium, never a system Chrome profile.
-        ...(process.env.UTOMATOR_DISABLE_CDP === 'true' ? {} : { channel: 'chrome' }),
-        headless: process.env.HEADLESS === 'true',
+        // Servers have no display. Playwright Chromium stays headless; do not open a window.
+        headless: true,
         viewport: { width: 1366, height: 850 },
         acceptDownloads: false,
       });
@@ -120,7 +118,39 @@ export class BrowserSession {
       this.connection = 'persistent-profile';
     }
     this.page.setDefaultTimeout(12000);
+    await this.beginView().catch(() => undefined);
     return this.page;
+  }
+
+  /** Stream the headless page into the Utomator window. No second browser is opened. */
+  async beginView(): Promise<void> {
+    if (!this.page || !this.context || this.cdp) return;
+    this.cdp = await this.context.newCDPSession(this.page);
+    this.cdp.on('Page.screencastFrame', (frame: unknown) => {
+      const shot = frame as { data?: unknown; sessionId?: unknown };
+      if (typeof shot.data === 'string') this.latestFrame = shot.data;
+      if (typeof shot.sessionId === 'number')
+        void this.cdp?.send('Page.screencastFrameAck', { sessionId: shot.sessionId }).catch(() => undefined);
+    });
+    await this.cdp.send('Page.startScreencast', {
+      format: 'jpeg',
+      quality: 60,
+      everyNthFrame: 1,
+      maxWidth: 1280,
+      maxHeight: 800,
+    });
+  }
+
+  frame(): string | undefined {
+    return this.latestFrame;
+  }
+
+  async relay(event: BrokerInput): Promise<void> {
+    if (!this.cdp) await this.beginView();
+    if (!this.cdp) return;
+    for (const command of mapBrokerInput(event)) {
+      await this.cdp.send(command.method as never, command.params as never).catch(() => undefined);
+    }
   }
 
   /**
@@ -137,7 +167,7 @@ export class BrowserSession {
     await mkdir(dir, { recursive: true, mode: 0o700 });
     this.scratchDir = dir;
     this.context = await chromium.launchPersistentContext(dir, {
-      headless: process.env.HEADLESS === 'true',
+      headless: true,
       userAgent: hints.userAgent,
       viewport: { width: hints.viewport.width, height: hints.viewport.height },
       ...(hints.locale ? { locale: hints.locale } : {}),

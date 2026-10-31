@@ -157,6 +157,31 @@ function portsFor(
   };
 }
 
+test('parseMatorAction accepts a clarify questionnaire', () => {
+  const action = parseMatorAction({
+    type: 'clarify',
+    prompt: 'Need a tone',
+    questions: [
+      {
+        name: 'tone',
+        prompt: 'Which tone?',
+        required: true,
+        choices: [
+          { value: 'direct', label: 'Direct' },
+          { value: 'warm', label: 'Warm' },
+        ],
+      },
+    ],
+  });
+  assert.equal(action.type, 'clarify');
+  if (action.type !== 'clarify') return;
+  assert.equal(action.questions[0]?.name, 'tone');
+  assert.throws(
+    () => parseMatorAction({ type: 'clarify', questions: [] }),
+    (error: unknown) => error instanceof MatorActionValidationError,
+  );
+});
+
 test('parseMatorAction rejects unknown action type and invalid shape', () => {
   assert.throws(
     () => parseMatorAction({ type: 'delete_universe' }),

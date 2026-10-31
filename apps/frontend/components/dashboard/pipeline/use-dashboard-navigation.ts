@@ -47,7 +47,13 @@ export function useDashboardNavigation(initialPane: DashboardPane) {
       !window.confirm('Discard unsaved career edits?')
     )
       return;
-    setPane(path.startsWith('/dashboard/resumes') ? 'resumes' : 'profile');
+    setPane(
+      path.startsWith('/dashboard/resumes')
+        ? 'resumes'
+        : path.startsWith('/dashboard/settings')
+          ? 'settings'
+          : 'profile',
+    );
     navigate(path);
   }
   function navigateCraft(id: string | null, slug?: string) {

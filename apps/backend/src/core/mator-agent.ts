@@ -1,3 +1,14 @@
+import type { DocumentStore } from '../db/documents.js';
+import {
+  applyAction,
+  assertActionAgainstPlan,
+  type MatorAction,
+  type MatorActionPorts,
+  MatorActionValidationError,
+  parseMatorAction,
+  stageAction,
+} from './mator-actions.js';
+import { getAttachmentFile } from './mator-attachments.js';
 import {
   appendEvent,
   listEvents,
@@ -5,32 +16,29 @@ import {
   type MatorConversation,
   type MatorEvent,
 } from './mator-conversations.js';
+import { decryptSecret } from './mator-crypto.js';
 import {
-  applyAction,
-  assertActionAgainstPlan,
-  MatorActionValidationError,
-  parseMatorAction,
-  stageAction,
-  type MatorAction,
-  type MatorActionPorts,
-} from './mator-actions.js';
+  completeMatorTurn,
+  describeImage,
+  GROQ_OPENAI_BASE_URL,
+  MATOR_STATIC_SYSTEM_PROMPT,
+  moderateUserText,
+} from './mator-groq.js';
 import {
   getMatorSettings,
   isGroqKeyConfigured,
   type MatorSettings,
+  readEnvGroqApiKey,
 } from './mator-settings.js';
-import { decryptSecret } from './mator-crypto.js';
 import type { WorkflowPlan } from './workflow-plan.js';
-import type { DocumentStore } from '../db/documents.js';
 
-export const GROQ_OPENAI_BASE_URL = 'https://api.groq.com/openai/v1';
+export { GROQ_OPENAI_BASE_URL };
 export const MAX_MATOR_ACTIONS_PER_TURN = 3;
 
 /** ~60% of an 8k-token window, estimated as chars/4. */
 export const MATOR_CONTEXT_CHAR_BUDGET = 19_200;
 
-const LOOP_CAP_EXPLAIN =
-  'Stopped after 3 actions this turn. Send another message to continue.';
+const LOOP_CAP_EXPLAIN = 'Stopped after 3 actions this turn. Send another message to continue.';
 
 export class MatorConfigError extends Error {
   readonly code = 'MATOR_CONFIG' as const;
@@ -93,7 +101,10 @@ function eventContextLine(event: MatorEvent): string {
 async function findConversation(
   docs: DocumentStore,
   conversationId: string,
-): Promise<{ workflowId: string; conversation: MatorConversation & { contextSummary?: string | null } }> {
+): Promise<{
+  workflowId: string;
+  conversation: MatorConversation & { contextSummary?: string | null };
+}> {
   const records = await docs.list<WorkflowConversationIndex>(MATOR_CONVERSATIONS_NAMESPACE);
   for (const record of records) {
     if (!record.key.startsWith('workflow:')) continue;
@@ -136,38 +147,47 @@ function buildSlidingContext(
   planSummary: string,
   priorSummary: string | null | undefined,
   attachmentIds: string[] | undefined,
-): { messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>; nextSummary?: string } {
-  const systemParts = [
-    'You are Mator, an action agent for Utomator workflows.',
-    'Reply only with structured JSON matching the schema: optional how text and an actions array.',
-    'Only reference step ids that exist in the workflow summary. Prefer explain_how or noop when unsure.',
-    'Workflow summary:',
-    planSummary,
-  ];
-  if (attachmentIds?.length) systemParts.push(`Attachment ids in this turn: ${attachmentIds.join(', ')}`);
-
+  imageCaptions: string[] = [],
+): {
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
+  nextSummary?: string;
+} {
   const recent: MatorEvent[] = [];
-  let used = estimateChars(systemParts.join('\n')) + estimateChars(priorSummary ?? '');
+  let used =
+    estimateChars(MATOR_STATIC_SYSTEM_PROMPT) +
+    estimateChars(planSummary) +
+    estimateChars(priorSummary ?? '');
   for (let i = events.length - 1; i >= 0; i--) {
-    const line = eventContextLine(events[i]!);
+    const event = events[i];
+    if (!event) continue;
+    const line = eventContextLine(event);
     const cost = estimateChars(line) + 8;
     if (used + cost > MATOR_CONTEXT_CHAR_BUDGET && recent.length > 0) break;
-    recent.unshift(events[i]!);
+    recent.unshift(event);
     used += cost;
   }
 
   const omitted = events.slice(0, events.length - recent.length);
   let nextSummary = priorSummary ?? undefined;
+  const dynamicParts = ['Workflow summary:', planSummary];
+  if (attachmentIds?.length)
+    dynamicParts.push(`Attachment ids in this turn: ${attachmentIds.join(', ')}`);
+  if (imageCaptions.length) dynamicParts.push('Vision captions:', ...imageCaptions);
   if (omitted.length) {
     const omittedText = omitted.map(eventContextLine).join('\n');
     nextSummary = [priorSummary, omittedText].filter(Boolean).join('\n').slice(-8_000);
-    systemParts.push('Earlier conversation summary:', nextSummary);
+    dynamicParts.push('Earlier conversation summary:', nextSummary);
   } else if (priorSummary) {
-    systemParts.push('Earlier conversation summary:', priorSummary);
+    dynamicParts.push('Earlier conversation summary:', priorSummary);
   }
 
   const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-    { role: 'system', content: systemParts.join('\n') },
+    { role: 'system', content: MATOR_STATIC_SYSTEM_PROMPT },
+    { role: 'user', content: dynamicParts.join('\n') },
+    {
+      role: 'assistant',
+      content: 'Context noted. I will only propose actions against the step ids in that summary.',
+    },
   ];
   for (const event of recent) {
     const content = eventContextLine(event);
@@ -176,26 +196,6 @@ function buildSlidingContext(
   }
   return { messages, nextSummary: nextSummary !== priorSummary ? nextSummary : undefined };
 }
-
-const ACTION_JSON_SCHEMA = {
-  type: 'object',
-  additionalProperties: false,
-  properties: {
-    how: { type: 'string' },
-    actions: {
-      type: 'array',
-      items: {
-        type: 'object',
-        additionalProperties: true,
-        properties: {
-          type: { type: 'string' },
-        },
-        required: ['type'],
-      },
-    },
-  },
-  required: ['actions'],
-} as const;
 
 function parseGroqPayload(content: string): GroqTurnPayload {
   let raw: unknown;
@@ -210,82 +210,6 @@ function parseGroqPayload(content: string): GroqTurnPayload {
   return { how, actions };
 }
 
-function isAbortError(error: unknown): boolean {
-  return (
-    (error instanceof Error && error.name === 'AbortError') ||
-    (typeof DOMException !== 'undefined' && error instanceof DOMException && error.name === 'AbortError')
-  );
-}
-
-async function callGroq(args: {
-  apiKey: string;
-  modelId: string;
-  messages: Array<{ role: string; content: string }>;
-  fetchImpl: typeof globalThis.fetch;
-  signal?: AbortSignal;
-}): Promise<{ payload: GroqTurnPayload; incomplete: boolean; degraded?: string }> {
-  let response: Response;
-  try {
-    response = await args.fetchImpl(`${GROQ_OPENAI_BASE_URL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${args.apiKey}`,
-        'content-type': 'application/json',
-      },
-      signal: args.signal,
-      body: JSON.stringify({
-        model: args.modelId,
-        messages: args.messages,
-        temperature: 0,
-        response_format: {
-          type: 'json_schema',
-          json_schema: {
-            name: 'mator_turn',
-            schema: ACTION_JSON_SCHEMA,
-          },
-        },
-      }),
-    });
-  } catch (error) {
-    if (isAbortError(error) || args.signal?.aborted) {
-      return { payload: { actions: [] }, incomplete: true };
-    }
-    return {
-      payload: { actions: [] },
-      incomplete: false,
-      degraded: error instanceof Error ? error.message : 'Groq request failed',
-    };
-  }
-
-  if (!response.ok) {
-    let detail = `Groq HTTP ${response.status}`;
-    try {
-      const errBody = (await response.json()) as { error?: { message?: string } };
-      if (errBody?.error?.message) detail = errBody.error.message;
-    } catch {
-      /* ignore */
-    }
-    return { payload: { actions: [] }, incomplete: false, degraded: detail };
-  }
-
-  const body = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string | null }; finish_reason?: string | null }>;
-  };
-  const choice = body.choices?.[0];
-  const content = choice?.message?.content;
-  if (choice?.finish_reason === 'length' || content == null || content === '') {
-    return {
-      payload: content ? parseGroqPayloadSafe(content) : { actions: [] },
-      incomplete: true,
-    };
-  }
-  try {
-    return { payload: parseGroqPayload(content), incomplete: false };
-  } catch {
-    return { payload: { actions: [] }, incomplete: true };
-  }
-}
-
 function parseGroqPayloadSafe(content: string): GroqTurnPayload {
   try {
     return parseGroqPayload(content);
@@ -294,11 +218,13 @@ function parseGroqPayloadSafe(content: string): GroqTurnPayload {
   }
 }
 
-function requireGroqKey(docs: DocumentStore, settings: MatorSettings): string {
-  if (!isGroqKeyConfigured(settings) || !settings.groqKey) {
-    throw new MatorConfigError('Groq API key is not configured');
+export function requireGroqKey(docs: DocumentStore, settings: MatorSettings): string {
+  if (isGroqKeyConfigured(settings) && settings.groqKey) {
+    return decryptSecret(docs.ownerId, settings.groqKey);
   }
-  return decryptSecret(docs.ownerId, settings.groqKey);
+  const fromEnv = readEnvGroqApiKey();
+  if (fromEnv) return fromEnv;
+  throw new MatorConfigError('Groq API key is not configured');
 }
 
 async function persistAction(
@@ -312,6 +238,17 @@ async function persistAction(
     text?: string;
   },
 ): Promise<MatorEvent[]> {
+  if (input.action.type === 'clarify') {
+    const text = input.text?.trim() || input.action.prompt;
+    const event = await appendEvent(docs, input.conversationId, {
+      role: 'assistant',
+      kind: 'clarify',
+      action: input.action,
+      ...(text ? { text } : {}),
+    });
+    return [event];
+  }
+
   const live = await ports.workflows.get(input.workflowId);
   if (!live) throw Error('Workflow not found');
   assertActionAgainstPlan(input.action, live.plan);
@@ -382,6 +319,57 @@ export async function runMatorTurn(
   const live = await ports.workflows.get(workflowId);
   if (!live) throw Error('Workflow not found');
 
+  const groqOptions = { fetch: options.fetch, signal: options.signal };
+  if (settings.moderationEnabled && input.userText?.trim()) {
+    const moderation = await moderateUserText(apiKey, input.userText, groqOptions);
+    if (moderation.incomplete) {
+      const incomplete = await appendEvent(docs, input.conversationId, {
+        role: 'assistant',
+        kind: 'message',
+        text: 'Response incomplete. Continue to resume.',
+        status: 'incomplete',
+      });
+      produced.push(incomplete);
+      return { events: produced };
+    }
+    if (moderation.degraded) {
+      const note = await appendEvent(docs, input.conversationId, {
+        role: 'assistant',
+        kind: 'message',
+        text: `Groq unavailable (${moderation.degraded}). No actions invented — try again or use Settings.`,
+        status: 'error',
+      });
+      produced.push(note);
+      return { events: produced };
+    }
+    if (moderation.violation) {
+      const blocked = await appendEvent(docs, input.conversationId, {
+        role: 'assistant',
+        kind: 'message',
+        text: `Blocked by content check${moderation.category ? ` (${moderation.category})` : ''}. ${moderation.rationale ?? 'That request cannot run as a workflow action.'}`,
+        status: 'error',
+      });
+      produced.push(blocked);
+      return { events: produced };
+    }
+  }
+
+  const imageCaptions: string[] = [];
+  for (const attachmentId of (input.attachmentIds ?? []).slice(0, 3)) {
+    try {
+      const loaded = await getAttachmentFile(docs, attachmentId);
+      if (!loaded.meta.mime.startsWith('image/') || loaded.bytes.length > 20 * 1024 * 1024) continue;
+      const vision = await describeImage(
+        apiKey,
+        { mime: loaded.meta.mime, base64: loaded.bytes.toString('base64') },
+        { ...groqOptions, modelId: settings.visionModelId },
+      );
+      if (vision.caption) imageCaptions.push(`${attachmentId}: ${vision.caption}`);
+    } catch {
+      /* missing binaries stay out of the prompt */
+    }
+  }
+
   // Newly appended user turn is already in `produced` / history — do not push userText again.
   const history = [...priorEvents, ...produced];
   const { messages, nextSummary } = buildSlidingContext(
@@ -389,17 +377,29 @@ export async function runMatorTurn(
     summarizePlan(live.plan),
     conversation.contextSummary,
     input.attachmentIds,
+    imageCaptions,
   );
   if (nextSummary) await setContextSummary(docs, workflowId, input.conversationId, nextSummary);
 
-  const fetchImpl = options.fetch ?? globalThis.fetch;
-  const groq = await callGroq({
-    apiKey,
-    modelId: settings.modelId,
-    messages,
-    fetchImpl,
-    signal: options.signal,
+  const completion = await completeMatorTurn(apiKey, settings.modelId, messages, {
+    ...groqOptions,
+    reasoningEffort: settings.reasoningEffort,
   });
+  const groq = {
+    incomplete: completion.incomplete,
+    degraded: completion.degraded,
+    payload: completion.content
+      ? parseGroqPayloadSafe(completion.content)
+      : { actions: [] as unknown[] },
+  };
+  if (!completion.incomplete && !completion.degraded && completion.content) {
+    try {
+      groq.payload = parseGroqPayload(completion.content);
+    } catch {
+      groq.incomplete = true;
+      groq.payload = parseGroqPayloadSafe(completion.content);
+    }
+  }
 
   if (groq.incomplete) {
     const incomplete = await appendEvent(docs, input.conversationId, {

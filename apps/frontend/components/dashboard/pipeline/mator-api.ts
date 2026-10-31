@@ -4,12 +4,35 @@ import type {
   MatorConversationSummary,
 } from './mator-chat-state.ts';
 
+export type MatorModelTier = 'free' | 'paid';
+
+export type MatorModelOption = {
+  id: string;
+  name: string;
+  label: string;
+  tier: MatorModelTier;
+  role: 'chat' | 'vision' | 'speech-to-text' | 'text-to-speech' | 'moderation';
+  price: string;
+  notes: string;
+};
+
 export type MatorSettingsMasked = {
   groqKeyConfigured: boolean;
+  keySource: 'stored' | 'environment' | 'none';
   autoApprove: boolean;
   squashPipelineHistory: boolean;
   howTtsEnabled: boolean;
+  moderationEnabled: boolean;
   modelId: string;
+  modelName: string;
+  modelLabel: string;
+  modelTier: MatorModelTier;
+  modelPrice: string;
+  reasoningEffort: 'low' | 'medium' | 'high';
+  visionModelId: string;
+  sttModelId: string;
+  ttsModelId: string;
+  ttsVoice: string;
 };
 
 export type MatorSettingsSavePatch = {
@@ -17,7 +40,13 @@ export type MatorSettingsSavePatch = {
   autoApprove?: boolean;
   squashPipelineHistory?: boolean;
   howTtsEnabled?: boolean;
+  moderationEnabled?: boolean;
   modelId?: string;
+  reasoningEffort?: 'low' | 'medium' | 'high';
+  visionModelId?: string;
+  sttModelId?: string;
+  ttsModelId?: string;
+  ttsVoice?: string;
 };
 
 export type MatorConversationList = {
@@ -49,6 +78,14 @@ async function readSettingsResponse(
   fallbackError: string,
 ): Promise<MatorSettingsMasked> {
   return readJson<MatorSettingsMasked>(response, fallbackError);
+}
+
+export async function fetchMatorModels(): Promise<{
+  models: MatorModelOption[];
+  voices: Array<{ id: string; label: string; language: string }>;
+}> {
+  const response = await fetch(matorPath('models'), { cache: 'no-store' });
+  return readJson(response, 'Unable to load Groq models');
 }
 
 export async function fetchMatorSettings(): Promise<MatorSettingsMasked> {
@@ -208,7 +245,7 @@ export function matorAttachmentFileUrl(attachmentId: string) {
   return matorPath(`attachments/${encodeURIComponent(attachmentId)}`);
 }
 
-function fileToBase64(file: File): Promise<string> {
+function fileToBase64(file: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -245,6 +282,43 @@ export async function uploadMatorAttachment(
     },
   );
   return readJson(response, 'Unable to upload attachment');
+}
+
+export async function transcribeMatorAudio(file: Blob): Promise<string> {
+  const data = await fileToBase64(file);
+  const response = await fetch(matorPath('audio/transcriptions'), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      data,
+      mime: file.type || 'audio/webm',
+      filename: 'mator-speech.webm',
+    }),
+  });
+  const body = await readJson<{ text: string }>(
+    response,
+    'Unable to transcribe speech',
+  );
+  return body.text?.trim() ?? '';
+}
+
+export async function synthesizeMatorSpeech(text: string): Promise<Blob> {
+  const response = await fetch(matorPath('audio/speech'), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  if (!response.ok) {
+    let message = 'Unable to speak this reply';
+    try {
+      const body = (await response.json()) as { error?: string };
+      if (body.error) message = body.error;
+    } catch {
+      /* binary or empty */
+    }
+    throw new Error(message);
+  }
+  return response.blob();
 }
 
 export async function patchMatorMarkers(

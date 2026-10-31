@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { synthesizeMatorSpeech, transcribeMatorAudio } from './mator-api';
 import { readVoiceSupport } from './voice-support';
 
 type RecognitionResult = {
@@ -40,7 +41,14 @@ function subscribeVoice() {
 }
 
 function clientVoiceSupport() {
-  return readVoiceSupport(window);
+  if (readVoiceSupport(window) === 'ready') return 'ready' as const;
+  if (
+    typeof MediaRecorder === 'function' &&
+    typeof navigator.mediaDevices?.getUserMedia === 'function'
+  ) {
+    return 'ready' as const;
+  }
+  return 'unsupported' as const;
 }
 
 function serverVoiceSupport() {
@@ -96,6 +104,8 @@ export function useVoiceSession({
   const mutedRef = useRef(false);
   const silenceRef = useRef(silenceMs);
   const stopRef = useRef<((emit: boolean) => void) | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const recorderStopRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     onFinalRef.current = onFinal;
@@ -103,32 +113,62 @@ export function useVoiceSession({
     silenceRef.current = silenceMs;
   }, [onFinal, muted, silenceMs]);
 
-  function speak(text: string, force = false) {
+  function speakWithBrowser(clean: string) {
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(clean);
+    utterance.lang = 'en-US';
+    const voice = window.speechSynthesis
+      .getVoices()
+      .find((item) => item.lang.toLowerCase().startsWith('en'));
+    if (voice) utterance.voice = voice;
+    utterance.onstart = () => setSpeaking(true);
+    utterance.onend = () => setSpeaking(false);
+    utterance.onerror = () => setSpeaking(false);
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function speak(text: string, force = false) {
+    if (typeof window === 'undefined') return;
     if (mutedRef.current && !force) return;
     const clean = text.replace(/\s+/g, ' ').trim();
     if (!clean) return;
-    try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(clean);
-      utterance.lang = 'en-US';
-      const voice = window.speechSynthesis
-        .getVoices()
-        .find((item) => item.lang.toLowerCase().startsWith('en'));
-      if (voice) utterance.voice = voice;
-      utterance.onstart = () => setSpeaking(true);
-      utterance.onend = () => setSpeaking(false);
-      utterance.onerror = () => setSpeaking(false);
-      window.speechSynthesis.speak(utterance);
-    } catch {
-      setSpeaking(false);
-    }
+    audioRef.current?.pause();
+    audioRef.current = null;
+    window.speechSynthesis?.cancel();
+    void synthesizeMatorSpeech(clean)
+      .then((blob) => {
+        if (mutedRef.current && !force) return;
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        audio.onplay = () => setSpeaking(true);
+        audio.onended = () => {
+          setSpeaking(false);
+          URL.revokeObjectURL(url);
+        };
+        audio.onerror = () => {
+          setSpeaking(false);
+          URL.revokeObjectURL(url);
+          speakWithBrowser(clean);
+        };
+        return audio.play();
+      })
+      .catch(() => {
+        try {
+          speakWithBrowser(clean);
+        } catch {
+          setSpeaking(false);
+        }
+      });
   }
 
   function toggleMute() {
     setMuted((value) => {
       const next = !value;
       if (next && typeof window !== 'undefined') {
+        audioRef.current?.pause();
+        audioRef.current = null;
         window.speechSynthesis?.cancel();
         setSpeaking(false);
       }
@@ -136,7 +176,60 @@ export function useVoiceSession({
     });
   }
 
+  async function beginGroqRecording() {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const recorder = new MediaRecorder(stream);
+    const chunks: Blob[] = [];
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) chunks.push(event.data);
+    };
+    const release = () => {
+      if (recorderStopRef.current === release) recorderStopRef.current = null;
+      if (releaseActive === release) releaseActive = null;
+      stream.getTracks().forEach((track) => track.stop());
+      setListening(false);
+      setInterim('');
+    };
+    recorder.onstop = () => {
+      release();
+      const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+      if (!blob.size) return;
+      setInterim('Transcribing…');
+      void transcribeMatorAudio(blob)
+        .then((text) => {
+          setInterim('');
+          if (text) onFinalRef.current(text);
+          else setError(VOICE_RETRY);
+        })
+        .catch(() => {
+          setInterim('');
+          setError(VOICE_RETRY);
+        });
+    };
+    recorderStopRef.current = () => {
+      if (recorder.state !== 'inactive') recorder.stop();
+      else release();
+    };
+    claim(() => {
+      if (recorder.state !== 'inactive') recorder.stop();
+    });
+    recorder.start();
+    setListening(true);
+    setError(null);
+    setInterim('Listening… tap again to transcribe');
+  }
+
   function begin() {
+    if (
+      typeof MediaRecorder !== 'undefined' &&
+      navigator.mediaDevices?.getUserMedia
+    ) {
+      void beginGroqRecording().catch(() => {
+        setListening(false);
+        setError(MIC_BLOCKED);
+      });
+      return;
+    }
     const Ctor = recognitionConstructor(window);
     if (!Ctor) {
       setError(VOICE_MISSING);
@@ -210,7 +303,8 @@ export function useVoiceSession({
 
   function toggleListen() {
     if (listening) {
-      stopRef.current?.(true);
+      if (recorderStopRef.current) recorderStopRef.current();
+      else stopRef.current?.(true);
       return;
     }
     if (typeof window === 'undefined') return;

@@ -209,7 +209,7 @@ test('idempotent message replay returns same events and does not re-call Groq', 
         payload: { text: 'ping' },
       });
       assert.equal(second.statusCode, 200);
-      assert.equal(groqCalls, 1);
+      assert.equal(groqCalls, 2);
       assert.deepEqual(
         (second.json().events as Array<{ id: string }>).map((e) => e.id),
         firstIds,

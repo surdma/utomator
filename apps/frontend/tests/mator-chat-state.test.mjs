@@ -3,9 +3,12 @@ import { test } from 'node:test';
 import {
   eventsToConversation,
   findIncompleteEvent,
+  findOpenClarify,
   findPendingStage,
+  formatClarifyReply,
   mergeMatorEvents,
   pendingStageLabel,
+  readClarifyQuestions,
   shouldSpeakHow,
 } from '../components/dashboard/pipeline/mator-chat-state.ts';
 
@@ -249,5 +252,50 @@ test('shouldSpeakHow only for assistant how when enabled; never user', () => {
       true,
     ),
     false,
+  );
+});
+
+test('open clarify stays until the user answers', () => {
+  const clarify = {
+    ...base,
+    id: 'q',
+    role: 'assistant',
+    kind: 'clarify',
+    action: {
+      type: 'clarify',
+      questions: [
+        {
+          name: 'tone',
+          prompt: 'Which tone?',
+          required: true,
+          choices: [
+            { value: 'direct', label: 'Direct' },
+            { value: 'warm', label: 'Warm' },
+          ],
+        },
+      ],
+    },
+  };
+  assert.equal(findOpenClarify([clarify])?.id, 'q');
+  assert.equal(readClarifyQuestions(clarify.action)?.[0]?.name, 'tone');
+  assert.equal(
+    findOpenClarify([
+      clarify,
+      {
+        ...base,
+        id: 'u',
+        role: 'user',
+        kind: 'message',
+        text: 'Which tone? Direct',
+        createdAt: '2026-10-30T10:00:01.000Z',
+      },
+    ]),
+    null,
+  );
+  const form = new FormData();
+  form.append('tone', 'Direct');
+  assert.equal(
+    formatClarifyReply(readClarifyQuestions(clarify.action), form),
+    'Which tone? Direct',
   );
 });

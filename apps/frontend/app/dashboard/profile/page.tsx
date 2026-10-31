@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 import DashboardShell from '@/components/dashboard/dashboard-shell';
 
 export const metadata: Metadata = {
-  title: 'Owner account | Utomator',
+  title: 'Your account | Utomator',
   robots: { index: false, follow: false },
 };
 

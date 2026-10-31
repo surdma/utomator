@@ -49,9 +49,10 @@ test('the proxy still rejects unsupported endpoints and non-local access', () =>
   assert.match(proxy, /Local automation only/);
   assert.match(proxy, /Unsupported endpoint/);
   assert.ok(
-    proxy.includes('headers: body?.length ?'),
+    proxy.includes("...(body?.length ? { 'content-type': 'application/json' } : {})"),
     'bodyless clone POST does not advertise JSON'
   );
+  assert.match(proxy, /idempotency-key/);
   assert.match(proxy, /same-origin|Same-origin/);
   assert.ok(proxy.includes('growth\\/workflows\\/profile'));
 });
@@ -131,7 +132,7 @@ test('unified Growth editor reads the ID from nested Growth and legacy Craft URL
 
 test('dashboard navigation is distinct from account and career API paths', () => {
   const account = readFileSync(
-    resolve(root, 'components', 'dashboard', 'connections/account-studio.tsx'),
+    resolve(root, 'components', 'dashboard', 'account/account-home.tsx'),
     'utf8'
   );
   const career = readFileSync(
@@ -140,7 +141,7 @@ test('dashboard navigation is distinct from account and career API paths', () =>
   );
   assert.match(
     account,
-    /save\(\s*['"]\/profile['"]\s*,\s*['"]PUT['"]\s*,\s*profile\s*\)/,
+    /saveAccount\(\s*['"]\/profile['"]\s*,\s*['"]PUT['"]/,
     'account settings use /api/account/profile'
   );
   assert.match(
@@ -154,7 +155,7 @@ test('dashboard navigation is distinct from account and career API paths', () =>
     'creating a résumé uses the backend API'
   );
   assert.ok(
-    /['"]\/dashboard\/profile\/connections['"]/.test(account),
+    /['"]\/dashboard\/resumes\/profile['"]/.test(account),
     'navigation still lives inside dashboard'
   );
 });

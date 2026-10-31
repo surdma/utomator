@@ -166,6 +166,10 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
     autoApprove: settings?.autoApprove ?? false,
     squashPipelineHistory: settings?.squashPipelineHistory ?? false,
     howTtsEnabled: settings?.howTtsEnabled ?? true,
+    modelId: settings?.modelId ?? 'openai/gpt-oss-20b',
+    modelName: settings?.modelName ?? 'GPT-OSS 20B',
+    modelLabel: settings?.modelLabel ?? 'Fast reasoning chat',
+    modelTier: settings?.modelTier ?? 'free',
   };
 
   const patchSettings = useCallback(async (patch: MatorSettingsSavePatch) => {

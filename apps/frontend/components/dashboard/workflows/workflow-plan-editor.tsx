@@ -380,12 +380,14 @@ function EditorBody(props: Props) {
   return (
     <section
       data-testid="workflow-artboard"
-      className="flex h-full min-h-[630px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:min-h-[calc(100dvh-7rem)]"
+      className="flex h-full min-h-[630px] flex-col overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-sm lg:min-h-[calc(100dvh-8rem)]"
     >
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-3 sm:p-4">
-        <div>
-          <h2 className="text-sm font-extrabold">Workflow artboard</h2>
-          <p className="mt-1 text-[11px] text-slate-500">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 px-4 py-4 sm:px-5 sm:py-5">
+        <div className="max-w-xl space-y-1.5">
+          <h2 className="text-base font-semibold tracking-tight text-slate-950">
+            Workflow artboard
+          </h2>
+          <p className="text-xs leading-5 text-slate-500">
             {growthTemplateId
               ? 'Growth · connected pipelines with nested executable tasks'
               : plan.name + ' · ' + plan.steps.length + ' pipeline tasks'}
@@ -511,7 +513,7 @@ function EditorBody(props: Props) {
       )}
       <div
         data-workflow-canvas
-        className="relative min-h-[440px] flex-1 bg-[#f5f8f9]"
+        className="relative min-h-[480px] flex-1 bg-[#f3f6f7]"
       >
         {growthTemplateId ? (
           <div className="h-full max-h-[calc(100dvh-9rem)] overflow-y-auto p-3">
