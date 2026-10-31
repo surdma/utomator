@@ -325,7 +325,7 @@ export default function OperatorChatPanel({
                 aria-expanded={threadOpen}
                 data-testid="mator-thread-pill"
                 onClick={() => setThreadOpen((value) => !value)}
-                className="group flex min-h-10 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-2xl bg-slate-50 px-3 py-1.5 text-left transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                className="group flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-2xl bg-slate-50 px-3 py-1.5 text-left transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
               >
                 <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-white text-teal-800 ring-1 ring-slate-200">
                   <MessageSquare className="size-3.5" aria-hidden="true" />
@@ -365,7 +365,7 @@ export default function OperatorChatPanel({
                     onNewConversation?.();
                     setThreadOpen(false);
                   }}
-                  className="inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-full bg-slate-900 px-2.5 text-[11px] font-bold text-white transition-colors hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="inline-flex min-h-11 cursor-pointer items-center gap-1 rounded-full bg-slate-900 px-2.5 text-[11px] font-bold text-white transition-colors hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <Plus className="size-3" aria-hidden="true" />
                   New chat
@@ -444,7 +444,7 @@ export default function OperatorChatPanel({
             onClick={onClose}
             aria-label="Hide Mator chat"
             data-testid="mator-hide"
-            className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+            className="inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
           >
             <ChevronRight className="size-4" aria-hidden="true" />
           </button>
