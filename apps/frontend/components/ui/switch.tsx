@@ -7,6 +7,7 @@ type SwitchProps = {
   onCheckedChange: (checked: boolean) => void;
   disabled?: boolean;
   'aria-label': string;
+  'data-testid'?: string;
   className?: string;
   id?: string;
 };
@@ -16,6 +17,7 @@ export function Switch({
   onCheckedChange,
   disabled,
   'aria-label': ariaLabel,
+  'data-testid': testId = 'mator-switch',
   className,
   id,
 }: SwitchProps) {
@@ -28,7 +30,7 @@ export function Switch({
       aria-label={ariaLabel}
       disabled={disabled}
       data-state={checked ? 'checked' : 'unchecked'}
-      data-testid="mator-switch"
+      data-testid={testId}
       onClick={() => onCheckedChange(!checked)}
       className={cn(
         'relative inline-flex h-6 w-10 shrink-0 cursor-pointer items-center rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40',
