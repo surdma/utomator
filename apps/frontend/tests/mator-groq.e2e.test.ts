@@ -21,7 +21,7 @@ test.describe('Mator Groq settings and chat', () => {
     await expect(page.getByTestId('mator-model-text-to-speech')).toBeVisible();
     await expect(page.getByTestId('mator-reasoning-effort')).toBeVisible();
     await expect(page.getByTestId('mator-key-status')).toContainText(
-      /Environment key|Saved key/,
+      /Environment key|Saved key/
     );
 
     const settings = await page.request.get('/api/mator/models');
@@ -32,7 +32,7 @@ test.describe('Mator Groq settings and chat', () => {
     await expect(composer).toBeVisible();
     await expect
       .poll(async () =>
-        page.getByTestId('mator-conversation-switcher').inputValue(),
+        page.getByTestId('mator-conversation-switcher').inputValue()
       )
       .not.toBe('');
     await expect(page.getByTestId('mator-chat')).toContainText(/Free|Paid/);
@@ -42,10 +42,10 @@ test.describe('Mator Groq settings and chat', () => {
         response.url().includes('/api/mator/conversations/') &&
         response.url().includes('/messages') &&
         response.request().method() === 'POST',
-      { timeout: 90_000 },
+      { timeout: 90_000 }
     );
     await composer.fill(
-      'Reply with a short how note only. Do not change any workflow step. Say ready.',
+      'Reply with a short how note only. Do not change any workflow step. Say ready.'
     );
     await page.getByRole('button', { name: 'Send message' }).click();
     const response = await messageResponse;
@@ -58,11 +58,11 @@ test.describe('Mator Groq settings and chat', () => {
       (event) =>
         event.role === 'assistant' &&
         event.status !== 'error' &&
-        (event.text?.length ?? 0) > 0,
+        (event.text?.length ?? 0) > 0
     );
     expect(assistant?.text).toBeTruthy();
     await expect(page.getByTestId('mator-chat')).toContainText(
-      assistant!.text!.slice(0, 24),
+      assistant!.text!.slice(0, 24)
     );
   });
 });

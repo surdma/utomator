@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import {
   AudioLines,
@@ -22,7 +23,10 @@ import {
   Waypoints,
 } from 'lucide-react';
 import StudioDialog from '@/components/ui/studio-dialog';
-import { primaryOperation, providerMeta } from '@/components/dashboard/connections/provider-meta';
+import {
+  primaryOperation,
+  providerMeta,
+} from '@/components/dashboard/connections/provider-meta';
 import {
   growthCapabilities,
   growthJourneys,
@@ -76,7 +80,10 @@ type Section = 'you' | 'connections' | 'mator' | 'preferences';
 const endpoint = '/api/account';
 const platforms = ['linkedin', 'x', 'instagram', 'github', 'devto'] as const;
 
-const senseCopy: Record<MatorModelOption['role'], { title: string; hint: string }> = {
+const senseCopy: Record<
+  MatorModelOption['role'],
+  { title: string; hint: string }
+> = {
   chat: {
     title: 'Writing',
     hint: 'How Mator writes when you talk with it.',
@@ -135,7 +142,8 @@ function choiceLabel(model: MatorModelOption) {
 function portraitSrc(value?: string) {
   if (!value) return undefined;
   const lower = value.toLowerCase();
-  if (lower.includes('displaybackground') || lower.includes('backgroundimage')) return undefined;
+  if (lower.includes('displaybackground') || lower.includes('backgroundimage'))
+    return undefined;
   return value;
 }
 
@@ -306,7 +314,9 @@ export default function AccountHome({
   const [removeId, setRemoveId] = useState<string | null>(null);
   const [disconnectId, setDisconnectId] = useState<string | null>(null);
   const [linkBusy, setLinkBusy] = useState<string | null>(null);
-  const [pendingSync, setPendingSync] = useState<Partial<Record<'linkedin' | 'x', string>>>({});
+  const [pendingSync, setPendingSync] = useState<
+    Partial<Record<'linkedin' | 'x', string>>
+  >({});
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
@@ -314,7 +324,9 @@ export default function AccountHome({
   const [hosted, setHosted] = useState(false);
   const [mator, setMator] = useState<MatorSettingsMasked | null>(null);
   const [models, setModels] = useState<MatorModelOption[]>([]);
-  const [voices, setVoices] = useState<Array<{ id: string; label: string; language: string }>>([]);
+  const [voices, setVoices] = useState<
+    Array<{ id: string; label: string; language: string }>
+  >([]);
   const [matorLoading, setMatorLoading] = useState(true);
   const [matorError, setMatorError] = useState('');
   const [matorBusy, setMatorBusy] = useState(false);
@@ -327,7 +339,7 @@ export default function AccountHome({
   useEffect(() => {
     if (pane === 'settings' || pathname === '/dashboard/settings') {
       setSection((current) =>
-        current === 'preferences' || current === 'mator' ? current : 'mator',
+        current === 'preferences' || current === 'mator' ? current : 'mator'
       );
       return;
     }
@@ -356,7 +368,9 @@ export default function AccountHome({
   const loadAccount = useCallback(async () => {
     try {
       const response = await fetch(endpoint, { cache: 'no-store' });
-      const value = (await response.json()) as AccountState & { error?: string };
+      const value = (await response.json()) as AccountState & {
+        error?: string;
+      };
       if (!response.ok) throw Error(value.error || 'Account unavailable');
       setData(value);
       setError('');
@@ -395,7 +409,9 @@ export default function AccountHome({
 
   useEffect(() => {
     const pending = (
-      Object.entries(pendingSync) as Array<['linkedin' | 'x', string | undefined]>
+      Object.entries(pendingSync) as Array<
+        ['linkedin' | 'x', string | undefined]
+      >
     ).filter((entry): entry is ['linkedin' | 'x', string] => Boolean(entry[1]));
     if (!pending.length) return;
     let alive = true;
@@ -404,14 +420,21 @@ export default function AccountHome({
         for (const [platform, id] of pending) {
           if (!alive) return;
           try {
-            const response = await fetch('/api/connectors/' + encodeURIComponent(id) + '/sync', {
-              method: 'POST',
-              headers: { 'content-type': 'application/json' },
-              body: '{}',
-            });
+            const response = await fetch(
+              '/api/connectors/' + encodeURIComponent(id) + '/sync',
+              {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: '{}',
+              }
+            );
             const result = (await response.json()) as { status?: string };
-            if (!alive || !response.ok || result.status !== 'connected') continue;
-            setPendingSync((current) => ({ ...current, [platform]: undefined }));
+            if (!alive || !response.ok || result.status !== 'connected')
+              continue;
+            setPendingSync((current) => ({
+              ...current,
+              [platform]: undefined,
+            }));
             await refreshConnections();
             await loadAccount();
             setNotice('Network synced.');
@@ -429,19 +452,26 @@ export default function AccountHome({
 
   function openProviderTab(platform: 'linkedin' | 'x') {
     const url =
-      platform === 'linkedin' ? 'https://www.linkedin.com/login' : 'https://x.com/i/flow/login';
+      platform === 'linkedin'
+        ? 'https://www.linkedin.com/login'
+        : 'https://x.com/i/flow/login';
     const tab = window.open(url, '_blank', 'noopener,noreferrer');
     if (!tab) {
       setError('Allow a new tab so you can sign in.');
       return false;
     }
-    setNotice('Sign in in the new tab. Phone and computer use the same page. Come back and click Sync when you are done.');
+    setNotice(
+      'Sign in in the new tab. Phone and computer use the same page. Come back and click Sync when you are done.'
+    );
     return true;
   }
 
   async function beginSync(platform: 'linkedin' | 'x', accountId?: string) {
     const openSignIn = connections.find(
-      (item) => item.platform === platform && item.status === 'sign-in-open' && !item.handle,
+      (item) =>
+        item.platform === platform &&
+        item.status === 'sign-in-open' &&
+        !item.handle
     );
     const known = accountId || pendingSync[platform] || openSignIn?.id;
     const busyKey = known || platform;
@@ -449,7 +479,9 @@ export default function AccountHome({
     setError('');
     setNotice('');
     try {
-      const live = known ? connections.find((item) => item.id === known) : undefined;
+      const live = known
+        ? connections.find((item) => item.id === known)
+        : undefined;
       if (!known) {
         const response = await fetch('/api/connectors/start', {
           method: 'POST',
@@ -463,37 +495,59 @@ export default function AccountHome({
         };
         if (!response.ok || !result.accountId)
           throw Error(result.error || 'Could not start sync');
-        setPendingSync((current) => ({ ...current, [platform]: result.accountId }));
+        setPendingSync((current) => ({
+          ...current,
+          [platform]: result.accountId,
+        }));
         await refreshConnections();
         return;
       }
       // A pending sign-in has no saved account yet. Sync reads that open window.
       // Connect is only for a profile that was saved and later signed out.
       if (live?.status === 'disconnected') {
-        const response = await fetch('/api/connectors/' + encodeURIComponent(known) + '/connect', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: '{}',
-        });
-        const result = (await response.json()) as { error?: string; navigationWarning?: string };
+        const response = await fetch(
+          '/api/connectors/' + encodeURIComponent(known) + '/connect',
+          {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: '{}',
+          }
+        );
+        const result = (await response.json()) as {
+          error?: string;
+          navigationWarning?: string;
+        };
         if (!response.ok) throw Error(result.error || 'Could not open sign-in');
         await refreshConnections();
         return;
       }
-      const response = await fetch('/api/connectors/' + encodeURIComponent(known) + '/sync', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: '{}',
-      });
-      const result = (await response.json()) as { error?: string; status?: string };
-      if (!response.ok) throw Error(result.error || 'Could not sync this network');
+      const response = await fetch(
+        '/api/connectors/' + encodeURIComponent(known) + '/sync',
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: '{}',
+        }
+      );
+      const result = (await response.json()) as {
+        error?: string;
+        status?: string;
+      };
+      if (!response.ok)
+        throw Error(result.error || 'Could not sync this network');
       await refreshConnections();
       await loadAccount();
-            if (result.status === 'connected')
-              setPendingSync((current) => ({ ...current, [platform]: undefined }));
-      setNotice(result.status === 'connected' ? 'Network synced.' : 'Sign-in is still open. Finish it, then click Sync again.');
+      if (result.status === 'connected')
+        setPendingSync((current) => ({ ...current, [platform]: undefined }));
+      setNotice(
+        result.status === 'connected'
+          ? 'Network synced.'
+          : 'Sign-in is still open. Finish it, then click Sync again.'
+      );
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not sync this network');
+      setError(
+        cause instanceof Error ? cause.message : 'Could not sync this network'
+      );
     } finally {
       setLinkBusy(null);
     }
@@ -510,15 +564,20 @@ export default function AccountHome({
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: '{}',
-        },
+        }
       );
       const result = (await response.json()) as { error?: string };
-      if (!response.ok) throw Error(result.error || 'Could not update this network');
+      if (!response.ok)
+        throw Error(result.error || 'Could not update this network');
       await refreshConnections();
       setDisconnectId(null);
-      setNotice(operation === 'sync' ? 'Network synced.' : 'Network disconnected.');
+      setNotice(
+        operation === 'sync' ? 'Network synced.' : 'Network disconnected.'
+      );
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not update this network');
+      setError(
+        cause instanceof Error ? cause.message : 'Could not update this network'
+      );
     } finally {
       setLinkBusy(null);
     }
@@ -536,7 +595,9 @@ export default function AccountHome({
       setModels(catalog.models);
       setVoices(catalog.voices);
     } catch (cause) {
-      setMatorError(cause instanceof Error ? cause.message : 'Unable to load Mator');
+      setMatorError(
+        cause instanceof Error ? cause.message : 'Unable to load Mator'
+      );
     } finally {
       setMatorLoading(false);
     }
@@ -550,7 +611,11 @@ export default function AccountHome({
     if (editingKey) keyInputRef.current?.focus();
   }, [editingKey]);
 
-  async function saveAccount(path: string, method: 'PUT' | 'DELETE', document?: unknown) {
+  async function saveAccount(
+    path: string,
+    method: 'PUT' | 'DELETE',
+    document?: unknown
+  ) {
     if (!data) return;
     setSaving(true);
     setError('');
@@ -564,7 +629,9 @@ export default function AccountHome({
           ...(document === undefined ? {} : { document }),
         }),
       });
-      const result = (await response.json()) as AccountState & { error?: string };
+      const result = (await response.json()) as AccountState & {
+        error?: string;
+      };
       if (!response.ok) throw Error(result.error || 'Could not save');
       setData(result);
       setEditingProfile(false);
@@ -579,7 +646,7 @@ export default function AccountHome({
 
   async function patchMator(
     patch: MatorSettingsSavePatch,
-    options?: { clearDraft?: boolean; saved?: string },
+    options?: { clearDraft?: boolean; saved?: string }
   ) {
     setMatorBusy(true);
     setMatorError('');
@@ -607,7 +674,7 @@ export default function AccountHome({
         ? '/dashboard/profile/connections'
         : next === 'you'
           ? '/dashboard/profile'
-          : '/dashboard/settings',
+          : '/dashboard/settings'
     );
   }
 
@@ -620,17 +687,25 @@ export default function AccountHome({
       onNavigate('/dashboard/resumes/profile');
       return;
     }
-    window.location.assign(id === 'audience' ? '/dashboard/editorial' : '/dashboard/growth');
+    window.location.assign(
+      id === 'audience' ? '/dashboard/editorial' : '/dashboard/growth'
+    );
   }
 
   const profile = data?.profile;
   const initial = (profile?.displayName || 'U').trim().charAt(0).toUpperCase();
-  const linkedCount = connections.filter((item) => item.status === 'connected').length;
+  const linkedCount = connections.filter(
+    (item) => item.status === 'connected'
+  ).length;
   const menu = [
     { id: 'you' as const, label: 'Profile', icon: UserRound },
     { id: 'connections' as const, label: 'Networks', icon: Waypoints },
     { id: 'mator' as const, label: 'Mator', icon: Sparkles },
-    { id: 'preferences' as const, label: 'Preferences', icon: SlidersHorizontal },
+    {
+      id: 'preferences' as const,
+      label: 'Preferences',
+      icon: SlidersHorizontal,
+    },
   ];
   const keyReady = Boolean(mator?.groqKeyConfigured);
   const showKeyEditor = editingKey || !keyReady;
@@ -640,24 +715,39 @@ export default function AccountHome({
       : keyReady
         ? 'Saved key'
         : 'Not configured';
-  const removeAccount = data?.socialAccounts.find((row) => row.id === removeId) ?? null;
-  const disconnectAccount = data?.socialAccounts.find((row) => row.id === disconnectId) ?? null;
+  const removeAccount =
+    data?.socialAccounts.find((row) => row.id === removeId) ?? null;
+  const disconnectAccount =
+    data?.socialAccounts.find((row) => row.id === disconnectId) ?? null;
 
   return (
     <div data-testid="owner-profile-page" className="pb-16">
-      <div data-testid="automation-settings-page" className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start lg:gap-10">
+      <div
+        data-testid="automation-settings-page"
+        className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start lg:gap-10"
+      >
         <aside className="rounded-3xl bg-white p-4 shadow-[0_20px_50px_-36px_rgba(17,26,37,0.45)] lg:sticky lg:top-0">
           <div className="flex items-center gap-3 px-2 py-1">
             <div className="flex size-12 items-center justify-center overflow-hidden rounded-2xl bg-[#111a25] font-serif text-xl text-white">
               {portraitSrc(profile?.avatarUrl) ||
-              portraitSrc(data?.socialAccounts.find((row) => portraitSrc(row.avatarUrl))?.avatarUrl) ? (
-                <img
+              portraitSrc(
+                data?.socialAccounts.find((row) => portraitSrc(row.avatarUrl))
+                  ?.avatarUrl
+              ) ? (
+                <Image
+                  unoptimized
                   src={
-                    portraitSrc(profile?.avatarUrl) ||
-                    portraitSrc(data?.socialAccounts.find((row) => portraitSrc(row.avatarUrl))?.avatarUrl)
+                    (portraitSrc(profile?.avatarUrl) ||
+                      portraitSrc(
+                        data?.socialAccounts.find((row) =>
+                          portraitSrc(row.avatarUrl)
+                        )?.avatarUrl
+                      )) ?? ''
                   }
                   alt=""
-                  className="size-12 object-cover"
+                  width={48}
+                  height={48}
+                  className="size-12 rounded-2xl object-cover"
                 />
               ) : (
                 initial
@@ -670,7 +760,10 @@ export default function AccountHome({
               <p className="text-xs text-slate-500">{linkedCount} linked</p>
             </div>
           </div>
-          <nav aria-label="Account" className="mt-3 grid grid-cols-2 gap-1 lg:grid-cols-1">
+          <nav
+            aria-label="Account"
+            className="mt-3 grid grid-cols-2 gap-1 lg:grid-cols-1"
+          >
             {menu.map((item) => {
               const active = section === item.id;
               const Icon = item.icon;
@@ -682,7 +775,9 @@ export default function AccountHome({
                   onClick={() => openSection(item.id)}
                   className={
                     'flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-3 text-left text-sm font-semibold transition duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 motion-reduce:transition-none ' +
-                    (active ? 'bg-[#111a25] text-white' : 'text-slate-700 hover:bg-slate-50')
+                    (active
+                      ? 'bg-[#111a25] text-white'
+                      : 'text-slate-700 hover:bg-slate-50')
                   }
                 >
                   <Icon className="size-4 shrink-0" aria-hidden="true" />
@@ -692,13 +787,27 @@ export default function AccountHome({
             })}
           </nav>
         </aside>
-        <div className="flex min-w-0 max-w-3xl flex-col gap-4">
-          {notice ? <Notice tone="ok" onDismiss={() => setNotice('')}>{notice}</Notice> : null}
-          {error ? <Notice tone="warn" onDismiss={() => setError('')}>{error}</Notice> : null}
+        <div className="flex max-w-3xl min-w-0 flex-col gap-4">
+          {notice ? (
+            <Notice tone="ok" onDismiss={() => setNotice('')}>
+              {notice}
+            </Notice>
+          ) : null}
+          {error ? (
+            <Notice tone="warn" onDismiss={() => setError('')}>
+              {error}
+            </Notice>
+          ) : null}
 
           {section === 'you' && (
-            <section aria-labelledby="account-you-heading" className="flex flex-col gap-4">
-              <h1 id="account-you-heading" className="font-serif text-3xl tracking-tight text-[#111a25]">
+            <section
+              aria-labelledby="account-you-heading"
+              className="flex flex-col gap-4"
+            >
+              <h1
+                id="account-you-heading"
+                className="font-serif text-3xl tracking-tight text-[#111a25]"
+              >
                 Profile
               </h1>
               <div className="overflow-hidden rounded-3xl bg-white shadow-[0_20px_50px_-36px_rgba(17,26,37,0.45)]">
@@ -712,8 +821,9 @@ export default function AccountHome({
                           {profile.displayName || 'Name not added'}
                         </p>
                         <p className="mt-0.5 truncate text-sm text-slate-500">
-                          {[profile.headline, profile.email, profile.location].filter(Boolean).join(' · ') ||
-                            'Add email and location'}
+                          {[profile.headline, profile.email, profile.location]
+                            .filter(Boolean)
+                            .join(' · ') || 'Add email and location'}
                         </p>
                       </div>
                       <button
@@ -731,7 +841,13 @@ export default function AccountHome({
                   )}
                 </div>
                 {profile &&
-                [profile.about, profile.website, profile.skills, profile.experience, profile.education].some(Boolean) ? (
+                [
+                  profile.about,
+                  profile.website,
+                  profile.skills,
+                  profile.experience,
+                  profile.education,
+                ].some(Boolean) ? (
                   <dl className="grid gap-4 border-b border-slate-100 px-5 py-4 sm:grid-cols-2">
                     {(
                       [
@@ -744,9 +860,20 @@ export default function AccountHome({
                     )
                       .filter(([, value]) => Boolean(value))
                       .map(([label, value]) => (
-                        <div key={label} className={label === 'About' || label === 'Experience' ? 'sm:col-span-2' : ''}>
-                          <dt className="text-xs font-semibold tracking-wide text-slate-500 uppercase">{label}</dt>
-                          <dd className="mt-1 line-clamp-4 text-sm leading-6 text-[#111a25]">{value}</dd>
+                        <div
+                          key={label}
+                          className={
+                            label === 'About' || label === 'Experience'
+                              ? 'sm:col-span-2'
+                              : ''
+                          }
+                        >
+                          <dt className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                            {label}
+                          </dt>
+                          <dd className="mt-1 line-clamp-4 text-sm leading-6 text-[#111a25]">
+                            {value}
+                          </dd>
                         </div>
                       ))}
                   </dl>
@@ -755,15 +882,26 @@ export default function AccountHome({
                   {growthJourneys.map((journey) => {
                     const Icon = journeyIcon[journey.id];
                     const action =
-                      journey.id === 'profile' ? 'Review' : journey.id === 'job' ? 'Open career' : 'Open';
+                      journey.id === 'profile'
+                        ? 'Review'
+                        : journey.id === 'job'
+                          ? 'Open career'
+                          : 'Open';
                     return (
-                      <li key={journey.id} className="flex items-center gap-3 border-t border-slate-100 px-5 py-3">
+                      <li
+                        key={journey.id}
+                        className="flex items-center gap-3 border-t border-slate-100 px-5 py-3"
+                      >
                         <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-800">
                           <Icon className="size-4" aria-hidden="true" />
                         </span>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-[#111a25]">{journey.title}</p>
-                          <p className="truncate text-sm text-slate-500">{journey.outcome}</p>
+                          <p className="truncate text-sm font-semibold text-[#111a25]">
+                            {journey.title}
+                          </p>
+                          <p className="truncate text-sm text-slate-500">
+                            {journey.outcome}
+                          </p>
                         </div>
                         <button
                           type="button"
@@ -782,9 +920,15 @@ export default function AccountHome({
           )}
 
           {section === 'connections' && (
-            <section aria-labelledby="account-networks-heading" className="flex flex-col gap-4">
+            <section
+              aria-labelledby="account-networks-heading"
+              className="flex flex-col gap-4"
+            >
               <header className="flex flex-wrap items-center justify-between gap-3">
-                <h1 id="account-networks-heading" className="font-serif text-3xl tracking-tight text-[#111a25]">
+                <h1
+                  id="account-networks-heading"
+                  className="font-serif text-3xl tracking-tight text-[#111a25]"
+                >
                   Networks
                 </h1>
                 <button
@@ -796,64 +940,107 @@ export default function AccountHome({
                 </button>
               </header>
               {available === 'offline' ? (
-                <p role="status" className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-950">
-                  Utomator is not running on this computer, so live connection status may be out of date. Saved accounts are still listed.
+                <p
+                  role="status"
+                  className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-950"
+                >
+                  Utomator is not running on this computer, so live connection
+                  status may be out of date. Saved accounts are still listed.
                 </p>
               ) : null}
               <ul className="divide-y divide-slate-200 overflow-hidden rounded-3xl bg-white shadow-[0_20px_50px_-36px_rgba(17,26,37,0.45)]">
                 {platforms.map((platformKey) => {
                   const meta = providerMeta[platformKey];
                   const Icon = meta.icon;
-                  const rows = data?.socialAccounts.filter((row) => row.platform === platformKey) ?? [];
+                  const rows =
+                    data?.socialAccounts.filter(
+                      (row) => row.platform === platformKey
+                    ) ?? [];
                   return (
                     <li key={platformKey} className="px-5 py-4">
                       {rows.length === 0 ? (
                         <div className="flex items-center gap-4">
-                          <span className={'flex size-11 shrink-0 items-center justify-center rounded-xl ' + meta.tile}>
+                          <span
+                            className={
+                              'flex size-11 shrink-0 items-center justify-center rounded-xl ' +
+                              meta.tile
+                            }
+                          >
                             <Icon className="size-5!" />
                           </span>
                           <div className="min-w-0 flex-1">
-                            <h2 className="text-base font-semibold text-[#111a25]">{meta.name}</h2>
-                            <p className="text-sm text-slate-500">No verified account linked.</p>
+                            <h2 className="text-base font-semibold text-[#111a25]">
+                              {meta.name}
+                            </h2>
+                            <p className="text-sm text-slate-500">
+                              No verified account linked.
+                            </p>
                           </div>
                           {platformKey === 'linkedin' || platformKey === 'x' ? (
                             <button
                               type="button"
-                              disabled={linkBusy === platformKey || linkBusy === pendingSync[platformKey]}
+                              disabled={
+                                linkBusy === platformKey ||
+                                linkBusy === pendingSync[platformKey]
+                              }
                               onClick={() => {
                                 openProviderTab(platformKey);
                                 void beginSync(platformKey);
                               }}
                               className="inline-flex min-h-11 shrink-0 cursor-pointer items-center rounded-xl bg-[#111a25] px-4 text-sm font-semibold text-white hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
                             >
-                              {linkBusy === platformKey || linkBusy === pendingSync[platformKey] ? 'Working…' : 'Sync'}
+                              {linkBusy === platformKey ||
+                              linkBusy === pendingSync[platformKey]
+                                ? 'Working…'
+                                : 'Sync'}
                             </button>
                           ) : null}
                         </div>
                       ) : (
                         <div className="flex flex-col gap-3">
                           {rows.map((row) => {
-                            const live = connections.find((item) => item.id === row.id);
+                            const live = connections.find(
+                              (item) => item.id === row.id
+                            );
                             const inUse =
                               linkedAccountId === row.id ||
                               (selectedAccount?.platform === row.platform &&
                                 selectedAccount.handle === row.handle);
                             const disconnecting =
-                              primaryOperation(live?.status ?? 'disconnected', live?.verifiedAt ?? null) ===
-                              'disconnect';
+                              primaryOperation(
+                                live?.status ?? 'disconnected',
+                                live?.verifiedAt ?? null
+                              ) === 'disconnect';
                             const portrait = portraitSrc(row.avatarUrl);
                             return (
-                              <div key={row.id} className="flex items-center gap-4">
-                                <span className={'flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full ' + (portrait ? '' : meta.tile)}>
+                              <div
+                                key={row.id}
+                                className="flex items-center gap-4"
+                              >
+                                <span
+                                  className={
+                                    'flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full ' +
+                                    (portrait ? '' : meta.tile)
+                                  }
+                                >
                                   {portrait ? (
-                                    <img src={portrait} alt="" className="size-11 object-cover" />
+                                    <Image
+                                      unoptimized
+                                      src={portrait}
+                                      alt=""
+                                      width={44}
+                                      height={44}
+                                      className="size-11 rounded-full object-cover"
+                                    />
                                   ) : (
                                     <Icon className="size-5!" />
                                   )}
                                 </span>
                                 <div className="min-w-0 flex-1">
                                   <div className="flex min-w-0 items-center gap-2">
-                                    <h2 className="truncate text-base font-semibold text-[#111a25]">{meta.name}</h2>
+                                    <h2 className="truncate text-base font-semibold text-[#111a25]">
+                                      {meta.name}
+                                    </h2>
                                     <span className="shrink-0 rounded-full bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-900">
                                       {statusLine(live?.status)}
                                     </span>
@@ -863,7 +1050,8 @@ export default function AccountHome({
                                     {inUse ? ' · In use' : ''}
                                   </p>
                                 </div>
-                                {row.platform === 'linkedin' || row.platform === 'x' ? (
+                                {row.platform === 'linkedin' ||
+                                row.platform === 'x' ? (
                                   disconnecting ? (
                                     <button
                                       type="button"
@@ -871,19 +1059,28 @@ export default function AccountHome({
                                       onClick={() => setDisconnectId(row.id)}
                                       className="inline-flex min-h-11 shrink-0 cursor-pointer items-center rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
                                     >
-                                      {linkBusy === row.id ? 'Working…' : 'Disconnect'}
+                                      {linkBusy === row.id
+                                        ? 'Working…'
+                                        : 'Disconnect'}
                                     </button>
                                   ) : (
                                     <button
                                       type="button"
                                       disabled={linkBusy === row.id}
                                       onClick={() => {
-                                        openProviderTab(row.platform as 'linkedin' | 'x');
-                                        void beginSync(row.platform as 'linkedin' | 'x', row.id);
+                                        openProviderTab(
+                                          row.platform as 'linkedin' | 'x'
+                                        );
+                                        void beginSync(
+                                          row.platform as 'linkedin' | 'x',
+                                          row.id
+                                        );
                                       }}
                                       className="inline-flex min-h-11 shrink-0 cursor-pointer items-center rounded-xl bg-[#111a25] px-4 text-sm font-semibold text-white hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
                                     >
-                                      {linkBusy === row.id ? 'Working…' : 'Sync'}
+                                      {linkBusy === row.id
+                                        ? 'Working…'
+                                        : 'Sync'}
                                     </button>
                                   )
                                 ) : null}
@@ -891,8 +1088,12 @@ export default function AccountHome({
                             );
                           })}
                           {rows.length > 1 ? (
-                            <p role="alert" className="text-sm leading-6 text-amber-900">
-                              More than one account is saved here. Remove the extra one before connecting another.
+                            <p
+                              role="alert"
+                              className="text-sm leading-6 text-amber-900"
+                            >
+                              More than one account is saved here. Remove the
+                              extra one before connecting another.
                             </p>
                           ) : null}
                         </div>
@@ -918,7 +1119,8 @@ export default function AccountHome({
                   Mator
                 </h1>
                 <p className="mt-3 max-w-xl text-base leading-7 text-slate-600">
-                  Your key lets Mator write, listen, and look at pictures with you. It stays private after you save it.
+                  Your key lets Mator write, listen, and look at pictures with
+                  you. It stays private after you save it.
                 </p>
               </header>
 
@@ -928,11 +1130,16 @@ export default function AccountHome({
                 <div className="rounded-3xl bg-[#111a25] px-6 py-7 text-white sm:px-8">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <KeyRound className="size-5 text-teal-200" aria-hidden="true" />
+                      <KeyRound
+                        className="size-5 text-teal-200"
+                        aria-hidden="true"
+                      />
                       <h2 className="text-lg font-semibold">API key</h2>
                     </div>
                     <Hint label="About your API key">
-                      After you save a key, Utomator keeps it private and will not show it again. Edit replaces it. Remove deletes it from this account.
+                      After you save a key, Utomator keeps it private and will
+                      not show it again. Edit replaces it. Remove deletes it
+                      from this account.
                     </Hint>
                   </div>
                   <p
@@ -951,7 +1158,10 @@ export default function AccountHome({
 
                   {showKeyEditor ? (
                     <div className="mt-6">
-                      <label htmlFor="mator-api-key" className="text-sm font-semibold text-white">
+                      <label
+                        htmlFor="mator-api-key"
+                        className="text-sm font-semibold text-white"
+                      >
                         API key
                       </label>
                       <div className="mt-2 flex items-center gap-2 rounded-2xl bg-white p-1.5">
@@ -963,17 +1173,25 @@ export default function AccountHome({
                           spellCheck={false}
                           value={keyDraft}
                           disabled={matorBusy}
-                          placeholder={keyReady ? 'Type a new key' : 'Paste your API key'}
+                          placeholder={
+                            keyReady ? 'Type a new key' : 'Paste your API key'
+                          }
                           onChange={(event) => setKeyDraft(event.target.value)}
                           className="min-h-11 min-w-0 flex-1 bg-transparent px-3 text-base text-slate-900 outline-none placeholder:text-slate-400"
                         />
                         <button
                           type="button"
-                          aria-label={keyVisible ? 'Hide API key' : 'Show API key'}
+                          aria-label={
+                            keyVisible ? 'Hide API key' : 'Show API key'
+                          }
                           onClick={() => setKeyVisible((value) => !value)}
                           className="inline-flex size-11 cursor-pointer items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-teal-700"
                         >
-                          {keyVisible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                          {keyVisible ? (
+                            <EyeOff className="size-4" />
+                          ) : (
+                            <Eye className="size-4" />
+                          )}
                         </button>
                       </div>
                       <div className="mt-4 flex flex-wrap gap-2">
@@ -983,7 +1201,7 @@ export default function AccountHome({
                           onClick={() =>
                             void patchMator(
                               { groqApiKey: keyDraft.trim() },
-                              { clearDraft: true, saved: 'API key saved.' },
+                              { clearDraft: true, saved: 'API key saved.' }
                             )
                           }
                           className="inline-flex min-h-11 cursor-pointer items-center rounded-xl bg-teal-500 px-4 text-sm font-semibold text-[#111a25] transition duration-200 hover:bg-teal-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none"
@@ -1008,7 +1226,10 @@ export default function AccountHome({
                     </div>
                   ) : (
                     <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
-                      <p className="font-mono text-lg tracking-[0.35em] text-slate-200" aria-hidden="true">
+                      <p
+                        className="font-mono text-lg tracking-[0.35em] text-slate-200"
+                        aria-hidden="true"
+                      >
                         •••• •••• ••••
                       </p>
                       <div className="flex flex-wrap gap-2">
@@ -1032,38 +1253,72 @@ export default function AccountHome({
                 </div>
               )}
 
-              {matorError ? <Notice tone="warn" onDismiss={() => setMatorError('')}>{matorError}</Notice> : null}
+              {matorError ? (
+                <Notice tone="warn" onDismiss={() => setMatorError('')}>
+                  {matorError}
+                </Notice>
+              ) : null}
 
               {mator ? (
                 <div className="flex flex-col gap-8">
                   <div>
-                    <h2 className="font-serif text-2xl text-[#111a25]">How Mator shows up</h2>
+                    <h2 className="font-serif text-2xl text-[#111a25]">
+                      How Mator shows up
+                    </h2>
                     <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
-                      Pick the style of help you want. You can change these any time.
+                      Pick the style of help you want. You can change these any
+                      time.
                     </p>
                   </div>
                   {(
                     [
                       ['chat', MessageSquareText, mator.modelId, 'modelId'],
-                      ['vision', ImageIcon, mator.visionModelId, 'visionModelId'],
-                      ['speech-to-text', AudioLines, mator.sttModelId, 'sttModelId'],
-                      ['text-to-speech', Sparkles, mator.ttsModelId, 'ttsModelId'],
+                      [
+                        'vision',
+                        ImageIcon,
+                        mator.visionModelId,
+                        'visionModelId',
+                      ],
+                      [
+                        'speech-to-text',
+                        AudioLines,
+                        mator.sttModelId,
+                        'sttModelId',
+                      ],
+                      [
+                        'text-to-speech',
+                        Sparkles,
+                        mator.ttsModelId,
+                        'ttsModelId',
+                      ],
                     ] as const
                   ).map(([role, Icon, value, field]) => {
                     const copy = senseCopy[role];
-                    const options = models.filter((model) => model.role === role);
+                    const options = models.filter(
+                      (model) => model.role === role
+                    );
                     return (
-                      <label key={role} className="block border-t border-slate-200 pt-6">
+                      <label
+                        key={role}
+                        className="block border-t border-slate-200 pt-6"
+                      >
                         <span className="flex items-center gap-2 text-base font-semibold text-[#111a25]">
-                          <Icon className="size-4 text-teal-800" aria-hidden="true" />
+                          <Icon
+                            className="size-4 text-teal-800"
+                            aria-hidden="true"
+                          />
                           {copy.title}
                         </span>
-                        <span className="mt-1 block text-sm leading-6 text-slate-600">{copy.hint}</span>
+                        <span className="mt-1 block text-sm leading-6 text-slate-600">
+                          {copy.hint}
+                        </span>
                         <select
                           data-testid={`mator-model-${role}`}
                           value={value}
                           disabled={matorBusy || options.length === 0}
-                          onChange={(event) => void patchMator({ [field]: event.target.value })}
+                          onChange={(event) =>
+                            void patchMator({ [field]: event.target.value })
+                          }
                           className="mt-3 min-h-11 w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {options.map((model) => (
@@ -1076,9 +1331,12 @@ export default function AccountHome({
                     );
                   })}
                   <label className="block border-t border-slate-200 pt-6">
-                    <span className="text-base font-semibold text-[#111a25]">Care</span>
+                    <span className="text-base font-semibold text-[#111a25]">
+                      Care
+                    </span>
                     <span className="mt-1 block text-sm leading-6 text-slate-600">
-                      Quick is faster. Thorough takes a little longer and thinks further.
+                      Quick is faster. Thorough takes a little longer and thinks
+                      further.
                     </span>
                     <select
                       data-testid="mator-reasoning-effort"
@@ -1086,7 +1344,8 @@ export default function AccountHome({
                       disabled={matorBusy}
                       onChange={(event) =>
                         void patchMator({
-                          reasoningEffort: event.target.value as MatorSettingsSavePatch['reasoningEffort'],
+                          reasoningEffort: event.target
+                            .value as MatorSettingsSavePatch['reasoningEffort'],
                         })
                       }
                       className="mt-3 min-h-11 w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
@@ -1097,7 +1356,9 @@ export default function AccountHome({
                     </select>
                   </label>
                   <label className="block border-t border-slate-200 pt-6">
-                    <span className="text-base font-semibold text-[#111a25]">Speaking voice</span>
+                    <span className="text-base font-semibold text-[#111a25]">
+                      Speaking voice
+                    </span>
                     <span className="mt-1 block text-sm leading-6 text-slate-600">
                       The voice you hear when Mator reads a note aloud.
                     </span>
@@ -1105,15 +1366,25 @@ export default function AccountHome({
                       data-testid="mator-tts-voice"
                       value={mator.ttsVoice}
                       disabled={matorBusy}
-                      onChange={(event) => void patchMator({ ttsVoice: event.target.value })}
+                      onChange={(event) =>
+                        void patchMator({ ttsVoice: event.target.value })
+                      }
                       className="mt-3 min-h-11 w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
                     >
                       {(voices.length
                         ? voices
                         : [
-                            { id: 'hannah', label: 'Hannah', language: 'English' },
+                            {
+                              id: 'hannah',
+                              label: 'Hannah',
+                              language: 'English',
+                            },
                             { id: 'troy', label: 'Troy', language: 'English' },
-                            { id: 'austin', label: 'Austin', language: 'English' },
+                            {
+                              id: 'austin',
+                              label: 'Austin',
+                              language: 'English',
+                            },
                           ]
                       ).map((voice) => (
                         <option key={voice.id} value={voice.id}>
@@ -1128,7 +1399,10 @@ export default function AccountHome({
           )}
 
           {section === 'preferences' && (
-            <section aria-labelledby="account-preferences-heading" className="flex flex-col gap-4">
+            <section
+              aria-labelledby="account-preferences-heading"
+              className="flex flex-col gap-4"
+            >
               <header>
                 <h1
                   id="account-preferences-heading"
@@ -1137,7 +1411,8 @@ export default function AccountHome({
                   Preferences
                 </h1>
                 <p className="mt-3 max-w-xl text-base leading-7 text-slate-600">
-                  Choose how much Mator does on its own, and how it talks with you.
+                  Choose how much Mator does on its own, and how it talks with
+                  you.
                 </p>
               </header>
               <div className="rounded-3xl bg-white px-6 shadow-[0_20px_50px_-36px_rgba(17,26,37,0.45)] sm:px-8">
@@ -1153,14 +1428,18 @@ export default function AccountHome({
                   hint="Mator sets aside earlier messages so a long conversation stays easy to follow."
                   checked={mator?.squashPipelineHistory ?? false}
                   disabled={matorBusy || !mator}
-                  onChange={(value) => void patchMator({ squashPipelineHistory: value })}
+                  onChange={(value) =>
+                    void patchMator({ squashPipelineHistory: value })
+                  }
                 />
                 <SwitchRow
                   label="Read notes aloud"
                   hint="Mator speaks short explanations while you work together."
                   checked={mator?.howTtsEnabled ?? true}
                   disabled={matorBusy || !mator}
-                  onChange={(value) => void patchMator({ howTtsEnabled: value })}
+                  onChange={(value) =>
+                    void patchMator({ howTtsEnabled: value })
+                  }
                 />
                 <SwitchRow
                   label="Check messages first"
@@ -1168,14 +1447,23 @@ export default function AccountHome({
                   testId="mator-moderation-toggle"
                   checked={mator?.moderationEnabled ?? false}
                   disabled={matorBusy || !mator}
-                  onChange={(value) => void patchMator({ moderationEnabled: value })}
+                  onChange={(value) =>
+                    void patchMator({ moderationEnabled: value })
+                  }
                 />
               </div>
               {hosted ? (
-                <form method="post" action="/auth/logout" className="border-t border-slate-200 pt-8">
-                  <h2 className="text-base font-semibold text-[#111a25]">Sign out</h2>
+                <form
+                  method="post"
+                  action="/auth/logout"
+                  className="border-t border-slate-200 pt-8"
+                >
+                  <h2 className="text-base font-semibold text-[#111a25]">
+                    Sign out
+                  </h2>
                   <p className="mt-1 max-w-md text-sm leading-6 text-slate-600">
-                    This signs you out of Utomator. Your linked networks stay as they are.
+                    This signs you out of Utomator. Your linked networks stay as
+                    they are.
                   </p>
                   <button
                     type="submit"
@@ -1199,12 +1487,16 @@ export default function AccountHome({
       >
         <ul className="grid gap-2 sm:grid-cols-2">
           {workFor(growthJourneys[0].sequence).map((step) => (
-            <li key={step} className="text-sm font-medium text-[#111a25]">{step}</li>
+            <li key={step} className="text-sm font-medium text-[#111a25]">
+              {step}
+            </li>
           ))}
         </ul>
         <ul className="mt-4 grid gap-x-6 gap-y-1 border-t border-slate-100 pt-4 sm:grid-cols-2">
           {profileSections.map((section) => (
-            <li key={section} className="text-sm leading-7 text-slate-600">{section}</li>
+            <li key={section} className="text-sm leading-7 text-slate-600">
+              {section}
+            </li>
           ))}
         </ul>
       </StudioDialog>
@@ -1231,7 +1523,10 @@ export default function AccountHome({
                 ['location', 'Location', 'text', 180],
               ] as const
             ).map(([key, label, type, max]) => (
-              <label key={key} className="block text-sm font-semibold text-slate-800">
+              <label
+                key={key}
+                className="block text-sm font-semibold text-slate-800"
+              >
                 {label}
                 <input
                   required={key === 'displayName'}
@@ -1240,7 +1535,10 @@ export default function AccountHome({
                   maxLength={max}
                   value={draft[key]}
                   onChange={(event) =>
-                    setDraft((current) => current && { ...current, [key]: event.target.value })
+                    setDraft(
+                      (current) =>
+                        current && { ...current, [key]: event.target.value }
+                    )
                   }
                   className="mt-2 block min-h-11 w-full rounded-xl border border-slate-200 px-3 text-base font-normal text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
                 />
@@ -1253,7 +1551,10 @@ export default function AccountHome({
                 maxLength={1200}
                 value={draft.about}
                 onChange={(event) =>
-                  setDraft((current) => current && { ...current, about: event.target.value })
+                  setDraft(
+                    (current) =>
+                      current && { ...current, about: event.target.value }
+                  )
                 }
                 className="mt-2 block w-full resize-y rounded-xl border border-slate-200 px-3 py-3 text-base leading-7 font-normal text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
               />
@@ -1301,7 +1602,10 @@ export default function AccountHome({
           <button
             type="button"
             disabled={saving || !removeAccount}
-            onClick={() => removeAccount && void saveAccount('/social/' + removeAccount.id, 'DELETE')}
+            onClick={() =>
+              removeAccount &&
+              void saveAccount('/social/' + removeAccount.id, 'DELETE')
+            }
             className="inline-flex min-h-11 cursor-pointer items-center rounded-xl bg-rose-700 px-4 text-sm font-semibold text-white hover:bg-rose-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700 disabled:opacity-50"
           >
             {saving ? 'Removing…' : 'Remove account'}
@@ -1331,7 +1635,10 @@ export default function AccountHome({
           <button
             type="button"
             disabled={Boolean(linkBusy) || !disconnectAccount}
-            onClick={() => disconnectAccount && void runLink(disconnectAccount.id, 'disconnect')}
+            onClick={() =>
+              disconnectAccount &&
+              void runLink(disconnectAccount.id, 'disconnect')
+            }
             className="inline-flex min-h-11 cursor-pointer items-center rounded-xl bg-rose-700 px-4 text-sm font-semibold text-white hover:bg-rose-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700 disabled:opacity-50"
           >
             {linkBusy ? 'Disconnecting…' : 'Disconnect'}
@@ -1358,7 +1665,10 @@ export default function AccountHome({
             type="button"
             disabled={matorBusy}
             onClick={() =>
-              void patchMator({ groqApiKey: null }, { clearDraft: true, saved: 'API key removed.' })
+              void patchMator(
+                { groqApiKey: null },
+                { clearDraft: true, saved: 'API key removed.' }
+              )
             }
             className="inline-flex min-h-11 cursor-pointer items-center rounded-xl bg-rose-700 px-4 text-sm font-semibold text-white hover:bg-rose-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700 disabled:opacity-50"
           >

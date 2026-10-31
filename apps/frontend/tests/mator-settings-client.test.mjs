@@ -27,7 +27,7 @@ test('fetchMatorSettings returns masked settings from GET', async () => {
         howTtsEnabled: true,
         modelId: 'openai/gpt-oss-20b',
       }),
-      { status: 200 },
+      { status: 200 }
     );
   };
   assert.deepEqual(await fetchMatorSettings(), {
@@ -55,7 +55,7 @@ test('saveMatorSettings PUTs JSON and returns masked response without echoing ke
         howTtsEnabled: true,
         modelId: 'openai/gpt-oss-20b',
       }),
-      { status: 200 },
+      { status: 200 }
     );
   };
   const saved = await saveMatorSettings({
@@ -73,6 +73,6 @@ test('saveMatorSettings surfaces backend errors', async () => {
     });
   await assert.rejects(
     saveMatorSettings({ groqApiKey: '' }),
-    /Groq API key cannot be empty/,
+    /Groq API key cannot be empty/
   );
 });

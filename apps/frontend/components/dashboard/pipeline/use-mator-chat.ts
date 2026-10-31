@@ -156,7 +156,7 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
 
   const conversation = useMemo(
     () => eventsToConversation(events, localNotices),
-    [events, localNotices],
+    [events, localNotices]
   );
 
   const staged = useMemo(() => findPendingStage(events), [events]);
@@ -192,8 +192,7 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
   const setConversation = useCallback(
     (
       next:
-        | MatorChatBubble[]
-        | ((previous: MatorChatBubble[]) => MatorChatBubble[]),
+        MatorChatBubble[] | ((previous: MatorChatBubble[]) => MatorChatBubble[])
     ) => {
       const resolved =
         typeof next === 'function'
@@ -205,11 +204,11 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
           (bubble) =>
             bubble.sender === 'assistant' &&
             !eventIds.has(String(bubble.id)) &&
-            bubble.id !== 'seed',
-        ),
+            bubble.id !== 'seed'
+        )
       );
     },
-    [events, localNotices],
+    [events, localNotices]
   );
 
   const send = useCallback(
@@ -239,7 +238,7 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
             ...(request ? { text: request } : {}),
             ...(ids.length ? { attachmentIds: ids } : {}),
           },
-          started.key,
+          started.key
         );
         setEvents((previous) => mergeMatorEvents(previous, result.events));
         speakNewHow(result.events);
@@ -252,7 +251,7 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
         setPending(false);
       }
     },
-    [message, speakNewHow],
+    [message, speakNewHow]
   );
 
   const attachFile = useCallback(
@@ -274,12 +273,12 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
         return uploaded;
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : 'Unable to upload attachment',
+          err instanceof Error ? err.message : 'Unable to upload attachment'
         );
         return null;
       }
     },
-    [send],
+    [send]
   );
 
   const saveMarkers = useCallback(
@@ -291,18 +290,16 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
           previous.map((event) =>
             event.attachmentId === attachmentId
               ? { ...event, markers: meta.markers }
-              : event,
-          ),
+              : event
+          )
         );
         return meta;
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : 'Unable to save markers',
-        );
+        setError(err instanceof Error ? err.message : 'Unable to save markers');
         throw err;
       }
     },
-    [],
+    []
   );
 
   const sendMessage = useCallback(
@@ -310,7 +307,7 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
       event.preventDefault();
       void send();
     },
-    [send],
+    [send]
   );
 
   const incompleteContinue = useCallback(async () => {
@@ -330,7 +327,7 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
       setEvents((previous) => mergeMatorEvents(previous, [result.event]));
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Unable to confirm staged action',
+        err instanceof Error ? err.message : 'Unable to confirm staged action'
       );
     } finally {
       inFlightRef.current = false;
@@ -350,7 +347,7 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
       setEvents((previous) => mergeMatorEvents(previous, [result.event]));
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Unable to reject staged action',
+        err instanceof Error ? err.message : 'Unable to reject staged action'
       );
     } finally {
       inFlightRef.current = false;
@@ -375,7 +372,7 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
       sendGateRef.current = createMatorSendGate();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Unable to create conversation',
+        err instanceof Error ? err.message : 'Unable to create conversation'
       );
     } finally {
       inFlightRef.current = false;
@@ -401,14 +398,14 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
         sendGateRef.current = createMatorSendGate();
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : 'Unable to switch conversation',
+          err instanceof Error ? err.message : 'Unable to switch conversation'
         );
       } finally {
         inFlightRef.current = false;
         setPending(false);
       }
     },
-    [conversations, workflowId],
+    [conversations, workflowId]
   );
 
   const restorePipeline = useCallback(async (confirmDirty = false) => {
@@ -423,7 +420,7 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
       setEvents(loaded);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Unable to restore pipeline',
+        err instanceof Error ? err.message : 'Unable to restore pipeline'
       );
       throw err;
     } finally {
@@ -446,7 +443,7 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
         }
       },
     }),
-    [settingsToggles.howTtsEnabled],
+    [settingsToggles.howTtsEnabled]
   );
 
   return {

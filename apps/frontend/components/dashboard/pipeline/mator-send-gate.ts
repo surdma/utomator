@@ -16,7 +16,7 @@ export function createMatorSendGate(): MatorSendGate {
 
 export function beginMatorSend(
   gate: MatorSendGate,
-  newKey: () => string,
+  newKey: () => string
 ): { key: string; next: MatorSendGate } | null {
   if (gate.inFlight) return null;
   const key = gate.idempotencyKey ?? newKey();
@@ -26,7 +26,8 @@ export function beginMatorSend(
   };
 }
 
-export function finishMatorSendSuccess(gate: MatorSendGate): MatorSendGate {
+export function finishMatorSendSuccess(_gate: MatorSendGate): MatorSendGate {
+  void _gate; // success clears the key regardless of the previous gate state
   return { inFlight: false, idempotencyKey: null };
 }
 

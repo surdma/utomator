@@ -15,7 +15,7 @@ export function useChatMessages() {
       id: item.id,
       sender: item.sender,
       text: item.text,
-    })),
+    }))
   );
 
   function chatNotice(text: string) {

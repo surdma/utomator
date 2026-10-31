@@ -192,7 +192,9 @@ export function useVoiceSession({
     };
     recorder.onstop = () => {
       release();
-      const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+      const blob = new Blob(chunks, {
+        type: recorder.mimeType || 'audio/webm',
+      });
       if (!blob.size) return;
       setInterim('Transcribing…');
       void transcribeMatorAudio(blob)
@@ -222,7 +224,7 @@ export function useVoiceSession({
   function begin() {
     if (
       typeof MediaRecorder !== 'undefined' &&
-      navigator.mediaDevices?.getUserMedia
+      typeof navigator.mediaDevices?.getUserMedia === 'function'
     ) {
       void beginGroqRecording().catch(() => {
         setListening(false);

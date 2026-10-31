@@ -29,7 +29,11 @@ test('rapid second send while in-flight is a no-op (no second key / POST)', () =
 
   const second = beginMatorSend(gate, newKey);
   assert.equal(second, null, 'second begin must no-op while inFlight');
-  assert.equal(keyCount, 1, 'idempotency key must not be re-allocated mid-flight');
+  assert.equal(
+    keyCount,
+    1,
+    'idempotency key must not be re-allocated mid-flight'
+  );
 });
 
 test('failure keeps idempotency key for retry; success clears for next turn', () => {
@@ -46,12 +50,20 @@ test('failure keeps idempotency key for retry; success clears for next turn', ()
 
   const retry = beginMatorSend(gate, newKey);
   assert.ok(retry);
-  assert.equal(retry.key, 'key-1', 'retry after failure reuses Idempotency-Key');
+  assert.equal(
+    retry.key,
+    'key-1',
+    'retry after failure reuses Idempotency-Key'
+  );
   assert.equal(keyCount, 1);
 
   gate = finishMatorSendSuccess(retry.next);
   const nextTurn = beginMatorSend(gate, newKey);
   assert.ok(nextTurn);
-  assert.equal(nextTurn.key, 'key-2', 'successful send clears key for next turn');
+  assert.equal(
+    nextTurn.key,
+    'key-2',
+    'successful send clears key for next turn'
+  );
   assert.equal(keyCount, 2);
 });

@@ -52,7 +52,7 @@ export function useDashboardNavigation(initialPane: DashboardPane) {
         ? 'resumes'
         : path.startsWith('/dashboard/settings')
           ? 'settings'
-          : 'profile',
+          : 'profile'
     );
     navigate(path);
   }

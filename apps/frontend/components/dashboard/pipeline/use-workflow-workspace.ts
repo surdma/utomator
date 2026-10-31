@@ -26,7 +26,7 @@ function adoptWorkflow(
     setPlanDirty: Dispatch<SetStateAction<boolean>>;
     setLoadingWorkflow: Dispatch<SetStateAction<boolean>>;
     setRunFormError: Dispatch<SetStateAction<string>>;
-  },
+  }
 ) {
   setters.setLoadingWorkflow(false);
   setters.setActiveWorkflow(record);
@@ -110,7 +110,9 @@ export function useWorkflowWorkspace({
         };
         if (!live || savedListEpoch.current !== generation) return;
         if (!created.ok) {
-          setRunFormError(record.error || 'Could not create the default workflow');
+          setRunFormError(
+            record.error || 'Could not create the default workflow'
+          );
           return;
         }
         setSavedWorkflows([record]);

@@ -82,17 +82,21 @@ export default function DashboardSidebar({
             type="button"
             onClick={() => onNavigate(item.id)}
             aria-current={
-              (item.id === 'profile'
-                ? pane === 'profile' || pane === 'settings'
-                : pane === item.id)
+              (
+                item.id === 'profile'
+                  ? pane === 'profile' || pane === 'settings'
+                  : pane === item.id
+              )
                 ? 'page'
                 : undefined
             }
             className={
               'flex min-h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-xs font-semibold transition ' +
-              ((item.id === 'profile'
-                ? pane === 'profile' || pane === 'settings'
-                : pane === item.id)
+              ((
+                item.id === 'profile'
+                  ? pane === 'profile' || pane === 'settings'
+                  : pane === item.id
+              )
                 ? 'bg-teal-500/15 text-teal-200'
                 : 'text-slate-300 hover:bg-slate-800')
             }

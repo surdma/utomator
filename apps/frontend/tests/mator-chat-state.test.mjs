@@ -46,11 +46,11 @@ test('mergeMatorEvents dedupes by id and sorts by createdAt', () => {
         text: 'hi updated',
         createdAt: '2026-10-30T10:00:02.000Z',
       },
-    ],
+    ]
   );
   assert.deepEqual(
     merged.map((event) => event.id),
-    ['b', 'a'],
+    ['b', 'a']
   );
   assert.equal(merged[1].text, 'hi updated');
 });
@@ -83,7 +83,7 @@ test('eventsToConversation maps user/how/message and keeps seed when empty', () 
   ]);
   assert.deepEqual(
     bubbles.map((item) => item.sender),
-    ['user', 'assistant'],
+    ['user', 'assistant']
   );
   assert.equal(bubbles.length, 2);
 });
@@ -150,7 +150,7 @@ test('findPendingStage clears after applied or rejected', () => {
         action: { type: 'edit_step' },
       },
     ]),
-    null,
+    null
   );
   assert.equal(
     findPendingStage([
@@ -164,7 +164,7 @@ test('findPendingStage clears after applied or rejected', () => {
         action: { type: 'edit_step' },
       },
     ]),
-    null,
+    null
   );
 });
 
@@ -196,7 +196,7 @@ test('findIncompleteEvent clears after later assistant success', () => {
         text: 'Resumed and finished.',
       },
     ]),
-    null,
+    null
   );
   assert.equal(
     findIncompleteEvent([
@@ -209,7 +209,7 @@ test('findIncompleteEvent clears after later assistant success', () => {
         text: 'All done.',
       },
     ]),
-    null,
+    null
   );
 });
 
@@ -223,9 +223,9 @@ test('shouldSpeakHow only for assistant how when enabled; never user', () => {
         kind: 'how',
         text: 'Guidance',
       },
-      true,
+      true
     ),
-    true,
+    true
   );
   assert.equal(
     shouldSpeakHow(
@@ -236,9 +236,9 @@ test('shouldSpeakHow only for assistant how when enabled; never user', () => {
         kind: 'how',
         text: 'Guidance',
       },
-      false,
+      false
     ),
-    false,
+    false
   );
   assert.equal(
     shouldSpeakHow(
@@ -249,9 +249,9 @@ test('shouldSpeakHow only for assistant how when enabled; never user', () => {
         kind: 'message',
         text: 'hello',
       },
-      true,
+      true
     ),
-    false,
+    false
   );
 });
 
@@ -290,12 +290,12 @@ test('open clarify stays until the user answers', () => {
         createdAt: '2026-10-30T10:00:01.000Z',
       },
     ]),
-    null,
+    null
   );
   const form = new FormData();
   form.append('tone', 'Direct');
   assert.equal(
     formatClarifyReply(readClarifyQuestions(clarify.action), form),
-    'Which tone? Direct',
+    'Which tone? Direct'
   );
 });

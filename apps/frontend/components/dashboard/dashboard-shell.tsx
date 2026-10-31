@@ -82,11 +82,7 @@ export default function DashboardShell({
 
   const [runFormError, setRunFormError] = useState('');
   const setConversationRef = useRef<
-    (
-      next:
-        | ChatMessage[]
-        | ((previous: ChatMessage[]) => ChatMessage[]),
-    ) => void
+    (next: ChatMessage[] | ((previous: ChatMessage[]) => ChatMessage[])) => void
   >(() => {});
   const {
     available,
@@ -238,7 +234,9 @@ export default function DashboardShell({
     setForm,
     setSelectedNode,
   });
-  setConversationRef.current = setConversation;
+  useEffect(() => {
+    setConversationRef.current = setConversation;
+  }, [setConversation]);
 
   const routeUtterance = useCallback(
     (text: string, source: 'voice' | 'text') => {
@@ -261,7 +259,7 @@ export default function DashboardShell({
       }
       submitUtterance(request, source);
     },
-    [activeWorkflow?.id, send, setMessage, submitUtterance],
+    [activeWorkflow?.id, send, setMessage, submitUtterance]
   );
 
   const sendMessage = (event: FormEvent<HTMLFormElement>) => {
@@ -295,7 +293,7 @@ export default function DashboardShell({
         const ok =
           typeof window !== 'undefined' &&
           window.confirm(
-            'Live pipeline has unsaved changes. Restore this conversation’s pipeline anyway?',
+            'Live pipeline has unsaved changes. Restore this conversation’s pipeline anyway?'
           );
         if (ok) await restorePipeline(true);
         return;

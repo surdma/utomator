@@ -13,7 +13,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import StudioDialog from '@/components/ui/studio-dialog';
-import { VoiceMicButton } from '@/components/dashboard/pipeline/voice-deck';
+import { VoiceMicButton } from '@/components/dashboard/pipeline/mator-composer';
 import { useVoiceSession } from '@/components/dashboard/pipeline/use-voice-session';
 import { matchAnnotationAction, mergeSpokenComment } from './annotation-voice';
 

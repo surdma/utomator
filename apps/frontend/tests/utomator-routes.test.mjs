@@ -49,7 +49,9 @@ test('the proxy still rejects unsupported endpoints and non-local access', () =>
   assert.match(proxy, /Local automation only/);
   assert.match(proxy, /Unsupported endpoint/);
   assert.ok(
-    proxy.includes("...(body?.length ? { 'content-type': 'application/json' } : {})"),
+    proxy.includes(
+      "...(body?.length ? { 'content-type': 'application/json' } : {})"
+    ),
     'bodyless clone POST does not advertise JSON'
   );
   assert.match(proxy, /idempotency-key/);

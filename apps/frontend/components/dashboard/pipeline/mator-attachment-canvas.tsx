@@ -61,7 +61,7 @@ export default function MatorAttachmentCanvas({
       onMarkersChange([...markers, next]);
       setSelectedId(next.id);
     },
-    [draftText, interactive, markers, onMarkersChange],
+    [draftText, interactive, markers, onMarkersChange]
   );
 
   return (
@@ -86,7 +86,8 @@ export default function MatorAttachmentCanvas({
           interactive ? 'cursor-crosshair' : ''
         }`}
         onClick={(event) => {
-          if ((event.target as HTMLElement).closest('[data-marker-pin]')) return;
+          if ((event.target as HTMLElement).closest('[data-marker-pin]'))
+            return;
           placePin(event.clientX, event.clientY);
         }}
       >

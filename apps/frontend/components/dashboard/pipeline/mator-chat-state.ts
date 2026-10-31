@@ -47,17 +47,19 @@ export function seedConversation(): MatorChatBubble[] {
 
 export function mergeMatorEvents(
   existing: MatorChatEvent[],
-  incoming: MatorChatEvent[],
+  incoming: MatorChatEvent[]
 ): MatorChatEvent[] {
   const byId = new Map<string, MatorChatEvent>();
   for (const event of existing) byId.set(event.id, event);
   for (const event of incoming) byId.set(event.id, event);
-  return [...byId.values()].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  return [...byId.values()].sort((a, b) =>
+    a.createdAt.localeCompare(b.createdAt)
+  );
 }
 
 export function eventsToConversation(
   events: MatorChatEvent[],
-  localNotices: MatorChatBubble[] = [],
+  localNotices: MatorChatBubble[] = []
 ): MatorChatBubble[] {
   const fromEvents: MatorChatBubble[] = [];
   for (const event of events) {
@@ -82,7 +84,7 @@ export function eventsToConversation(
 
 function resolvesStagedEvent(
   candidate: MatorChatEvent,
-  staged: MatorChatEvent,
+  staged: MatorChatEvent
 ): boolean {
   if (candidate.status !== 'applied' && candidate.status !== 'rejected')
     return false;
@@ -113,7 +115,7 @@ function isAssistantTerminal(event: MatorChatEvent): boolean {
 
 /** Latest staged with no later applied/rejected resolution for that stage. */
 export function findPendingStage(
-  events: MatorChatEvent[],
+  events: MatorChatEvent[]
 ): MatorChatEvent | null {
   for (let index = events.length - 1; index >= 0; index -= 1) {
     const event = events[index];
@@ -128,7 +130,7 @@ export function findPendingStage(
 
 /** Incomplete only when it is the latest assistant terminal event. */
 export function findIncompleteEvent(
-  events: MatorChatEvent[],
+  events: MatorChatEvent[]
 ): MatorChatEvent | null {
   for (let index = events.length - 1; index >= 0; index -= 1) {
     const event = events[index];
@@ -140,7 +142,7 @@ export function findIncompleteEvent(
 
 export function shouldSpeakHow(
   event: MatorChatEvent,
-  howTtsEnabled: boolean,
+  howTtsEnabled: boolean
 ): boolean {
   return (
     howTtsEnabled &&
@@ -171,19 +173,27 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function readClarifyQuestions(
-  action: unknown,
+  action: unknown
 ): MatorClarifyQuestion[] | null {
   if (!isRecord(action) || action.type !== 'clarify') return null;
   if (!Array.isArray(action.questions) || action.questions.length === 0)
     return null;
   const questions: MatorClarifyQuestion[] = [];
   for (const item of action.questions) {
-    if (!isRecord(item) || typeof item.name !== 'string' || typeof item.prompt !== 'string')
+    if (
+      !isRecord(item) ||
+      typeof item.name !== 'string' ||
+      typeof item.prompt !== 'string'
+    )
       return null;
     const choices: MatorClarifyChoice[] = [];
     if (Array.isArray(item.choices)) {
       for (const choice of item.choices) {
-        if (!isRecord(choice) || typeof choice.value !== 'string' || typeof choice.label !== 'string')
+        if (
+          !isRecord(choice) ||
+          typeof choice.value !== 'string' ||
+          typeof choice.label !== 'string'
+        )
           return null;
         choices.push({
           value: choice.value,
@@ -217,7 +227,7 @@ export function readClarifyQuestions(
 
 /** Latest clarify that the user has not answered yet. */
 export function findOpenClarify(
-  events: MatorChatEvent[],
+  events: MatorChatEvent[]
 ): MatorChatEvent | null {
   for (let index = events.length - 1; index >= 0; index -= 1) {
     const event = events[index];
@@ -231,7 +241,7 @@ export function findOpenClarify(
 
 export function formatClarifyReply(
   questions: MatorClarifyQuestion[],
-  formData: FormData,
+  formData: FormData
 ): string {
   return questions
     .map((question) => {

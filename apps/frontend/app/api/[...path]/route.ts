@@ -25,7 +25,8 @@ const id = '[0-9a-fA-F-]{36}';
 function matorPermitted(path: string, method: string): boolean {
   const id = '[0-9a-fA-F-]{36}';
   if (path === 'mator/models' && method === 'GET') return true;
-  if (path === 'mator/settings' && (method === 'GET' || method === 'PUT')) return true;
+  if (path === 'mator/settings' && (method === 'GET' || method === 'PUT'))
+    return true;
   if (path === 'mator/audio/transcriptions' && method === 'POST') return true;
   if (path === 'mator/audio/speech' && method === 'POST') return true;
   if (
@@ -33,7 +34,10 @@ function matorPermitted(path: string, method: string): boolean {
     (method === 'GET' || method === 'POST')
   )
     return true;
-  if (new RegExp(`^mator/workflows/${id}/current$`).test(path) && method === 'POST')
+  if (
+    new RegExp(`^mator/workflows/${id}/current$`).test(path) &&
+    method === 'POST'
+  )
     return true;
   if (new RegExp(`^mator/conversations/${id}$`).test(path) && method === 'GET')
     return true;
@@ -42,7 +46,10 @@ function matorPermitted(path: string, method: string): boolean {
     method === 'POST'
   )
     return true;
-  if (new RegExp(`^mator/conversations/${id}/events$`).test(path) && method === 'GET')
+  if (
+    new RegExp(`^mator/conversations/${id}/events$`).test(path) &&
+    method === 'GET'
+  )
     return true;
   if (
     new RegExp(`^mator/conversations/${id}/events/stream$`).test(path) &&
@@ -323,7 +330,9 @@ async function forward(req: NextRequest, params: Promise<{ path: string[] }>) {
         headers: {
           ...(body?.length ? { 'content-type': 'application/json' } : {}),
           ...(req.headers.get('idempotency-key')
-            ? { 'idempotency-key': req.headers.get('idempotency-key') as string }
+            ? {
+                'idempotency-key': req.headers.get('idempotency-key') as string,
+              }
             : {}),
         },
         body: body?.length ? body : undefined,

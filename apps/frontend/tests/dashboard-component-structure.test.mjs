@@ -53,19 +53,26 @@ test('dashboard pages consume the shared dashboard shell', () => {
 test('mator action chat UI modules ship with required testids', () => {
   const panel = readFileSync(
     component('pipeline/operator-chat-panel.tsx'),
-    'utf8',
+    'utf8'
   );
-  const deck = readFileSync(component('pipeline/voice-deck.tsx'), 'utf8');
+  const composer = readFileSync(
+    component('pipeline/mator-composer.tsx'),
+    'utf8'
+  );
   assert.equal(
     existsSync(component('pipeline/mator-attachment-canvas.tsx')),
-    true,
+    true
   );
   assert.match(panel, /data-testid="mator-chat"/);
   assert.match(panel, /data-testid="mator-conversation-switcher"/);
   assert.match(panel, /data-testid="mator-restore-pipeline"/);
-  assert.match(deck, /data-testid="mator-stage-confirm"/);
+  assert.match(composer, /data-testid="mator-input"/);
+  assert.match(
+    readFileSync(component('../ai-elements/confirmation.tsx'), 'utf8'),
+    /data-testid="mator-stage-confirm"/
+  );
   assert.match(
     readFileSync(component('pipeline/mator-attachment-canvas.tsx'), 'utf8'),
-    /data-testid="mator-attachment-canvas"/,
+    /data-testid="mator-attachment-canvas"/
   );
 });
