@@ -261,17 +261,16 @@ test('Growth workspace connects 21 capability and toolkit graphs, MDX, export an
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: '.skill' }).click();
     assert.equal((await downloadPromise).suggestedFilename(), 'growth-profile-copy.skill');
-    await page
-      .getByRole('textbox', { name: 'Message Mator' })
-      .fill('/craft unlink scope -> outcome');
-    await page.getByRole('button', { name: 'Send message' }).click();
-    await page.getByText(/Updated Profile auditing & section optimization/).waitFor({ timeout: 15000 });
+    await page.getByTestId('craft-node-scope').click();
+    await page.getByRole('button', { name: 'Unlink outcome' }).click();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.getByText('Saved and synchronized with MDX source.').waitFor();
     const updated = (await app.inject('/crafts/' + personal.id)).json() as {
       links: Array<{ source: string; target: string }>;
     };
     assert(
       !updated.links.some((edge) => edge.source === 'scope' && edge.target === 'outcome'),
-      'chat editing must update the owner clone, never a shared default',
+      'graph editing must update the owner clone, never a shared default',
     );
     const original = (await app.inject('/crafts/default-growth-profile')).json() as {
       steps: Array<{ title: string }>;
