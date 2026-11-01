@@ -55,9 +55,11 @@ function newIdempotencyKey() {
 type Options = {
   workflowId: string | null;
   onSpeakHow?: (text: string) => void;
+  onSpeakReply?: (text: string) => void;
+  voiceOnly?: boolean;
 };
 
-export function useMatorChat({ workflowId, onSpeakHow }: Options) {
+export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly = false }: Options) {
   const [message, setMessage] = useState('');
   const [conversations, setConversations] = useState<
     MatorConversationSummary[]
@@ -78,13 +80,17 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
   const inFlightRef = useRef(false);
   const howTtsRef = useRef(true);
   const onSpeakHowRef = useRef(onSpeakHow);
+  const onSpeakReplyRef = useRef(onSpeakReply);
+  const voiceOnlyRef = useRef(voiceOnly);
   const conversationIdRef = useRef<string | null>(null);
   const lastSendPayloadRef = useRef<string | null>(null);
   const refreshEpoch = useRef(0);
 
   useEffect(() => {
     onSpeakHowRef.current = onSpeakHow;
-  }, [onSpeakHow]);
+    onSpeakReplyRef.current = onSpeakReply;
+    voiceOnlyRef.current = voiceOnly;
+  }, [onSpeakHow, onSpeakReply, voiceOnly]);
 
   useEffect(() => {
     howTtsRef.current = settings?.howTtsEnabled ?? true;
@@ -95,13 +101,30 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
   }, [conversationMeta?.id]);
 
   const speakNewHow = useCallback((incoming: MatorChatEvent[]) => {
-    if (!howTtsRef.current) return;
+    // In voice-only mode, speak the final assistant reply once, not every
+    // guidance event followed by the same answer.
+    const spokenReply = voiceOnlyRef.current
+      ? [...incoming].reverse().find(
+          (event) => event.role === 'assistant' && event.kind === 'message' &&
+            event.status !== 'error' && event.status !== 'incomplete' && Boolean(event.text?.trim())
+        )
+      : null;
+    if (spokenReply?.text) {
+      try {
+        onSpeakReplyRef.current?.(spokenReply.text);
+      } catch {
+        // Text delivery is authoritative when speech playback fails.
+      }
+      return;
+    }
+
+    if (!howTtsRef.current && !voiceOnlyRef.current) return;
     for (const event of incoming) {
       if (shouldSpeakHow(event, true) && event.text) {
         try {
           onSpeakHowRef.current?.(event.text);
         } catch {
-          /* Speech is optional. */
+          // Speech is optional.
         }
       }
     }
@@ -251,6 +274,9 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
         speakNewHow(result.events);
         sendGateRef.current = finishMatorSendSuccess(sendGateRef.current);
         lastSendPayloadRef.current = null;
+        if (text !== undefined) {
+          setMessage((current) => current.trim() === request ? '' : current);
+        }
         return true;
       } catch (err) {
         sendGateRef.current = finishMatorSendFailure(sendGateRef.current);
