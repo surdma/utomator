@@ -1015,6 +1015,9 @@ test('Mator stages multiple images and captions until explicit send, then restor
   await page.goto('/dashboard/pipeline');
   const dock = page.getByTestId('mator-chat');
   if (!(await dock.isVisible())) await page.getByRole('button', { name: 'Open Mator' }).click();
+  // Wait for the persisted conversation to initialize before staging files.
+  // The composer is keyed by conversation ID, so initialization remounts it.
+  await expect(dock.getByTestId('mator-thread-pill')).toContainText('Asset draft');
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/0V8AAAAASUVORK5CYII=', 'base64');
   await dock.locator('input[type="file"]').setInputFiles([
     { name: 'diagram-one.png', mimeType: 'image/png', buffer: png },
@@ -1025,7 +1028,7 @@ test('Mator stages multiple images and captions until explicit send, then restor
   expect(sent, 'selection must not create a message').toEqual([]);
 
   await dock.getByTestId('mator-pending-gallery').getByTestId('mator-image-thumbnail').first().click();
-  const modal = page.getByTestId('mator-image-annotation-modal');
+  const modal = page.locator('dialog[open][data-testid="mator-image-annotation-modal"]');
   await expect(modal).toBeVisible();
   await modal.getByLabel('Annotation comment').fill('Keep the legend readable');
   await modal.getByRole('button', { name: 'Add comment at center' }).click();
