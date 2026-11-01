@@ -79,6 +79,7 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
   const howTtsRef = useRef(true);
   const onSpeakHowRef = useRef(onSpeakHow);
   const conversationIdRef = useRef<string | null>(null);
+  const lastSendPayloadRef = useRef<string | null>(null);
   const refreshEpoch = useRef(0);
 
   useEffect(() => {
@@ -218,14 +219,20 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
       if (!request && ids.length === 0) return;
       const conversationId = conversationIdRef.current;
       if (!conversationId) {
-        setError('Select or create a workflow conversation first');
-        return;
+        setError('Chat is not ready. Wait for the workflow conversation to load, then retry.');
+        if (text !== undefined) setMessage(request);
+        return false;
       }
 
-      // In-flight guard: second click while sending is a no-op (no second POST).
+      // Only retry the same idempotency key when the payload is unchanged.
+      const payloadSignature = JSON.stringify({ request, ids });
+      if (sendGateRef.current.idempotencyKey && lastSendPayloadRef.current !== payloadSignature) {
+        sendGateRef.current = createMatorSendGate();
+      }
       const started = beginMatorSend(sendGateRef.current, newIdempotencyKey);
-      if (!started) return;
+      if (!started) return false;
       sendGateRef.current = started.next;
+      lastSendPayloadRef.current = payloadSignature;
       inFlightRef.current = true;
       setPending(true);
       setError(null);
@@ -243,9 +250,13 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
         setEvents((previous) => mergeMatorEvents(previous, result.events));
         speakNewHow(result.events);
         sendGateRef.current = finishMatorSendSuccess(sendGateRef.current);
+        lastSendPayloadRef.current = null;
+        return true;
       } catch (err) {
         sendGateRef.current = finishMatorSendFailure(sendGateRef.current);
+        setMessage((current) => current.trim() ? current : request);
         setError(err instanceof Error ? err.message : 'Unable to send message');
+        return false;
       } finally {
         inFlightRef.current = false;
         setPending(false);
@@ -269,7 +280,8 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
           ...previous,
           [uploaded.id]: previewUrl,
         }));
-        await send(file.name, [uploaded.id]);
+        const sent = await send(file.name, [uploaded.id]);
+        if (!sent) throw new Error('Attachment uploaded but the message was not sent');
         return uploaded;
       } catch (err) {
         setError(
@@ -370,6 +382,7 @@ export function useMatorChat({ workflowId, onSpeakHow }: Options) {
       setEvents([]);
       setLocalNotices([]);
       sendGateRef.current = createMatorSendGate();
+      lastSendPayloadRef.current = null;
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Unable to create conversation'
