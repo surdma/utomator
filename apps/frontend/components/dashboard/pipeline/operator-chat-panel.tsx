@@ -18,6 +18,7 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useToast } from '@/components/ui/toast';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Popover } from '@/components/ui/popover';
 import { ThreadSkeleton } from '@/components/ui/skeleton';
@@ -45,6 +46,7 @@ import { Queue } from '@/components/ai-elements/queue';
 import { Suggestion } from '@/components/ai-elements/suggestion';
 import MatorClarifyForm from './mator-clarify-form';
 import MatorComposer from './mator-composer';
+import { setVoiceOnlyPreference, useVoiceOnlyPreference } from './mator-voice-preference';
 import MatorChatSettings from './mator-chat-settings';
 import { MarkdownReply } from './markdown-reply';
 import { getApi } from './api-client';
@@ -219,6 +221,7 @@ export default function OperatorChatPanel({
   chatError = null,
 }: Props) {
   const reduceMotion = useReducedMotion();
+  const voiceOnly = useVoiceOnlyPreference();
   const toast = useToast();
   const [threadOpen, setThreadOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -236,6 +239,8 @@ export default function OperatorChatPanel({
     return () => { mounted = false; };
   }, []);
   const showRestore = Boolean(conversationMeta?.boundRevisionId);
+  const orderedMatorEvents = useMemo(() => [...matorEvents].sort((a, b) => a.createdAt.localeCompare(b.createdAt)), [matorEvents]);
+  const lastMatorEventId = orderedMatorEvents.at(-1)?.id;
   const openClarify = findOpenClarify(matorEvents);
   const clarifyQuestions = openClarify
     ? readClarifyQuestions(openClarify.action)
@@ -438,6 +443,15 @@ export default function OperatorChatPanel({
               )}
             </nav>
           </Popover>
+          <label className="inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full hover:bg-slate-50" title="Voice-only mode">
+            <span className="sr-only">Voice-only mode</span>
+            <Switch
+              checked={voiceOnly}
+              onCheckedChange={setVoiceOnlyPreference}
+              data-testid="mator-voice-switch"
+              aria-label="Voice-only conversation"
+            />
+          </label>
           <MatorChatSettings disabled={busy} />
           <button
             type="button"
@@ -471,293 +485,6 @@ export default function OperatorChatPanel({
           <MessageScroller>
             <MessageScrollerViewport aria-label="Thread history">
               <MessageScrollerContent className="gap-5 px-3 py-3">
-                {matorEvents.length === 0 ? (
-                  loading ? (
-                    <ThreadSkeleton />
-                  ) : (
-                    <div data-testid="mator-empty-thread" className="flex min-h-56 flex-col justify-center gap-4 px-3 py-8">
-                      <div className="flex items-center gap-3">
-                        <AssistantAvatar />
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">What would you like to do?</p>
-                          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
-                            Ask Mator for help with this workflow, or start with a suggestion.
-                          </p>
-                        </div>
-                      </div>
-                      <Suggestion suggestions={START_SUGGESTIONS} onSelect={onMessageChange} disabled={busy} />
-                    </div>
-                  )
-                ) : (
-                  matorEvents.map((event) => {
-                    if (event.kind === 'message' && event.role === 'user') {
-                      return (
-                        <ThreadRow key={event.id} id={event.id} anchor>
-                          <Message align="end">
-                            <MessageContent className="w-fit min-w-0 max-w-[min(82%,28rem)] flex-none">
-                              <MessageHeader>You</MessageHeader>
-                              <Bubble variant="muted" className="w-fit max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
-                                <BubbleContent>
-                                  {event.text || 'Attachment'}
-                                </BubbleContent>
-                              </Bubble>
-                              {event.attachmentId && (
-                                <div className="mt-2">
-                                  <MatorAttachmentCanvas
-                                    attachmentId={event.attachmentId}
-                                    imageSrc={
-                                      attachmentPreviews[event.attachmentId] ??
-                                      matorAttachmentFileUrl(event.attachmentId)
-                                    }
-                                    markers={event.markers ?? []}
-                                    draftText={markerDraft}
-                                    onMarkersChange={
-                                      onSaveMarkers
-                                        ? (markers) =>
-                                            void onSaveMarkers(
-                                              event.attachmentId!,
-                                              markers
-                                            )
-                                        : undefined
-                                    }
-                                  />
-                                  <a href={matorAttachmentFileUrl(event.attachmentId)} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex min-h-9 items-center text-xs font-medium text-teal-800 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-teal-700">Open attached file</a>
-                                </div>
-                              )}
-                            </MessageContent>
-                            <Avatar className="bg-slate-800 text-white">
-                              <AvatarFallback>ME</AvatarFallback>
-                            </Avatar>
-                          </Message>
-                        </ThreadRow>
-                      );
-                    }
-
-                    if (event.kind === 'how') {
-                      return (
-                        <ThreadRow key={event.id} id={event.id}>
-                          {!event.text ? null : (
-                            <Reasoning
-                              title="Guidance from Mator"
-                              content={event.text}
-                              speakLabel="Read this guidance aloud"
-                              onSpeak={() => voice.speak(event.text!, true)}
-                            />
-                          )}
-                        </ThreadRow>
-                      );
-                    }
-
-                    if (event.kind === 'message') {
-                      return (
-                        <ThreadRow key={event.id} id={event.id}>
-                          <Message>
-                            <AssistantAvatar />
-                            <MessageContent className="min-w-0 max-w-[min(90%,34rem)] break-words [overflow-wrap:anywhere]">
-                              <MessageHeader>Utomator · Mator</MessageHeader>
-                              <MarkdownReply text={event.text ?? ''} />
-                              <MessageFooter className="mt-1.5 flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => void copyReply(event)}
-                                  aria-label="Copy reply"
-                                  className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-lg px-1.5 text-[11px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-                                >
-                                  {copiedId === event.id ? (
-                                    <CircleCheck
-                                      className="size-3.5"
-                                      aria-hidden="true"
-                                    />
-                                  ) : (
-                                    <ClipboardCopy
-                                      className="size-3.5"
-                                      aria-hidden="true"
-                                    />
-                                  )}
-                                  {copiedId === event.id ? 'Copied' : 'Copy'}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    voice.speak(event.text ?? '', true)
-                                  }
-                                  aria-label="Hear this reply"
-                                  className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-lg px-1.5 text-[11px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-                                >
-                                  <Volume2
-                                    className="size-3.5"
-                                    aria-hidden="true"
-                                  />
-                                  Hear this
-                                </button>
-                              </MessageFooter>
-                            </MessageContent>
-                          </Message>
-                        </ThreadRow>
-                      );
-                    }
-
-                    if (event.kind === 'clarify') {
-                      const questions = readClarifyQuestions(event.action);
-                      const open = openClarify?.id === event.id && questions;
-                      return (
-                        <ThreadRow key={event.id} id={event.id}>
-                          <Message>
-                            <Avatar className="bg-teal-50 text-teal-800 ring-1 ring-teal-200">
-                              <AvatarFallback>
-                                <Workflow
-                                  className="size-3.5"
-                                  aria-hidden="true"
-                                />
-                              </AvatarFallback>
-                            </Avatar>
-                            <MessageContent className="min-w-0 max-w-[min(90%,34rem)] break-words [overflow-wrap:anywhere]">
-                              <MessageHeader>Mator</MessageHeader>
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                <Badge
-                                  tone={open ? 'orange' : 'default'}
-                                  size="xs"
-                                >
-                                  {open
-                                    ? `Answers needed · ${clarifyCount(questions!)} question${clarifyCount(questions!) === 1 ? '' : 's'}`
-                                    : 'Clarified'}
-                                </Badge>
-                              </div>
-                              {event.text && (
-                                <Bubble variant="outline" className="mt-1 w-fit max-w-full break-words [overflow-wrap:anywhere]">
-                                  <BubbleContent>{event.text}</BubbleContent>
-                                </Bubble>
-                              )}
-                            </MessageContent>
-                          </Message>
-                        </ThreadRow>
-                      );
-                    }
-
-                    if (event.status || event.action) {
-                      return (
-                        <ThreadRow key={event.id} id={event.id}>
-                          <Confirmation
-                            className="w-full max-w-[min(100%,30rem)]"
-                            status={
-                              (event.status as
-                                | 'staged'
-                                | 'applied'
-                                | 'rejected'
-                                | 'incomplete'
-                                | 'error'
-                                | undefined) ?? 'staged'
-                            }
-                            action={
-                              event.action &&
-                              typeof event.action === 'object' &&
-                              'type' in event.action
-                                ? String(
-                                    (event.action as { type: unknown }).type
-                                  ).replaceAll('_', ' ')
-                                : event.text
-                                  ? event.text.slice(0, 48)
-                                  : null
-                            }
-                            text={event.action ? event.text : null}
-                            attachment={attachmentFor(event)}
-                            onConfirm={onConfirm}
-                            onReject={onReject}
-                            busy={busy}
-                          />
-                        </ThreadRow>
-                      );
-                    }
-
-                    if (event.attachmentId) {
-                      return (
-                        <ThreadRow key={event.id} id={event.id}>
-                          <MatorAttachmentCanvas
-                            attachmentId={event.attachmentId}
-                            imageSrc={
-                              attachmentPreviews[event.attachmentId] ?? matorAttachmentFileUrl(event.attachmentId)
-                            }
-                            markers={event.markers ?? []}
-                            draftText={markerDraft}
-                            onMarkersChange={
-                              onSaveMarkers
-                                ? (markers) =>
-                                    void onSaveMarkers(
-                                      event.attachmentId!,
-                                      markers
-                                    )
-                                : undefined
-                            }
-                          />
-                        </ThreadRow>
-                      );
-                    }
-
-                    if (event.text) {
-                      return (
-                        <ThreadRow key={event.id} id={event.id}>
-                          <Message>
-                            <Avatar
-                              className={
-                                event.status === 'error'
-                                  ? 'bg-rose-700 text-white'
-                                  : 'bg-slate-700 text-white'
-                              }
-                            >
-                              <AvatarFallback>
-                                {event.status === 'error' ? (
-                                  <AlertCircle
-                                    className="size-4"
-                                    aria-hidden="true"
-                                  />
-                                ) : (
-                                  <Workflow
-                                    className="size-4"
-                                    aria-hidden="true"
-                                  />
-                                )}
-                              </AvatarFallback>
-                            </Avatar>
-                            <MessageContent className="min-w-0 max-w-[min(90%,34rem)] break-words [overflow-wrap:anywhere]">
-                              <MessageHeader>
-                                {(event.kind || 'event').toUpperCase()}
-                              </MessageHeader>
-                              <Bubble className="w-fit max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
-                                <BubbleContent>{event.text}</BubbleContent>
-                              </Bubble>
-                            </MessageContent>
-                          </Message>
-                        </ThreadRow>
-                      );
-                    }
-
-                    return null;
-                  })
-                )}
-
-                {/* Legacy local conversation view (belt: kept for hook parity) */}
-                {matorEvents.length === 0 &&
-                  conversation
-                    .filter((item) => item.sender === 'user')
-                    .map((item) => (
-                      <MessageScrollerItem
-                        key={item.id}
-                        messageId={String(item.id)}
-                        scrollAnchor={item.sender === 'user'}
-                      >
-                        <Message align="end">
-                          <MessageContent className="w-fit min-w-0 max-w-[min(82%,28rem)] flex-none">
-                            <Bubble variant="muted" className="w-fit max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
-                              <BubbleContent>{item.text}</BubbleContent>
-                            </Bubble>
-                          </MessageContent>
-                          <Avatar className="bg-slate-800 text-white">
-                            <AvatarFallback>ME</AvatarFallback>
-                          </Avatar>
-                        </Message>
-                      </MessageScrollerItem>
-                    ))}
-
                 {(() => {
                   const rows: ReactNode[] = [];
                   let lastRun: string | null = null;
@@ -890,6 +617,300 @@ export default function OperatorChatPanel({
                       </Message>
                     </MessageScrollerItem>
                   ))}
+                {orderedMatorEvents.length === 0 ? (
+                  loading ? (
+                    <ThreadSkeleton />
+                  ) : conversation.some((item) => item.id !== 'seed') ? null : (
+                    <div data-testid="mator-empty-thread" className="flex min-h-56 flex-col justify-center gap-4 px-3 py-8">
+                      <div className="flex items-center gap-3">
+                        <AssistantAvatar />
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">What would you like to do?</p>
+                          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+                            Ask Mator for help with this workflow, or start with a suggestion.
+                          </p>
+                        </div>
+                      </div>
+                      <Suggestion suggestions={START_SUGGESTIONS} onSelect={onMessageChange} disabled={busy} />
+                    </div>
+                  )
+                ) : (
+                  orderedMatorEvents.map((event) => {
+                    if (event.kind === 'message' && event.role === 'user') {
+                      return (
+                        <ThreadRow key={event.id} id={event.id} anchor={event.id === lastMatorEventId}>
+                          <Message align="end">
+                            <MessageContent className="w-fit min-w-0 max-w-[min(82%,28rem)] flex-none">
+                              <MessageHeader>You</MessageHeader>
+                              <Bubble variant="muted" className="w-fit max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                                <BubbleContent>
+                                  {event.text || 'Attachment'}
+                                </BubbleContent>
+                              </Bubble>
+                              {event.attachmentId && (
+                                <div className="mt-2">
+                                  <MatorAttachmentCanvas
+                                    attachmentId={event.attachmentId}
+                                    imageSrc={
+                                      attachmentPreviews[event.attachmentId] ??
+                                      matorAttachmentFileUrl(event.attachmentId)
+                                    }
+                                    markers={event.markers ?? []}
+                                    draftText={markerDraft}
+                                    onMarkersChange={
+                                      onSaveMarkers
+                                        ? (markers) =>
+                                            void onSaveMarkers(
+                                              event.attachmentId!,
+                                              markers
+                                            )
+                                        : undefined
+                                    }
+                                  />
+                                  <a href={matorAttachmentFileUrl(event.attachmentId)} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex min-h-9 items-center text-xs font-medium text-teal-800 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-teal-700">Open attached file</a>
+                                </div>
+                              )}
+                            </MessageContent>
+                            <Avatar className="bg-slate-800 text-white">
+                              <AvatarFallback>ME</AvatarFallback>
+                            </Avatar>
+                          </Message>
+                        </ThreadRow>
+                      );
+                    }
+
+                    if (event.kind === 'how') {
+                      return (
+                        <ThreadRow key={event.id} id={event.id} anchor={event.id === lastMatorEventId}>
+                          {!event.text ? null : (
+                            <Reasoning
+                              title="Guidance from Mator"
+                              content={event.text}
+                              speakLabel="Read this guidance aloud"
+                              onSpeak={() => voice.speak(event.text!, true)}
+                            />
+                          )}
+                        </ThreadRow>
+                      );
+                    }
+
+                    if (event.kind === 'message') {
+                      return (
+                        <ThreadRow key={event.id} id={event.id} anchor={event.id === lastMatorEventId}>
+                          <Message>
+                            <AssistantAvatar />
+                            <MessageContent className="min-w-0 max-w-[min(90%,34rem)] break-words [overflow-wrap:anywhere]">
+                              <MessageHeader>Utomator · Mator</MessageHeader>
+                              <MarkdownReply text={event.text ?? ''} />
+                              <MessageFooter className="mt-1.5 flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => void copyReply(event)}
+                                  aria-label="Copy reply"
+                                  className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-lg px-1.5 text-[11px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                                >
+                                  {copiedId === event.id ? (
+                                    <CircleCheck
+                                      className="size-3.5"
+                                      aria-hidden="true"
+                                    />
+                                  ) : (
+                                    <ClipboardCopy
+                                      className="size-3.5"
+                                      aria-hidden="true"
+                                    />
+                                  )}
+                                  {copiedId === event.id ? 'Copied' : 'Copy'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    voice.speak(event.text ?? '', true)
+                                  }
+                                  aria-label="Hear this reply"
+                                  className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-lg px-1.5 text-[11px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                                >
+                                  <Volume2
+                                    className="size-3.5"
+                                    aria-hidden="true"
+                                  />
+                                  Hear this
+                                </button>
+                              </MessageFooter>
+                            </MessageContent>
+                          </Message>
+                        </ThreadRow>
+                      );
+                    }
+
+                    if (event.kind === 'clarify') {
+                      const questions = readClarifyQuestions(event.action);
+                      const open = openClarify?.id === event.id && questions;
+                      return (
+                        <ThreadRow key={event.id} id={event.id} anchor={event.id === lastMatorEventId}>
+                          <Message>
+                            <Avatar className="bg-teal-50 text-teal-800 ring-1 ring-teal-200">
+                              <AvatarFallback>
+                                <Workflow
+                                  className="size-3.5"
+                                  aria-hidden="true"
+                                />
+                              </AvatarFallback>
+                            </Avatar>
+                            <MessageContent className="min-w-0 max-w-[min(90%,34rem)] break-words [overflow-wrap:anywhere]">
+                              <MessageHeader>Mator</MessageHeader>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <Badge
+                                  tone={open ? 'orange' : 'default'}
+                                  size="xs"
+                                >
+                                  {open
+                                    ? `Answers needed · ${clarifyCount(questions!)} question${clarifyCount(questions!) === 1 ? '' : 's'}`
+                                    : 'Clarified'}
+                                </Badge>
+                              </div>
+                              {event.text && (
+                                <Bubble variant="outline" className="mt-1 w-fit max-w-full break-words [overflow-wrap:anywhere]">
+                                  <BubbleContent>{event.text}</BubbleContent>
+                                </Bubble>
+                              )}
+                            </MessageContent>
+                          </Message>
+                        </ThreadRow>
+                      );
+                    }
+
+                    if (event.status || event.action) {
+                      return (
+                        <ThreadRow key={event.id} id={event.id} anchor={event.id === lastMatorEventId}>
+                          <Confirmation
+                            className="w-full max-w-[min(100%,30rem)]"
+                            status={
+                              (event.status as
+                                | 'staged'
+                                | 'applied'
+                                | 'rejected'
+                                | 'incomplete'
+                                | 'error'
+                                | undefined) ?? 'staged'
+                            }
+                            action={
+                              event.action &&
+                              typeof event.action === 'object' &&
+                              'type' in event.action
+                                ? String(
+                                    (event.action as { type: unknown }).type
+                                  ).replaceAll('_', ' ')
+                                : event.text
+                                  ? event.text.slice(0, 48)
+                                  : null
+                            }
+                            text={event.action ? event.text : null}
+                            attachment={attachmentFor(event)}
+                            onConfirm={onConfirm}
+                            onReject={onReject}
+                            busy={busy}
+                          />
+                        </ThreadRow>
+                      );
+                    }
+
+                    if (event.attachmentId) {
+                      return (
+                        <ThreadRow key={event.id} id={event.id} anchor={event.id === lastMatorEventId}>
+                          <MatorAttachmentCanvas
+                            attachmentId={event.attachmentId}
+                            imageSrc={
+                              attachmentPreviews[event.attachmentId] ?? matorAttachmentFileUrl(event.attachmentId)
+                            }
+                            markers={event.markers ?? []}
+                            draftText={markerDraft}
+                            onMarkersChange={
+                              onSaveMarkers
+                                ? (markers) =>
+                                    void onSaveMarkers(
+                                      event.attachmentId!,
+                                      markers
+                                    )
+                                : undefined
+                            }
+                          />
+                        </ThreadRow>
+                      );
+                    }
+
+                    if (event.text) {
+                      return (
+                        <ThreadRow key={event.id} id={event.id} anchor={event.id === lastMatorEventId}>
+                          <Message>
+                            <Avatar
+                              className={
+                                event.status === 'error'
+                                  ? 'bg-rose-700 text-white'
+                                  : 'bg-slate-700 text-white'
+                              }
+                            >
+                              <AvatarFallback>
+                                {event.status === 'error' ? (
+                                  <AlertCircle
+                                    className="size-4"
+                                    aria-hidden="true"
+                                  />
+                                ) : (
+                                  <Workflow
+                                    className="size-4"
+                                    aria-hidden="true"
+                                  />
+                                )}
+                              </AvatarFallback>
+                            </Avatar>
+                            <MessageContent className="min-w-0 max-w-[min(90%,34rem)] break-words [overflow-wrap:anywhere]">
+                              <MessageHeader>
+                                {(event.kind || 'event').toUpperCase()}
+                              </MessageHeader>
+                              <Bubble className="w-fit max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                                <BubbleContent>{event.text}</BubbleContent>
+                              </Bubble>
+                            </MessageContent>
+                          </Message>
+                        </ThreadRow>
+                      );
+                    }
+
+                    return null;
+                  })
+                )}
+
+                {/* Unpersisted command notices remain visible without duplicating stored events. */}
+                {orderedMatorEvents.length === 0 &&
+                  conversation
+                    .filter((item) => item.id !== 'seed')
+                    .map((item) => (
+                      <MessageScrollerItem
+                        key={item.id}
+                        messageId={String(item.id)}
+                        scrollAnchor={item.id === conversation.at(-1)?.id}
+                      >
+                        <Message align={item.sender === 'user' ? 'end' : 'start'}>
+                          {item.sender === 'assistant' && <AssistantAvatar />}
+                          <MessageContent className={item.sender === 'user' ? 'w-fit min-w-0 max-w-[min(82%,28rem)] flex-none' : 'min-w-0 max-w-[min(90%,34rem)]'}>
+                            {item.sender === 'user' ? (
+                              <Bubble variant="muted" className="w-fit max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                                <BubbleContent>{item.text}</BubbleContent>
+                              </Bubble>
+                            ) : (
+                              <MarkdownReply text={item.text} />
+                            )}
+                          </MessageContent>
+                          {item.sender === 'user' && (
+                            <Avatar className="bg-slate-800 text-white">
+                              <AvatarFallback>ME</AvatarFallback>
+                            </Avatar>
+                          )}
+                        </Message>
+                      </MessageScrollerItem>
+                    ))}
+
               </MessageScrollerContent>
             </MessageScrollerViewport>
             <MessageScrollerButton />
