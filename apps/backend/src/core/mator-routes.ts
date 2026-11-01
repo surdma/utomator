@@ -11,6 +11,7 @@ import { MatorConfigError, requireGroqKey, runMatorTurn } from './mator-agent.js
 import {
   getAttachmentFile,
   getAttachmentMeta,
+  MATOR_REVIEW_ID_PATTERN,
   type MatorImageMarker,
   saveAttachment,
   upsertMarkers,
@@ -49,7 +50,13 @@ async function withAttachmentDetails(docs: DocumentStore, events: MatorEvent[]):
       try {
         const meta = await getAttachmentMeta(docs, id);
         if (meta.conversationId !== event.conversationId) return null;
-        return { id, name: meta.filename, mime: meta.mime, markers: meta.markers };
+        return {
+          id,
+          name: meta.filename,
+          mime: meta.mime,
+          markers: meta.markers,
+          reviewId: meta.reviewId,
+        };
       } catch {
         return null;
       }
@@ -64,6 +71,8 @@ export type MatorRouteDeps = {
   ports: MatorActionPorts;
   fetch?: typeof globalThis.fetch;
   attachmentRoot?: string;
+  /** Confirms a visual review exists before a chat asset links to it. */
+  resolveVisualReview?: (reviewId: string) => Promise<unknown>;
 };
 
 type WorkflowConversationIndex = {
@@ -519,7 +528,10 @@ export function registerMatorRoutes(app: FastifyInstance, deps: MatorRouteDeps):
     }
   });
 
-  app.patch<{ Params: { id: string }; Body: { markers?: MatorImageMarker[] } }>(
+  app.patch<{
+    Params: { id: string };
+    Body: { markers?: MatorImageMarker[]; reviewId?: string };
+  }>(
     '/mator/attachments/:id/markers',
     async (request, reply) => {
       const docs = await requireDocuments(deps, reply);
@@ -527,7 +539,24 @@ export function registerMatorRoutes(app: FastifyInstance, deps: MatorRouteDeps):
       try {
         if (!Array.isArray(request.body?.markers))
           return jsonError(reply, 400, 'markers array is required');
-        const meta = await upsertMarkers(docs, request.params.id, request.body.markers);
+        if (request.body.reviewId !== undefined) {
+          if (
+            typeof request.body.reviewId !== 'string' ||
+            !MATOR_REVIEW_ID_PATTERN.test(request.body.reviewId)
+          )
+            return jsonError(reply, 400, 'Invalid review reference');
+          if (
+            !deps.resolveVisualReview ||
+            !(await deps.resolveVisualReview(request.body.reviewId))
+          )
+            return jsonError(reply, 400, 'Review does not exist');
+        }
+        const meta = await upsertMarkers(
+          docs,
+          request.params.id,
+          request.body.markers,
+          request.body.reviewId
+        );
         return meta;
       } catch (error) {
         return jsonError(reply, httpStatusForError(error), errorMessage(error));

@@ -239,6 +239,8 @@ export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?
   registerMatorRoutes(app, {
     getDocuments: () => database,
     ports: matorPorts,
+    resolveVisualReview: async (reviewId) =>
+      (await visual.yamlFor(reviewId)) !== null,
   });
 
   app.get('/connectors', async () => connectors.list());

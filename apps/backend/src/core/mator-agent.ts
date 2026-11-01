@@ -321,7 +321,13 @@ export async function runMatorTurn(
   for (const id of attachmentIds) {
     const meta = await getAttachmentMeta(docs, id);
     if (meta.conversationId !== input.conversationId) throw Error('Attachment belongs to another conversation');
-    attachments.push({ id, name: meta.filename, mime: meta.mime, markers: meta.markers });
+    attachments.push({
+      id,
+      name: meta.filename,
+      mime: meta.mime,
+      markers: meta.markers,
+      reviewId: meta.reviewId,
+    });
   }
   const produced: MatorEvent[] = [];
   if (input.userText !== undefined || attachments.length) {

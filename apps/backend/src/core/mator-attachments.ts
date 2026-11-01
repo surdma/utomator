@@ -14,6 +14,9 @@ export type MatorAttachmentKind = 'image' | 'video' | 'other';
 
 export type MatorImageMarker = { id: string; x: number; y: number; text: string };
 
+/** Review records use the randomUUID shape; YAML only exists for tagged reviews. */
+export const MATOR_REVIEW_ID_PATTERN = /^[a-f0-9-]{36}$/i;
+
 export type MatorAttachmentMeta = {
   id: string;
   conversationId: string;
@@ -23,6 +26,8 @@ export type MatorAttachmentMeta = {
   kind: MatorAttachmentKind;
   relativePath: string;
   markers: MatorImageMarker[];
+  /** Saved visual review (annotation YAML) linked from the operator studio. */
+  reviewId?: string;
   createdAt: string;
 };
 
@@ -168,12 +173,22 @@ export async function upsertMarkers(
   docs: DocumentStore,
   attachmentId: string,
   markers: MatorImageMarker[],
+  reviewId?: string,
 ): Promise<MatorAttachmentMeta> {
+  if (
+    reviewId !== undefined &&
+    (typeof reviewId !== 'string' || !MATOR_REVIEW_ID_PATTERN.test(reviewId))
+  )
+    throw Error('Invalid review reference');
   for (;;) {
     const loaded = await loadMeta(docs, attachmentId);
     if (!loaded) throw Error('Attachment not found');
     const normalized = markers.map(normalizeMarker);
-    const next: MatorAttachmentMeta = { ...loaded.value, markers: normalized };
+    const next: MatorAttachmentMeta = {
+      ...loaded.value,
+      markers: normalized,
+      ...(reviewId !== undefined ? { reviewId } : {}),
+    };
     try {
       await docs.put(MATOR_ATTACHMENTS_NAMESPACE, attachmentId, next, loaded.version);
       return next;

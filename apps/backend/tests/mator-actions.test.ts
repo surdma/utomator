@@ -14,6 +14,7 @@ import {
 } from '../src/core/mator-actions.js';
 import {
   getAttachmentFile,
+  getAttachmentMeta,
   saveAttachment,
 } from '../src/core/mator-attachments.js';
 import {
@@ -480,6 +481,52 @@ test('apply annotate_image upserts attachment markers', async () => {
     assert.deepEqual(loaded.meta.markers, [
       { id: 'pin-1', x: 0.25, y: 0.75, text: 'look here' },
     ]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('annotate_image parses and links optional review references', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mator-annotate-review-'));
+  try {
+    const docs = new FakeDocuments('local-owner');
+    const workflow = fakeWorkflowPort(makeRecord(defaultPlan('x', 'audit')));
+    const ports = portsFor(workflow);
+    const conversation = await createConversation(docs, workflow.live.id, 'Review link');
+    const saved = await saveAttachment(docs, {
+      conversationId: conversation.id,
+      filename: 'shot.png',
+      mime: 'image/png',
+      bytes: Buffer.from('png'),
+    }, { root });
+    const reviewId = '123e4567-e89b-42d3-a456-426614174000';
+
+    // A malformed reference never parses into an applicable action.
+    assert.throws(
+      () => parseMatorAction({
+        type: 'annotate_image',
+        attachmentId: saved.id,
+        markers: [],
+        reviewId: '“quote”/inject',
+      }),
+      /Invalid action\.reviewId/,
+    );
+
+    const action = parseMatorAction({
+      type: 'annotate_image',
+      attachmentId: saved.id,
+      markers: [],
+      reviewId,
+    });
+    const result = await applyAction(docs, ports, {
+      workflowId: workflow.live.id,
+      conversationId: conversation.id,
+      eventId: 'evt-review-link',
+      action,
+    }, { squash: true });
+    assert.equal(result.event.status, 'applied');
+    const meta = await getAttachmentMeta(docs, saved.id);
+    assert.equal(meta.reviewId, reviewId);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

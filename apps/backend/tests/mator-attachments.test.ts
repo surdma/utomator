@@ -111,6 +111,38 @@ test('upsertMarkers clamps x/y to [0,1] and requires text', async () => {
   }
 });
 
+test('upsertMarkers validates and persists review references', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mator-review-'));
+  try {
+    const docs = new FakeDocuments('local-owner');
+    const conv = await createConversation(docs, 'wf-reviews');
+    const savedA = await saveAttachment(docs, {
+      conversationId: conv.id,
+      filename: 'one.png',
+      mime: 'image/png',
+      bytes: Buffer.from([1]),
+    }, { root });
+    const savedB = await saveAttachment(docs, {
+      conversationId: conv.id,
+      filename: 'two.png',
+      mime: 'image/png',
+      bytes: Buffer.from([2]),
+    }, { root });
+    const reviewId = '123e4567-e89b-42d3-a456-426614174000';
+
+    await assert.rejects(
+      () => upsertMarkers(docs, savedA.id, [], 'not-a-review-id'),
+      /Invalid review reference/,
+    );
+    const linked = await upsertMarkers(docs, savedA.id, [], reviewId);
+    assert.equal(linked.reviewId, reviewId);
+    const unrelated = await getAttachmentMeta(docs, savedB.id);
+    assert.equal(unrelated.reviewId, undefined);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('saveAttachment rejects unknown conversation', async () => {
   const root = await mkdtemp(join(tmpdir(), 'mator-attach-'));
   try {

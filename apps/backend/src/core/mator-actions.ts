@@ -5,7 +5,10 @@ import {
   type MatorConversation,
   type MatorEvent,
 } from './mator-conversations.js';
-import { upsertMarkers } from './mator-attachments.js';
+import {
+  MATOR_REVIEW_ID_PATTERN,
+  upsertMarkers,
+} from './mator-attachments.js';
 import type { WorkflowPlan, WorkflowStep, StepKind } from './workflow-plan.js';
 import { validatePlan } from './workflow-plan.js';
 import type { WorkflowRecord } from './workflow-registry.js';
@@ -31,7 +34,12 @@ export type MatorAction =
   | { type: 'remove_step'; stepId: string }
   | { type: 'run_step'; stepId?: string; request: RunRequest }
   | { type: 'craft'; command: string; craftId?: string }
-  | { type: 'annotate_image'; attachmentId: string; markers: MatorImageMarker[] }
+  | {
+      type: 'annotate_image';
+      attachmentId: string;
+      markers: MatorImageMarker[];
+      reviewId?: string;
+    }
   | { type: 'explain_how'; text: string }
   | { type: 'noop'; reason?: string }
   | { type: 'clarify'; prompt?: string; questions: MatorClarifyQuestion[] };
@@ -291,11 +299,23 @@ export function parseMatorAction(raw: unknown): MatorAction {
       return action;
     }
     case 'annotate_image': {
-      return {
+      const action: Extract<MatorAction, { type: 'annotate_image' }> = {
         type: 'annotate_image',
         attachmentId: requireString(raw.attachmentId, 'attachmentId'),
         markers: parseMarkers(raw.markers),
       };
+      if (raw.reviewId !== undefined) {
+        if (
+          typeof raw.reviewId !== 'string' ||
+          !MATOR_REVIEW_ID_PATTERN.test(raw.reviewId)
+        )
+          throw new MatorActionValidationError(
+            'Invalid action.reviewId',
+            'action.reviewId'
+          );
+        action.reviewId = raw.reviewId;
+      }
+      return action;
     }
     case 'explain_how':
       return { type: 'explain_how', text: requireString(raw.text, 'text') };
@@ -574,7 +594,12 @@ export async function applyAction(
       break;
     }
     case 'annotate_image': {
-      await upsertMarkers(docs, input.action.attachmentId, input.action.markers);
+      await upsertMarkers(
+        docs,
+        input.action.attachmentId,
+        input.action.markers,
+        input.action.reviewId
+      );
       break;
     }
     case 'explain_how':

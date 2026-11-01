@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Fastify from 'fastify';
 import { registerMatorRoutes } from '../src/core/mator-routes.js';
+import { getAttachmentMeta } from '../src/core/mator-attachments.js';
 import { createConversation, listEvents } from '../src/core/mator-conversations.js';
 import { stageAction, workflowRegistryPort, type MatorActionPorts } from '../src/core/mator-actions.js';
 import { putMatorSettings } from '../src/core/mator-settings.js';
@@ -135,6 +136,7 @@ async function buildMatorApp(opts: {
   ports: MatorActionPorts;
   fetch?: typeof fetch;
   attachmentRoot?: string;
+  resolveVisualReview?: (reviewId: string) => Promise<unknown>;
 }) {
   const app = Fastify({ logger: false });
   registerMatorRoutes(app, {
@@ -142,6 +144,7 @@ async function buildMatorApp(opts: {
     ports: opts.ports,
     fetch: opts.fetch,
     attachmentRoot: opts.attachmentRoot,
+    resolveVisualReview: opts.resolveVisualReview,
   });
   await app.ready();
   return app;
@@ -537,6 +540,80 @@ test('attachment upload (base64 JSON) and marker patch', async () => {
     });
     assert.equal(markers.statusCode, 200);
     assert.deepEqual(markers.json().markers, [{ id: 'm1', x: 1, y: 0, text: 'here' }]);
+  } finally {
+    await app.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('marker patch links, validates and rejects review references', async () => {
+  const docs = new FakeDocuments('local-owner');
+  const workflow = fakeWorkflowPort(makeRecord(defaultPlan('x', 'audit')));
+  const ports: MatorActionPorts = {
+    workflows: workflow,
+    runner: { start: () => ({ id: 'r', platform: 'x', action: 'audit', state: 'running', createdAt: '' }) },
+  };
+  const conversation = await createConversation(docs, workflow.live.id, 'Link');
+  const root = await mkdtemp(join(tmpdir(), 'mator-link-'));
+  const reviewId = '123e4567-e89b-42d3-a456-426614174000';
+  const app = await buildMatorApp({
+    docs,
+    ports,
+    attachmentRoot: root,
+    resolveVisualReview: (id) => Promise.resolve(id === reviewId),
+  });
+  try {
+    const png = Buffer.from('89504e470d0a1a0a', 'hex');
+    const upload = await app.inject({
+      method: 'POST',
+      url: `/mator/conversations/${conversation.id}/attachments`,
+      payload: { filename: 'shot.png', mime: 'image/png', data: png.toString('base64') },
+    });
+    const id = upload.json().id as string;
+
+    // Resolvable reference persists on asset metadata.
+    const linked = await app.inject({
+      method: 'PATCH',
+      url: `/mator/attachments/${id}/markers`,
+      payload: { markers: [], reviewId },
+    });
+    assert.equal(linked.statusCode, 200);
+    assert.equal(linked.json().reviewId, reviewId);
+    const meta = await getAttachmentMeta(docs, id);
+    assert.equal(meta.reviewId, reviewId);
+
+    // Malformed reference is rejected before any write.
+    const malformed = await app.inject({
+      method: 'PATCH',
+      url: `/mator/attachments/${id}/markers`,
+      payload: { markers: [], reviewId: '../etc/passwd' },
+    });
+    assert.equal(malformed.statusCode, 400);
+    assert.equal(malformed.json().error, 'Invalid review reference');
+
+    // Missing review YAML means there is no fabricated link.
+    const missing = await app.inject({
+      method: 'PATCH',
+      url: `/mator/attachments/${id}/markers`,
+      payload: {
+        markers: [],
+        reviewId: '00000000-0000-4000-8000-000000000000',
+      },
+    });
+    assert.equal(missing.statusCode, 400);
+    assert.equal(missing.json().error, 'Review does not exist');
+    const unchanged = await getAttachmentMeta(docs, id);
+    assert.equal(unchanged.reviewId, reviewId);
+
+    // Regression: the pre-link contract stays identical.
+    const plain = await app.inject({
+      method: 'PATCH',
+      url: `/mator/attachments/${id}/markers`,
+      payload: { markers: [{ id: 'm1', x: 0.5, y: 0.5, text: 'note' }] },
+    });
+    assert.equal(plain.statusCode, 200);
+    assert.deepEqual(plain.json().markers, [{ id: 'm1', x: 0.5, y: 0.5, text: 'note' }]);
+    assert.equal(plain.json().reviewId, reviewId);
   } finally {
     await app.close();
     await rm(root, { recursive: true, force: true });
