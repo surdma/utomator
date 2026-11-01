@@ -383,8 +383,8 @@ test('Mator dock has a usable empty state, thread history, model picker, and voi
 
   await dock.getByTestId('mator-voice-switch').click();
   await expect(dock.getByTestId('mator-composer')).toHaveAttribute('data-mode', 'voice-only');
-  await expect(dock.getByTestId('mator-voice-only')).toHaveAttribute('aria-checked', 'true');
-  await dock.getByTestId('mator-voice-only').click();
+  await expect(dock.getByTestId('mator-voice-switch')).toHaveAttribute('aria-checked', 'true');
+  await dock.getByRole('button', { name: 'Text instead' }).click();
   await expect(dock.getByTestId('mator-composer')).toHaveAttribute('data-mode', 'text');
   await capture(page, info, 'mator-dock-text-first');
 });
@@ -550,6 +550,239 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
   expect(metrics!.assistantOverflow).toBeLessThanOrEqual(1);
   expect(metrics!.confirmationOverflow).toBeLessThanOrEqual(1);
   await capture(page, info, 'mator-content-width-regression');
+});
+
+test('Mator sends text, preserves failed drafts, and places the newest reply last', async ({ page }, info) => {
+  const workflowId = '11111111-1111-4111-8111-111111111111';
+  const conversationId = '22222222-2222-4222-8222-222222222222';
+  const now = '2026-11-01T09:00:00.000Z';
+  const plan = {
+    version: 1,
+    platform: 'linkedin',
+    action: 'audit',
+    name: 'Profile audit',
+    steps: [
+      { id: 'start', kind: 'start', title: 'Start run' },
+      { id: 'finish', kind: 'finish', title: 'Final output' },
+    ],
+    links: [{ source: 'start', target: 'finish' }],
+  };
+  let events: Array<{
+    id: string;
+    conversationId: string;
+    role: string;
+    kind: string;
+    text: string;
+    createdAt: string;
+  }> = [];
+  let failNext = false;
+  const sent: string[] = [];
+
+  await page.route('**/api/workflows', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([{
+        id: workflowId,
+        ownerId: 'local-owner',
+        templateId: null,
+        revision: 1,
+        createdAt: now,
+        updatedAt: now,
+        plan,
+      }]),
+    })
+  );
+  await page.route('**/api/mator/workflows/*/conversations', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        currentId: conversationId,
+        items: [{
+          id: conversationId,
+          workflowId,
+          title: 'Delivery regression',
+          createdAt: now,
+          updatedAt: now,
+          lastMessageAt: now,
+          boundRevisionId: null,
+        }],
+      }),
+    })
+  );
+  await page.route('**/api/mator/conversations/*/events', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(events),
+    })
+  );
+  await page.route('**/api/mator/conversations/*/messages', async (route) => {
+    const payload = route.request().postDataJSON() as { text: string };
+    sent.push(payload.text);
+    if (failNext) {
+      failNext = false;
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Chat provider temporarily unavailable' }),
+      });
+      return;
+    }
+    const timestamp = new Date(Date.parse(now) + events.length * 1000).toISOString();
+    const user = {
+      id: 'user-' + sent.length,
+      conversationId,
+      role: 'user',
+      kind: 'message',
+      text: payload.text,
+      createdAt: timestamp,
+    };
+    const assistant = {
+      id: 'assistant-' + sent.length,
+      conversationId,
+      role: 'assistant',
+      kind: 'message',
+      text: 'Reply to: ' + payload.text,
+      createdAt: new Date(Date.parse(timestamp) + 500).toISOString(),
+    };
+    events = [...events, user, assistant];
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ events: [user, assistant] }),
+    });
+  });
+
+  await page.goto('/dashboard/pipeline');
+  const dock = page.getByTestId('mator-chat');
+  if (!(await dock.isVisible())) {
+    await page.getByRole('button', { name: 'Open Mator' }).click();
+  }
+  const input = dock.getByTestId('mator-input');
+  await expect(input).toBeVisible();
+  await input.fill('First question');
+  await dock.getByTestId('mator-send').click();
+  await expect(dock.getByText('Reply to: First question')).toBeVisible();
+  expect(sent).toEqual(['First question']);
+
+  failNext = true;
+  await input.fill('Keep my unsent draft');
+  await input.press('Enter');
+  await expect(dock.getByRole('alert')).toContainText('Chat provider temporarily unavailable');
+  await expect(input).toHaveValue('Keep my unsent draft');
+  await dock.getByTestId('mator-send').click();
+  await expect(dock.getByText('Reply to: Keep my unsent draft')).toBeVisible();
+  await expect(dock.locator('[data-slot="message"]').last()).toContainText('Reply to: Keep my unsent draft');
+  expect(sent).toEqual(['First question', 'Keep my unsent draft', 'Keep my unsent draft']);
+
+  await page.reload();
+  const restored = page.getByTestId('mator-chat');
+  if (!(await restored.isVisible())) {
+    await page.getByRole('button', { name: 'Open Mator' }).click();
+  }
+  await expect(restored.getByText('Reply to: Keep my unsent draft')).toBeVisible();
+  await expect(restored.locator('[data-slot="message"]').last()).toContainText('Reply to: Keep my unsent draft');
+  await capture(page, info, 'mator-message-delivery-and-reload');
+});
+
+test('Mator accepts recorded speech when SpeechRecognition is unavailable', async ({ page }) => {
+  const workflowId = '11111111-1111-4111-8111-111111111111';
+  const conversationId = '22222222-2222-4222-8222-222222222222';
+  const now = '2026-11-01T09:00:00.000Z';
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: undefined });
+    Object.defineProperty(window, 'webkitSpeechRecognition', { configurable: true, value: undefined });
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia: async () => ({
+        getTracks: () => [{ stop: () => {} }],
+      }) },
+    });
+    Object.defineProperty(window, 'MediaRecorder', {
+      configurable: true,
+      value: class {
+        state = 'inactive';
+        mimeType = 'audio/webm';
+        ondataavailable: ((event: { data: Blob }) => void) | null = null;
+        onstop: (() => void) | null = null;
+        start() { this.state = 'recording'; }
+        stop() {
+          this.state = 'inactive';
+          this.ondataavailable?.({ data: new Blob(['recorded speech'], { type: 'audio/webm' }) });
+          this.onstop?.();
+        }
+      },
+    });
+  });
+  await page.route('**/api/workflows', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([{
+        id: workflowId, ownerId: 'local-owner', templateId: null,
+        revision: 1, createdAt: now, updatedAt: now,
+        plan: {
+          version: 1, platform: 'linkedin', action: 'audit',
+          name: 'Profile audit',
+          steps: [
+            { id: 'start', kind: 'start', title: 'Start run' },
+            { id: 'finish', kind: 'finish', title: 'Final output' },
+          ],
+          links: [{ source: 'start', target: 'finish' }],
+        },
+      }]),
+    })
+  );
+  await page.route('**/api/mator/workflows/*/conversations', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        currentId: conversationId,
+        items: [{
+          id: conversationId, workflowId, title: 'Speech regression',
+          createdAt: now, updatedAt: now, lastMessageAt: now, boundRevisionId: null,
+        }],
+      }),
+    })
+  );
+  await page.route('**/api/mator/conversations/*/events', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+  );
+  await page.route('**/api/mator/audio/transcriptions', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ text: 'Spoken profile question' }),
+    })
+  );
+  let received = '';
+  await page.route('**/api/mator/conversations/*/messages', async (route) => {
+    received = (route.request().postDataJSON() as { text: string }).text;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        events: [
+          { id: 'voice-user', conversationId, role: 'user', kind: 'message', text: received, createdAt: now },
+          { id: 'voice-reply', conversationId, role: 'assistant', kind: 'message', text: 'Heard your profile question', createdAt: '2026-11-01T09:00:01.000Z' },
+        ],
+      }),
+    });
+  });
+  await page.goto('/dashboard/pipeline');
+  const dock = page.getByTestId('mator-chat');
+  if (!(await dock.isVisible())) {
+    await page.getByRole('button', { name: 'Open Mator' }).click();
+  }
+  await expect(dock.getByTestId('mator-mic')).toBeEnabled();
+  await dock.getByTestId('mator-mic').click();
+  await expect(dock.getByTestId('mator-mic')).toHaveAttribute('aria-pressed', 'true');
+  await dock.getByTestId('mator-mic').click();
+  await expect(dock.getByText('Heard your profile question')).toBeVisible();
+  expect(received).toBe('Spoken profile question');
 });
 
 test('Growth modal uses the YAML catalogue with actionable search and pipeline detail', async ({ page }, info) => {
