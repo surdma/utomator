@@ -4,7 +4,6 @@ import {
   useEffect,
   useRef,
   useState,
-  useSyncExternalStore,
   type FormEvent,
 } from 'react';
 import {
@@ -21,7 +20,6 @@ import {
   Volume2,
   X,
 } from 'lucide-react';
-import { Switch } from '@/components/ui/switch';
 import {
   Attachment,
   AttachmentAction,
@@ -31,6 +29,7 @@ import {
   AttachmentTitle,
 } from '@/components/ui/attachment';
 import type { VoiceSession } from './use-voice-session';
+import { setVoiceOnlyPreference, useVoiceOnlyPreference } from './mator-voice-preference';
 import type { MatorModelOption } from './mator-api';
 import { ModelSelector } from '@/components/ai-elements/model-selector';
 import { cn } from '@/lib/utils';
@@ -39,24 +38,7 @@ export const ATTACH_ACCEPT =
   'image/png,image/jpeg,image/webp,.pdf,.txt,.md,.csv';
 
 const VOICE_MISSING =
-  'Voice needs Chrome or Edge on this machine. Type a command instead.';
-
-const VOICE_ONLY_KEY = 'mator.voiceOnly';
-const VOICE_ONLY_EVENT = 'mator-voice-only-change';
-
-function subscribeVoiceOnly(onChange: () => void) {
-  window.addEventListener(VOICE_ONLY_EVENT, onChange);
-  return () => window.removeEventListener(VOICE_ONLY_EVENT, onChange);
-}
-
-function readVoiceOnly() {
-  return window.localStorage.getItem(VOICE_ONLY_KEY) === '1';
-}
-
-function writeVoiceOnly(value: boolean) {
-  window.localStorage.setItem(VOICE_ONLY_KEY, value ? '1' : '0');
-  window.dispatchEvent(new Event(VOICE_ONLY_EVENT));
-}
+  'Microphone access is unavailable here. Switch to text to keep chatting.';
 
 type Props = {
   voice: VoiceSession;
@@ -155,13 +137,7 @@ export default function MatorComposer({
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Voice-only preference lives in localStorage as an external store, so
-  // it survives reloads and needs no state-copy inside an effect.
-  const voiceOnly = useSyncExternalStore(
-    subscribeVoiceOnly,
-    readVoiceOnly,
-    () => false,
-  );
+  const voiceOnly = useVoiceOnlyPreference();
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -226,17 +202,14 @@ export default function MatorComposer({
             <Phone className="size-3.5" aria-hidden="true" />
             Voice mode
           </span>
-          <label className="flex cursor-pointer items-center gap-1.5">
-            <Switch
-              checked={voiceOnly}
-              onCheckedChange={(checked) => writeVoiceOnly(checked)}
-              aria-label="Voice-only conversation"
-              data-testid="mator-voice-only"
-            />
-            <span className="text-[10px] font-medium text-slate-500">
-              Text instead
-            </span>
-          </label>
+          <button
+            type="button"
+            onClick={() => setVoiceOnlyPreference(false)}
+            data-testid="mator-voice-only"
+            className="min-h-10 rounded-lg px-2 text-xs font-medium text-teal-800 hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+          >
+            Text instead
+          </button>
         </div>
         <div className="mt-3 flex flex-col items-center gap-2 pb-1">
           <p
@@ -423,17 +396,6 @@ export default function MatorComposer({
                   className="relative"
                 />
               )}
-              <label className="flex cursor-pointer items-center gap-1">
-                <Switch
-                  checked={false}
-                  onCheckedChange={(checked) => checked && writeVoiceOnly(true)}
-                  aria-label="Switch to voice-only conversation"
-                  data-testid="mator-voice-switch"
-                />
-                <span className="hidden text-[10px] font-medium text-slate-400 sm:block">
-                  Voice-only
-                </span>
-              </label>
               <button
                 type="submit"
                 aria-label={busy ? 'Sending' : 'Send message'}
