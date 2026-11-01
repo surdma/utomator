@@ -2,7 +2,11 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { synthesizeMatorSpeech, transcribeMatorAudio } from './mator-api';
-import { acquireCurrentVoiceStream, readVoiceSupport } from './voice-support';
+import {
+  acquireCurrentVoiceStream,
+  createVoiceDeliveryGate,
+  readVoiceSupport,
+} from './voice-support';
 import { playMatorSpeechChunks } from './mator-speech-chunks';
 
 type RecognitionResult = {
@@ -82,6 +86,7 @@ export type VoiceSession = {
   toggleListen: () => void;
   toggleMute: () => void;
   speak: (text: string, force?: boolean) => void;
+  cancelPendingTranscript: () => void;
 };
 
 export function useVoiceSession({
@@ -114,6 +119,7 @@ export function useVoiceSession({
   const cancelRecorderRef = useRef<(() => void) | null>(null);
   const captureGenerationRef = useRef(0);
   const microphonePermissionPendingRef = useRef(false);
+  const deliveryGateRef = useRef(createVoiceDeliveryGate());
 
   useEffect(() => {
     onFinalRef.current = onFinal;
@@ -229,6 +235,7 @@ export function useVoiceSession({
   }
 
   useEffect(() => () => {
+    deliveryGateRef.current.invalidate();
     captureGenerationRef.current += 1;
     microphonePermissionPendingRef.current = false;
     speechEpochRef.current += 1;
@@ -240,7 +247,7 @@ export function useVoiceSession({
     stopRef.current?.(false);
   }, []);
 
-  async function beginGroqRecording() {
+  async function beginGroqRecording(deliveryToken: number) {
     const generation = ++captureGenerationRef.current;
     microphonePermissionPendingRef.current = true;
     setListening(true);
@@ -290,6 +297,7 @@ export function useVoiceSession({
     };
     recorder.onstop = () => {
       release();
+      if (!deliveryGateRef.current.isCurrent(deliveryToken)) return;
       const blob = new Blob(chunks, {
         type: recorder.mimeType || 'audio/webm',
       });
@@ -297,11 +305,13 @@ export function useVoiceSession({
       setInterim('Transcribing…');
       void transcribeMatorAudio(blob)
         .then((text) => {
+          if (!deliveryGateRef.current.isCurrent(deliveryToken)) return;
           setInterim('');
           if (text) onFinalRef.current(text);
           else setError(VOICE_RETRY);
         })
         .catch(() => {
+          if (!deliveryGateRef.current.isCurrent(deliveryToken)) return;
           setInterim('');
           browserRetryRef.current = Boolean(recognitionConstructor(window));
           setError(browserRetryRef.current
@@ -334,6 +344,7 @@ export function useVoiceSession({
   }
 
   function begin() {
+    const deliveryToken = deliveryGateRef.current.start();
     stopSpeech(); // Barge-in cancels an active spoken reply.
     // Web Speech cannot transcribe a saved MediaRecorder Blob.
     // After a Groq error, the next explicit tap starts a new recording.
@@ -343,7 +354,7 @@ export function useVoiceSession({
       typeof MediaRecorder !== 'undefined' &&
       typeof navigator.mediaDevices?.getUserMedia === 'function'
     ) {
-      void beginGroqRecording();
+      void beginGroqRecording(deliveryToken);
       return;
     }
     const Ctor = recognitionConstructor(window);
@@ -372,7 +383,9 @@ export function useVoiceSession({
       setListening(false);
       if (stopRef.current === finish) stopRef.current = null;
       const text = finals.trim();
-      if (emit && text) onFinalRef.current(text);
+      if (emit && text && deliveryGateRef.current.isCurrent(deliveryToken)) {
+        onFinalRef.current(text);
+      }
     };
     const release = () => finish(false);
     stopRef.current = finish;
@@ -416,12 +429,19 @@ export function useVoiceSession({
     }
   }
 
+  function cancelPendingTranscript() {
+    deliveryGateRef.current.invalidate();
+    captureGenerationRef.current += 1;
+    microphonePermissionPendingRef.current = false;
+    cancelRecorderRef.current?.();
+    stopRef.current?.(false);
+    setListening(false);
+    setInterim('');
+  }
+
   function toggleListen() {
     if (microphonePermissionPendingRef.current) {
-      captureGenerationRef.current += 1;
-      microphonePermissionPendingRef.current = false;
-      setListening(false);
-      setInterim('');
+      cancelPendingTranscript();
       return;
     }
     if (listening) {
@@ -452,5 +472,6 @@ export function useVoiceSession({
     toggleListen,
     toggleMute,
     speak,
+    cancelPendingTranscript,
   };
 }

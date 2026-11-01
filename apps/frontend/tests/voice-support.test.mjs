@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   acquireCurrentVoiceStream,
+  createVoiceDeliveryGate,
   readVoiceSupport,
 } from '../components/dashboard/pipeline/voice-support.ts';
 
@@ -49,4 +50,29 @@ test('current microphone permission keeps its stream for recording', async () =>
   );
   assert.equal(acquired, stream);
   assert.equal(stops, 0);
+});
+
+test('completed transcription cannot reach a different conversation after invalidation', async () => {
+  const gate = createVoiceDeliveryGate();
+  const original = gate.start();
+  let fulfill;
+  const pending = new Promise((resolve) => { fulfill = resolve; });
+  const delivered = [];
+  const completion = pending.then((text) => {
+    if (gate.isCurrent(original)) delivered.push(text);
+  });
+  gate.invalidate(); // Thread switch occurred while transcription was pending.
+  fulfill('Message intended for the previous thread');
+  await completion;
+  assert.deepEqual(delivered, []);
+});
+
+test('a newer recording supersedes an older pending transcript', () => {
+  const gate = createVoiceDeliveryGate();
+  const first = gate.start();
+  const second = gate.start();
+  assert.equal(gate.isCurrent(first), false);
+  assert.equal(gate.isCurrent(second), true);
+  gate.invalidate();
+  assert.equal(gate.isCurrent(second), false);
 });

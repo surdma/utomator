@@ -833,6 +833,117 @@ test('Mator accepts recorded speech when SpeechRecognition is unavailable', asyn
   await expect(dock.getByTestId('mator-input')).toHaveValue('');
 });
 
+
+test('Mator discards a delayed transcription after switching workflow chat threads', async ({ page }) => {
+  const workflowId = '11111111-1111-4111-8111-111111111111';
+  const a = '22222222-2222-4222-8222-222222222222';
+  const b = '33333333-3333-4333-8333-333333333333';
+  const now = '2026-11-01T09:00:00.000Z';
+  let active = a;
+  const sent: string[] = [];
+  let startTranscription: () => void = () => {};
+  let releaseTranscription: () => void = () => {};
+  const receivedTranscription = new Promise<void>((resolve) => { startTranscription = resolve; });
+  const holdTranscription = new Promise<void>((resolve) => { releaseTranscription = resolve; });
+
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: undefined });
+    Object.defineProperty(window, 'webkitSpeechRecognition', { configurable: true, value: undefined });
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia: async () => ({ getTracks: () => [{ stop: () => {} }] }) },
+    });
+    Object.defineProperty(window, 'MediaRecorder', {
+      configurable: true,
+      value: class {
+        state = 'inactive';
+        mimeType = 'audio/mp4';
+        ondataavailable: ((event: { data: Blob }) => void) | null = null;
+        onstop: (() => void) | null = null;
+        start() { this.state = 'recording'; }
+        stop() {
+          this.state = 'inactive';
+          this.ondataavailable?.({ data: new Blob(['voice'], { type: 'audio/mp4' }) });
+          this.onstop?.();
+        }
+      },
+    });
+  });
+  await page.route('**/api/workflows', (route) => route.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify([{
+      id: workflowId, ownerId: 'local-owner', templateId: null,
+      revision: 1, createdAt: now, updatedAt: now,
+      plan: {
+        version: 1, platform: 'linkedin', action: 'audit', name: 'Profile audit',
+        steps: [
+          { id: 'start', kind: 'start', title: 'Start run' },
+          { id: 'finish', kind: 'finish', title: 'Final output' },
+        ],
+        links: [{ source: 'start', target: 'finish' }],
+      },
+    }]),
+  }));
+  await page.route('**/api/mator/workflows/*/conversations', (route) => route.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({
+      currentId: active,
+      items: [a, b].map((id, index) => ({
+        id, workflowId, title: index === 0 ? 'Thread A' : 'Thread B',
+        createdAt: now, updatedAt: now, lastMessageAt: now, boundRevisionId: null,
+      })),
+    }),
+  }));
+  await page.route('**/api/mator/workflows/*/current', (route) => {
+    active = (route.request().postDataJSON() as { conversationId: string }).conversationId;
+    return route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ currentId: active }),
+    });
+  });
+  await page.route('**/api/mator/conversations/*/events', (route) => route.fulfill({
+    status: 200, contentType: 'application/json', body: '[]',
+  }));
+  await page.route('**/api/mator/audio/transcriptions', async (route) => {
+    startTranscription();
+    await holdTranscription;
+    await route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ text: 'This speech belongs only to thread A' }),
+    });
+  });
+  await page.route('**/api/mator/conversations/*/messages', (route) => {
+    sent.push(route.request().url());
+    return route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"Unexpected send"}' });
+  });
+
+  await page.goto('/dashboard/pipeline');
+  const dock = page.getByTestId('mator-chat');
+  if (!(await dock.isVisible())) {
+    await page.getByRole('button', { name: 'Open Mator' }).click();
+  }
+  await dock.getByTestId('mator-voice-switch').click();
+  const mic = dock.getByTestId('mator-voice-listening');
+  await mic.click();
+  await expect(mic).toHaveAttribute('aria-pressed', 'true');
+  await mic.click();
+  await receivedTranscription;
+
+  await dock.getByTestId('mator-thread-pill').click();
+  await dock.getByTestId('mator-conversation-switcher').getByRole('button', { name: /Thread B/ }).click();
+  await expect(dock.getByTestId('mator-thread-pill')).toContainText('Thread B');
+  expect(active).toBe(b);
+
+  const transcriptResponse = page.waitForResponse((res) =>
+    res.url().includes('/api/mator/audio/transcriptions') && res.status() === 200
+  );
+  releaseTranscription();
+  await transcriptResponse;
+  await page.waitForTimeout(150);
+  expect(sent, 'no stale speech may be posted to a different thread').toEqual([]);
+  await expect(dock.getByText('This speech belongs only to thread A')).toHaveCount(0);
+});
+
 test('Mator approval cards decide the selected proposal, not another staged action', async ({ page }, info) => {
   const workflowId = '11111111-1111-4111-8111-111111111111';
   const conversationId = '22222222-2222-4222-8222-222222222222';

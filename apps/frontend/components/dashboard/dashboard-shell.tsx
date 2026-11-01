@@ -183,6 +183,7 @@ export default function DashboardShell({
     onFinal: (text) => submitRef.current(text, 'voice'),
   });
   const voiceOnly = useVoiceOnlyPreference();
+  const voiceScopeRef = useRef<string | null>(null);
   const spokenRunRef = useRef<{ runId: string | null; seen: Set<number> }>({ runId: null, seen: new Set() });
   const {
     message,
@@ -218,6 +219,15 @@ export default function DashboardShell({
     onSpeakReply: (text) => voice.speak(text),
     voiceOnly,
   });
+  // A reply from a previous workflow/thread must never be delivered in the new scope.
+  useEffect(() => {
+    const scope = `${activeWorkflow?.id ?? ''}:${conversationMeta?.id ?? ''}`;
+    if (voiceScopeRef.current !== null && voiceScopeRef.current !== scope) {
+      voice.cancelPendingTranscript();
+    }
+    voiceScopeRef.current = scope;
+  }, [activeWorkflow?.id, conversationMeta?.id, voice.cancelPendingTranscript]);
+
   // Runner SSE events, not the YAML plan, are the authority for spoken status.
   // Changes of run identity seed the history so navigating to an old run is silent.
   useEffect(() => {
@@ -654,6 +664,7 @@ export default function DashboardShell({
           mobileChatOpen={mobileChatOpen}
           showChat={showChat}
           onClose={() => {
+            voice.cancelPendingTranscript();
             setChatVisible(false);
             setMobileChatOpen(false);
           }}
@@ -666,8 +677,14 @@ export default function DashboardShell({
           modelId={settingsToggles.modelId ?? null}
           onModelChange={(modelId) => patchSettings({ modelId })}
           onSettingsSaved={syncSettingsFromComposer}
-          onSwitchConversation={(id) => void switchConversation(id)}
-          onNewConversation={() => void newConversation()}
+          onSwitchConversation={(id) => {
+            voice.cancelPendingTranscript();
+            void switchConversation(id);
+          }}
+          onNewConversation={() => {
+            voice.cancelPendingTranscript();
+            void newConversation();
+          }}
           onRestorePipeline={() => void restoreMatorPipelineUi()}
           onSendText={(text, attachmentIds) => send(text, attachmentIds)}
           onUploadClarifyFile={uploadForClarify}
