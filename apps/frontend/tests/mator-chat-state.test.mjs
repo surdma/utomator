@@ -7,6 +7,7 @@ import {
   findPendingStage,
   formatClarifyReply,
   mergeMatorEvents,
+  stageResolution,
   pendingStageLabel,
   readClarifyQuestions,
   shouldSpeakHow,
@@ -298,4 +299,35 @@ test('open clarify stays until the user answers', () => {
     formatClarifyReply(readClarifyQuestions(clarify.action), form),
     'Which tone? Direct'
   );
+});
+
+test('two outstanding staged proposals keep independent approval state', () => {
+  const stages = [
+    { ...base, id: 'proposal-one', role: 'assistant', kind: 'action', status: 'staged', action: { type: 'edit_step' } },
+    { ...base, id: 'proposal-two', role: 'assistant', kind: 'action', status: 'staged', action: { type: 'edit_step' } },
+  ];
+  const events = [...stages, {
+    ...base, id: 'decision-one', role: 'assistant', kind: 'action',
+    status: 'rejected', action: { type: 'edit_step' }, resolvesEventId: 'proposal-one',
+  }];
+  assert.equal(stageResolution(events, 'proposal-one'), 'rejected');
+  assert.equal(stageResolution(events, 'proposal-two'), null);
+  assert.equal(findPendingStage(events)?.id, 'proposal-two');
+  events.push({
+    ...base, id: 'decision-two', role: 'assistant', kind: 'action',
+    status: 'applied', action: { type: 'edit_step' }, resolvesEventId: 'proposal-two',
+  });
+  assert.equal(findPendingStage(events), null);
+  assert.equal(stageResolution(events, 'proposal-two'), 'applied');
+});
+
+test('legacy unlinked stage decisions do not resolve every earlier proposal', () => {
+  const events = [
+    { ...base, id: 'old-one', role: 'assistant', kind: 'action', status: 'staged' },
+    { ...base, id: 'old-two', role: 'assistant', kind: 'action', status: 'staged' },
+    { ...base, id: 'old-decision', role: 'assistant', kind: 'action', status: 'applied' },
+  ];
+  assert.equal(stageResolution(events, 'old-two'), 'applied');
+  assert.equal(stageResolution(events, 'old-one'), null);
+  assert.equal(findPendingStage(events)?.id, 'old-one');
 });
