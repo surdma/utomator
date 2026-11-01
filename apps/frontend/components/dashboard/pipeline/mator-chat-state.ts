@@ -19,6 +19,7 @@ export type MatorChatEvent = {
   markers?: Array<{ id: string; x: number; y: number; text: string }>;
   status?: 'staged' | 'applied' | 'rejected' | 'incomplete' | 'error';
   idempotencyKey?: string;
+  resolvesEventId?: string;
   createdAt: string;
 };
 
@@ -82,21 +83,33 @@ export function eventsToConversation(
   return bubbles;
 }
 
-function resolvesStagedEvent(
-  candidate: MatorChatEvent,
-  staged: MatorChatEvent
-): boolean {
-  if (candidate.status !== 'applied' && candidate.status !== 'rejected')
-    return false;
-  const resolvesId =
-    (candidate as { resolvesEventId?: string }).resolvesEventId ??
-    (candidate as { stagedEventId?: string }).stagedEventId ??
-    (candidate as { eventId?: string }).eventId;
-  if (typeof resolvesId === 'string' && resolvesId.trim())
-    return resolvesId === staged.id;
-  // Audit trail keeps staged rows; a later apply/reject after this staged
-  // resolves it when no explicit staged-event link is present.
-  return true;
+/**
+ * Resolve one specific proposal. New events carry an exact reference; old
+ * unlinked records can only resolve the most recently staged proposal,
+ * never every earlier proposal in the conversation.
+ */
+export function stageResolution(
+  events: MatorChatEvent[],
+  stagedId: string
+): 'applied' | 'rejected' | null {
+  const stagedAt = events.findIndex(
+    (event) => event.id === stagedId && event.status === 'staged'
+  );
+  if (stagedAt < 0) return null;
+  for (let index = stagedAt + 1; index < events.length; index += 1) {
+    const candidate = events[index];
+    if (candidate.status !== 'applied' && candidate.status !== 'rejected') continue;
+    if (candidate.resolvesEventId) {
+      if (candidate.resolvesEventId === stagedId) return candidate.status;
+      continue;
+    }
+    // Backward compatibility for histories saved before resolvesEventId existed.
+    const latestStage = events.slice(0, index).reverse().find(
+      (event) => event.status === 'staged'
+    );
+    if (latestStage?.id === stagedId) return candidate.status;
+  }
+  return null;
 }
 
 function isAssistantTerminal(event: MatorChatEvent): boolean {
@@ -120,10 +133,7 @@ export function findPendingStage(
   for (let index = events.length - 1; index >= 0; index -= 1) {
     const event = events[index];
     if (event?.status !== 'staged') continue;
-    const resolved = events
-      .slice(index + 1)
-      .some((later) => resolvesStagedEvent(later, event));
-    if (!resolved) return event;
+    if (!stageResolution(events, event.id)) return event;
   }
   return null;
 }
