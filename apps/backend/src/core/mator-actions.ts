@@ -581,6 +581,7 @@ export async function applyAction(
     kind: 'action',
     action: input.action,
     status: 'applied',
+    resolvesEventId: input.eventId,
   });
 
   return { record, run, craftResult, event };
