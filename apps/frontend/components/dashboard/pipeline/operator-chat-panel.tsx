@@ -635,7 +635,7 @@ export default function OperatorChatPanel({
                         <ThreadRow key={event.id} id={event.id} anchor={event.id === lastMatorEventId}>
                           <Message align="end">
                             <MessageContent className="w-fit min-w-0 max-w-[min(82%,28rem)] flex-none">
-                              <MessageHeader>You</MessageHeader>
+                            
                               <Bubble variant="muted" className="w-fit max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                                 <BubbleContent>
                                   {event.text || 'Attachment'}
@@ -661,7 +661,6 @@ export default function OperatorChatPanel({
                                         : undefined
                                     }
                                   />
-                                  <a href={matorAttachmentFileUrl(event.attachmentId)} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex min-h-9 items-center text-xs font-medium text-teal-800 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-teal-700">Open attached file</a>
                                 </div>
                               )}
                             </MessageContent>
