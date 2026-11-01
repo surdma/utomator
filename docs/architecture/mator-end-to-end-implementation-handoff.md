@@ -1,6 +1,6 @@
 # Mator end-to-end redesign: implementation plan and running evidence ledger
 
-> **Status: PLANNED, not implemented.** Created 2026-11-01. Branch: `work/mator-e2e-tracked-20261101`, base `main` at `c7b5d42c5b0d34488d81bada181035327ee7cb20`.
+> **Status: M1 IMPLEMENTED in draft PR, CI pending; end-to-end verification not yet complete.** Created 2026-11-01. Branch: `work/mator-e2e-tracked-20261101`, base `main` at `c7b5d42c5b0d34488d81bada181035327ee7cb20`.
 >
 > This is the Mator-specific implementation and handoff ledger. The Growth YAML project retains its separate canonical progress record in [growth-workflow-implementation-handoff.md](growth-workflow-implementation-handoff.md). When work modifies the Growth compiler/coordinator, update that record as well. An entry below must not claim validation unless there is a command result, diff, test report, or browser evidence.
 
@@ -27,7 +27,7 @@ Deliver a text-first, compact, responsive Mator dock with readable content-sized
 | ID | Deliverable and acceptance | Owner / next reviewer | Current state |
 | --- | --- | --- | --- |
 | M0 | Baseline, dependency map, validated plan, PR/ledger | Engineering Lead + Investigator; Git/Release | **PLANNED**; docs-only PR preparation |
-| M1 | Every user and assistant bubble content-visible, selectable, intrinsic widths, capped cards, no mobile horizontal scroll | UI/UX → Frontend → Test → Reviewer | PLANNED; earlier patch candidate uncommitted |
+| M1 | Every user and assistant bubble content-visible, selectable, intrinsic widths, capped cards, no mobile horizontal scroll | UI/UX → Frontend → Test → Reviewer | **IMPLEMENTED** in PR #15; browser regression added; GitHub Actions pending; no runtime verdict |
 | M2 | Header voice-only switch (icon, accessible name, shared persisted store); compact composer, history, focus, accessibility, attachments/errors | UI/UX → Frontend → Test → Reviewer | PLANNED |
 | M3 | YAML stage/pipeline → registered child Runner plan → stable task IDs → true event/status/evidence correlation in chat | Investigator → API/Contract → Backend → Frontend → Test → Reviewer → Dogfood | PLANNED; missing contract is blocking |
 | M4 | Authenticated Groq Models List, supported model metadata, persisted default and temperature, real completion payload propagation, safe failure handling | API/Contract → Backend → Frontend → Test → Reviewer | PLANNED; pricing/free access must not be guessed |
@@ -85,7 +85,7 @@ For *new* workspaces choose the validated Profile Optimization template with its
 
 ## 6. Environment limits and prohibited claims
 
-At creation time the connected private repository could be read through GitHub but `git ls-remote https://github.com/surdma/utomator.git HEAD` failed in the executable container with `Could not resolve host: github.com`. The environment had Node and Git but no usable private checkout, pnpm workspace install, running Next/Fastify app, or browser session. The prior geometry patch was tested only against synthetic context, not a real checkout. Therefore **no application edits, live browser QA, end-to-end execution, or production validation have been completed**. Documentation-only PR scaffolding must stay draft and must not be promoted as a working redesign.
+At initial creation time the connected private repository could be read through GitHub but `git ls-remote https://github.com/surdma/utomator.git HEAD` failed in the executable container with `Could not resolve host: github.com`. The environment had Node and Git but no usable private checkout, pnpm workspace install, running Next/Fastify app, or browser session. The earlier geometry patch was checked against actual source and an adapted M1 fix plus Playwright regression were committed directly to the draft PR branch on 2026-11-01. Local clone is still unavailable. GitHub Actions started for the implementation commit; **browser runtime and production validation results have not yet been confirmed**. Documentation-only PR scaffolding must stay draft and must not be promoted as a working redesign.
 
 Never invent a successful LinkedIn edit, Groq availability, observed pipeline task, rate tier, model price, screenshot, migration, test result or commit. Do not commit unfinished production logic to obtain a PR diff.
 
@@ -94,11 +94,13 @@ Never invent a successful LinkedIn edit, Groq availability, observed pipeline ta
 | Date | Action | Status/evidence | Next owner |
 | --- | --- | --- | --- |
 | 2026-11-01 | Refreshed Lead, HANDOFF, using-superpowers, create-pr; inspected `main` and relevant Mator/Growth/contracts/docs; compared prior handoff | INVESTIGATED/PLANNED, main `c7b5d42`; no production code modified | Git/Release for draft documentation PR; then Frontend (M1) |
-| 2026-11-01 | Created branch `work/mator-e2e-tracked-20261101` at base SHA | Branch creation confirmed; PR and implementation must be separately verified | Git/Release |
+| 2026-11-01 | Created branch `work/mator-e2e-tracked-20261101` at base SHA | Branch creation confirmed; PR #15 opened as draft | Git/Release |
+| 2026-11-01 | M1 Playwright browser regression committed | `apps/frontend/tests/frontend-quality.test.ts`, commit `8fd9ff9`; mocked server-side persisted messages, narrow viewport geometries, assistant and staged cards, screenshots | Frontend |
+| 2026-11-01 | M1 UI source fix committed | `apps/frontend/components/dashboard/pipeline/operator-chat-panel.tsx`, commit `e340c95`; two user message paths and contextual cards; *GitHub Actions running*, not locally validated | Test → Reviewer → Dogfood |
 
 ### Next handoff: Frontend Engineer for M1
 
-**Objective:** Fix real short user text collapsing into a tiny dark bubble and excessive card widths, including both user-rendering paths. **Evidence:** `operator-chat-panel.tsx` contains `max-w-[85%] min-w-0 flex-0`, `MessageContent` defaults to `flex-1`, and `Confirmation` is width-unconstrained. **Files:** `operator-chat-panel.tsx`, `components/ui/message.tsx`, `components/ui/bubble.tsx`, `ai-elements/confirmation.tsx`, `tests/mator-chat-ui.test.mjs`, dashboard shell, run types and attachment canvas. **Candidate:** prior chat geometry patch (not applied). **Do not assume:** rendered text visibility, voice transcript correctness, browser widths, or tests passed. **Required:** establish runnable checkout; write failing behavioral regression; implement surgical fix; run and record test/typecheck/lint/browser results; hand to independent reviewer. If checkout remains unavailable, preserve patch as uncommitted artifact, report BLOCKED, and do not simulate test success.
+**Objective:** Fix real short user text collapsing into a tiny dark bubble and excessive card widths, including both user-rendering paths. **Evidence:** `operator-chat-panel.tsx` contains `max-w-[85%] min-w-0 flex-0`, `MessageContent` defaults to `flex-1`, and `Confirmation` is width-unconstrained. **Files:** `operator-chat-panel.tsx`, `components/ui/message.tsx`, `components/ui/bubble.tsx`, `ai-elements/confirmation.tsx`, `tests/mator-chat-ui.test.mjs`, dashboard shell, run types and attachment canvas. **Current implementation:** source geometry fix applied to PR #15 as commit `e340c95`; earlier standalone patch is no longer authoritative. **Do not assume:** rendered text visibility, voice transcript correctness, browser widths, or tests passed. **Required:** establish runnable checkout; write failing behavioral regression; implement surgical fix; run and record test/typecheck/lint/browser results; hand to independent reviewer. If checkout remains unavailable, preserve patch as uncommitted artifact, report BLOCKED, and do not simulate test success.
 
 ### Progress record template for subsequent entries
 
