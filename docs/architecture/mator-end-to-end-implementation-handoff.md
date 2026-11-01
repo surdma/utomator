@@ -89,6 +89,14 @@ At initial creation time the connected private repository could be read through 
 
 Never invent a successful LinkedIn edit, Groq availability, observed pipeline task, rate tier, model price, screenshot, migration, test result or commit. Do not commit unfinished production logic to obtain a PR diff.
 
+## 6a. M2 revised voice requirements and API links (2026-11-01)
+
+**Latest user decision overrides the older M2 header placement:** keep the voice-only switch **inside the composer**, and put the existing chat settings popover there as well. Do not implement a second independent voice preference or settings store. Control rows must not wrap/overflow and must be accessible at mobile widths. The current PR already has partial M1/M2 production edits; **do not describe it as documentation-only**. A full M2 contract and permanent source reference registry are at [M2 voice/accessibility/API references](mator-m2-voice-accessibility-references.md), including all requested shadcn, AI Elements and Groq URLs. Existing Groq STT and TTS are wired but require provider-limit and fallback validation; do not rebuild them blindly.
+
+**M2a source preparation:** A checked-exactly-once local transformation script (`mator-m2a-apply.py`) was authored as an external conversation artifact for composer switch, settings placement, nowrap, popup width, bounded guidance/error cards and focused tests. This file is **not applied to the GitHub branch or validated in a runnable Next/Fastify checkout**. Applying it locally must be followed by test/typecheck/lint/build, Playwright and independent review before production commit.
+
+**M2b/M2c not implemented:** Groq 200-character TTS segmentation, browser retry after failed Groq STT (requires a new recording), accurate event-correlated speech, typed URL/file clarification with upload-only API, opt-in pencil annotation, and full end-to-end QA. See the new M2 reference architecture for dependency graph, responsibilities and acceptance criteria.
+
 ## 7. Running progress and persona handoff
 
 | Date | Action | Status/evidence | Next owner |
