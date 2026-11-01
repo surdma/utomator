@@ -38,7 +38,7 @@ export function MessageScrollerViewport({
     <HeadlessMessageScroller.Viewport
       aria-label={props['aria-label'] ?? 'Messages'}
       className={cn(
-        'min-h-0 flex-1 overflow-y-auto overscroll-contain',
+        'flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain',
         className
       )}
       {...props}
@@ -52,7 +52,7 @@ export function MessageScrollerContent({
 }: React.ComponentProps<typeof HeadlessMessageScroller.Content>) {
   return (
     <HeadlessMessageScroller.Content
-      className={cn('flex min-h-full flex-col gap-5 px-4 py-3 [&>*:first-child]:mt-auto', className)}
+      className={cn('flex min-h-full flex-1 flex-col gap-5 px-4 py-3 [&>*:first-child]:mt-auto', className)}
       {...props}
     />
   );

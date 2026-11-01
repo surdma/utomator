@@ -1058,3 +1058,138 @@ test('Growth modal uses the YAML catalogue with actionable search and pipeline d
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
 });
+
+
+async function installMatorClarificationFixture(
+  page: Page,
+  questions: Array<Record<string, unknown>>
+) {
+  const workflowId = '11111111-1111-4111-8111-111111111111';
+  const conversationId = '22222222-2222-4222-8222-222222222222';
+  const now = '2026-11-01T09:00:00.000Z';
+  const received: Array<{ text?: string; attachmentIds?: string[] }> = [];
+  let uploads = 0;
+  let failNext = false;
+  const clarify = {
+    id: 'clarify-1',
+    conversationId,
+    role: 'assistant',
+    kind: 'clarify',
+    text: 'Please provide the missing source.',
+    action: { type: 'clarify', questions },
+    createdAt: now,
+  };
+  const events: Array<Record<string, unknown>> = [clarify];
+
+  await page.route('**/api/workflows', (route) => route.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify([{
+      id: workflowId, ownerId: 'local-owner', templateId: null,
+      revision: 1, createdAt: now, updatedAt: now,
+      plan: {
+        version: 1, platform: 'linkedin', action: 'audit', name: 'Clarification flow',
+        steps: [{ id: 'start', kind: 'start', title: 'Begin' }, { id: 'finish', kind: 'finish', title: 'Finish' }],
+        links: [{ source: 'start', target: 'finish' }],
+      },
+    }]),
+  }));
+  await page.route('**/api/mator/workflows/*/conversations', (route) => route.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({
+      currentId: conversationId,
+      items: [{ id: conversationId, workflowId, title: 'Clarification flow',
+        createdAt: now, updatedAt: now, lastMessageAt: now, boundRevisionId: null }],
+    }),
+  }));
+  await page.route('**/api/mator/conversations/*/events', (route) => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify(events),
+  }));
+  await page.route('**/api/mator/conversations/*/attachments', (route) => {
+    uploads += 1;
+    const body = route.request().postDataJSON() as { filename: string; data: string };
+    expect(body.filename).toBeTruthy();
+    expect(body.data.length).toBeGreaterThan(0);
+    return route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ id: 'uploaded-once', filename: body.filename, mime: 'image/png' }),
+    });
+  });
+  await page.route('**/api/mator/conversations/*/messages', (route) => {
+    const payload = route.request().postDataJSON() as { text?: string; attachmentIds?: string[] };
+    received.push(payload);
+    if (failNext) {
+      failNext = false;
+      return route.fulfill({
+        status: 503, contentType: 'application/json',
+        body: JSON.stringify({ error: 'Provider busy, retry this answer' }),
+      });
+    }
+    const user = {
+      id: 'answered-' + received.length,
+      conversationId, role: 'user', kind: 'message',
+      text: payload.text ?? 'Attachment',
+      createdAt: '2026-11-01T09:00:01.000Z',
+    };
+    events.push(user);
+    return route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ events: [user] }),
+    });
+  });
+  return {
+    received,
+    uploads: () => uploads,
+    failOnce: () => { failNext = true; },
+  };
+}
+
+test('Mator clarification uploads a file only when answers are sent and retries without a second upload', async ({ page }) => {
+  const fixture = await installMatorClarificationFixture(page, [{
+    name: 'evidence', prompt: 'Attach supporting evidence',
+    required: true, multiple: false, choices: [], inputType: 'file',
+  }]);
+  await page.goto('/dashboard/pipeline');
+  const dock = page.getByTestId('mator-chat');
+  if (!(await dock.isVisible())) await page.getByRole('button', { name: 'Open Mator' }).click();
+  const card = dock.getByTestId('mator-clarify-card');
+  await expect(card).toBeVisible();
+  await card.getByLabel('Attach supporting evidence').setInputFiles({
+    name: 'diagram.png', mimeType: 'image/png', buffer: Buffer.from('test png file'),
+  });
+  expect(fixture.uploads()).toBe(0);
+  fixture.failOnce();
+  await card.getByRole('button', { name: 'Send answers' }).click();
+  await expect(card.getByRole('alert')).toContainText('Provider busy');
+  expect(fixture.uploads()).toBe(1);
+  expect(fixture.received).toHaveLength(1);
+  expect(fixture.received[0].attachmentIds).toEqual(['uploaded-once']);
+  await card.getByRole('button', { name: 'Send answers' }).click();
+  await expect(card).toHaveCount(0);
+  expect(fixture.uploads()).toBe(1);
+  expect(fixture.received).toHaveLength(2);
+  expect(fixture.received[1].attachmentIds).toEqual(['uploaded-once']);
+});
+
+test('Mator clarification validates URL protocol before sending any message', async ({ page }) => {
+  const fixture = await installMatorClarificationFixture(page, [{
+    name: 'source', prompt: 'Provide source URL', required: true,
+    multiple: false, choices: [], inputType: 'url',
+    freeform: { label: 'Website link' },
+  }]);
+  await page.goto('/dashboard/pipeline');
+  const dock = page.getByTestId('mator-chat');
+  if (!(await dock.isVisible())) await page.getByRole('button', { name: 'Open Mator' }).click();
+  const card = dock.getByTestId('mator-clarify-card');
+  await expect(card).toBeVisible();
+  const input = card.getByLabel('Website link');
+  await input.fill('javascript:alert(1)');
+  await card.getByRole('button', { name: 'Send answers' }).click();
+  await expect(card.getByRole('alert')).toContainText('Only HTTP and HTTPS');
+  expect(fixture.received).toHaveLength(0);
+  await input.fill('https://example.com/evidence');
+  await card.getByRole('button', { name: 'Send answers' }).click();
+  await expect(card).toHaveCount(0);
+  expect(fixture.received).toHaveLength(1);
+  expect(fixture.received[0].text).toContain('https://example.com/evidence');
+  expect(fixture.uploads()).toBe(0);
+});
