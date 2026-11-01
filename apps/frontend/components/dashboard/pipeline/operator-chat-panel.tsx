@@ -117,6 +117,8 @@ type Props = {
   onAttachFile: (file?: File) => unknown | Promise<unknown>;
   checkpoint: import('./run-models').Checkpoint | null;
   voice: VoiceSession;
+  operatorPendingLabel?: string | null;
+  onConfirmOperator?: () => void;
   onConfirm: (eventId?: string) => void;
   onReject?: (eventId?: string) => void;
   busy?: boolean;
@@ -214,6 +216,8 @@ export default function OperatorChatPanel({
   onSendMessage,
   onAttachFile,
   voice,
+  operatorPendingLabel,
+  onConfirmOperator,
   onConfirm,
   onReject,
   busy = false,
@@ -984,6 +988,8 @@ export default function OperatorChatPanel({
 
         <MatorComposer
           voice={voice}
+          operatorPendingLabel={operatorPendingLabel}
+          onConfirmOperator={onConfirmOperator}
           message={message}
           onMessageChange={onMessageChange}
           onSendMessage={onSendMessage}

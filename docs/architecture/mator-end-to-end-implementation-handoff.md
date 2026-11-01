@@ -1,6 +1,6 @@
 # Mator end-to-end redesign: implementation plan and running evidence ledger
 
-> **Status: M1 IMPLEMENTED + 70/70 CI BROWSER VERIFIED for mock-backed chat, voice and independent stage decisions; M2 VOICE RECOVERY PARTIAL. Real Groq/document-store dogfood, independent review and repository-wide CI baseline recovery remain open.** Created 2026-11-01. Branch: `work/mator-e2e-tracked-20261101`, base `main` at `c7b5d42c5b0d34488d81bada181035327ee7cb20`.
+> **Status (2026-11-01): M1/M2 source implemented on draft PR #15, with targeted correctness and layout corrections; NOT COMPLETE. Earlier M1 browser validation was 70/70. The first newly introduced strict gap test reproduced 302–480px of trailing whitespace (68/70 on `cae2420`). User/assistant anchor removal and clarification regression tests are now under current CI verification. Real Groq/microphone/linked-account dogfood, independent review and repository-wide code-quality recovery remain outstanding.** Created 2026-11-01. Branch: `work/mator-e2e-tracked-20261101`, base `main` at `c7b5d42c5b0d34488d81bada181035327ee7cb20`.
 >
 > This is the Mator-specific implementation and handoff ledger. The Growth YAML project retains its separate canonical progress record in [growth-workflow-implementation-handoff.md](growth-workflow-implementation-handoff.md). When work modifies the Growth compiler/coordinator, update that record as well. An entry below must not claim validation unless there is a command result, diff, test report, or browser evidence.
 
@@ -168,3 +168,27 @@ Never invent a successful LinkedIn edit, Groq availability, observed pipeline ta
 ### Progress record template for subsequent entries
 
 For each M-ID append: date; owner; verified baseline/root cause; exact files and contracts; red test/repro; diff/commit SHA if any; green local command outputs; review verdict; dogfood evidence; blockers; next persona. Update this file and, when touching Growth runtime, the canonical Growth YAML handoff. Update PR body/checklists to match verified results.
+
+## M1/M2 correction pass and independent test handoff (2026-11-01)
+
+**Owner route:** Engineering Lead → Repository Investigator → Backend/Frontend/UI-UX → independent Node/Fastify and browser Test Engineer → independent Reviewer/Dogfood → Git/Release. The last two gates remain open. This ledger preserves repository and CI evidence, not an assertion that final user/device acceptance has passed.
+
+**Confirmed root causes and production changes on the draft branch:**
+
+- In `mator-agent.ts`, the old generic `persistAction` path staged even `noop` and `explain_how` as mutations; with auto-approval this produced meaningless `applied` receipts. `noop` now creates no action receipt, `explain_how` becomes an ordinary `how` message, and an empty assistant answer is disclosed as no action taken. The three-action cap remains enforced; the hardening test now proves the first three informational responses and no stage/applied actions.
+- In `mator-chat-state.ts` and `operator-chat-panel.tsx`, linked and legacy unlinked applied/rejected terminal events are projected onto their originating proposal cards exactly once. Legacy no-op events disappear from visual action cards but stay stored. Old staged explanations show guidance instead of being pending mutation. A terminal event without a matching staged record stays visible for audit rather than being silently lost.
+- `mator-composer.tsx` no longer duplicates the staged approval controls. The actual proposal card still binds its exact event ID; `dashboard-shell.tsx` requires an explicit ID to confirm or reject a persisted Mator stage.
+- Saved review and run screenshot assets now have bounded intrinsic dimensions; attachments have small clickable thumbnails and original-file links, with the annotation canvas opened only by pencil.
+- The shadcn message scroller was tested with a strict <=48 CSS px final-card gap. CI at `cae2420` measured 302px desktop and 480px tablet, confirming the defect. Investigation of the shadcn message-scroller contract identified that `scrollAnchor` intentionally places a new anchored turn near the viewport **top**. Mator had incorrectly anchored its **last assistant event**. The source now uses end-positioned scroller and no last-reply anchors; the independent browser suite must retain the geometric assertion to verify the actual gap.
+- M2 composer mode/settings, Groq bounded speech requests and fallback, event-grounded voice status, upload-only file/URL clarification, and deferred annotation remain wired. New browser tests cover safe URL protocols and single-file upload/retry without an unsolicited send. The first URL test passed in the prior browser run; the file error/response path has been corrected in the test to assert the actual safe questionnaire error and separate backend error banner.
+
+**Evidence as checked (not all at the current head):**
+
+- Initial M1 mock-backed production Next/Playwright [41292959721](https://github.com/surdma/utomator/actions/runs/41292959721): 70/70 across desktop/tablet/phone/landscape and WebKit.
+- M1/M2 [41304564084](https://github.com/surdma/utomator/actions/runs/41304564084): backend unit/routes, typecheck, Next build and hosted authentication checks passed. New strict scroller regression failed on desktop/tablet (68/70 browser). Existing unrelated broad browser integration remained 17/19 (two pre-existing Growth/workspace fixture failures also observed on main).
+- On subsequent in-progress [41305484474](https://github.com/surdma/utomator/actions/runs/41305484474), recorded logs showed final-card gap **passed** on desktop/tablet, while the new URL test passed and initial clarification file-retry assertion failed because it incorrectly expected the backend 503 text *inside* the questionnaire's deliberate generic error. The newer source asserts both the generic questionnaire retry notice and the separate backend error, and must be retested.
+- Isolated independent pure event projection: 9/9 Node test cases passed locally (not full app proof). Code-quality remains red on repo-wide Prettier, Biome and React Doctor; this includes older baseline debt plus changed-file formatting.
+
+**Acceptance gates still missing:** full latest-head Playwright with all new tests and measured gap across all browser projects; all Node/Fastify/TS/production builds; quality checks without masking existing failures; real authenticated persistent owner/workflow conversation and actual Groq STT, TTS, speech permissions, mute/retry across Chrome/Safari/mobile; independent code/security/a11y review and recorded real provider/Runner dogfood. Broader Growth integration fixture failures are tracked separately and must not be mislabelled as Mator regressions. Do not merge or call M1/M2 10/10 until evidenced.
+
+**Next persona:** Test Engineer to obtain current-head CI results, investigate any browser or backend failures (including file idempotency), then return defects to the Frontend/Backend owner. Independent Reviewer and integration/dogfood must reject any missing real service proof. Git/Release must retain draft PR #15 and update its checkboxes from actual runs.

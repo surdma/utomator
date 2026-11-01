@@ -57,6 +57,15 @@ export default function MatorClarifyForm({
         const attachments: string[] = [];
         for (const question of questions) {
           const answer = form.get(question.name);
+          if (
+            question.inputType === 'text' &&
+            question.required &&
+            !form.getAll(question.name).some((value) =>
+              typeof value === 'string' && Boolean(value.trim())
+            )
+          ) {
+            throw new Error('Answer ' + question.prompt + ' before sending.');
+          }
           if (question.inputType === 'url') {
             const value = typeof answer === 'string' ? answer.trim() : '';
             if (!value && !question.required) continue;
@@ -94,6 +103,80 @@ export default function MatorClarifyForm({
       }
     })();
   };
+
+
+  // The shadcn questionnaire only registers choices and text inputs as answers.
+  // A native file picker cannot satisfy that headless validation contract.
+  // For a file request, use a real form and keep the same upload/send handler.
+  if (questions.some((question) => question.inputType === 'file')) {
+    return (
+      <form
+        className={className ? `flex min-w-0 flex-col gap-3 ${className}` : 'flex min-w-0 flex-col gap-3'}
+        onSubmit={handleSubmit}
+        noValidate
+        data-testid="mator-clarify-form"
+      >
+        {questions.map((question) => (
+          <fieldset
+            key={question.name}
+            className="flex min-w-0 flex-col gap-2 rounded-xl border border-slate-200 p-3"
+            disabled={disabled || submitting}
+          >
+            <legend className="px-1 text-sm font-semibold text-slate-900">
+              {question.prompt}
+              {question.required && <span aria-label="required" className="ml-1 text-orange-700">*</span>}
+            </legend>
+            {question.description && <p className="text-xs leading-relaxed text-slate-600">{question.description}</p>}
+            {question.inputType === 'file' ? (
+              <label className="flex min-w-0 flex-col gap-1 text-xs font-medium text-slate-700">
+                Select attachment
+                <input
+                  type="file"
+                  name={question.name}
+                  accept={ATTACH_ACCEPT}
+                  aria-label={question.prompt}
+                  aria-required={question.required}
+                  className="min-h-11 w-full min-w-0 text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-teal-50 file:px-2 file:py-2 file:text-teal-800"
+                />
+              </label>
+            ) : (
+              <>
+                {question.choices.map((choice) => (
+                  <label key={choice.value} className="flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-xs text-slate-700">
+                    <input type={question.multiple ? 'checkbox' : 'radio'} name={question.name} value={choice.value} />
+                    <span>{choice.label}</span>
+                  </label>
+                ))}
+                {question.freeformLabel && (
+                  <label className="flex min-w-0 flex-col gap-1 text-xs font-medium text-slate-700">
+                    {question.freeformLabel}
+                    <input
+                      type={question.inputType === 'url' ? 'url' : 'text'}
+                      name={question.name}
+                      aria-label={question.freeformLabel}
+                      className="min-h-11 w-full min-w-0 rounded-lg border border-slate-200 px-3 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                    />
+                  </label>
+                )}
+              </>
+            )}
+          </fieldset>
+        ))}
+        {error && (
+          <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-2 text-xs text-rose-800">
+            {error}
+          </p>
+        )}
+        <button
+          type="submit"
+          disabled={disabled || submitting}
+          className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl bg-teal-800 px-4 text-xs font-semibold text-white hover:bg-teal-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:opacity-40"
+        >
+          {submitting ? 'Sending…' : 'Send answers'}
+        </button>
+      </form>
+    );
+  }
 
   return (
     <Questionnaire

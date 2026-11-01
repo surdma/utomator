@@ -242,6 +242,7 @@ export default function DashboardShell({
     sendMessage: sendOperatorMessage,
     submitUtterance,
     confirmPending,
+    pendingLabel: operatorPendingLabel,
     handleCraftCommand,
   } = useOperatorCommands({
     message,
@@ -305,7 +306,6 @@ export default function DashboardShell({
 
   const confirmChat = (eventId?: string) => {
     if (eventId) void confirmStage(eventId);
-    else confirmPending();
   };
 
   const rejectChat = (eventId?: string) => {
@@ -694,6 +694,8 @@ export default function DashboardShell({
           }}
           checkpoint={checkpoint}
           voice={voice}
+          operatorPendingLabel={operatorPendingLabel}
+          onConfirmOperator={confirmPending}
           onConfirm={confirmChat}
           onReject={rejectChat}
           busy={matorPending}

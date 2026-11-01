@@ -44,6 +44,8 @@ const VOICE_MISSING =
 
 type Props = {
   voice: VoiceSession;
+  operatorPendingLabel?: string | null;
+  onConfirmOperator?: () => void;
   message: string;
   onMessageChange: (message: string) => void;
   onSendMessage: (event: FormEvent<HTMLFormElement>) => void;
@@ -116,6 +118,8 @@ function iconButton(
 
 export default function MatorComposer({
   voice,
+  operatorPendingLabel = null,
+  onConfirmOperator,
   message,
   onMessageChange,
   onSendMessage,
@@ -254,6 +258,9 @@ export default function MatorComposer({
             </p>
           )}
         </div>
+        {operatorPendingLabel && onConfirmOperator && (
+          <OperatorPendingApproval label={operatorPendingLabel} onConfirm={onConfirmOperator} busy={busy} />
+        )}
         {voiceOnly && incomplete && (
           <IncompleteBanner onContinue={onIncompleteContinue} busy={busy} />
         )}
@@ -273,6 +280,9 @@ export default function MatorComposer({
     >
       {incomplete && (
         <IncompleteBanner onContinue={onIncompleteContinue} busy={busy} />
+      )}
+      {operatorPendingLabel && onConfirmOperator && (
+        <OperatorPendingApproval label={operatorPendingLabel} onConfirm={onConfirmOperator} busy={busy} />
       )}
       {showSuggestions && (
         <div className="flex flex-wrap gap-1.5 pt-1 pb-2">
@@ -417,6 +427,36 @@ export default function MatorComposer({
           </span>
         </div>
       </form>
+    </div>
+  );
+}
+
+function OperatorPendingApproval({
+  label,
+  onConfirm,
+  busy,
+}: {
+  label: string;
+  onConfirm: () => void;
+  busy?: boolean;
+}) {
+  return (
+    <div
+      data-testid="operator-pending-approval"
+      role="status"
+      className="mb-2 flex w-fit max-w-full min-w-0 flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900"
+    >
+      <span className="min-w-0 max-w-48 truncate" title={label}>Local command: {label}</span>
+      <button
+        type="button"
+        data-testid="operator-confirm-pending"
+        onClick={onConfirm}
+        disabled={busy}
+        className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg bg-amber-700 px-3 text-xs font-semibold text-white hover:bg-amber-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700 disabled:opacity-40"
+      >
+        <ArrowRight className="size-4" aria-hidden="true" />
+        Confirm local command
+      </button>
     </div>
   );
 }

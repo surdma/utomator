@@ -206,3 +206,15 @@ test('Mator keeps latest replies at the live edge instead of anchoring them at t
   assert.doesNotMatch(source, /anchor=\{event\.id ===/);
   assert.doesNotMatch(source, /scrollAnchor=\{item\.id ===/);
 });
+
+test('legacy local command approval stays available without duplicating Mator stages', () => {
+  const composer = readFileSync(pipeline('mator-composer.tsx'), 'utf8');
+  const panel = readFileSync(pipeline('operator-chat-panel.tsx'), 'utf8');
+  const shell = readFileSync(resolve(root, 'components/dashboard/dashboard-shell.tsx'), 'utf8');
+  assert.match(composer, /data-testid="operator-pending-approval"/);
+  assert.match(composer, /data-testid="operator-confirm-pending"/);
+  assert.match(panel, /onConfirmOperator=\{onConfirmOperator\}/);
+  assert.match(shell, /onConfirmOperator=\{confirmPending\}/);
+  assert.match(shell, /pendingLabel: operatorPendingLabel/);
+  assert.doesNotMatch(composer, /mator-stage-confirm-compact/);
+});
