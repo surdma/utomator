@@ -944,6 +944,109 @@ test('Mator discards a delayed transcription after switching workflow chat threa
   await expect(dock.getByText('This speech belongs only to thread A')).toHaveCount(0);
 });
 
+test('Mator stages multiple images and captions until explicit send, then restores annotation gallery', async ({ page }) => {
+  const workflowId = '11111111-1111-4111-8111-111111111111';
+  const conversationId = '22222222-2222-4222-8222-222222222222';
+  const now = '2026-11-01T09:00:00.000Z';
+  const assets: Array<{ id: string; name: string; mime: string; markers: Array<{ id: string; x: number; y: number; text: string }> }> = [];
+  const sent: Array<{ text?: string; attachmentIds?: string[] }> = [];
+  let events: Array<Record<string, unknown>> = [];
+  let uploads = 0;
+  await page.route('**/api/workflows', (route) => route.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify([{
+      id: workflowId, ownerId: 'local-owner', templateId: null, revision: 1, createdAt: now, updatedAt: now,
+      plan: {
+        version: 1, platform: 'linkedin', action: 'audit', name: 'Profile audit',
+        steps: [{ id: 'start', kind: 'start', title: 'Start run' }, { id: 'finish', kind: 'finish', title: 'Final output' }],
+        links: [{ source: 'start', target: 'finish' }],
+      },
+    }]),
+  }));
+  await page.route('**/api/mator/workflows/*/conversations', (route) => route.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({
+      currentId: conversationId,
+      items: [{ id: conversationId, workflowId, title: 'Asset draft', createdAt: now, updatedAt: now, lastMessageAt: now, boundRevisionId: null }],
+    }),
+  }));
+  await page.route('**/api/mator/conversations/*/events', (route) => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify(events),
+  }));
+  await page.route('**/api/mator/conversations/*/attachments', (route) => {
+    uploads += 1;
+    const body = route.request().postDataJSON() as { filename: string; mime: string };
+    const asset = { id: 'upload-' + uploads, name: body.filename, mime: body.mime, markers: [] };
+    assets.push(asset);
+    return route.fulfill({
+      status: 201, contentType: 'application/json',
+      body: JSON.stringify({ id: asset.id, mime: asset.mime, kind: 'image', size: 70 }),
+    });
+  });
+  await page.route('**/api/mator/attachments/*/markers', (route) => {
+    const assetId = route.request().url().split('/').at(-2);
+    const asset = assets.find((value) => value.id === assetId);
+    if (!asset) throw Error('Unknown uploaded asset');
+    asset.markers = (route.request().postDataJSON() as { markers: typeof asset.markers }).markers;
+    return route.fulfill({
+      status: 200, contentType: 'application/json', body: JSON.stringify(asset),
+    });
+  });
+  await page.route('**/api/mator/conversations/*/messages', (route) => {
+    const request = route.request().postDataJSON() as { text?: string; attachmentIds?: string[] };
+    sent.push(request);
+    const user = {
+      id: 'asset-user', conversationId, role: 'user', kind: 'message', text: request.text,
+      attachmentId: request.attachmentIds?.[0],
+      attachments: assets.map((asset) => ({ ...asset })),
+      createdAt: now,
+    };
+    const assistant = {
+      id: 'asset-reply', conversationId, role: 'assistant', kind: 'message',
+      text: 'Both images received for review.', createdAt: '2026-11-01T09:00:01.000Z',
+    };
+    events = [user, assistant];
+    return route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ events }),
+    });
+  });
+
+  await page.goto('/dashboard/pipeline');
+  const dock = page.getByTestId('mator-chat');
+  if (!(await dock.isVisible())) await page.getByRole('button', { name: 'Open Mator' }).click();
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/0V8AAAAASUVORK5CYII=', 'base64');
+  await dock.locator('input[type="file"]').setInputFiles([
+    { name: 'diagram-one.png', mimeType: 'image/png', buffer: png },
+    { name: 'diagram-two.jpeg', mimeType: 'image/jpeg', buffer: png },
+  ]);
+  await expect(dock.getByTestId('mator-pending-gallery').getByTestId('mator-image-thumbnail')).toHaveCount(2);
+  expect(uploads, 'selection must not contact the backend').toBe(0);
+  expect(sent, 'selection must not create a message').toEqual([]);
+
+  await dock.getByTestId('mator-pending-gallery').getByTestId('mator-image-thumbnail').first().click();
+  const modal = page.getByTestId('mator-image-annotation-modal');
+  await expect(modal).toBeVisible();
+  await modal.getByLabel('Annotation comment').fill('Keep the legend readable');
+  await modal.getByRole('button', { name: 'Add comment at center' }).click();
+  await modal.getByTestId('mator-annotation-save').click();
+  await expect(modal).toBeHidden();
+  expect(uploads).toBe(0);
+
+  await dock.getByTestId('mator-input').fill('Compare the two diagrams.');
+  await dock.getByTestId('mator-send').click();
+  await expect(dock.getByText('Both images received for review.')).toBeVisible();
+  expect(uploads).toBe(2);
+  expect(sent).toEqual([{ text: 'Compare the two diagrams.', attachmentIds: ['upload-1', 'upload-2'] }]);
+  expect(assets[0].markers).toHaveLength(1);
+  const gallery = dock.getByTestId('mator-image-gallery').first();
+  await expect(gallery.getByTestId('mator-image-thumbnail')).toHaveCount(2);
+  await page.reload();
+  const restored = page.getByTestId('mator-chat');
+  if (!(await restored.isVisible())) await page.getByRole('button', { name: 'Open Mator' }).click();
+  await expect(restored.getByTestId('mator-image-gallery').first().getByTestId('mator-image-thumbnail')).toHaveCount(2);
+});
+
 test('Mator approval cards decide the selected proposal, not another staged action', async ({ page }, info) => {
   const workflowId = '11111111-1111-4111-8111-111111111111';
   const conversationId = '22222222-2222-4222-8222-222222222222';
