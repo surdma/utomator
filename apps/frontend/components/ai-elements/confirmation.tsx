@@ -75,7 +75,7 @@ export function Confirmation({
         )}
       </div>
       {text && (
-        <p className="mt-1.5 px-3 text-[13px] leading-relaxed text-slate-800">
+        <p className="mt-1.5 break-words px-3 text-[13px] leading-relaxed text-slate-800 [overflow-wrap:anywhere]">
           {text}
         </p>
       )}
