@@ -1,144 +1,113 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
-import { FileImage, ExternalLink, Pencil, X, Plus } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { FileText, Plus } from 'lucide-react';
+import StudioDialog from '@/components/ui/studio-dialog';
 import MatorAttachmentCanvas, { type MatorCanvasMarker } from './mator-attachment-canvas';
-import { matorAttachmentFileUrl } from './mator-api';
 
 type Props = {
   attachmentId: string;
   imageSrc?: string | null;
+  filename?: string;
+  mime?: string;
   markers: MatorCanvasMarker[];
   draftText?: string;
-  onMarkersChange?: (markers: MatorCanvasMarker[]) => void;
   interactive?: boolean;
+  onMarkersChange?: (markers: MatorCanvasMarker[]) => void | Promise<unknown>;
 };
 
 export default function MatorAttachmentPreview({
-  attachmentId,
-  imageSrc,
-  markers,
-  draftText = '',
-  onMarkersChange,
-  interactive = true,
+  attachmentId, imageSrc, filename = 'Image', mime = 'image/png',
+  markers, draftText = '', interactive = true, onMarkersChange,
 }: Props) {
-  const [editing, setEditing] = useState(false);
+  const [open, setOpen] = useState(false);
   const [note, setNote] = useState('');
-  const [failedImageSrc, setFailedImageSrc] = useState<string | null>(null);
-  const id = useId();
-  const pencilRef = useRef<HTMLButtonElement>(null);
-  const noteRef = useRef<HTMLInputElement>(null);
-  const canEdit = Boolean(interactive && onMarkersChange);
-
-  useEffect(() => {
-    if (editing) noteRef.current?.focus();
-  }, [editing]);
-
-
+  const [draftMarkers, setDraftMarkers] = useState<MatorCanvasMarker[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [broken, setBroken] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const isImage = mime.startsWith('image/');
+  const canEdit = isImage && interactive && Boolean(onMarkersChange);
   const close = () => {
-    setEditing(false);
-    pencilRef.current?.focus();
+    if (saving) return;
+    setOpen(false);
+    setError('');
+    trigger.current?.focus();
   };
-
-  const addCenterMarker = () => {
-    const text = note.trim();
-    if (!text || !onMarkersChange) return;
-    const markerId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+  const openEditor = () => {
+    setDraftMarkers(markers.map((marker) => ({ ...marker })));
+    setNote(draftText);
+    setError('');
+    setOpen(true);
+  };
+  const addCenter = () => {
+    if (!note.trim()) return;
+    const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
       : 'marker-' + Date.now().toString(36);
-    onMarkersChange([...markers, { id: markerId, x: 0.5, y: 0.5, text }]);
+    setDraftMarkers((current) => [...current, { id, x: 0.5, y: 0.5, text: note.trim() }]);
     setNote('');
   };
-
+  const save = async () => {
+    if (!onMarkersChange) return close();
+    setSaving(true);
+    setError('');
+    try {
+      await onMarkersChange(draftMarkers);
+      setOpen(false);
+      trigger.current?.focus();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not save annotations');
+    } finally {
+      setSaving(false);
+    }
+  };
   return (
-    <section
-      data-testid="mator-attachment-preview"
-      className="w-fit min-w-0 max-w-full rounded-xl border border-slate-200 bg-white p-2 shadow-sm"
-      aria-label="Conversation attachment"
-    >
-      {imageSrc && failedImageSrc !== imageSrc && (
-        <a
-          href={matorAttachmentFileUrl(attachmentId)}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Open original image"
-          className="mb-2 block w-fit max-w-full overflow-hidden rounded-lg bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+    <>
+      {isImage ? (
+        <button
+          ref={trigger}
+          type="button"
+          title={filename}
+          aria-label={`Annotate image ${filename}`}
+          data-testid="mator-image-thumbnail"
+          onClick={openEditor}
+          className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 sm:size-24"
         >
-          {/* Attachment URLs may be local blobs or authenticated file routes. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imageSrc}
-            alt="Attached image preview"
-            loading="lazy"
-            className="block max-h-28 max-w-32 object-contain"
-            onError={() => setFailedImageSrc(imageSrc)}
-          />
-        </a>
-      )}
-      <div className="flex min-w-0 flex-nowrap items-center gap-1.5">
-        <span aria-hidden="true" className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-teal-700">
-          <FileImage className="size-4" />
-        </span>
-        <a
-          href={matorAttachmentFileUrl(attachmentId)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="min-w-0 max-w-40 truncate text-xs font-semibold text-teal-800 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-teal-700"
-          aria-label="Open attached file"
-        >
-          Attachment <ExternalLink className="inline size-3" aria-hidden="true" />
-        </a>
-        {markers.length > 0 && <span className="shrink-0 text-[11px] text-slate-500">{markers.length} notes</span>}
-        {canEdit && (
-          <button
-            ref={pencilRef}
-            type="button"
-            data-testid="mator-annotation-pencil"
-            aria-label={editing ? 'Close annotation editor' : 'Annotate attachment'}
-            aria-controls={id}
-            aria-expanded={editing}
-            onClick={() => editing ? close() : setEditing(true)}
-            className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-teal-800 hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-          >
-            {editing ? <X className="size-4" aria-hidden="true" /> : <Pencil className="size-4" aria-hidden="true" />}
-          </button>
-        )}
-      </div>
-      {editing && (
-        <div id={id} role="region" aria-label="Attachment annotation editor" className="mt-2 w-[min(18rem,75vw)] max-w-full border-t border-slate-100 pt-2">
-          <label className="block text-xs font-medium text-slate-700" htmlFor={id + '-note'}>
-            Annotation note
-          </label>
-          <input
-            ref={noteRef}
-            id={id + '-note'}
-            type="text"
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-            placeholder="Describe what to change"
-            className="mt-1 min-h-11 w-full rounded-lg border border-slate-200 px-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-          />
-          <p className="mt-1 text-[11px] text-slate-500">Tap the image to place this note, or add it at the center using the button.</p>
-          <MatorAttachmentCanvas
-            attachmentId={attachmentId}
-            imageSrc={imageSrc}
-            markers={markers}
-            draftText={note.trim() || draftText}
-            onMarkersChange={onMarkersChange}
-            interactive={canEdit}
-            className="mt-2"
-          />
-          <button
-            type="button"
-            onClick={addCenterMarker}
-            disabled={!note.trim()}
-            className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-teal-800 hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:opacity-40"
-          >
-            <Plus className="size-4" aria-hidden="true" />
-            Add note at center
-          </button>
+          {imageSrc && !broken ? (
+            // eslint-disable-next-line @next/next/no-img-element -- local blob or authorized attachment route
+            <img src={imageSrc} alt="" className="size-full object-cover" onError={() => setBroken(true)} />
+          ) : <FileText className="size-5 text-slate-500" aria-hidden="true" />}
+          {markers.length > 0 && <span className="absolute right-1 bottom-1 rounded bg-slate-950/80 px-1 text-[10px] text-white">{markers.length} notes</span>}
+        </button>
+      ) : (
+        <div title={filename} aria-label={filename} className="flex size-20 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-1 sm:size-24">
+          <FileText className="size-5 text-slate-500" aria-hidden="true" />
+          <span className="w-full truncate text-center text-[10px] text-slate-600">{filename}</span>
         </div>
       )}
-    </section>
+      {isImage && (
+        <StudioDialog open={open} onDismiss={close} title="Annotate image" description={filename} size="wide" testId="mator-image-annotation-modal">
+          <div className="mx-auto max-w-3xl space-y-3">
+            <MatorAttachmentCanvas attachmentId={attachmentId} imageSrc={imageSrc} markers={draftMarkers} draftText={note} onMarkersChange={setDraftMarkers} interactive={canEdit} className="w-full" />
+            {canEdit && (
+              <>
+                <label htmlFor={`mator-image-note-${attachmentId}`} className="block text-xs font-semibold text-slate-700">Annotation comment</label>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <input id={`mator-image-note-${attachmentId}`} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Describe what should change" className="min-h-11 min-w-0 flex-1 rounded-lg border border-slate-200 px-3 text-sm" />
+                  <button type="button" onClick={addCenter} disabled={!note.trim()} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-teal-800 disabled:opacity-40"><Plus className="size-4" aria-hidden="true" /> Add comment at center</button>
+                </div>
+              </>
+            )}
+            {error && <p role="alert" className="text-xs text-rose-700">{error}</p>}
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={close} className="min-h-11 rounded-lg border border-slate-200 px-4 text-sm">Cancel</button>
+              {canEdit && <button type="button" data-testid="mator-annotation-save" onClick={() => void save()} disabled={saving} className="min-h-11 rounded-lg bg-teal-800 px-4 text-sm font-semibold text-white disabled:opacity-50">{saving ? 'Saving…' : 'Save annotations'}</button>}
+            </div>
+          </div>
+        </StudioDialog>
+      )}
+    </>
   );
 }
