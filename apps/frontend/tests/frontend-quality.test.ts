@@ -759,6 +759,15 @@ test('Mator accepts recorded speech when SpeechRecognition is unavailable', asyn
     })
   );
   let received = '';
+  let spoken = '';
+  await page.route('**/api/mator/audio/speech', async (route) => {
+    spoken = (route.request().postDataJSON() as { text: string }).text;
+    await route.fulfill({
+      status: 200,
+      contentType: 'audio/wav',
+      body: 'audio playback fixture',
+    });
+  });
   await page.route('**/api/mator/conversations/*/messages', async (route) => {
     received = (route.request().postDataJSON() as { text: string }).text;
     await route.fulfill({
@@ -777,12 +786,18 @@ test('Mator accepts recorded speech when SpeechRecognition is unavailable', asyn
   if (!(await dock.isVisible())) {
     await page.getByRole('button', { name: 'Open Mator' }).click();
   }
-  await expect(dock.getByTestId('mator-mic')).toBeEnabled();
-  await dock.getByTestId('mator-mic').click();
-  await expect(dock.getByTestId('mator-mic')).toHaveAttribute('aria-pressed', 'true');
-  await dock.getByTestId('mator-mic').click();
+  await dock.getByTestId('mator-voice-switch').click();
+  await expect(dock.getByTestId('mator-composer')).toHaveAttribute('data-mode', 'voice-only');
+  const mic = dock.getByTestId('mator-voice-listening');
+  await expect(mic).toBeEnabled();
+  await mic.click();
+  await expect(mic).toHaveAttribute('aria-pressed', 'true');
+  await mic.click();
   await expect(dock.getByText('Heard your profile question')).toBeVisible();
   expect(received).toBe('Spoken profile question');
+  await expect.poll(() => spoken).toBe('Heard your profile question');
+  await dock.getByRole('button', { name: 'Text instead' }).click();
+  await expect(dock.getByTestId('mator-input')).toHaveValue('');
 });
 
 test('Growth modal uses the YAML catalogue with actionable search and pipeline detail', async ({ page }, info) => {
