@@ -32,6 +32,7 @@ import {
   mergeMatorEvents,
   pendingStageLabel,
   shouldSpeakHow,
+  stageResolution,
   type MatorChatBubble,
   type MatorChatEvent,
   type MatorConversationSummary,
@@ -353,9 +354,9 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
     await send('Continue');
   }, [incomplete, send]);
 
-  const confirmStage = useCallback(async () => {
+  const confirmStage = useCallback(async (eventId?: string) => {
     const conversationId = conversationIdRef.current;
-    const target = staged;
+    const target = eventId ? events.find((event) => event.id === eventId && event.status === 'staged' && !stageResolution(events, event.id)) : staged;
     if (!conversationId || !target || inFlightRef.current) return;
     inFlightRef.current = true;
     setPending(true);
@@ -371,11 +372,11 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
       inFlightRef.current = false;
       setPending(false);
     }
-  }, [staged]);
+  }, [events, staged]);
 
-  const rejectStage = useCallback(async () => {
+  const rejectStage = useCallback(async (eventId?: string) => {
     const conversationId = conversationIdRef.current;
-    const target = staged;
+    const target = eventId ? events.find((event) => event.id === eventId && event.status === 'staged' && !stageResolution(events, event.id)) : staged;
     if (!conversationId || !target || inFlightRef.current) return;
     inFlightRef.current = true;
     setPending(true);
@@ -391,7 +392,7 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
       inFlightRef.current = false;
       setPending(false);
     }
-  }, [staged]);
+  }, [events, staged]);
 
   const newConversation = useCallback(async () => {
     if (!workflowId || inFlightRef.current) return;
