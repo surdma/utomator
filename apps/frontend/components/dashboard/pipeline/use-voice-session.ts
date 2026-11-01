@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { synthesizeMatorSpeech, transcribeMatorAudio } from './mator-api';
-import { readVoiceSupport } from './voice-support';
+import { acquireCurrentVoiceStream, readVoiceSupport } from './voice-support';
 import { playMatorSpeechChunks } from './mator-speech-chunks';
 
 type RecognitionResult = {
@@ -112,6 +112,8 @@ export function useVoiceSession({
   const playbackCancelRef = useRef<(() => void) | null>(null);
   const browserRetryRef = useRef(false);
   const cancelRecorderRef = useRef<(() => void) | null>(null);
+  const captureGenerationRef = useRef(0);
+  const microphonePermissionPendingRef = useRef(false);
 
   useEffect(() => {
     onFinalRef.current = onFinal;
@@ -227,6 +229,8 @@ export function useVoiceSession({
   }
 
   useEffect(() => () => {
+    captureGenerationRef.current += 1;
+    microphonePermissionPendingRef.current = false;
     speechEpochRef.current += 1;
     speechAbortRef.current?.abort();
     playbackCancelRef.current?.();
@@ -237,8 +241,39 @@ export function useVoiceSession({
   }, []);
 
   async function beginGroqRecording() {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const recorder = new MediaRecorder(stream);
+    const generation = ++captureGenerationRef.current;
+    microphonePermissionPendingRef.current = true;
+    setListening(true);
+    setInterim('Waiting for microphone access…');
+    let stream: MediaStream | null = null;
+    try {
+      stream = await acquireCurrentVoiceStream(
+        () => navigator.mediaDevices.getUserMedia({ audio: true }),
+        () => captureGenerationRef.current === generation
+      );
+      if (!stream) return;
+    } catch {
+      if (captureGenerationRef.current === generation) {
+        setListening(false);
+        setInterim('');
+        setError(MIC_BLOCKED);
+      }
+      return;
+    } finally {
+      if (captureGenerationRef.current === generation) {
+        microphonePermissionPendingRef.current = false;
+      }
+    }
+    let recorder: MediaRecorder;
+    try {
+      recorder = new MediaRecorder(stream);
+    } catch {
+      stream.getTracks().forEach((track) => track.stop());
+      setListening(false);
+      setInterim('');
+      setError(MIC_BLOCKED);
+      return;
+    }
     const chunks: Blob[] = [];
     recorder.ondataavailable = (event) => {
       if (event.data.size > 0) chunks.push(event.data);
@@ -286,7 +321,13 @@ export function useVoiceSession({
     };
     cancelRecorderRef.current = cancelRecording;
     claim(cancelRecording);
-    recorder.start();
+    try {
+      recorder.start();
+    } catch {
+      cancelRecording();
+      setError(MIC_BLOCKED);
+      return;
+    }
     setListening(true);
     setError(null);
     setInterim('Listening… tap again to transcribe');
@@ -302,10 +343,7 @@ export function useVoiceSession({
       typeof MediaRecorder !== 'undefined' &&
       typeof navigator.mediaDevices?.getUserMedia === 'function'
     ) {
-      void beginGroqRecording().catch(() => {
-        setListening(false);
-        setError(MIC_BLOCKED);
-      });
+      void beginGroqRecording();
       return;
     }
     const Ctor = recognitionConstructor(window);
@@ -379,6 +417,13 @@ export function useVoiceSession({
   }
 
   function toggleListen() {
+    if (microphonePermissionPendingRef.current) {
+      captureGenerationRef.current += 1;
+      microphonePermissionPendingRef.current = false;
+      setListening(false);
+      setInterim('');
+      return;
+    }
     if (listening) {
       if (recorderStopRef.current) recorderStopRef.current();
       else stopRef.current?.(true);
