@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/attachment';
 import type { VoiceSession } from './use-voice-session';
 import { setVoiceOnlyPreference, useVoiceOnlyPreference } from './mator-voice-preference';
-import type { MatorModelOption } from './mator-api';
+import type { MatorModelOption, MatorSettingsMasked } from './mator-api';
 import { ModelSelector } from '@/components/ai-elements/model-selector';
 import { Switch } from '@/components/ui/switch';
 import MatorChatSettings from './mator-chat-settings';
@@ -57,6 +57,7 @@ type Props = {
   models?: MatorModelOption[];
   modelId?: string | null;
   onModelChange?: (modelId: string) => void;
+  onSettingsSaved?: (settings: MatorSettingsMasked) => void;
   emptyThread?: boolean;
   startPrompt?: string | null;
 };
@@ -130,6 +131,7 @@ export default function MatorComposer({
   models = [],
   modelId = null,
   onModelChange,
+  onSettingsSaved,
   emptyThread = false,
   startPrompt = null,
 }: Props) {
@@ -209,7 +211,7 @@ export default function MatorComposer({
               <Paperclip className="size-4" aria-hidden="true" />
             </button>
             <input ref={inputRef} type="file" accept={ATTACH_ACCEPT} className="sr-only" aria-hidden="true" tabIndex={-1} onChange={(event) => { void attach(event.target.files); event.target.value = ''; }} />
-            <MatorChatSettings disabled={busy} />
+            <MatorChatSettings disabled={busy} onSettingsSaved={onSettingsSaved} />
             <span className="inline-flex size-11 shrink-0 items-center justify-center" title="Switch to text conversation">
               <Switch checked={voiceOnly} onCheckedChange={setVoiceOnlyPreference} aria-label="Voice-only conversation" data-testid="mator-voice-switch" />
             </span>
@@ -393,7 +395,7 @@ export default function MatorComposer({
               <span className="inline-flex size-11 shrink-0 items-center justify-center" title="Voice-only conversation">
                 <Switch checked={voiceOnly} onCheckedChange={setVoiceOnlyPreference} aria-label="Voice-only conversation" data-testid="mator-voice-switch" />
               </span>
-              <MatorChatSettings disabled={busy} />
+              <MatorChatSettings disabled={busy} onSettingsSaved={onSettingsSaved} />
               {models.length > 0 && (
                 <ModelSelector
                   models={models}

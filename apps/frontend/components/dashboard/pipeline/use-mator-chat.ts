@@ -197,6 +197,10 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
     modelTier: settings?.modelTier ?? 'free',
   };
 
+  const syncSettingsFromComposer = useCallback((saved: MatorSettingsMasked) => {
+    setSettings(saved);
+  }, []);
+
   const patchSettings = useCallback(async (patch: MatorSettingsSavePatch) => {
     const next = await saveMatorSettings(patch);
     setSettings(next);
@@ -525,6 +529,7 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
     settings,
     settingsToggles,
     patchSettings,
+    syncSettingsFromComposer,
     voicePolicies,
     pending,
     pendingStage: staged,

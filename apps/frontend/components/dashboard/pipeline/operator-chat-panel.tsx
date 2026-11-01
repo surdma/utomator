@@ -60,7 +60,7 @@ import {
   type MatorChatEvent,
   type MatorConversationSummary,
 } from './mator-chat-state';
-import { fetchMatorModels, matorAttachmentFileUrl, type MatorImageMarkerDto, type MatorModelOption } from './mator-api';
+import { fetchMatorModels, matorAttachmentFileUrl, type MatorSettingsMasked, type MatorImageMarkerDto, type MatorModelOption } from './mator-api';
 
 const PANE_LABEL: Partial<Record<DashboardPane, string>> = {
   pipeline: 'Workflow',
@@ -90,6 +90,7 @@ type Props = {
   loading?: boolean;
   modelId?: string | null;
   onModelChange?: (modelId: string) => Promise<unknown>;
+  onSettingsSaved?: (settings: MatorSettingsMasked) => void;
   onSwitchConversation?:  (conversationId: string) => void;
   onNewConversation?: () => void;
   onRestorePipeline?: () => void;
@@ -191,6 +192,7 @@ export default function OperatorChatPanel({
   loading = false,
   modelId = null,
   onModelChange,
+  onSettingsSaved,
   onSwitchConversation,
   onNewConversation,
   onRestorePipeline,
@@ -975,6 +977,7 @@ export default function OperatorChatPanel({
           emptyThread={false}
           models={models}
           modelId={modelId}
+          onSettingsSaved={onSettingsSaved}
           onModelChange={(selectedModelId) => {
             void onModelChange?.(selectedModelId).catch((cause: unknown) =>
               toast(cause instanceof Error ? cause.message : 'Unable to change chat model', 'error')

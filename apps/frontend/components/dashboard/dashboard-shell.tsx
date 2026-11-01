@@ -204,6 +204,7 @@ export default function DashboardShell({
     loading: matorLoading,
     settingsToggles,
     patchSettings,
+    syncSettingsFromComposer,
     conversations: matorConversations,
     conversationMeta,
     events: matorEvents,
@@ -675,6 +676,7 @@ export default function DashboardShell({
           loading={matorLoading}
           modelId={settingsToggles.modelId ?? null}
           onModelChange={(modelId) => patchSettings({ modelId })}
+          onSettingsSaved={syncSettingsFromComposer}
           onSwitchConversation={(id) => void switchConversation(id)}
           onNewConversation={() => void newConversation()}
           onRestorePipeline={() => void restoreMatorPipelineUi()}

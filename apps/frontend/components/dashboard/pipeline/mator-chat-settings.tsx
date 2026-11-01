@@ -20,14 +20,14 @@ import {
 const EFFORT_STOPS = ['low', 'medium', 'high'] as const;
 const EFFORT_LABELS = ['Low', 'Medium', 'High'] as const;
 
-type Props = { disabled?: boolean };
+type Props = { disabled?: boolean; onSettingsSaved?: (settings: MatorSettingsMasked) => void };
 
 /**
  * Chat-thread settings popover. Exposes only settings the backend
  * actually persists in `MatorSettingsMasked`; the default save flow is
  * unchanged (same patch keys as the settings page).
  */
-export default function MatorChatSettings({ disabled }: Props) {
+export default function MatorChatSettings({ disabled, onSettingsSaved }: Props) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -61,6 +61,7 @@ export default function MatorChatSettings({ disabled }: Props) {
       try {
         const saved = await saveMatorSettings(change);
         setSettings(saved);
+        onSettingsSaved?.(saved);
         toast('Chat settings saved', 'success');
       } catch (cause) {
         toast(
@@ -73,7 +74,7 @@ export default function MatorChatSettings({ disabled }: Props) {
         setSaving(false);
       }
     },
-    [toast]
+    [toast, onSettingsSaved]
   );
 
   useEffect(() => {

@@ -56,6 +56,7 @@ test('composer is text-first with voice demoted to a small control', () => {
   assert.match(source, /data-testid="mator-mic"/);
   assert.match(source, /data-testid="mator-voice-switch"/, 'composer owns the voice-only toggle');
   assert.match(source, /MatorChatSettings/, 'chat configuration is reachable from the composer');
+  assert.match(source, /onSettingsSaved/, 'composer settings notify the active Mator state');
   assert.match(source, /flex-nowrap/, 'composer actions remain on one row');
   assert.match(source, /Paperclip/);
   assert.match(source, /ATTACH_ACCEPT/);
