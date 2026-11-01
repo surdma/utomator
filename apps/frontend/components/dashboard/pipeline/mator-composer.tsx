@@ -289,7 +289,6 @@ export default function MatorComposer({
                   ? () => annotateDraftRow(asset)
                   : undefined
               }
-              onMarkersChange={(markers) => setPending((current) => current.map((row) => row.id === asset.id ? { ...row, markers } : row))}
             />
             <button type="button" aria-label={`Remove ${asset.name}`} onClick={() => removeDraft(asset.id)} className="absolute -top-1 -right-1 flex size-6 items-center justify-center rounded-full bg-slate-800 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700">
               <X className="size-3" aria-hidden="true" />

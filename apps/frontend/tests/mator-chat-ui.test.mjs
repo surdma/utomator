@@ -8,24 +8,19 @@ const pipeline = (name) => resolve(root, 'components/dashboard/pipeline', name);
 const ui = (name) => resolve(root, 'components/ui', name);
 const aiElements = (name) => resolve(root, 'components/ai-elements', name);
 
-test('image thumbnail opens annotation modal on click', () => {
+test('image thumbnail opens annotation studio on click', () => {
   const preview = readFileSync(pipeline('mator-attachment-preview.tsx'), 'utf8');
   assert.match(preview, /data-testid="mator-image-thumbnail"/);
-  assert.match(preview, /mator-image-annotation-modal/);
+  assert.match(preview, /onAnnotateFull/, 'image click delegates to studio');
   assert.doesNotMatch(preview, /mator-annotation-pencil|Open original image/);
-  assert.match(preview, /MatorAttachmentCanvas/);
-  assert.match(preview, /onMarkersChange/);
+  assert.doesNotMatch(preview, /StudioDialog|MatorAttachmentCanvas|onMarkersChange/);
 });
 
 test('chat images offer the full YAML-driven annotation studio', () => {
   const preview = readFileSync(pipeline('mator-attachment-preview.tsx'), 'utf8');
-  // Pencil entry point mirrors the original restore design.
-  assert.match(
-    preview,
-    /data-testid="mator-annotation-full-pencil"/,
-    'a pencil button opens the full annotation studio'
-  );
-  assert.match(preview, /onAnnotateFull/);
+  // Image click itself opens the full annotation studio (no separate pencil button).
+  assert.match(preview, /onAnnotateFull/, 'image click opens the studio');
+  assert.doesNotMatch(preview, /mator-annotation-full-pencil/, 'no separate pencil button');
   // Linked saved reviews expose the annotation YAML directly.
   assert.match(
     preview,
@@ -203,7 +198,7 @@ test('new chat displays suggestions instead of a permanent loading skeleton', ()
   assert.match(panel, /<Suggestion suggestions=\{START_SUGGESTIONS\}/);
   assert.match(panel, /matorAttachmentFileUrl/);
   const attachment = readFileSync(pipeline('mator-attachment-preview.tsx'), 'utf8');
-  assert.match(attachment, /StudioDialog/, 'image click opens the modal');
+  assert.match(attachment, /onAnnotateFull/, 'image click opens the studio');
 });
 
 test('model picker is connected to real chat settings and handles failures', () => {

@@ -11,7 +11,7 @@ export function Message({ className = '', align = 'start', ...props }: Props) {
       data-align={align}
       className={cn(
         'group/msg flex w-full items-end gap-2.5',
-        align === 'end' && 'flex-row-reverse',
+        align === 'end' && 'justify-end',
         className
       )}
       {...props}

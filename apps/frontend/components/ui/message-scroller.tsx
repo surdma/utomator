@@ -64,7 +64,7 @@ export function MessageScrollerItem({
 }: React.ComponentProps<typeof HeadlessMessageScroller.Item>) {
   return (
     <HeadlessMessageScroller.Item
-      className={cn('min-w-0', className)}
+      className={cn('min-w-0 w-full', className)}
       {...props}
     />
   );

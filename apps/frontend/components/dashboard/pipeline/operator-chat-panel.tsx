@@ -179,7 +179,7 @@ function ThreadRow({
         initial={reduceMotion ? false : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.22, ease: 'easeOut' }}
-        className="min-w-0"
+        className="min-w-0 w-full"
       >
         {children}
       </motion.div>
@@ -340,7 +340,7 @@ export default function OperatorChatPanel({
         : [];
     if (!assets.length) return null;
     return (
-      <div data-testid="mator-image-gallery" className="w-fit max-w-full">
+      <div data-testid="mator-image-gallery" className="w-full max-w-full">
         <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
           {assets.map((asset) => (
             <MatorAttachmentPreview
@@ -353,7 +353,6 @@ export default function OperatorChatPanel({
                 : null}
               markers={asset.markers ?? (asset.id === event.attachmentId ? event.markers ?? [] : [])}
               reviewId={asset.reviewId ?? (asset.id === event.attachmentId ? event.reviewId : undefined)}
-              draftText={markerDraft}
               interactive={Boolean(onSaveMarkers)}
               onAnnotateFull={
                 onAnnotateAttachment &&
@@ -362,7 +361,6 @@ export default function OperatorChatPanel({
                   ? () => annotateAsset(asset)
                   : undefined
               }
-              onMarkersChange={onSaveMarkers ? (markers) => onSaveMarkers(asset.id, markers) : undefined}
             />
           ))}
         </div>
