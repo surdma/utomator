@@ -58,6 +58,7 @@ import type { ChatMessage, Event as RunEvent, Review } from './run-models';
 import type { Platform } from './workflow-catalog';
 import {
   findOpenClarify,
+  stageResolution,
   readClarifyQuestions,
   type MatorChatEvent,
   type MatorConversationSummary,
@@ -117,8 +118,8 @@ type Props = {
   checkpoint: import('./run-models').Checkpoint | null;
   voice: VoiceSession;
   pendingLabel: string | null;
-  onConfirm: () => void;
-  onReject?: () => void;
+  onConfirm: (eventId?: string) => void;
+  onReject?: (eventId?: string) => void;
   busy?: boolean;
   incomplete?: boolean;
   onIncompleteContinue?: () => void;
@@ -786,7 +787,9 @@ export default function OperatorChatPanel({
                           <Confirmation
                             className="w-full max-w-[min(100%,30rem)]"
                             status={
-                              (event.status as
+                              (event.status === 'staged'
+                                ? stageResolution(orderedMatorEvents, event.id) ?? event.status
+                                : event.status) as
                                 | 'staged'
                                 | 'applied'
                                 | 'rejected'
@@ -807,8 +810,8 @@ export default function OperatorChatPanel({
                             }
                             text={event.action ? event.text : null}
                             attachment={attachmentFor(event)}
-                            onConfirm={onConfirm}
-                            onReject={onReject}
+                            onConfirm={() => onConfirm(event.id)}
+                            onReject={() => onReject?.(event.id)}
                             busy={busy}
                           />
                         </ThreadRow>
