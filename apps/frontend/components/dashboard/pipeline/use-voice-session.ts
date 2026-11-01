@@ -203,9 +203,9 @@ export function useVoiceSession({
           if (text) onFinalRef.current(text);
           else setError(VOICE_RETRY);
         })
-        .catch(() => {
+        .catch((error: unknown) => {
           setInterim('');
-          setError(VOICE_RETRY);
+          setError(error instanceof Error && error.message ? error.message : VOICE_RETRY);
         });
     };
     recorderStopRef.current = () => {
