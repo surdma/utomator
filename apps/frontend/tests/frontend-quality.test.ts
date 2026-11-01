@@ -1159,7 +1159,8 @@ test('Mator clarification uploads a file only when answers are sent and retries 
   expect(fixture.uploads()).toBe(0);
   fixture.failOnce();
   await card.getByRole('button', { name: 'Send answers' }).click();
-  await expect(card.getByRole('alert')).toContainText('Provider busy');
+  await expect(card.getByRole('alert')).toContainText('Mator could not send the answers');
+  await expect(dock.getByTestId('mator-chat-error')).toContainText('Provider busy');
   expect(fixture.uploads()).toBe(1);
   expect(fixture.received).toHaveLength(1);
   expect(fixture.received[0].attachmentIds).toEqual(['uploaded-once']);
