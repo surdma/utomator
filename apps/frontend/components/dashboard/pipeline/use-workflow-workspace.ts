@@ -13,7 +13,27 @@ import type { Platform } from './workflow-catalog';
 import { getApi } from './api-client';
 import { defaultWorkflowPlan } from './default-workflow-plan';
 
-let workflowBootstrapStarted = false;
+let workflowBootstrapRequest: Promise<WorkflowRecord> | null = null;
+
+/** Share concurrent mount attempts without permanently locking failed creation. */
+function createDefaultWorkspace(): Promise<WorkflowRecord> {
+  if (!workflowBootstrapRequest) {
+    workflowBootstrapRequest = fetch(getApi('workflows'), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ plan: defaultWorkflowPlan() }),
+    })
+      .then(async (response) => {
+        const record = (await response.json()) as WorkflowRecord & { error?: string };
+        if (!response.ok) throw new Error(record.error || 'Could not create the default workflow');
+        return record;
+      })
+      .finally(() => {
+        workflowBootstrapRequest = null;
+      });
+  }
+  return workflowBootstrapRequest;
+}
 
 function adoptWorkflow(
   record: WorkflowRecord,
@@ -71,6 +91,8 @@ export function useWorkflowWorkspace({
   );
   const [loadingWorkflow, setLoadingWorkflow] = useState(false);
   const workflowSelectionEpoch = useRef(0);
+  const activeWorkflowRef = useRef(activeWorkflow);
+  useEffect(() => { activeWorkflowRef.current = activeWorkflow; }, [activeWorkflow]);
   const savedListEpoch = useRef(0);
   const [planDirty, setPlanDirty] = useState(false);
   const [planSaving, setPlanSaving] = useState(false);
@@ -86,46 +108,42 @@ export function useWorkflowWorkspace({
         if (!live || savedListEpoch.current !== generation) return;
         setSavedWorkflows(records);
         if (records[0]) {
-          setActiveWorkflow((current) => {
-            if (current) return current;
-            setPlatform(records[0].plan.platform);
-            setAction(records[0].plan.action);
-            setWorkflowPlan(records[0].plan);
-            setForm(records[0].plan.parameters ?? {});
-            setPlanDirty(false);
-            setLoadingWorkflow(false);
-            return records[0];
-          });
+          if (!activeWorkflowRef.current) {
+            adoptWorkflow(records[0], {
+              setActiveWorkflow,
+              setPlatform,
+              setAction,
+              setWorkflowPlan,
+              setForm,
+              setPlanDirty,
+              setLoadingWorkflow,
+              setRunFormError,
+            });
+          }
           return;
         }
-        if (workflowBootstrapStarted) return;
-        workflowBootstrapStarted = true;
-        const created = await fetch(getApi('workflows'), {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ plan: defaultWorkflowPlan() }),
-        });
-        const record = (await created.json()) as WorkflowRecord & {
-          error?: string;
-        };
-        if (!live || savedListEpoch.current !== generation) return;
-        if (!created.ok) {
+        try {
+          const record = await createDefaultWorkspace();
+          if (!live || savedListEpoch.current !== generation) return;
+          setSavedWorkflows([record]);
+          if (!activeWorkflowRef.current) {
+            adoptWorkflow(record, {
+              setActiveWorkflow,
+              setPlatform,
+              setAction,
+              setWorkflowPlan,
+              setForm,
+              setPlanDirty,
+              setLoadingWorkflow,
+              setRunFormError,
+            });
+          }
+        } catch (error) {
+          if (!live || savedListEpoch.current !== generation) return;
           setRunFormError(
-            record.error || 'Could not create the default workflow'
+            error instanceof Error ? error.message : 'Could not create the default workflow'
           );
-          return;
         }
-        setSavedWorkflows([record]);
-        adoptWorkflow(record, {
-          setActiveWorkflow,
-          setPlatform,
-          setAction,
-          setWorkflowPlan,
-          setForm,
-          setPlanDirty,
-          setLoadingWorkflow,
-          setRunFormError,
-        });
       })
       .catch(() => {
         if (live)
