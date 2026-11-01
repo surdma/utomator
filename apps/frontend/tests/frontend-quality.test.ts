@@ -704,13 +704,13 @@ test('Mator accepts recorded speech when SpeechRecognition is unavailable', asyn
       configurable: true,
       value: class {
         state = 'inactive';
-        mimeType = 'audio/webm';
+        mimeType = 'audio/mp4';
         ondataavailable: ((event: { data: Blob }) => void) | null = null;
         onstop: (() => void) | null = null;
         start() { this.state = 'recording'; }
         stop() {
           this.state = 'inactive';
-          this.ondataavailable?.({ data: new Blob(['recorded speech'], { type: 'audio/webm' }) });
+          this.ondataavailable?.({ data: new Blob(['recorded speech'], { type: 'audio/mp4' }) });
           this.onstop?.();
         }
       },
@@ -751,13 +751,17 @@ test('Mator accepts recorded speech when SpeechRecognition is unavailable', asyn
   await page.route('**/api/mator/conversations/*/events', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
   );
-  await page.route('**/api/mator/audio/transcriptions', (route) =>
-    route.fulfill({
+  let transcriptionFilename = '';
+  await page.route('**/api/mator/audio/transcriptions', (route) => {
+    const request = route.request().postDataJSON() as { filename: string; mime: string };
+    transcriptionFilename = request.filename;
+    expect(request.mime).toBe('audio/mp4');
+    return route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ text: 'Spoken profile question' }),
-    })
-  );
+    });
+  });
   let received = '';
   let spoken = '';
   await page.route('**/api/mator/audio/speech', async (route) => {
@@ -795,6 +799,7 @@ test('Mator accepts recorded speech when SpeechRecognition is unavailable', asyn
   await mic.click();
   await expect(dock.getByText('Heard your profile question')).toBeVisible();
   expect(received).toBe('Spoken profile question');
+  expect(transcriptionFilename).toBe('mator-speech.m4a');
   await expect.poll(() => spoken).toBe('Heard your profile question');
   await dock.getByRole('button', { name: 'Text instead' }).click();
   await expect(dock.getByTestId('mator-input')).toHaveValue('');
