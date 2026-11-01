@@ -196,6 +196,7 @@ export default function DashboardShell({
     switchConversation,
     restorePipeline,
     attachFile,
+    uploadForClarify,
     saveMarkers,
     attachmentPreviews,
     loading: matorLoading,
@@ -655,9 +656,8 @@ export default function DashboardShell({
           onSwitchConversation={(id) => void switchConversation(id)}
           onNewConversation={() => void newConversation()}
           onRestorePipeline={() => void restoreMatorPipelineUi()}
-          onSendText={(text) => {
-            void send(text);
-          }}
+          onSendText={(text, attachmentIds) => send(text, attachmentIds)}
+          onUploadClarifyFile={uploadForClarify}
           attachmentPreviews={attachmentPreviews}
           onSaveMarkers={(attachmentId, markers) =>
             void saveMarkers(attachmentId, markers)

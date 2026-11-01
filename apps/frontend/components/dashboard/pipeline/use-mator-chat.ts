@@ -292,6 +292,20 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
     [message, speakNewHow]
   );
 
+  const uploadForClarify = useCallback(async (file: File): Promise<string> => {
+    const conversationId = conversationIdRef.current;
+    if (!conversationId) throw new Error('Select a workflow conversation first.');
+    const uploaded = await uploadMatorAttachment(conversationId, file);
+    if (file.type.startsWith('image/')) {
+      const previewUrl = URL.createObjectURL(file);
+      setAttachmentPreviews((previous) => ({
+        ...previous,
+        [uploaded.id]: previewUrl,
+      }));
+    }
+    return uploaded.id;
+  }, []);
+
   const attachFile = useCallback(
     async (file: File) => {
       const conversationId = conversationIdRef.current;
@@ -505,6 +519,7 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
     switchConversation,
     restorePipeline,
     attachFile,
+    uploadForClarify,
     saveMarkers,
     attachmentPreviews,
     settings,

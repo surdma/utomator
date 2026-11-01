@@ -182,6 +182,29 @@ test('parseMatorAction accepts a clarify questionnaire', () => {
   );
 });
 
+test('clarify validates URL and file answer types without inventing attachments', () => {
+  const action = parseMatorAction({
+    type: 'clarify',
+    questions: [
+      { name: 'source', prompt: 'Which website URL?', inputType: 'url', required: true },
+      { name: 'asset', prompt: 'Attach the image', inputType: 'file', required: true },
+    ],
+  });
+  assert.equal(action.type, 'clarify');
+  if (action.type !== 'clarify') return;
+  assert.deepEqual(action.questions.map((q) => q.inputType), ['url', 'file']);
+  assert.throws(() => parseMatorAction({
+    type: 'clarify',
+    questions: [{ name: 'bad', prompt: 'Invalid', inputType: 'html' }],
+  }), MatorActionValidationError);
+  assert.throws(() => parseMatorAction({
+    type: 'clarify',
+    questions: [{ name: 'bad', prompt: 'Invalid', inputType: 'file', choices: [
+      { value: 'a', label: 'A' }, { value: 'b', label: 'B' },
+    ] }],
+  }), MatorActionValidationError);
+});
+
 test('parseMatorAction rejects unknown action type and invalid shape', () => {
   assert.throws(
     () => parseMatorAction({ type: 'delete_universe' }),

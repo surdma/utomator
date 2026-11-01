@@ -1,11 +1,12 @@
 'use client';
 
-import type { FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import {
   formatClarifyReply,
   type MatorClarifyChoice,
   type MatorClarifyQuestion,
 } from './mator-chat-state';
+import { ATTACH_ACCEPT } from './mator-composer';
 import {
   Questionnaire,
   QuestionnaireActions,
@@ -26,25 +27,72 @@ import {
 type Props = {
   questions: MatorClarifyQuestion[];
   disabled?: boolean;
-  /** Receives the deterministic formatted reply text. */
-  onSubmit: (text: string) => void;
+  onUploadFile?: (file: File) => Promise<string>;
+  onSubmit: (text: string, attachmentIds?: string[]) => Promise<boolean | void> | void;
   className?: string;
 };
 
-/**
- * Mator's clarify step as a styled questionnaire.
- * Answers are joined by formatClarifyReply — identical shape to the
- * previous plain form so the interpreter contract is unchanged.
- */
+/** The uploaded file IDs are sent in one clarification message, not an extra chat turn. */
 export default function MatorClarifyForm({
   questions,
   disabled = false,
+  onUploadFile,
   onSubmit,
   className,
 }: Props) {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const inFlight = useRef(false);
+  const uploaded = useRef(new WeakMap<File, string>());
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    onSubmit(formatClarifyReply(questions, new FormData(event.currentTarget)));
+    if (inFlight.current || disabled) return;
+    const form = new FormData(event.currentTarget);
+    inFlight.current = true;
+    setSubmitting(true);
+    setError('');
+    void (async () => {
+      try {
+        const attachments: string[] = [];
+        for (const question of questions) {
+          const answer = form.get(question.name);
+          if (question.inputType === 'url') {
+            const value = typeof answer === 'string' ? answer.trim() : '';
+            if (!value && !question.required) continue;
+            let url: URL;
+            try { url = new URL(value); }
+            catch { throw new Error('Enter a valid website URL for ' + question.prompt); }
+            if (!['http:', 'https:'].includes(url.protocol))
+              throw new Error('Only HTTP and HTTPS website links are supported.');
+            form.set(question.name, url.href);
+          }
+          if (question.inputType === 'file') {
+            if (!(answer instanceof File) || !answer.size) {
+              if (question.required) throw new Error('Attach a file for ' + question.prompt);
+              form.delete(question.name);
+              continue;
+            }
+            if (!onUploadFile) throw new Error('Attachment upload is unavailable. Please try again.');
+            let id = uploaded.current.get(answer);
+            if (!id) {
+              id = await onUploadFile(answer);
+              if (!id) throw new Error('Could not upload ' + answer.name);
+              uploaded.current.set(answer, id);
+            }
+            attachments.push(id);
+            form.set(question.name, answer.name);
+          }
+        }
+        const sent = await onSubmit(formatClarifyReply(questions, form), attachments);
+        if (sent === false) throw new Error('Mator could not send the answers. Please retry.');
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : 'Could not submit answers.');
+      } finally {
+        inFlight.current = false;
+        setSubmitting(false);
+      }
+    })();
   };
 
   return (
@@ -52,10 +100,8 @@ export default function MatorClarifyForm({
       className={className}
       items={questions.map((question) => ({
         name: question.name,
-        required: question.required,
-        choices: question.choices.map((choice: MatorClarifyChoice) => ({
-          value: choice.value,
-        })),
+        required: question.required && question.inputType !== 'file',
+        choices: question.choices.map((choice: MatorClarifyChoice) => ({ value: choice.value })),
       }))}
       onSubmit={handleSubmit}
       data-testid="mator-clarify-form"
@@ -65,15 +111,13 @@ export default function MatorClarifyForm({
         <QuestionnaireItem
           key={question.name}
           name={question.name}
-          required={question.required}
+          required={question.required && question.inputType !== 'file'}
           multiple={question.multiple}
-          disabled={disabled}
+          disabled={disabled || submitting}
         >
           <QuestionnaireTitle>{question.prompt}</QuestionnaireTitle>
           {question.description && (
-            <QuestionnaireDescription>
-              {question.description}
-            </QuestionnaireDescription>
+            <QuestionnaireDescription>{question.description}</QuestionnaireDescription>
           )}
           <QuestionnaireChoices>
             {question.choices.map((choice) => (
@@ -86,19 +130,31 @@ export default function MatorClarifyForm({
                 )}
               </QuestionnaireChoice>
             ))}
-            {question.freeformLabel && (
+            {question.inputType === 'file' ? (
+              <label className="flex min-w-0 flex-col gap-1 text-xs font-medium text-slate-700">
+                Select attachment
+                <input
+                  type="file"
+                  name={question.name}
+                  accept={ATTACH_ACCEPT}
+                  disabled={disabled || submitting}
+                  aria-label={question.prompt}
+                  className="min-h-11 w-full min-w-0 text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-teal-50 file:px-2 file:py-2 file:text-teal-800"
+                />
+              </label>
+            ) : question.freeformLabel && (
               <QuestionnaireInput
+                type={question.inputType === 'url' ? 'url' : 'text'}
                 aria-label={question.freeformLabel}
                 placeholder={question.freeformLabel}
-                disabled={disabled}
+                disabled={disabled || submitting}
               />
             )}
           </QuestionnaireChoices>
-          <QuestionnaireError>
-            Choose an answer, or use skip, before moving on.
-          </QuestionnaireError>
+          <QuestionnaireError>Choose an answer or use skip before moving on.</QuestionnaireError>
         </QuestionnaireItem>
       ))}
+      {error && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-2 text-xs text-rose-800">{error}</p>}
       <QuestionnaireActions>
         <span className="flex items-center gap-2">
           <QuestionnairePrevious>Back</QuestionnairePrevious>
@@ -106,7 +162,9 @@ export default function MatorClarifyForm({
         </span>
         <span className="flex items-center gap-2">
           <QuestionnaireNext>Next</QuestionnaireNext>
-          <QuestionnaireSubmit>Send answers</QuestionnaireSubmit>
+          <QuestionnaireSubmit disabled={disabled || submitting}>
+            {submitting ? 'Sending…' : 'Send answers'}
+          </QuestionnaireSubmit>
         </span>
       </QuestionnaireActions>
     </Questionnaire>

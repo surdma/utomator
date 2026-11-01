@@ -93,7 +93,8 @@ type Props = {
   onSwitchConversation?:  (conversationId: string) => void;
   onNewConversation?: () => void;
   onRestorePipeline?: () => void;
-  onSendText?: (text: string) => void;
+  onSendText?: (text: string, attachmentIds?: string[]) => Promise<boolean | void> | void;
+  onUploadClarifyFile?: (file: File) => Promise<string>;
   attachmentPreviews?: Record<string, string>;
   onSaveMarkers?: (
     attachmentId: string,
@@ -194,6 +195,7 @@ export default function OperatorChatPanel({
   onNewConversation,
   onRestorePipeline,
   onSendText,
+  onUploadClarifyFile,
   attachmentPreviews = {},
   onSaveMarkers,
   reviews,
@@ -935,7 +937,8 @@ export default function OperatorChatPanel({
                 <MatorClarifyForm
                   questions={clarifyQuestions}
                   disabled={busy}
-                  onSubmit={(text) => onSendText?.(text)}
+                  onUploadFile={onUploadClarifyFile}
+                  onSubmit={(text, attachmentIds) => onSendText?.(text, attachmentIds)}
                 />
               </div>
             </motion.div>

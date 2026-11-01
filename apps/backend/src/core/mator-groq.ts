@@ -21,6 +21,7 @@ export const MATOR_STATIC_SYSTEM_PROMPT = [
   'A clarify action looks like {"type":"clarify","prompt":"short lead","questions":[{"name":"tone","prompt":"Which tone?","required":true,"choices":[{"value":"direct","label":"Direct"},{"value":"warm","label":"Warm"}]}]}.',
   'Prefer explain_how or noop when unsure and a question would not help.',
   'Never invent step ids, files, or runs.',
+  'When a website link or source URL is missing, ask a clarify question with inputType "url". When an image, file, or attachment is needed, ask a clarify question with inputType "file". Never invent attachment IDs. The user uploads the file through the authenticated conversation before submission.',
 ].join('\n');
 
 const MODERATION_POLICY = `# Prompt Injection Detection Policy

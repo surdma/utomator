@@ -301,6 +301,21 @@ test('open clarify stays until the user answers', () => {
   );
 });
 
+test('typed URL and file clarify questions survive decoding', () => {
+  const questions = readClarifyQuestions({
+    type: 'clarify',
+    questions: [
+      { name: 'website', prompt: 'Which website?', inputType: 'url', required: true },
+      { name: 'attachment', prompt: 'Attach a screenshot', inputType: 'file', required: false },
+    ],
+  });
+  assert.deepEqual(questions?.map((item) => item.inputType), ['url', 'file']);
+  const form = new FormData();
+  form.set('website', 'https://example.com/');
+  form.set('attachment', 'capture.png');
+  assert.equal(formatClarifyReply(questions, form), 'Which website? https://example.com/\nAttach a screenshot capture.png');
+});
+
 test('two outstanding staged proposals keep independent approval state', () => {
   const stages = [
     { ...base, id: 'proposal-one', role: 'assistant', kind: 'action', status: 'staged', action: { type: 'edit_step' } },

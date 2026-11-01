@@ -50,6 +50,7 @@ export type MatorClarifyQuestion = {
   multiple: boolean;
   choices: MatorClarifyChoice[];
   freeform?: { label: string; placeholder?: string };
+  inputType?: 'text' | 'url' | 'file';
 };
 
 export type TaggedWorkflowRecord = WorkflowRecord & {
@@ -352,7 +353,12 @@ function parseClarifyAction(raw: Record<string, unknown>): Extract<MatorAction, 
           `questions[${index}].freeform.placeholder`,
         );
     }
-    if (parsedChoices.length === 0 && !freeform)
+    const inputType = item.inputType ?? 'text';
+    if (inputType !== 'text' && inputType !== 'url' && inputType !== 'file')
+      throw new MatorActionValidationError(`Invalid questions[${index}].inputType`, `questions[${index}].inputType`);
+    if (inputType !== 'text' && parsedChoices.length > 0)
+      throw new MatorActionValidationError(`File and URL questions cannot have multiple-choice answers`, `questions[${index}]`);
+    if (parsedChoices.length === 0 && !freeform && inputType === 'text')
       throw new MatorActionValidationError(
         `questions[${index}] needs choices or a freeform answer`,
         `questions[${index}]`,
@@ -368,6 +374,7 @@ function parseClarifyAction(raw: Record<string, unknown>): Extract<MatorAction, 
       required: item.required === true,
       multiple: item.multiple === true,
       choices: parsedChoices,
+      inputType: inputType as 'text' | 'url' | 'file',
     };
     if (item.description !== undefined)
       question.description = requireString(item.description, `questions[${index}].description`);

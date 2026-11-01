@@ -86,6 +86,9 @@ test('composer carries incomplete and clarify interaction contracts', () => {
   const form = readFileSync(pipeline('mator-clarify-form.tsx'), 'utf8');
   assert.match(form, /data-testid="mator-clarify-form"/);
   assert.match(form, /formatClarifyReply/);
+  assert.match(form, /onUploadFile/);
+  assert.match(form, /inputType === 'file'/);
+  assert.match(form, /inputType === 'url'/);
 });
 
 test('processable foundation modules exist for the dock', () => {

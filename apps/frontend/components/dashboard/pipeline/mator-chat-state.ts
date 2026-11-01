@@ -176,6 +176,7 @@ export type MatorClarifyQuestion = {
   multiple: boolean;
   choices: MatorClarifyChoice[];
   freeformLabel?: string;
+  inputType?: 'text' | 'url' | 'file';
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -226,10 +227,15 @@ export function readClarifyQuestions(
       required: item.required === true,
       multiple: item.multiple === true,
       choices,
+      inputType: item.inputType === 'url' || item.inputType === 'file'
+        ? item.inputType
+        : 'text',
       ...(typeof item.description === 'string'
         ? { description: item.description }
         : {}),
-      ...(freeformLabel ? { freeformLabel } : {}),
+      ...(freeformLabel || item.inputType === 'url'
+        ? { freeformLabel: freeformLabel || 'Paste a website URL' }
+        : {}),
     });
   }
   return questions;
