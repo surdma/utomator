@@ -16,6 +16,9 @@ illustrative interfaces and named handlers are designs unless verified in produc
   [implementation plan](./plans/growth-unification-implementation-plan.md): PR #6 scope and
   validation.
 
+- [Mator end-to-end implementation status and persona handoff](./architecture/mator-end-to-end-implementation-handoff.md): evidence-backed M1–M7 progress, ownership, validation and release gates.
+- [Mator M2 voice, composer, clarification and API reference registry](./architecture/mator-m2-voice-accessibility-references.md): current-vs-target implementation, accessibility contracts and permanent shadcn/AI Elements/Groq links.
+
 **Concept map:** Growth = why; Craft = how; Workflow/Graph = what and dependencies; Pipeline =
 validated account-specific release; Engine = authorized dispatch and checkpoints; Outcomes =
 verifiable results.
