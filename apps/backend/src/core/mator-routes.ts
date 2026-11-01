@@ -444,7 +444,7 @@ export function registerMatorRoutes(app: FastifyInstance, deps: MatorRouteDeps):
     try {
       const text = request.body?.text?.replace(/\s+/g, ' ').trim() ?? '';
       if (!text) return jsonError(reply, 400, 'text is required');
-      if (text.length > 4000) return jsonError(reply, 400, 'text is too long to speak');
+      if (text.length > 200) return jsonError(reply, 400, 'Speech segments must be 200 characters or fewer');
       const settings = await getMatorSettings(docs);
       const apiKey = requireGroqKey(docs, settings);
       const wav = await synthesizeSpeech(apiKey, text, {

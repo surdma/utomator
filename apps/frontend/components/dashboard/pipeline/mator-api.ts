@@ -312,11 +312,12 @@ export async function transcribeMatorAudio(file: Blob): Promise<string> {
   return body.text?.trim() ?? '';
 }
 
-export async function synthesizeMatorSpeech(text: string): Promise<Blob> {
+export async function synthesizeMatorSpeech(text: string, signal?: AbortSignal): Promise<Blob> {
   const response = await fetch(matorPath('audio/speech'), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ text }),
+    signal,
   });
   if (!response.ok) {
     let message = 'Unable to speak this reply';

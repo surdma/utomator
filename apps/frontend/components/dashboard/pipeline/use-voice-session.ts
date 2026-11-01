@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { synthesizeMatorSpeech, transcribeMatorAudio } from './mator-api';
 import { readVoiceSupport } from './voice-support';
+import { playMatorSpeechChunks } from './mator-speech-chunks';
 
 type RecognitionResult = {
   isFinal: boolean;
@@ -106,6 +107,11 @@ export function useVoiceSession({
   const stopRef = useRef<((emit: boolean) => void) | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const recorderStopRef = useRef<(() => void) | null>(null);
+  const speechEpochRef = useRef(0);
+  const speechAbortRef = useRef<AbortController | null>(null);
+  const playbackCancelRef = useRef<(() => void) | null>(null);
+  const browserRetryRef = useRef(false);
+  const cancelRecorderRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     onFinalRef.current = onFinal;
@@ -113,68 +119,122 @@ export function useVoiceSession({
     silenceRef.current = silenceMs;
   }, [onFinal, muted, silenceMs]);
 
-  function speakWithBrowser(clean: string) {
-    if (typeof window === 'undefined' || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(clean);
-    utterance.lang = 'en-US';
-    const voice = window.speechSynthesis
-      .getVoices()
-      .find((item) => item.lang.toLowerCase().startsWith('en'));
-    if (voice) utterance.voice = voice;
-    utterance.onstart = () => setSpeaking(true);
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-    window.speechSynthesis.speak(utterance);
-  }
-
-  function speak(text: string, force = false) {
-    if (typeof window === 'undefined') return;
-    if (mutedRef.current && !force) return;
-    const clean = text.replace(/\s+/g, ' ').trim();
-    if (!clean) return;
+  function stopSpeech() {
+    speechEpochRef.current += 1;
+    speechAbortRef.current?.abort();
+    speechAbortRef.current = null;
+    playbackCancelRef.current?.();
+    playbackCancelRef.current = null;
     audioRef.current?.pause();
     audioRef.current = null;
     window.speechSynthesis?.cancel();
-    void synthesizeMatorSpeech(clean)
-      .then((blob) => {
-        if (mutedRef.current && !force) return;
-        const url = URL.createObjectURL(blob);
-        const audio = new Audio(url);
-        audioRef.current = audio;
-        audio.onplay = () => setSpeaking(true);
-        audio.onended = () => {
-          setSpeaking(false);
-          URL.revokeObjectURL(url);
-        };
-        audio.onerror = () => {
-          setSpeaking(false);
-          URL.revokeObjectURL(url);
-          speakWithBrowser(clean);
-        };
-        return audio.play();
-      })
-      .catch(() => {
-        try {
-          speakWithBrowser(clean);
-        } catch {
-          setSpeaking(false);
-        }
-      });
+    setSpeaking(false);
+  }
+
+  function speakWithBrowser(clean: string, epoch: number): Promise<void> {
+    return new Promise((resolve) => {
+      if (speechEpochRef.current !== epoch || typeof window === 'undefined' ||
+          !window.speechSynthesis || typeof SpeechSynthesisUtterance === 'undefined') {
+        resolve();
+        return;
+      }
+      const utterance = new SpeechSynthesisUtterance(clean);
+      utterance.lang = 'en-US';
+      const english = window.speechSynthesis.getVoices().find((voice) =>
+        voice.lang.toLowerCase().startsWith('en')
+      );
+      if (english) utterance.voice = english;
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        if (playbackCancelRef.current === finish) playbackCancelRef.current = null;
+        resolve();
+      };
+      playbackCancelRef.current = finish;
+      utterance.onstart = () => {
+        if (speechEpochRef.current === epoch) setSpeaking(true);
+      };
+      utterance.onend = finish;
+      utterance.onerror = finish;
+      window.speechSynthesis.speak(utterance);
+    });
+  }
+
+  function playAudio(blob: Blob, epoch: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (speechEpochRef.current !== epoch) {
+        resolve();
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      let settled = false;
+      const finish = (problem?: Error) => {
+        if (settled) return;
+        settled = true;
+        audio.onended = null;
+        audio.onerror = null;
+        if (audioRef.current === audio) audioRef.current = null;
+        if (playbackCancelRef.current === cancel) playbackCancelRef.current = null;
+        audio.pause();
+        URL.revokeObjectURL(url);
+        if (problem) reject(problem);
+        else resolve();
+      };
+      const cancel = () => finish();
+      playbackCancelRef.current = cancel;
+      audio.onplay = () => {
+        if (speechEpochRef.current === epoch) setSpeaking(true);
+      };
+      audio.onended = () => finish();
+      audio.onerror = () => finish(new Error('Audio playback failed'));
+      void audio.play().catch((error: unknown) =>
+        finish(error instanceof Error ? error : new Error('Audio playback failed'))
+      );
+    });
+  }
+
+  function speak(text: string, force = false) {
+    if (typeof window === 'undefined' || (mutedRef.current && !force)) return;
+    const clean = text.replace(/\s+/g, ' ').trim();
+    if (!clean) return;
+    stopSpeech();
+    const epoch = speechEpochRef.current;
+    const controller = new AbortController();
+    speechAbortRef.current = controller;
+    void playMatorSpeechChunks(clean, {
+      synthesize: (segment) => synthesizeMatorSpeech(segment, controller.signal),
+      play: (blob) => playAudio(blob, epoch),
+      fallback: (remaining) => speakWithBrowser(remaining, epoch),
+      isCancelled: () => epoch !== speechEpochRef.current || controller.signal.aborted ||
+        (mutedRef.current && !force),
+    }).catch(() => {
+      if (speechEpochRef.current === epoch) setError('Voice playback failed. The written reply is still available.');
+    }).finally(() => {
+      if (speechEpochRef.current !== epoch) return;
+      if (speechAbortRef.current === controller) speechAbortRef.current = null;
+      setSpeaking(false);
+    });
   }
 
   function toggleMute() {
-    setMuted((value) => {
-      const next = !value;
-      if (next && typeof window !== 'undefined') {
-        audioRef.current?.pause();
-        audioRef.current = null;
-        window.speechSynthesis?.cancel();
-        setSpeaking(false);
-      }
-      return next;
-    });
+    const next = !mutedRef.current;
+    mutedRef.current = next;
+    setMuted(next);
+    if (next && typeof window !== 'undefined') stopSpeech();
   }
+
+  useEffect(() => () => {
+    speechEpochRef.current += 1;
+    speechAbortRef.current?.abort();
+    playbackCancelRef.current?.();
+    audioRef.current?.pause();
+    window.speechSynthesis?.cancel();
+    cancelRecorderRef.current?.();
+    stopRef.current?.(false);
+  }, []);
 
   async function beginGroqRecording() {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -183,9 +243,12 @@ export function useVoiceSession({
     recorder.ondataavailable = (event) => {
       if (event.data.size > 0) chunks.push(event.data);
     };
+    let stopRecorder: (() => void) | null = null;
+    let cancelRecording: (() => void) | null = null;
     const release = () => {
-      if (recorderStopRef.current === release) recorderStopRef.current = null;
-      if (releaseActive === release) releaseActive = null;
+      if (recorderStopRef.current === stopRecorder) recorderStopRef.current = null;
+      if (cancelRecorderRef.current === cancelRecording) cancelRecorderRef.current = null;
+      if (releaseActive === cancelRecording) releaseActive = null;
       stream.getTracks().forEach((track) => track.stop());
       setListening(false);
       setInterim('');
@@ -203,18 +266,26 @@ export function useVoiceSession({
           if (text) onFinalRef.current(text);
           else setError(VOICE_RETRY);
         })
-        .catch((error: unknown) => {
+        .catch(() => {
           setInterim('');
-          setError(error instanceof Error && error.message ? error.message : VOICE_RETRY);
+          browserRetryRef.current = Boolean(recognitionConstructor(window));
+          setError(browserRetryRef.current
+            ? 'Groq transcription failed. Tap the microphone again to re-record using browser speech recognition.'
+            : 'Groq transcription failed. Retry the microphone or type your request.');
         });
     };
-    recorderStopRef.current = () => {
+    stopRecorder = () => {
       if (recorder.state !== 'inactive') recorder.stop();
       else release();
     };
-    claim(() => {
+    recorderStopRef.current = stopRecorder;
+    cancelRecording = () => {
+      recorder.onstop = null; // A canceled recording must not submit audio.
       if (recorder.state !== 'inactive') recorder.stop();
-    });
+      release();
+    };
+    cancelRecorderRef.current = cancelRecording;
+    claim(cancelRecording);
     recorder.start();
     setListening(true);
     setError(null);
@@ -222,7 +293,12 @@ export function useVoiceSession({
   }
 
   function begin() {
-    if (
+    stopSpeech(); // Barge-in cancels an active spoken reply.
+    // Web Speech cannot transcribe a saved MediaRecorder Blob.
+    // After a Groq error, the next explicit tap starts a new recording.
+    const tryBrowser = browserRetryRef.current && Boolean(recognitionConstructor(window));
+    browserRetryRef.current = false;
+    if (!tryBrowser &&
       typeof MediaRecorder !== 'undefined' &&
       typeof navigator.mediaDevices?.getUserMedia === 'function'
     ) {
@@ -237,8 +313,7 @@ export function useVoiceSession({
       setError(VOICE_MISSING);
       return;
     }
-    window.speechSynthesis?.cancel();
-    setSpeaking(false);
+    stopSpeech();
     const recognition = new Ctor();
     recognition.continuous = true;
     recognition.interimResults = true;
