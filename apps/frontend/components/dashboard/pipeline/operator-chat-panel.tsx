@@ -166,10 +166,12 @@ function clarifyCount(questions: MatorClarifyQuestion[]) {
 function ThreadRow({
   id,
   anchor = false,
+  side = 'start',
   children,
 }: {
   id: string;
   anchor?: boolean;
+  side?: 'start' | 'end';
   children: ReactNode;
 }) {
   const reduceMotion = useReducedMotion();
@@ -179,7 +181,8 @@ function ThreadRow({
         initial={reduceMotion ? false : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.22, ease: 'easeOut' }}
-        className="min-w-0 w-full"
+        data-message-side={side}
+        className={side === 'end' ? 'flex w-full min-w-0 justify-end' : 'w-full min-w-0'}
       >
         {children}
       </motion.div>
@@ -712,12 +715,12 @@ export default function OperatorChatPanel({
                   visibleMatorEvents.map((event) => {
                     if (event.kind === 'message' && event.role === 'user') {
                       return (
-                        <ThreadRow key={event.id} id={event.id}>
-                          <Message align="end">
-                            <MessageContent className="w-fit min-w-0 max-w-[min(82%,28rem)] flex-none">
+                        <ThreadRow key={event.id} id={event.id} side="end">
+                          <Message align="end" className="ml-auto w-full justify-end">
+                            <MessageContent className="ml-auto flex w-fit min-w-0 max-w-[min(82%,28rem)] flex-none flex-col items-end">
                             
                               {event.text?.trim() && (
-                                <Bubble variant="muted" className="w-fit max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                                <Bubble variant="muted" className="ml-auto w-fit max-w-full whitespace-pre-wrap break-words text-left [overflow-wrap:anywhere]">
                                   <BubbleContent>{event.text}</BubbleContent>
                                 </Bubble>
                               )}
@@ -943,12 +946,13 @@ export default function OperatorChatPanel({
                       <MessageScrollerItem
                         key={item.id}
                         messageId={String(item.id)}
+                        className={item.sender === 'user' ? 'flex w-full justify-end' : 'w-full'}
                       >
-                        <Message align={item.sender === 'user' ? 'end' : 'start'}>
+                        <Message align={item.sender === 'user' ? 'end' : 'start'} className={item.sender === 'user' ? 'ml-auto w-full justify-end' : 'mr-auto w-full justify-start'}>
                           {item.sender === 'assistant' && <AssistantAvatar />}
-                          <MessageContent className={item.sender === 'user' ? 'w-fit min-w-0 max-w-[min(82%,28rem)] flex-none' : 'min-w-0 max-w-[min(90%,34rem)]'}>
+                          <MessageContent className={item.sender === 'user' ? 'ml-auto flex w-fit min-w-0 max-w-[min(82%,28rem)] flex-none flex-col items-end' : 'min-w-0 max-w-[min(90%,34rem)]'}>
                             {item.sender === 'user' ? (
-                              <Bubble variant="muted" className="w-fit max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                              <Bubble variant="muted" className="ml-auto w-fit max-w-full whitespace-pre-wrap break-words text-left [overflow-wrap:anywhere]">
                                 <BubbleContent>{item.text}</BubbleContent>
                               </Bubble>
                             ) : (
