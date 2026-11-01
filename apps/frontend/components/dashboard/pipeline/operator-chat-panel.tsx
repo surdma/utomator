@@ -494,9 +494,9 @@ export default function OperatorChatPanel({
                       return (
                         <ThreadRow key={event.id} id={event.id} anchor>
                           <Message align="end">
-                            <MessageContent className="max-w-[85%] min-w-0 flex-0">
+                            <MessageContent className="w-fit min-w-0 max-w-[min(82%,28rem)] flex-none">
                               <MessageHeader>You</MessageHeader>
-                              <Bubble variant="muted" className="break-words">
+                              <Bubble variant="muted" className="w-fit max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                                 <BubbleContent>
                                   {event.text || 'Attachment'}
                                 </BubbleContent>
@@ -553,7 +553,7 @@ export default function OperatorChatPanel({
                         <ThreadRow key={event.id} id={event.id}>
                           <Message>
                             <AssistantAvatar />
-                            <MessageContent className="min-w-0">
+                            <MessageContent className="min-w-0 max-w-[min(90%,34rem)]">
                               <MessageHeader>Utomator · Mator</MessageHeader>
                               <MarkdownReply text={event.text ?? ''} />
                               <MessageFooter className="mt-1.5 flex items-center gap-1">
@@ -611,7 +611,7 @@ export default function OperatorChatPanel({
                                 />
                               </AvatarFallback>
                             </Avatar>
-                            <MessageContent className="min-w-0">
+                            <MessageContent className="min-w-0 max-w-[min(90%,34rem)]">
                               <MessageHeader>Mator</MessageHeader>
                               <div className="flex flex-wrap items-center gap-1.5">
                                 <Badge
@@ -624,7 +624,7 @@ export default function OperatorChatPanel({
                                 </Badge>
                               </div>
                               {event.text && (
-                                <Bubble variant="outline" className="mt-1">
+                                <Bubble variant="outline" className="mt-1 w-fit max-w-full break-words [overflow-wrap:anywhere]">
                                   <BubbleContent>{event.text}</BubbleContent>
                                 </Bubble>
                               )}
@@ -638,6 +638,7 @@ export default function OperatorChatPanel({
                       return (
                         <ThreadRow key={event.id} id={event.id}>
                           <Confirmation
+                            className="w-full max-w-[min(100%,30rem)]"
                             status={
                               (event.status as
                                 | 'staged'
@@ -717,11 +718,11 @@ export default function OperatorChatPanel({
                                 )}
                               </AvatarFallback>
                             </Avatar>
-                            <MessageContent className="min-w-0">
+                            <MessageContent className="min-w-0 max-w-[min(90%,34rem)]">
                               <MessageHeader>
                                 {(event.kind || 'event').toUpperCase()}
                               </MessageHeader>
-                              <Bubble>
+                              <Bubble className="w-fit max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                                 <BubbleContent>{event.text}</BubbleContent>
                               </Bubble>
                             </MessageContent>
@@ -745,8 +746,8 @@ export default function OperatorChatPanel({
                         scrollAnchor={item.sender === 'user'}
                       >
                         <Message align="end">
-                          <MessageContent className="max-w-[85%] min-w-0 flex-0">
-                            <Bubble variant="muted">
+                          <MessageContent className="w-fit min-w-0 max-w-[min(82%,28rem)] flex-none">
+                            <Bubble variant="muted" className="w-fit max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                               <BubbleContent>{item.text}</BubbleContent>
                             </Bubble>
                           </MessageContent>
@@ -825,13 +826,13 @@ export default function OperatorChatPanel({
                             <Workflow className="size-4" aria-hidden="true" />
                           </AvatarFallback>
                         </Avatar>
-                        <MessageContent className="min-w-0">
+                        <MessageContent className="min-w-0 max-w-[min(90%,34rem)]">
                           <MessageHeader>
                             Saved visual review · {review.nodeId} node
                           </MessageHeader>
                           <div
                             data-testid="saved-visual-review"
-                            className="overflow-hidden rounded-xl border border-teal-200 bg-teal-50/40"
+                            className="w-full max-w-[30rem] overflow-hidden rounded-xl border border-teal-200 bg-teal-50/40"
                           >
                             <div className="flex items-center justify-between gap-2 border-b border-teal-100 bg-teal-50/80 px-3 py-2">
                               <Badge tone="teal" size="xs">
@@ -979,7 +980,7 @@ function TaskBlock({
     status: event.kind === 'error' ? ('error' as const) : ('done' as const),
   }));
   return (
-    <div className="min-w-0 space-y-2">
+    <div className="min-w-0 w-full max-w-[min(100%,32rem)] space-y-2">
       <Task steps={itemSteps} running={false} />
       {evidence}
     </div>
