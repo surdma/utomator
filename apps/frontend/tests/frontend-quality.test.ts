@@ -536,13 +536,26 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
     const assistant = findRow('evidence'.repeat(26));
     const assistantText = assistant?.querySelector<HTMLElement>('p');
     const confirmationText = confirmCard?.querySelector<HTMLElement>('p');
-    if (!shortBubble || !longBubble || !confirmCard || !assistantText || !confirmationText) return null;
+    const shortAvatar = short?.querySelector<HTMLElement>('[data-slot="avatar"]');
+    const longAvatar = long?.querySelector<HTMLElement>('[data-slot="avatar"]');
+    if (!shortBubble || !longBubble || !confirmCard || !assistantText || !confirmationText || !shortAvatar || !longAvatar || !short || !long) return null;
     const shortBox = shortBubble.getBoundingClientRect();
     const longBox = longBubble.getBoundingClientRect();
     const confirmationBox = confirmCard.getBoundingClientRect();
     const dockBox = element.getBoundingClientRect();
+    const shortAvatarBox = shortAvatar.getBoundingClientRect();
+    const longAvatarBox = longAvatar.getBoundingClientRect();
+    const assistantBox = assistantText.getBoundingClientRect();
     return {
       shortWidth: shortBox.width,
+      shortUserBubbleLeft: shortBox.left,
+      assistantReplyLeft: assistantBox.left,
+      shortBubbleToAvatar: shortAvatarBox.left - shortBox.right,
+      longBubbleToAvatar: longAvatarBox.left - longBox.right,
+      shortAvatarToRowRight: short.getBoundingClientRect().right - shortAvatarBox.right,
+      longAvatarToRowRight: long.getBoundingClientRect().right - longAvatarBox.right,
+      userSideIsEnd: short.closest('[data-message-side]')?.getAttribute('data-message-side') === 'end',
+      assistantSideIsStart: assistant?.getAttribute('data-align') === 'start',
       longWidth: longBox.width,
       confirmWidth: confirmationBox.width,
       dockWidth: dockBox.width,
@@ -555,6 +568,17 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
   expect(metrics, 'Rendered chat bubbles and staged card must be present').not.toBeNull();
   expect(metrics!.messageVisible).toBe(true);
   expect(metrics!.shortWidth).toBeGreaterThan(55);
+  expect(metrics!.userSideIsEnd, 'a persisted user turn must align to the right').toBe(true);
+  expect(metrics!.assistantSideIsStart, 'a Mator reply must align to the left').toBe(true);
+  expect(metrics!.shortUserBubbleLeft - metrics!.assistantReplyLeft, 'user text is visually to the right of Mator').toBeGreaterThan(36);
+  for (const gap of [metrics!.shortBubbleToAvatar, metrics!.longBubbleToAvatar]) {
+    expect(gap, 'user bubble should sit beside the right-side ME avatar').toBeGreaterThanOrEqual(-1);
+    expect(gap).toBeLessThanOrEqual(24);
+  }
+  for (const gap of [metrics!.shortAvatarToRowRight, metrics!.longAvatarToRowRight]) {
+    expect(gap, 'ME avatar stays anchored to the right edge').toBeGreaterThanOrEqual(-1);
+    expect(gap).toBeLessThanOrEqual(2);
+  }
   expect(metrics!.shortWidth).toBeLessThan(metrics!.dockWidth * 0.72);
   expect(metrics!.longWidth).toBeLessThanOrEqual(metrics!.dockWidth);
   expect(metrics!.confirmWidth).toBeLessThanOrEqual(Math.min(metrics!.dockWidth, 485));
