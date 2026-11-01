@@ -197,3 +197,11 @@ test('composer never duplicates a staged action approval card', () => {
   assert.doesNotMatch(source, /mator-stage-confirm-compact/);
   assert.doesNotMatch(source, /Not staged/);
 });
+
+test('Mator keeps latest replies at the live edge instead of anchoring them at the viewport top', () => {
+  const source = readFileSync(pipeline('operator-chat-panel.tsx'), 'utf8');
+  assert.match(source, /defaultScrollPosition="end"/);
+  assert.doesNotMatch(source, /lastMatorEventId/);
+  assert.doesNotMatch(source, /anchor=\{event\.id ===/);
+  assert.doesNotMatch(source, /scrollAnchor=\{item\.id ===/);
+});

@@ -244,7 +244,6 @@ export default function OperatorChatPanel({
     () => orderedMatorEvents.filter((event) => shouldRenderMatorEvent(orderedMatorEvents, event)),
     [orderedMatorEvents]
   );
-  const lastMatorEventId = visibleMatorEvents.at(-1)?.id;
   const openClarify = findOpenClarify(matorEvents);
   const clarifyQuestions = openClarify
     ? readClarifyQuestions(openClarify.action)
@@ -632,7 +631,7 @@ export default function OperatorChatPanel({
                   visibleMatorEvents.map((event) => {
                     if (event.kind === 'message' && event.role === 'user') {
                       return (
-                        <ThreadRow key={event.id} id={event.id} anchor={event.id === lastMatorEventId}>
+                        <ThreadRow key={event.id} id={event.id}>
                           <Message align="end">
                             <MessageContent className="w-fit min-w-0 max-w-[min(82%,28rem)] flex-none">
                             
@@ -674,7 +673,7 @@ export default function OperatorChatPanel({
 
                     if (event.kind === 'how') {
                       return (
-                        <ThreadRow key={event.id} id={event.id} anchor={event.id === lastMatorEventId}>
+                        <ThreadRow key={event.id} id={event.id}>
                           {!event.text ? null : (
                             <Reasoning
                               className="w-fit max-w-[min(100%,30rem)]"
@@ -690,7 +689,7 @@ export default function OperatorChatPanel({
 
                     if (event.kind === 'message') {
                       return (
-                        <ThreadRow key={event.id} id={event.id} anchor={event.id === lastMatorEventId}>
+                        <ThreadRow key={event.id} id={event.id}>
                           <Message>
                             <AssistantAvatar />
                             <MessageContent className="min-w-0 max-w-[min(90%,34rem)] break-words [overflow-wrap:anywhere]">
@@ -741,7 +740,7 @@ export default function OperatorChatPanel({
                       const questions = readClarifyQuestions(event.action);
                       const open = openClarify?.id === event.id && questions;
                       return (
-                        <ThreadRow key={event.id} id={event.id} anchor={event.id === lastMatorEventId}>
+                        <ThreadRow key={event.id} id={event.id}>
                           <Message>
                             <Avatar className="bg-teal-50 text-teal-800 ring-1 ring-teal-200">
                               <AvatarFallback>
@@ -782,7 +781,7 @@ export default function OperatorChatPanel({
                       (event.action as { type: unknown }).type === 'explain_how'
                     ) {
                       return event.text ? (
-                        <ThreadRow key={event.id} id={event.id} anchor={event.id === lastMatorEventId}>
+                        <ThreadRow key={event.id} id={event.id}>
                           <Reasoning
                             className="w-fit max-w-[min(100%,30rem)]"
                             title="Guidance from Mator"
@@ -796,7 +795,7 @@ export default function OperatorChatPanel({
 
                     if (event.status || event.action) {
                       return (
-                        <ThreadRow key={event.id} id={event.id} anchor={event.id === lastMatorEventId}>
+                        <ThreadRow key={event.id} id={event.id}>
                           <Confirmation
                             className="w-fit min-w-0 max-w-[min(100%,30rem)]"
                             status={
@@ -832,7 +831,7 @@ export default function OperatorChatPanel({
 
                     if (event.attachmentId) {
                       return (
-                        <ThreadRow key={event.id} id={event.id} anchor={event.id === lastMatorEventId}>
+                        <ThreadRow key={event.id} id={event.id}>
                           <MatorAttachmentPreview
                             attachmentId={event.attachmentId}
                             imageSrc={
@@ -856,7 +855,7 @@ export default function OperatorChatPanel({
 
                     if (event.text) {
                       return (
-                        <ThreadRow key={event.id} id={event.id} anchor={event.id === lastMatorEventId}>
+                        <ThreadRow key={event.id} id={event.id}>
                           <Message>
                             <Avatar
                               className={
@@ -904,7 +903,6 @@ export default function OperatorChatPanel({
                       <MessageScrollerItem
                         key={item.id}
                         messageId={String(item.id)}
-                        scrollAnchor={item.id === conversation.at(-1)?.id}
                       >
                         <Message align={item.sender === 'user' ? 'end' : 'start'}>
                           {item.sender === 'assistant' && <AssistantAvatar />}
