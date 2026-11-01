@@ -395,6 +395,8 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
   const now = '2026-11-01T09:00:00.000Z';
   const shortText = 'Hi Mator';
   const longText = 'Review this professional credential: ' + 'credential'.repeat(24);
+  const assistantText = 'I can review this evidence: ' + 'evidence'.repeat(26);
+  const confirmationText = 'Review this proposal: ' + 'approval'.repeat(26);
   const workflowId = 'mator-layout-workflow';
   const conversationId = 'mator-layout-thread';
   const plan = {
@@ -477,7 +479,7 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
           conversationId,
           role: 'assistant',
           kind: 'message',
-          text: 'I can review the available evidence before proposing edits.',
+          text: assistantText,
           createdAt: '2026-11-01T09:00:02.000Z',
         },
         {
@@ -487,7 +489,7 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
           kind: 'action',
           status: 'staged',
           action: { type: 'edit_step' },
-          text: 'Review this proposal before applying any change.',
+          text: confirmationText,
           createdAt: '2026-11-01T09:00:03.000Z',
         },
       ]),
@@ -509,7 +511,7 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
   await expect(shortContent).toBeVisible();
   await expect(longContent).toBeVisible();
   await expect(confirm).toBeVisible();
-  await expect(dock.getByText('I can review the available evidence before proposing edits.')).toBeVisible();
+  await expect(dock.getByText(assistantText)).toBeVisible();
 
   const metrics = await dock.evaluate((element) => {
     const rows = [...element.querySelectorAll<HTMLElement>('[data-slot="message"]')];
@@ -519,7 +521,10 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
     const shortBubble = short?.querySelector<HTMLElement>('[data-slot="bubble"]');
     const longBubble = long?.querySelector<HTMLElement>('[data-slot="bubble"]');
     const confirmCard = element.querySelector<HTMLElement>('[data-testid="mator-confirmation"]');
-    if (!shortBubble || !longBubble || !confirmCard) return null;
+    const assistant = findRow('evidence'.repeat(26));
+    const assistantText = assistant?.querySelector<HTMLElement>('p');
+    const confirmationText = confirmCard?.querySelector<HTMLElement>('p');
+    if (!shortBubble || !longBubble || !confirmCard || !assistantText || !confirmationText) return null;
     const shortBox = shortBubble.getBoundingClientRect();
     const longBox = longBubble.getBoundingClientRect();
     const confirmationBox = confirmCard.getBoundingClientRect();
@@ -530,6 +535,8 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
       confirmWidth: confirmationBox.width,
       dockWidth: dockBox.width,
       longOverflow: longBubble.scrollWidth - longBubble.clientWidth,
+      assistantOverflow: assistantText.scrollWidth - assistantText.clientWidth,
+      confirmationOverflow: confirmationText.scrollWidth - confirmationText.clientWidth,
       messageVisible: shortBubble.textContent?.includes('Hi Mator'),
     };
   });
@@ -540,6 +547,8 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
   expect(metrics!.longWidth).toBeLessThanOrEqual(metrics!.dockWidth);
   expect(metrics!.confirmWidth).toBeLessThanOrEqual(Math.min(metrics!.dockWidth, 485));
   expect(metrics!.longOverflow).toBeLessThanOrEqual(1);
+  expect(metrics!.assistantOverflow).toBeLessThanOrEqual(1);
+  expect(metrics!.confirmationOverflow).toBeLessThanOrEqual(1);
   await capture(page, info, 'mator-content-width-regression');
 });
 
