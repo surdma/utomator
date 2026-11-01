@@ -15,19 +15,20 @@ export function chunkMatorSpeech(input: string, limit = 190): string[] {
       window.lastIndexOf('? ')
     );
     const whitespace = window.lastIndexOf(' ');
-    let cut =
-      punctuation >= Math.floor(limit / 2)
-        ? punctuation + 1
-        : whitespace >= Math.floor(limit / 2)
-          ? whitespace
-          : limit;
+    let cut = limit;
+    if (punctuation >= Math.floor(limit / 2)) {
+      cut = punctuation + 1;
+    } else if (whitespace >= Math.floor(limit / 2)) {
+      cut = whitespace;
+    }
     if (
       cut > 0 &&
       cut < remaining.length &&
       /[\uD800-\uDBFF]/.test(remaining[cut - 1]!) &&
       /[\uDC00-\uDFFF]/.test(remaining[cut]!)
-    )
+    ) {
       cut -= 1;
+    }
     if (cut <= 0) cut = limit;
     chunks.push(remaining.slice(0, cut).trim());
     remaining = remaining.slice(cut).trim();
@@ -55,8 +56,9 @@ export async function playMatorSpeechChunks(
       if (transport.isCancelled()) return;
       await transport.play(audio);
     } catch {
-      if (!transport.isCancelled())
+      if (!transport.isCancelled()) {
         await transport.fallback(chunks.slice(i).join(' '));
+      }
       return;
     }
   }
