@@ -37,6 +37,7 @@ import {
 import { useMatorChat } from './pipeline/use-mator-chat';
 import { useOperatorCommands } from './pipeline/use-operator-commands';
 import { useVoiceSession } from './pipeline/use-voice-session';
+import { useVoiceOnlyPreference } from './pipeline/mator-voice-preference';
 import { useWorkflowWorkspace } from './pipeline/use-workflow-workspace';
 import RunTrackingDialog from './pipeline/run-tracking-dialog';
 import CheckpointDialog from './pipeline/checkpoint-dialog';
@@ -180,6 +181,7 @@ export default function DashboardShell({
   const voice = useVoiceSession({
     onFinal: (text) => submitRef.current(text, 'voice'),
   });
+  const voiceOnly = useVoiceOnlyPreference();
   const {
     message,
     setMessage,
@@ -210,6 +212,8 @@ export default function DashboardShell({
   } = useMatorChat({
     workflowId: activeWorkflow?.id ?? null,
     onSpeakHow: (text) => voice.speak(text),
+    onSpeakReply: (text) => voice.speak(text),
+    voiceOnly,
   });
   const {
     sendMessage: sendOperatorMessage,
