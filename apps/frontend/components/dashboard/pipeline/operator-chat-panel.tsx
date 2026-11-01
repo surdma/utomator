@@ -277,24 +277,33 @@ export default function OperatorChatPanel({
   const markerDraft =
     voice.interim?.trim() || (voice.listening ? '' : message.trim()) || '';
 
-  const attachmentFor = (event: MatorChatEvent) =>
-    event.attachmentId ? (
-      <MatorAttachmentPreview
-        attachmentId={event.attachmentId}
-        imageSrc={
-          attachmentPreviews[event.attachmentId] ??
-          matorAttachmentFileUrl(event.attachmentId)
-        }
-        markers={event.markers ?? []}
-        draftText={markerDraft}
-        interactive={Boolean(onSaveMarkers)}
-        onMarkersChange={
-          onSaveMarkers
-            ? (markers) => void onSaveMarkers(event.attachmentId!, markers)
-            : undefined
-        }
-      />
-    ) : undefined;
+  const attachmentFor = (event: MatorChatEvent) => {
+    const assets = event.attachments?.length
+      ? event.attachments
+      : event.attachmentId
+        ? [{ id: event.attachmentId, name: 'Image', mime: 'image/png', markers: event.markers }]
+        : [];
+    if (!assets.length) return null;
+    return (
+      <div data-testid="mator-image-gallery" className="grid w-fit max-w-full grid-cols-3 gap-1.5 sm:grid-cols-4">
+        {assets.map((asset) => (
+          <MatorAttachmentPreview
+            key={asset.id}
+            attachmentId={asset.id}
+            filename={asset.name}
+            mime={asset.mime}
+            imageSrc={asset.mime.startsWith('image/')
+              ? attachmentPreviews[asset.id] ?? matorAttachmentFileUrl(asset.id)
+              : null}
+            markers={asset.markers ?? (asset.id === event.attachmentId ? event.markers ?? [] : [])}
+            draftText={markerDraft}
+            interactive={Boolean(onSaveMarkers)}
+            onMarkersChange={onSaveMarkers ? (markers) => onSaveMarkers(asset.id, markers) : undefined}
+          />
+        ))}
+      </div>
+    );
+  };
 
   return (
     <aside
@@ -641,31 +650,10 @@ export default function OperatorChatPanel({
                             
                               <Bubble variant="muted" className="w-fit max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                                 <BubbleContent>
-                                  {event.text || 'Attachment'}
+                                  {event.text || null}
                                 </BubbleContent>
                               </Bubble>
-                              {event.attachmentId && (
-                                <div className="mt-2">
-                                  <MatorAttachmentPreview
-                                    attachmentId={event.attachmentId}
-                                    imageSrc={
-                                      attachmentPreviews[event.attachmentId] ??
-                                      matorAttachmentFileUrl(event.attachmentId)
-                                    }
-                                    markers={event.markers ?? []}
-                                    draftText={markerDraft}
-                                    onMarkersChange={
-                                      onSaveMarkers
-                                        ? (markers) =>
-                                            void onSaveMarkers(
-                                              event.attachmentId!,
-                                              markers
-                                            )
-                                        : undefined
-                                    }
-                                  />
-                                </div>
-                              )}
+                              {attachmentFor(event)}
                             </MessageContent>
                             <Avatar className="bg-slate-800 text-white">
                               <AvatarFallback>ME</AvatarFallback>
@@ -833,28 +821,8 @@ export default function OperatorChatPanel({
                       );
                     }
 
-                    if (event.attachmentId) {
-                      return (
-                        <ThreadRow key={event.id} id={event.id}>
-                          <MatorAttachmentPreview
-                            attachmentId={event.attachmentId}
-                            imageSrc={
-                              attachmentPreviews[event.attachmentId] ?? matorAttachmentFileUrl(event.attachmentId)
-                            }
-                            markers={event.markers ?? []}
-                            draftText={markerDraft}
-                            onMarkersChange={
-                              onSaveMarkers
-                                ? (markers) =>
-                                    void onSaveMarkers(
-                                      event.attachmentId!,
-                                      markers
-                                    )
-                                : undefined
-                            }
-                          />
-                        </ThreadRow>
-                      );
+                    if (event.attachmentId || event.attachments?.length) {
+                      return <ThreadRow key={event.id} id={event.id}>{attachmentFor(event)}</ThreadRow>;
                     }
 
                     if (event.text) {
