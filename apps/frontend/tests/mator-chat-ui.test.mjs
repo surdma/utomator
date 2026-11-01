@@ -38,7 +38,7 @@ test('operator chat panel exposes required mator testids and chrome', () => {
   assert.match(source, /MatorClarifyForm/);
   assert.match(source, /MatorAttachmentPreview/);
   assert.doesNotMatch(source, /data-testid="mator-voice-switch"/, 'header no longer owns the voice switch');
-  assert.match(source, /lastMatorEventId/);
+  assert.match(source, /defaultScrollPosition="end"/, 'the chat opens at the live edge');
   assert.match(source, /orderedMatorEvents/);
   assert.match(
     source,
@@ -168,7 +168,8 @@ test('new chat displays suggestions instead of a permanent loading skeleton', ()
   assert.match(panel, /loading \? \(/);
   assert.match(panel, /<Suggestion suggestions=\{START_SUGGESTIONS\}/);
   assert.match(panel, /matorAttachmentFileUrl/);
-  assert.match(panel, /Open attached file/);
+  const attachment = readFileSync(pipeline('mator-attachment-preview.tsx'), 'utf8');
+  assert.match(attachment, /Open attached file/, 'original assets remain linked from the preview');
 });
 
 test('model picker is connected to real chat settings and handles failures', () => {
