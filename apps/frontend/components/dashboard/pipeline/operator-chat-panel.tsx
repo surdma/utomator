@@ -553,7 +553,7 @@ export default function OperatorChatPanel({
                         <ThreadRow key={event.id} id={event.id}>
                           <Message>
                             <AssistantAvatar />
-                            <MessageContent className="min-w-0 max-w-[min(90%,34rem)]">
+                            <MessageContent className="min-w-0 max-w-[min(90%,34rem)] break-words [overflow-wrap:anywhere]">
                               <MessageHeader>Utomator · Mator</MessageHeader>
                               <MarkdownReply text={event.text ?? ''} />
                               <MessageFooter className="mt-1.5 flex items-center gap-1">
@@ -611,7 +611,7 @@ export default function OperatorChatPanel({
                                 />
                               </AvatarFallback>
                             </Avatar>
-                            <MessageContent className="min-w-0 max-w-[min(90%,34rem)]">
+                            <MessageContent className="min-w-0 max-w-[min(90%,34rem)] break-words [overflow-wrap:anywhere]">
                               <MessageHeader>Mator</MessageHeader>
                               <div className="flex flex-wrap items-center gap-1.5">
                                 <Badge
@@ -718,7 +718,7 @@ export default function OperatorChatPanel({
                                 )}
                               </AvatarFallback>
                             </Avatar>
-                            <MessageContent className="min-w-0 max-w-[min(90%,34rem)]">
+                            <MessageContent className="min-w-0 max-w-[min(90%,34rem)] break-words [overflow-wrap:anywhere]">
                               <MessageHeader>
                                 {(event.kind || 'event').toUpperCase()}
                               </MessageHeader>
@@ -826,7 +826,7 @@ export default function OperatorChatPanel({
                             <Workflow className="size-4" aria-hidden="true" />
                           </AvatarFallback>
                         </Avatar>
-                        <MessageContent className="min-w-0 max-w-[min(90%,34rem)]">
+                        <MessageContent className="min-w-0 max-w-[min(90%,34rem)] break-words [overflow-wrap:anywhere]">
                           <MessageHeader>
                             Saved visual review · {review.nodeId} node
                           </MessageHeader>
