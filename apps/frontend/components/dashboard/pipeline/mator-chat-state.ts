@@ -16,6 +16,7 @@ export type MatorChatEvent = {
   text?: string;
   action?: unknown;
   attachmentId?: string;
+  attachments?: Array<{ id: string; name: string; mime: string; markers?: Array<{ id: string; x: number; y: number; text: string }> }>;
   markers?: Array<{ id: string; x: number; y: number; text: string }>;
   status?: 'staged' | 'applied' | 'rejected' | 'incomplete' | 'error';
   idempotencyKey?: string;
