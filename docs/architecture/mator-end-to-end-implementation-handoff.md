@@ -192,3 +192,20 @@ For each M-ID append: date; owner; verified baseline/root cause; exact files and
 **Acceptance gates still missing:** full latest-head Playwright with all new tests and measured gap across all browser projects; all Node/Fastify/TS/production builds; quality checks without masking existing failures; real authenticated persistent owner/workflow conversation and actual Groq STT, TTS, speech permissions, mute/retry across Chrome/Safari/mobile; independent code/security/a11y review and recorded real provider/Runner dogfood. Broader Growth integration fixture failures are tracked separately and must not be mislabelled as Mator regressions. Do not merge or call M1/M2 10/10 until evidenced.
 
 **Next persona:** Test Engineer to obtain current-head CI results, investigate any browser or backend failures (including file idempotency), then return defects to the Frontend/Backend owner. Independent Reviewer and integration/dogfood must reject any missing real service proof. Git/Release must retain draft PR #15 and update its checkboxes from actual runs.
+
+## M1/M2 remediation checkpoint, 2026-11-01 (latest verified head before this documentation update: `cb9afb5`)
+
+**Objective:** Close delayed Groq speech-to-text / conversation-switch race, expose previously skipped lint checks, and independently verify the affected UI with Playwright. Scope is M1/M2 only; no Growth database/pipeline work was claimed.
+
+**Implementation:**
+- `2c13c5f`: added recording delivery generations in `voice-support.ts` and `use-voice-session.ts`; a response from an invalidated recording cannot call the latest send callback. Invalidations run on thread switch, new thread, close, workflow/selected-thread change, unmount, and superseding voice input. `dashboard-shell.tsx` synchronously invalidates pending STT before thread changes. Added two Node tests and the delayed STT browser test that holds the old response until after switching threads.
+- `43c80be`: CI now runs both ESLint and Biome lint after a formatting failure if their setup/format steps ran, without treating formatting failures as successful.
+- `cb9afb5`: addressed observed frontend lint issues (JSX entity, unused icon import, callback/effect dependencies, stable selected Growth template ID).
+
+**Executed verification on `cb9afb5`:**
+- [Integration run 41311038988](https://github.com/surdma/utomator/actions/runs/41311038988): **85/85 Playwright tests passed**, including new delayed STT switch regression across five browser projects; frontend Node **113/113**, backend **169/169**, hosted **6/6**; frontend/backend builds and types passed. Broad fixture/integration remains **17/19** (the two previously documented Next.js workspace and Growth workspace cases).
+- [Quality run 41311038971](https://github.com/surdma/utomator/actions/runs/41311038971): frontend ESLint with `--max-warnings 0` **passed**; Prettier **27 files still need formatting**; backend Biome formatting **15 errors** and full Biome lint **192 warnings**; React Doctor score **51**, **131 warnings**. The React Doctor warning count also appears on `main`, but do not assume every warning is unrelated.
+
+**Review:** The previous source-review finding (stale STT response submitted to another thread) is now addressed with code and browser regression, but no independent reviewer has approved the complete PR. Browser tests use controlled STT/API fixtures; this is not real external Groq verification.
+
+**Outstanding blockers (explicitly not COMPLETE):** Prettier/Biome cleanup and changed-file ownership split; all-release code-quality gate; live microphone permissions in desktop/mobile browsers, real account-backed Groq STT and TTS, persisted conversation/owner isolation and Runner dogfood; independent reviewer approval. Do not merge PR #15. Real provider access and a credentialed executable checkout were not available in this session. Next persona: Refactor/Maintenance for formatter hygiene and Test/Reviewer/Dogfood for remaining validation gates.
