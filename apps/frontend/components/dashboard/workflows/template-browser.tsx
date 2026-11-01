@@ -84,9 +84,10 @@ export default function TemplateBrowser({
     );
   }, [options, query, category, readiness]);
   const selected = filtered.find((item) => item.id === picked) ?? filtered[0] ?? null;
+  const selectedId = selected?.id ?? null;
 
   useEffect(() => {
-    if (!selected) return;
+    if (!selectedId) return;
     const controller = new AbortController();
     queueMicrotask(() => {
       if (!controller.signal.aborted) {
@@ -94,14 +95,14 @@ export default function TemplateBrowser({
         setDetailError('');
       }
     });
-    void fetch('/api/growth/templates/' + encodeURIComponent(selected.id), {
+    void fetch('/api/growth/templates/' + encodeURIComponent(selectedId), {
       cache: 'no-store',
       signal: controller.signal,
     })
       .then(async (response) => {
         if (!response.ok) throw Error('Unable to load the selected YAML workflow.');
         const result = (await response.json()) as Program;
-        if (result.id !== selected.id || !Array.isArray(result.stages) || result.stages.length === 0)
+        if (result.id !== selectedId || !Array.isArray(result.stages) || result.stages.length === 0)
           throw Error('The selected workflow has no validated pipeline steps.');
         if (!controller.signal.aborted) {
           setDetail(result);
@@ -117,7 +118,7 @@ export default function TemplateBrowser({
     return () => {
       controller.abort();
     };
-  }, [selected?.id, detailRefresh]);
+  }, [selectedId, detailRefresh]);
 
   const currentDetail = detail?.id === selected?.id ? detail : null;
   async function loadSelected() {

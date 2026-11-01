@@ -975,7 +975,7 @@ export default function OperatorChatPanel({
           <div role="alert" data-testid="mator-chat-error" className="mx-3 my-2 flex min-w-0 max-w-[min(100%,30rem)] items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-900">
             <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <div className="min-w-0 text-xs leading-relaxed">
-              <p className="font-semibold">Mator couldn't complete that request</p>
+              <p className="font-semibold">Mator couldn&apos;t complete that request</p>
               <p className="mt-1 break-words [overflow-wrap:anywhere]">
                 {chatError && /\b(400|429|5\d\d|groq|bad request)\b/i.test(chatError)
                   ? 'The AI service could not complete the request. Review your chat settings, then retry. Your draft is preserved.'

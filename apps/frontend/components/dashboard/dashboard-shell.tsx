@@ -226,7 +226,7 @@ export default function DashboardShell({
       voice.cancelPendingTranscript();
     }
     voiceScopeRef.current = scope;
-  }, [activeWorkflow?.id, conversationMeta?.id, voice.cancelPendingTranscript]);
+  }, [activeWorkflow?.id, conversationMeta?.id, voice]);
 
   // Runner SSE events, not the YAML plan, are the authority for spoken status.
   // Changes of run identity seed the history so navigating to an old run is silent.
@@ -246,7 +246,7 @@ export default function DashboardShell({
     if (voiceOnly && settingsToggles.howTtsEnabled && summaries.length) {
       voice.speak(summaries.join(' '));
     }
-  }, [currentRunId, events, voiceOnly, settingsToggles.howTtsEnabled, voice.speak]);
+  }, [currentRunId, events, voiceOnly, settingsToggles.howTtsEnabled, voice]);
 
   const {
     sendMessage: sendOperatorMessage,
@@ -297,7 +297,7 @@ export default function DashboardShell({
       if (source === 'voice') setMessage(request);
       void send(request);
     },
-    [activeWorkflow?.id, send, setMessage, submitUtterance]
+    [send, setMessage, submitUtterance]
   );
 
   const sendMessage = (event: FormEvent<HTMLFormElement>) => {
