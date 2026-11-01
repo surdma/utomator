@@ -47,7 +47,7 @@ import MatorClarifyForm from './mator-clarify-form';
 import MatorComposer from './mator-composer';
 import { MarkdownReply } from './markdown-reply';
 import { getApi } from './api-client';
-import MatorAttachmentCanvas from './mator-attachment-canvas';
+import MatorAttachmentPreview from './mator-attachment-preview';
 import type { VoiceSession } from './use-voice-session';
 import type { MatorClarifyQuestion } from './mator-chat-state';
 import type { DashboardPane } from './dashboard-route';
@@ -269,7 +269,7 @@ export default function OperatorChatPanel({
 
   const attachmentFor = (event: MatorChatEvent) =>
     event.attachmentId ? (
-      <MatorAttachmentCanvas
+      <MatorAttachmentPreview
         attachmentId={event.attachmentId}
         imageSrc={
           attachmentPreviews[event.attachmentId] ??
@@ -636,7 +636,7 @@ export default function OperatorChatPanel({
                               </Bubble>
                               {event.attachmentId && (
                                 <div className="mt-2">
-                                  <MatorAttachmentCanvas
+                                  <MatorAttachmentPreview
                                     attachmentId={event.attachmentId}
                                     imageSrc={
                                       attachmentPreviews[event.attachmentId] ??
@@ -807,7 +807,7 @@ export default function OperatorChatPanel({
                     if (event.attachmentId) {
                       return (
                         <ThreadRow key={event.id} id={event.id} anchor={event.id === lastMatorEventId}>
-                          <MatorAttachmentCanvas
+                          <MatorAttachmentPreview
                             attachmentId={event.attachmentId}
                             imageSrc={
                               attachmentPreviews[event.attachmentId] ?? matorAttachmentFileUrl(event.attachmentId)

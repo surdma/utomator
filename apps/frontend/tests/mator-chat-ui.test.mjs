@@ -8,6 +8,14 @@ const pipeline = (name) => resolve(root, 'components/dashboard/pipeline', name);
 const ui = (name) => resolve(root, 'components/ui', name);
 const aiElements = (name) => resolve(root, 'components/ai-elements', name);
 
+test('annotation is opt-in using an accessible pencil control', () => {
+  const preview = readFileSync(pipeline('mator-attachment-preview.tsx'), 'utf8');
+  assert.match(preview, /data-testid="mator-annotation-pencil"/);
+  assert.match(preview, /aria-expanded/);
+  assert.match(preview, /MatorAttachmentCanvas/);
+  assert.match(preview, /onMarkersChange/);
+});
+
 test('mator attachment canvas module exists', () => {
   assert.equal(existsSync(pipeline('mator-attachment-canvas.tsx')), true);
 });
@@ -28,7 +36,7 @@ test('operator chat panel exposes required mator testids and chrome', () => {
   assert.match(source, /AnimatePresence/);
   assert.match(source, /MessageScroller/);
   assert.match(source, /MatorClarifyForm/);
-  assert.match(source, /MatorAttachmentCanvas/);
+  assert.match(source, /MatorAttachmentPreview/);
   assert.doesNotMatch(source, /data-testid="mator-voice-switch"/, 'header no longer owns the voice switch');
   assert.match(source, /lastMatorEventId/);
   assert.match(source, /orderedMatorEvents/);
