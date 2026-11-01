@@ -101,7 +101,7 @@ type Props = {
   onSaveMarkers?: (
     attachmentId: string,
     markers: MatorImageMarkerDto[]
-  ) => void | Promise<void>;
+  ) => void | Promise<unknown>;
   reviews: Review[];
   platform: Platform;
   normalizedHandle: string;
@@ -114,7 +114,7 @@ type Props = {
   message: string;
   onMessageChange: (message: string) => void;
   onSendMessage: (event: FormEvent<HTMLFormElement>) => void;
-  onAttachFile: (file?: File) => unknown | Promise<unknown>;
+  onPendingAssetsChange?: (count: number) => void;
   checkpoint: import('./run-models').Checkpoint | null;
   voice: VoiceSession;
   operatorPendingLabel?: string | null;
@@ -214,7 +214,7 @@ export default function OperatorChatPanel({
   message,
   onMessageChange,
   onSendMessage,
-  onAttachFile,
+  onPendingAssetsChange,
   voice,
   operatorPendingLabel,
   onConfirmOperator,
@@ -961,7 +961,10 @@ export default function OperatorChatPanel({
           message={message}
           onMessageChange={onMessageChange}
           onSendMessage={onSendMessage}
-          onAttachFile={onAttachFile}
+          onUploadFile={onUploadClarifyFile}
+          onSendText={onSendText}
+          onSaveMarkers={onSaveMarkers}
+          onPendingAssetsChange={onPendingAssetsChange}
           busy={busy}
           incomplete={incomplete}
           onIncompleteContinue={onIncompleteContinue}
