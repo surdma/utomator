@@ -255,12 +255,10 @@ export default function DashboardShell({
         submitUtterance(request, source);
         return;
       }
-      if (activeWorkflow?.id) {
-        if (source === 'text') setMessage('');
-        void send(request);
-        return;
-      }
-      submitUtterance(request, source);
+      // Voice and text use the same persistent conversation. Missing storage
+      // is reported by the Mator hook rather than silently routing to a local command.
+      if (source === 'voice') setMessage(request);
+      void send(request);
     },
     [activeWorkflow?.id, send, setMessage, submitUtterance]
   );
@@ -268,11 +266,15 @@ export default function DashboardShell({
   const sendMessage = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (matorPending) return;
-    if (activeWorkflow?.id && !message.trim().startsWith('/craft')) {
-      sendMatorMessage(event);
+    if (
+      message.trim().startsWith('/craft') ||
+      ['crafts', 'memory'].includes(message.trim()) ||
+      message.trim().startsWith('inspect')
+    ) {
+      sendOperatorMessage(event);
       return;
     }
-    sendOperatorMessage(event);
+    sendMatorMessage(event);
   };
 
   const confirmChat = () => {
