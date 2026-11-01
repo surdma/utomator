@@ -304,19 +304,12 @@ export default function DashboardShell({
   };
 
   const confirmChat = (eventId?: string) => {
-    if (eventId) {
-      void confirmStage(eventId);
-      return;
-    }
-    if (matorPendingLabel) {
-      void confirmStage();
-      return;
-    }
-    confirmPending();
+    if (eventId) void confirmStage(eventId);
+    else confirmPending();
   };
 
   const rejectChat = (eventId?: string) => {
-    if (eventId || matorPendingLabel) void rejectStage(eventId);
+    if (eventId) void rejectStage(eventId);
   };
 
   const restoreMatorPipelineUi = async () => {

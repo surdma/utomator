@@ -281,8 +281,8 @@ test('action loop cap processes at most 3 model actions per turn', async () => {
     const conversation = await createConversation(docs, workflow.live.id, 'Cap');
 
     const five = Array.from({ length: 5 }, (_, i) => ({
-      type: 'noop',
-      reason: `cap-${i + 1}`,
+      type: 'explain_how',
+      text: `explanation-${i + 1}`,
     }));
     const fetchImpl: typeof fetch = async () => groqJsonResponse({ actions: five });
 
@@ -301,14 +301,19 @@ test('action loop cap processes at most 3 model actions per turn', async () => {
         action?: { type?: string; reason?: string; text?: string };
         text?: string;
       }>;
-      const modelNoops = events.filter(
-        (e) =>
-          e.kind === 'action' &&
-          e.status === 'staged' &&
-          e.action?.type === 'noop' &&
-          /^cap-/.test(e.action.reason ?? ''),
+      const modelGuidance = events.filter(
+        (e) => e.kind === 'how' && /^explanation-/.test(e.text ?? ''),
       );
-      assert.equal(modelNoops.length, MAX_MATOR_ACTIONS_PER_TURN);
+      assert.equal(modelGuidance.length, MAX_MATOR_ACTIONS_PER_TURN);
+      assert.deepEqual(
+        modelGuidance.map((event) => event.text),
+        ['explanation-1', 'explanation-2', 'explanation-3'],
+      );
+      assert.equal(
+        events.filter((event) => event.status === 'staged' || event.status === 'applied').length,
+        0,
+      );
+      assert.equal(workflow.live.revision, 1);
       assert.ok(
         events.some(
           (e) =>
