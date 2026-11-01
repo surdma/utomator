@@ -955,6 +955,7 @@ export default function OperatorChatPanel({
         <Queue active={busy} className="px-4 pt-2 pb-0" />
 
         <MatorComposer
+          key={conversationMeta?.id ?? 'no-conversation'}
           voice={voice}
           operatorPendingLabel={operatorPendingLabel}
           onConfirmOperator={onConfirmOperator}
