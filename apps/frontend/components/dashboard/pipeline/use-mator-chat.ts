@@ -320,13 +320,14 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
       setError(null);
       try {
         const uploaded = await uploadMatorAttachment(conversationId, file);
-        const previewUrl = URL.createObjectURL(file);
-        setAttachmentPreviews((previous) => ({
-          ...previous,
-          [uploaded.id]: previewUrl,
-        }));
-        const sent = await send(file.name, [uploaded.id]);
-        if (!sent) throw new Error('Attachment uploaded but the message was not sent');
+        if (file.type.startsWith('image/')) {
+          const previewUrl = URL.createObjectURL(file);
+          setAttachmentPreviews((previous) => ({
+            ...previous,
+            [uploaded.id]: previewUrl,
+          }));
+        }
+        // Uploading prepares the asset; sending happens only on user request.
         return uploaded;
       } catch (err) {
         setError(
@@ -335,7 +336,7 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
         return null;
       }
     },
-    [send]
+    []
   );
 
   const saveMarkers = useCallback(
@@ -345,14 +346,19 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
         const meta = await patchMatorMarkers(attachmentId, markers);
         setEvents((previous) =>
           previous.map((event) =>
-            event.attachmentId === attachmentId
-              ? { ...event, markers: meta.markers }
+            event.attachmentId === attachmentId || event.attachments?.some((asset) => asset.id === attachmentId)
+              ? {
+                  ...event,
+                  ...(event.attachmentId === attachmentId ? { markers: meta.markers } : {}),
+                  attachments: event.attachments?.map((asset) => asset.id === attachmentId ? { ...asset, markers: meta.markers } : asset),
+                }
               : event
           )
         );
         return meta;
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unable to save markers');
+        throw err;
         throw err;
       }
     },
