@@ -319,12 +319,19 @@ export function registerMatorRoutes(app: FastifyInstance, deps: MatorRouteDeps):
       const staged = events.find((event) => event.id === request.params.eventId);
       if (!staged) return jsonError(reply, 404, 'Event not found');
       if (staged.status !== 'staged') return jsonError(reply, 409, 'Event is not a staged action');
+      if (
+        events.some((event) =>
+          (event.status === 'applied' || event.status === 'rejected') &&
+          event.resolvesEventId === staged.id
+        )
+      ) return jsonError(reply, 409, 'This staged proposal was already decided');
       if (decision === 'reject') {
         const event = await appendEvent(docs, request.params.id, {
           role: 'assistant',
           kind: 'action',
           action: staged.action,
           status: 'rejected',
+          resolvesEventId: staged.id,
           ...(staged.text ? { text: staged.text } : {}),
         });
         return { event };
