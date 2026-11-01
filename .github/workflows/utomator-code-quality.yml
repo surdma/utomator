@@ -38,8 +38,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Verify backend formatting
+        id: backend-format
         run: pnpm --filter @utomator/backend exec biome format --max-diagnostics=200 .
       - name: Verify backend lint, including warnings
+        if: ${{ !cancelled() && steps.backend-format.outcome != 'skipped' }}
         run: pnpm --filter @utomator/backend exec biome lint --error-on-warnings .
 
   frontend-format-and-lint:
@@ -55,11 +57,13 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Verify frontend formatting
+        id: frontend-format
         run: >-
           pnpm exec prettier --check
           'apps/frontend/{app,components,lib,tests}/**/*.{js,jsx,mjs,ts,tsx,css,md,json}'
           'apps/frontend/*.{js,mjs,ts,tsx,json}'
       - name: Verify frontend ESLint, including warnings
+        if: ${{ !cancelled() && steps.frontend-format.outcome != 'skipped' }}
         run: pnpm --filter @utomator/frontend exec eslint . --max-warnings 0
 
   react-doctor:
