@@ -563,15 +563,20 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
   expect(metrics!.confirmationOverflow).toBeLessThanOrEqual(1);
   const viewport = dock.getByTestId('mator-thread-viewport');
   await viewport.evaluate((element) => { element.scrollTop = element.scrollHeight; });
-  const bottomGap = await viewport.evaluate((element) => {
+  const tail = await viewport.evaluate((element) => {
     const lastCard = element.querySelector<HTMLElement>('[data-testid="mator-confirmation"]');
     return lastCard
-      ? element.getBoundingClientRect().bottom - lastCard.getBoundingClientRect().bottom
+      ? {
+          gap: element.getBoundingClientRect().bottom - lastCard.getBoundingClientRect().bottom,
+          pixelTolerance: 1 / window.devicePixelRatio,
+        }
       : null;
   });
-  expect(bottomGap, 'the final confirmation should be measurable').not.toBeNull();
-  expect(bottomGap!, 'last chat row stays near the composer').toBeGreaterThanOrEqual(0);
-  expect(bottomGap!).toBeLessThanOrEqual(48);
+  expect(tail, 'the final confirmation should be measurable').not.toBeNull();
+  // Fractional browser layout may overlap the viewport edge by less than one device pixel.
+  // Keep the strict 48px upper bound so an anchored-message whitespace regression still fails.
+  expect(tail!.gap, 'last chat row stays near the composer').toBeGreaterThanOrEqual(-tail!.pixelTolerance);
+  expect(tail!.gap).toBeLessThanOrEqual(48);
   await capture(page, info, 'mator-content-width-regression');
 });
 
