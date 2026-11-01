@@ -35,6 +35,7 @@ export function ModelSelector({
       open={open}
       onOpenChange={setOpen}
       side="top"
+      align="end"
       aria-label="Select chat model"
       className={className}
       trigger={

@@ -32,6 +32,8 @@ import type { VoiceSession } from './use-voice-session';
 import { setVoiceOnlyPreference, useVoiceOnlyPreference } from './mator-voice-preference';
 import type { MatorModelOption } from './mator-api';
 import { ModelSelector } from '@/components/ai-elements/model-selector';
+import { Switch } from '@/components/ui/switch';
+import MatorChatSettings from './mator-chat-settings';
 import { cn } from '@/lib/utils';
 
 export const ATTACH_ACCEPT =
@@ -197,19 +199,21 @@ export default function MatorComposer({
         data-mode="voice-only"
         className="shrink-0 border-t border-slate-200 bg-gradient-to-b from-slate-50/60 to-white px-4 pt-3 pb-3"
       >
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-teal-800">
+        <div className="flex min-w-0 flex-nowrap items-center justify-between gap-1">
+          <span className="inline-flex min-w-0 shrink-0 items-center gap-1.5 whitespace-nowrap text-xs font-semibold text-teal-800">
             <Phone className="size-3.5" aria-hidden="true" />
             Voice mode
           </span>
-          <button
-            type="button"
-            onClick={() => setVoiceOnlyPreference(false)}
-            data-testid="mator-voice-only"
-            className="min-h-10 rounded-lg px-2 text-xs font-medium text-teal-800 hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-          >
-            Text instead
-          </button>
+          <div className="inline-flex min-w-0 shrink-0 flex-nowrap items-center gap-0.5">
+            <button type="button" aria-label="Attach a file during voice conversation" data-testid="mator-voice-attach" onClick={() => inputRef.current?.click()} className={iconButton('default')}>
+              <Paperclip className="size-4" aria-hidden="true" />
+            </button>
+            <input ref={inputRef} type="file" accept={ATTACH_ACCEPT} className="sr-only" aria-hidden="true" tabIndex={-1} onChange={(event) => { void attach(event.target.files); event.target.value = ''; }} />
+            <MatorChatSettings disabled={busy} />
+            <span className="inline-flex size-11 shrink-0 items-center justify-center" title="Switch to text conversation">
+              <Switch checked={voiceOnly} onCheckedChange={setVoiceOnlyPreference} aria-label="Voice-only conversation" data-testid="mator-voice-switch" />
+            </span>
+          </div>
         </div>
         <div className="mt-3 flex flex-col items-center gap-2 pb-1">
           <p
@@ -304,9 +308,9 @@ export default function MatorComposer({
       <form
         ref={formRef}
         onSubmit={onSendMessage}
-        className="flex flex-col gap-1.5"
+        className="flex min-w-0 flex-col gap-1.5"
       >
-        <div className="rounded-2xl border border-slate-200 bg-white px-1.5 pt-1 pb-1.5 shadow-[inset_0_1px_2px_rgba(15,23,42,.03)] transition-colors focus-within:border-teal-600/70 focus-within:ring-2 focus-within:ring-teal-700/10">
+        <div className="min-w-0 rounded-2xl border border-slate-200 bg-white px-1.5 pt-1 pb-1.5 shadow-[inset_0_1px_2px_rgba(15,23,42,.03)] transition-colors focus-within:border-teal-600/70 focus-within:ring-2 focus-within:ring-teal-700/10">
           {pending.length > 0 && (
             <div className="mator-snap-x flex flex-wrap gap-1.5 px-1.5 pt-1 pb-1.5">
               {pending.map((item) => (
@@ -340,7 +344,7 @@ export default function MatorComposer({
             }}
             className="max-h-29 w-full resize-none bg-transparent px-2.5 py-2 text-sm leading-5 text-slate-900 placeholder:text-slate-400 focus-visible:outline-none disabled:opacity-60"
           />
-          <div className="flex items-center gap-0.5 px-0.5 pb-0.5">
+          <div className="flex min-w-0 flex-nowrap items-center gap-0.5 px-0.5 pb-0.5">
             <button
               type="button"
               aria-label="Attach a file"
@@ -380,12 +384,16 @@ export default function MatorComposer({
             {voice.listening && (
               <span
                 aria-live="polite"
-                className="truncate text-[11px] font-medium text-teal-800"
+                className="min-w-0 flex-1 truncate text-[11px] font-medium text-teal-800"
               >
                 {voice.interim || 'Listening…'}
               </span>
             )}
-            <div className="ml-auto flex items-center gap-1.5">
+            <div className="ml-auto flex min-w-0 shrink-0 flex-nowrap items-center gap-0.5">
+              <span className="inline-flex size-11 shrink-0 items-center justify-center" title="Voice-only conversation">
+                <Switch checked={voiceOnly} onCheckedChange={setVoiceOnlyPreference} aria-label="Voice-only conversation" data-testid="mator-voice-switch" />
+              </span>
+              <MatorChatSettings disabled={busy} />
               {models.length > 0 && (
                 <ModelSelector
                   models={models}

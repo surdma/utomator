@@ -384,7 +384,7 @@ test('Mator dock has a usable empty state, thread history, model picker, and voi
   await dock.getByTestId('mator-voice-switch').click();
   await expect(dock.getByTestId('mator-composer')).toHaveAttribute('data-mode', 'voice-only');
   await expect(dock.getByTestId('mator-voice-switch')).toHaveAttribute('aria-checked', 'true');
-  await dock.getByRole('button', { name: 'Text instead' }).click();
+  await dock.getByTestId('mator-voice-switch').click();
   await expect(dock.getByTestId('mator-composer')).toHaveAttribute('data-mode', 'text');
   await capture(page, info, 'mator-dock-text-first');
 });
@@ -801,7 +801,7 @@ test('Mator accepts recorded speech when SpeechRecognition is unavailable', asyn
   expect(received).toBe('Spoken profile question');
   expect(transcriptionFilename).toBe('mator-speech.m4a');
   await expect.poll(() => spoken).toBe('Heard your profile question');
-  await dock.getByRole('button', { name: 'Text instead' }).click();
+  await dock.getByTestId('mator-voice-switch').click();
   await expect(dock.getByTestId('mator-input')).toHaveValue('');
 });
 

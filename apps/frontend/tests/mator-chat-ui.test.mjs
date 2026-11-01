@@ -29,7 +29,7 @@ test('operator chat panel exposes required mator testids and chrome', () => {
   assert.match(source, /MessageScroller/);
   assert.match(source, /MatorClarifyForm/);
   assert.match(source, /MatorAttachmentCanvas/);
-  assert.match(source, /data-testid="mator-voice-switch"/);
+  assert.doesNotMatch(source, /data-testid="mator-voice-switch"/, 'header no longer owns the voice switch');
   assert.match(source, /lastMatorEventId/);
   assert.match(source, /orderedMatorEvents/);
   assert.match(
@@ -46,14 +46,15 @@ test('composer is text-first with voice demoted to a small control', () => {
   assert.match(source, /data-testid="mator-send"/);
   assert.match(source, /data-testid="mator-attach"/);
   assert.match(source, /data-testid="mator-mic"/);
-  assert.match(source, /data-testid="mator-voice-only"/);
-  assert.doesNotMatch(source, /data-testid="mator-voice-switch"/, 'voice mode is controlled from the header');
+  assert.match(source, /data-testid="mator-voice-switch"/, 'composer owns the voice-only toggle');
+  assert.match(source, /MatorChatSettings/, 'chat configuration is reachable from the composer');
+  assert.match(source, /flex-nowrap/, 'composer actions remain on one row');
   assert.match(source, /Paperclip/);
   assert.match(source, /ATTACH_ACCEPT/);
   assert.match(source, /onAttachFile/);
   const preference = readFileSync(pipeline('mator-voice-preference.ts'), 'utf8');
   assert.match(preference, /mator\.voiceOnly/, 'voice-only preference persists');
-  assert.match(preference, /useSyncExternalStore/, 'header and composer share the same preference');
+  assert.match(preference, /useSyncExternalStore/, 'text and voice decks share the same persisted preference');
 });
 
 test('retired voice deck does not come back', () => {

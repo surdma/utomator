@@ -18,7 +18,6 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useToast } from '@/components/ui/toast';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Popover } from '@/components/ui/popover';
 import { ThreadSkeleton } from '@/components/ui/skeleton';
@@ -46,8 +45,6 @@ import { Queue } from '@/components/ai-elements/queue';
 import { Suggestion } from '@/components/ai-elements/suggestion';
 import MatorClarifyForm from './mator-clarify-form';
 import MatorComposer from './mator-composer';
-import { setVoiceOnlyPreference, useVoiceOnlyPreference } from './mator-voice-preference';
-import MatorChatSettings from './mator-chat-settings';
 import { MarkdownReply } from './markdown-reply';
 import { getApi } from './api-client';
 import MatorAttachmentCanvas from './mator-attachment-canvas';
@@ -222,7 +219,6 @@ export default function OperatorChatPanel({
   chatError = null,
 }: Props) {
   const reduceMotion = useReducedMotion();
-  const voiceOnly = useVoiceOnlyPreference();
   const toast = useToast();
   const [threadOpen, setThreadOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -444,16 +440,6 @@ export default function OperatorChatPanel({
               )}
             </nav>
           </Popover>
-          <label className="inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full hover:bg-slate-50" title="Voice-only mode">
-            <span className="sr-only">Voice-only mode</span>
-            <Switch
-              checked={voiceOnly}
-              onCheckedChange={setVoiceOnlyPreference}
-              data-testid="mator-voice-switch"
-              aria-label="Voice-only conversation"
-            />
-          </label>
-          <MatorChatSettings disabled={busy} />
           <button
             type="button"
             onClick={onClose}
@@ -685,6 +671,7 @@ export default function OperatorChatPanel({
                         <ThreadRow key={event.id} id={event.id} anchor={event.id === lastMatorEventId}>
                           {!event.text ? null : (
                             <Reasoning
+                              className="w-fit max-w-[min(100%,30rem)]"
                               title="Guidance from Mator"
                               content={event.text}
                               speakLabel="Read this guidance aloud"
@@ -956,9 +943,17 @@ export default function OperatorChatPanel({
         </AnimatePresence>
 
         {(imageError || chatError) && (
-          <p role="alert" className="px-4 pt-1.5 text-xs text-rose-700">
-            {chatError || imageError}
-          </p>
+          <div role="alert" data-testid="mator-chat-error" className="mx-3 my-2 flex min-w-0 max-w-[min(100%,30rem)] items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-900">
+            <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            <div className="min-w-0 text-xs leading-relaxed">
+              <p className="font-semibold">Mator couldn't complete that request</p>
+              <p className="mt-1 break-words [overflow-wrap:anywhere]">
+                {chatError && /\b(400|429|5\d\d|groq|bad request)\b/i.test(chatError)
+                  ? 'The AI service could not complete the request. Review your chat settings, then retry. Your draft is preserved.'
+                  : chatError || imageError}
+              </p>
+            </div>
+          </div>
         )}
         <Queue active={busy} className="px-4 pt-2 pb-0" />
 

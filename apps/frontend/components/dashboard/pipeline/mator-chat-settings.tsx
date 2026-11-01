@@ -87,7 +87,7 @@ export default function MatorChatSettings({ disabled }: Props) {
       side="top"
       align="end"
       aria-label="Chat settings"
-      contentClassName="w-[min(100%,19rem)]"
+      contentClassName="w-[min(19rem,calc(100vw-2rem))]"
       trigger={
         <button
           type="button"
