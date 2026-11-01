@@ -179,6 +179,7 @@ export default function DashboardShell({
   const submitRef = useRef<(text: string, source: 'voice' | 'text') => void>(
     () => {}
   );
+  const pendingAssetsRef = useRef(false);
   const voice = useVoiceSession({
     onFinal: (text) => submitRef.current(text, 'voice'),
   });
@@ -198,7 +199,6 @@ export default function DashboardShell({
     newConversation,
     switchConversation,
     restorePipeline,
-    attachFile,
     uploadForClarify,
     saveMarkers,
     attachmentPreviews,
@@ -282,6 +282,12 @@ export default function DashboardShell({
     (text: string, source: 'voice' | 'text') => {
       const request = text.trim();
       if (!request) return;
+      // Dictation in text mode edits the draft. Voice-only stop sends
+      // automatically unless the user is composing a captioned asset message.
+      if (source === 'voice' && (!voiceOnly || pendingAssetsRef.current)) {
+        setMessage((current) => [current.trim(), request].filter(Boolean).join(' '));
+        return;
+      }
       // Never TTS the user transcript (voice or typed).
       if (
         request.startsWith('/craft') ||
@@ -297,7 +303,7 @@ export default function DashboardShell({
       if (source === 'voice') setMessage(request);
       void send(request);
     },
-    [send, setMessage, submitUtterance]
+    [send, setMessage, submitUtterance, voiceOnly]
   );
 
   const sendMessage = (event: FormEvent<HTMLFormElement>) => {
@@ -426,7 +432,6 @@ export default function DashboardShell({
     imageDraft,
     setImageDraft,
     imageError,
-    attachImage,
     annotateCapture,
     saveVisualReview,
     inspectReview,
@@ -704,10 +709,8 @@ export default function DashboardShell({
           message={message}
           onMessageChange={setMessage}
           onSendMessage={sendMessage}
-          onAttachFile={(file) => {
-            if (!file) return;
-            if (activeWorkflow?.id) return attachFile(file);
-            return attachImage(file);
+          onPendingAssetsChange={(count) => {
+            pendingAssetsRef.current = count > 0;
           }}
           checkpoint={checkpoint}
           voice={voice}
