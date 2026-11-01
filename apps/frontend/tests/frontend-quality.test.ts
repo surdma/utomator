@@ -882,6 +882,77 @@ test('Mator approval cards decide the selected proposal, not another staged acti
   await capture(page, info, 'mator-independent-staged-decisions');
 });
 
+test('Mator creates a persisted workflow and accepts the first chat message', async ({ page }) => {
+  const workflowId = '11111111-1111-4111-8111-111111111111';
+  const conversationId = '22222222-2222-4222-8222-222222222222';
+  const now = '2026-11-01T09:00:00.000Z';
+  const record = {
+    id: workflowId,
+    ownerId: 'local-owner',
+    templateId: null,
+    revision: 1,
+    createdAt: now,
+    updatedAt: now,
+    plan: {
+      version: 1, platform: 'linkedin', action: 'audit', name: 'Profile audit',
+      steps: [
+        { id: 'start', kind: 'start', title: 'Start run' },
+        { id: 'finish', kind: 'finish', title: 'Final output' },
+      ],
+      links: [{ source: 'start', target: 'finish' }],
+    },
+  };
+  let created = false;
+  let conversationCreated = false;
+  let message = '';
+  await page.route('**/api/workflows', (route) => {
+    if (route.request().method() === 'POST') {
+      created = true;
+      return route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify(record) });
+    }
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(created ? [record] : []) });
+  });
+  await page.route('**/api/mator/workflows/*/conversations', (route) => {
+    if (route.request().method() === 'POST') {
+      conversationCreated = true;
+      return route.fulfill({ status: 201, contentType: 'application/json',
+        body: JSON.stringify({ id: conversationId, workflowId, title: 'New conversation',
+          createdAt: now, updatedAt: now, lastMessageAt: null, boundRevisionId: null }),
+      });
+    }
+    return route.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({ currentId: null, items: [] }),
+    });
+  });
+  await page.route('**/api/mator/conversations/*/events', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+  );
+  await page.route('**/api/mator/conversations/*/messages', (route) => {
+    message = (route.request().postDataJSON() as { text: string }).text;
+    return route.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({ events: [
+        { id: 'first-input', conversationId, role: 'user', kind: 'message', text: message, createdAt: now },
+        { id: 'first-reply', conversationId, role: 'assistant', kind: 'message',
+          text: 'Mator received the first message',
+          createdAt: '2026-11-01T09:00:01.000Z' },
+      ] }),
+    });
+  });
+  await page.goto('/dashboard/pipeline');
+  const dock = page.getByTestId('mator-chat');
+  if (!(await dock.isVisible())) {
+    await page.getByRole('button', { name: 'Open Mator' }).click();
+  }
+  const input = dock.getByTestId('mator-input');
+  await expect(input).toBeVisible();
+  await input.fill('I need my first workflow');
+  await dock.getByTestId('mator-send').click();
+  await expect(dock.getByText('Mator received the first message')).toBeVisible();
+  expect(created).toBe(true);
+  expect(conversationCreated).toBe(true);
+  expect(message).toBe('I need my first workflow');
+});
+
 test('Growth modal uses the YAML catalogue with actionable search and pipeline detail', async ({ page }, info) => {
   const names = [
     'linkedin-profile', 'linkedin-branding', 'linkedin-analytics', 'linkedin-content',
