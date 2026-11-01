@@ -10,6 +10,7 @@ import {
 import { MatorConfigError, requireGroqKey, runMatorTurn } from './mator-agent.js';
 import {
   getAttachmentFile,
+  getAttachmentMeta,
   type MatorImageMarker,
   saveAttachment,
   upsertMarkers,
@@ -22,6 +23,7 @@ import {
   listEvents,
   MATOR_CONVERSATIONS_NAMESPACE,
   type MatorConversation,
+  type MatorEvent,
   setCurrentConversation,
 } from './mator-conversations.js';
 import { synthesizeSpeech, transcribeAudio } from './mator-groq.js';
@@ -35,6 +37,27 @@ import {
   type MatorSettingsPatch,
   putMatorSettings,
 } from './mator-settings.js';
+
+/** Reflect saved marker changes after a reload, without rewriting immutable chat events. */
+async function withAttachmentDetails(docs: DocumentStore, events: MatorEvent[]): Promise<MatorEvent[]> {
+  return Promise.all(events.map(async (event) => {
+    const ids = event.attachments?.length
+      ? event.attachments.map((asset) => asset.id)
+      : event.attachmentId ? [event.attachmentId] : [];
+    if (!ids.length) return event;
+    const records = await Promise.all(ids.map(async (id) => {
+      try {
+        const meta = await getAttachmentMeta(docs, id);
+        if (meta.conversationId !== event.conversationId) return null;
+        return { id, name: meta.filename, mime: meta.mime, markers: meta.markers };
+      } catch {
+        return null;
+      }
+    }));
+    const assets = records.filter((asset) => asset !== null);
+    return assets.length ? { ...event, attachments: assets } : event;
+  }));
+}
 
 export type MatorRouteDeps = {
   getDocuments: () => DocumentStore | undefined;
@@ -236,10 +259,11 @@ export function registerMatorRoutes(app: FastifyInstance, deps: MatorRouteDeps):
         const located = await findConversation(docs, request.params.id);
         if (!located) return jsonError(reply, 404, 'Conversation not found');
         const limit = request.query.limit ? Number(request.query.limit) : undefined;
-        return listEvents(docs, request.params.id, {
+        const events = await listEvents(docs, request.params.id, {
           cursor: request.query.cursor,
           limit: Number.isFinite(limit) ? limit : undefined,
         });
+        return withAttachmentDetails(docs, events);
       } catch (error) {
         return jsonError(reply, httpStatusForError(error), errorMessage(error));
       }
@@ -254,7 +278,7 @@ export function registerMatorRoutes(app: FastifyInstance, deps: MatorRouteDeps):
       try {
         const located = await findConversation(docs, request.params.id);
         if (!located) return jsonError(reply, 404, 'Conversation not found');
-        const events = await listEvents(docs, request.params.id, {});
+        const events = await withAttachmentDetails(docs, await listEvents(docs, request.params.id, {}));
         const chunks: string[] = [];
         for (const event of events) {
           chunks.push(`id: ${event.id}\nevent: ${event.kind}\ndata: ${JSON.stringify(event)}\n\n`);
