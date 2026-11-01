@@ -311,7 +311,7 @@ export function useVoiceSession({
     }
     if (typeof window === 'undefined') return;
     try {
-      if (readVoiceSupport(window) === 'unsupported') {
+      if (clientVoiceSupport() === 'unsupported') {
         setError(VOICE_MISSING);
         return;
       }
