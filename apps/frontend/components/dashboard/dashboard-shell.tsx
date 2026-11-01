@@ -35,7 +35,6 @@ import {
   appendVisualReviewStep,
   reviewSection,
   validateReviewImage,
-  REVIEW_IMAGE_ERROR,
 } from './pipeline/visual-review-model';
 import { matorAttachmentFileUrl } from './pipeline/mator-api';
 import { useMatorChat } from './pipeline/use-mator-chat';
@@ -464,9 +463,11 @@ export default function DashboardShell({
         throw new Error('Attachment bytes are unavailable for annotation');
       }
       const blob = await response.blob();
-      if (!['image/png', 'image/jpeg', 'image/webp'].includes(blob.type || '')) {
-        throw new Error(REVIEW_IMAGE_ERROR);
-      }
+      const invalid = validateReviewImage({
+        size: blob.size,
+        type: blob.type || '',
+      });
+      if (invalid) throw new Error(invalid);
       return {
         imageDataUrl: await imageDataUrlFromBlob(blob, blob.type),
       };
@@ -529,10 +530,10 @@ export default function DashboardShell({
   // Full YAML-driven annotation entry points for chat images. The studio
   // resolves with the created review id; linking to the chat asset happens
   // through the standard markers PATCH (evidence is the saved review).
-  const annotateMatorDraft = async (file: File) =>
-    annotateChatAsset({ file });
-  const annotateMatorAttachment = async (attachmentId: string) =>
-    annotateChatAsset({ attachmentId });
+  const annotateMatorDraft = async (file: File, note?: string) =>
+    annotateChatAsset({ file, note });
+  const annotateMatorAttachment = async (attachmentId: string, note?: string) =>
+    annotateChatAsset({ attachmentId, note });
   const latest = events.at(-1);
   const showChat =
     chatVisible &&
@@ -748,9 +749,9 @@ export default function DashboardShell({
           onSendText={(text, attachmentIds) => send(text, attachmentIds)}
           onUploadClarifyFile={uploadForClarify}
           attachmentPreviews={attachmentPreviews}
-          onSaveMarkers={(attachmentId, markers, reviewId) =>
-            void saveMarkers(attachmentId, markers, reviewId)
-          }
+          onSaveMarkers={(attachmentId, markers, reviewId) => {
+            return saveMarkers(attachmentId, markers, reviewId);
+          }}
           reviews={reviews}
           platform={platform}
           normalizedHandle={normalizedHandle}

@@ -121,6 +121,55 @@ test('sent attachments link the saved review through saveMarkers', () => {
     /mator-annotate-attachment-error/,
     'link failures surface instead of being swallowed'
   );
+  assert.match(
+    panel,
+    /Saved as review \$\{result\.reviewId\} but could not link to the chat message\. Re-open the annotation editor to retry\./,
+    'a saved review whose asset link fails is reported as a failed link'
+  );
+});
+
+test('the shell awaits marker links instead of discarding them', () => {
+  const shell = readFileSync(
+    resolve(root, 'components/dashboard/dashboard-shell.tsx'),
+    'utf8'
+  );
+  assert.doesNotMatch(
+    shell,
+    /void saveMarkers\(/,
+    'discarding the markers promise would hide a failed review link'
+  );
+  assert.match(shell, /return saveMarkers\(attachmentId, markers, reviewId\)/);
+});
+
+test('fetched chat images use the same size and type rules as uploads', () => {
+  const shell = readFileSync(
+    resolve(root, 'components/dashboard/dashboard-shell.tsx'),
+    'utf8'
+  );
+  assert.match(
+    shell,
+    /validateReviewImage\(\{\s*size: blob\.size,\s*type: blob\.type/,
+    'an oversized or non-image attachment is an error, not a silent studio open'
+  );
+});
+
+test('chat annotation carries the typed draft into the review note', () => {
+  const reviews = readFileSync(pipeline('use-visual-reviews.ts'), 'utf8');
+  const panel = readFileSync(
+    resolve(root, 'components/dashboard/reviews/visual-review-panel.tsx'),
+    'utf8'
+  );
+  assert.match(reviews, /draftNote: request\.note/);
+  assert.match(
+    panel,
+    /note: source\.kind === 'upload' \? \(source\.draftNote \?\? ''\) : ''/,
+    'the YAML note is the operator draft, and only on chat uploads'
+  );
+  assert.match(
+    panel,
+    /kind: 'upload', imageData: source\.imageData/,
+    'the posted source stays image bytes and does not include the draft note'
+  );
 });
 
 test('workflow annotation dialog links saved YAML without touching approval', () => {

@@ -227,3 +227,18 @@ For each M-ID append: date; owner; verified baseline/root cause; exact files and
 - [Quality run 41314723936](https://github.com/surdma/utomator/actions/runs/41314723936): frontend Prettier still flags **27 files**, backend Biome formatter **16 errors** and Biome lint **192 warnings**, React Doctor score **50** with **135 warnings**. Frontend ESLint reports no additional errors. Do not claim full quality clearance.
 
 **Remaining gaps and acceptance blockers:** The in-chat annotation modal currently offers pin markers and comments with persistent per-image IDs, but **does not yet reproduce every tool from the original VisualReviewPanel** (rectangle, ellipse, freehand, action tags). Mator's stored marker schema is point-based; a faithful full-studio migration requires a versioned richer annotation contract and consumers/tests. Groq vision currently generates captions for only the first three image IDs in a turn although more can be attached; review user-facing processing limits before calling 12-image analysis complete. Browser's small-mobile connected-provider color contrast and full code-quality gates remain red. No live linked account/Groq provider and no independent reviewer/Dogfood signoff. **Status: IMPLEMENTED IN DRAFT / TARGETED BROWSER VERIFIED / NOT COMPLETE.** Keep PR #15 draft and unmerged.
+
+## M2 annotation-modal restoration (2026-11-01)
+
+**Objective:** Put the existing YAML review studio back on chat images and on the workflow annotation dialog, without a second annotation engine. Approach 1 (approved): one `VisualReviewPanel`, one `POST /visual-reviews` path, clone-mode edits only.
+
+**Source:**
+- `6a89854` — `annotate_image` and `PATCH /mator/attachments/:id/markers` accept an optional `reviewId`. Bad UUID shape is `400 Invalid review reference`. A resolver miss is `400 Review does not exist` (no invented link). Chat event projection includes `reviewId`.
+- `f60a689` — pencil on chat thumbnails opens the shell studio; saved assets show a YAML chip; pending drafts keep `reviewId` until send; workflow annotation dialog gains "Annotate further" (`tagExistingReview`, new version, original untouched).
+- Uncommitted follow-up on this branch — the shell returns the markers promise (a `void` call was hiding link failures); a saved review whose PATCH fails shows `Saved as review <id> but could not link to the chat message. Re-open the annotation editor to retry.`; fetched attachment bytes use `validateReviewImage` (PNG/JPEG/WebP, 2 MB — the live cap, not a separate 8 MB path); the typed or dictated draft is the review `note` on chat uploads only, sliced to 1500 characters, and is not posted as image source.
+
+**What this does not change:** Run-screenshot review stays on the capture path. Quick pins remain when there is no pipeline page and handle. `WorkflowArtboard` still is not mounted; the live plan surface is `workflow-plan-editor.tsx`. "Annotate further" is wired on the unmounted dialog. Saved reviews in chat already open clone mode through `onEditReview` → `tagExistingReview`.
+
+**Local evidence:** Backend mator scope was 43/43 at `6a89854` (branch-wide growth YAML / EBUSY / handle failures were reproduced on a stash and are not this change). Frontend Node was 125/125 at `f60a689`. After the follow-up, `annotation-link`, `mator-chat-ui`, and `dashboard-component-structure` were 38/38. This is not a browser run and not live LinkedIn, Groq, or microphone proof.
+
+**Status:** IMPLEMENTED → TEST (local Node only) → REVIEW open → DOGFOOD not run. Do not call the restore complete, and do not merge PR #15 on this entry.

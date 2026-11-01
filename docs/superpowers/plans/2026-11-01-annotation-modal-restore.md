@@ -3,7 +3,7 @@
 **Spec:** `docs/superpowers/specs/2026-11-01-annotation-modal-restore-design.md`
 **Branch:** `work/mator-e2e-tracked-20261101`
 **Date:** 2026-11-01
-**Status:** PLANNED — awaiting reviewer approval
+**Status:** IMPLEMENTED — local Node evidence recorded in `.superpowers/sdd/annotation-modal-restore-progress.md` and `docs/architecture/mator-end-to-end-implementation-handoff.md`. Review and live dogfood are still open.
 
 Ordering follows the dependency graph: backend contract first (E1), then the
 frontend linkage layer (E2), then the two UI surfaces (S1, S2), then tests and

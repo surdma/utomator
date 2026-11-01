@@ -1,7 +1,7 @@
 # Design: Restore the YAML-driven annotation modal across chat, reviews, and workflow stages
 
 **Date:** 2026-11-01
-**Status:** Approved (user confirmed Approach 1)
+**Status:** IMPLEMENTED on `work/mator-e2e-tracked-20261101` (`6a89854` backend review link, `f60a689` chat and workflow-dialog entry points, uncommitted follow-up for awaited marker links, the 2 MB fetch check, and draft-note carry). Local Node suites cover the contract. Live LinkedIn, microphone, and Groq dogfood are not done. Review and dogfood remain open.
 **Branch base:** `work/mator-e2e-tracked-20261101`
 
 ## Problem

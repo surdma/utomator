@@ -54,7 +54,8 @@ type Props = {
   ) => void | Promise<unknown>;
   /** Opens the full YAML-driven review studio for a pending draft image. */
   onAnnotateDraft?: (
-    file: File
+    file: File,
+    note?: string
   ) => Promise<{ reviewId: string } | null>;
   onPendingAssetsChange?: (count: number) => void;
   busy?: boolean;
@@ -255,7 +256,10 @@ export default function MatorComposer({
     if (!onAnnotateDraft) return;
     setAnnotateError('');
     try {
-      const result = await onAnnotateDraft(asset.file);
+      const result = await onAnnotateDraft(
+        asset.file,
+        message.trim().slice(0, 1500) || undefined
+      );
       if (result?.reviewId) {
         setPending((current) => current.map((row) =>
           row.id === asset.id ? { ...row, reviewId: result.reviewId } : row

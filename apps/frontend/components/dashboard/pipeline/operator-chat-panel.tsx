@@ -110,7 +110,8 @@ type Props = {
   ) => Promise<{ reviewId: string } | null>;
   /** Opens the studio for an already-sent attachment; caller links the result. */
   onAnnotateAttachment?: (
-    attachmentId: string
+    attachmentId: string,
+    note?: string
   ) => Promise<{ reviewId: string } | null>;
   /**
    * True only when the active pipeline page scope exists, because review
@@ -309,9 +310,18 @@ export default function OperatorChatPanel({
     if (!onAnnotateAttachment) return;
     setAnnotateAttachmentError("");
     try {
-      const result = await onAnnotateAttachment(asset.id);
+      const result = await onAnnotateAttachment(
+        asset.id,
+        markerDraft.slice(0, 1500) || undefined
+      );
       if (result?.reviewId && onSaveMarkers) {
-        await onSaveMarkers(asset.id, asset.markers ?? [], result.reviewId);
+        try {
+          await onSaveMarkers(asset.id, asset.markers ?? [], result.reviewId);
+        } catch {
+          throw new Error(
+            `Saved as review ${result.reviewId} but could not link to the chat message. Re-open the annotation editor to retry.`
+          );
+        }
       }
     } catch (cause) {
       setAnnotateAttachmentError(

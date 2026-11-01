@@ -14,6 +14,8 @@ import { captureSection, validateReviewImage } from './visual-review-model';
 export type ChatAnnotationRequest = {
   file?: File;
   attachmentId?: string;
+  /** Dictated or typed draft, stored as the review note when the studio saves. */
+  note?: string;
 };
 /**
  * The created review id, or null when the studio closed without saving.
@@ -42,7 +44,10 @@ type Options = {
 };
 
 /** Serialized blob/image bytes as a data URL for the review studio upload. */
-export function imageDataUrlFromBlob(blob: Blob, mime: string): Promise<string> {
+export function imageDataUrlFromBlob(
+  blob: Blob,
+  mime: string
+): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -126,6 +131,7 @@ export function useVisualReviews({
         kind: 'upload',
         src: built.imageDataUrl,
         imageData: built.imageDataUrl,
+        draftNote: request.note,
       });
     });
   }

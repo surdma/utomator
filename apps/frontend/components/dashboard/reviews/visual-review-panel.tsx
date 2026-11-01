@@ -19,7 +19,13 @@ import { matchAnnotationAction, mergeSpokenComment } from './annotation-voice';
 
 export type ImageSource =
   | { kind: 'capture'; src: string; runId: string; fileName: string }
-  | { kind: 'upload'; src: string; imageData: string }
+  | {
+      kind: 'upload';
+      src: string;
+      imageData: string;
+      /** Operator draft carried into the review note. Not posted as image source. */
+      draftNote?: string;
+    }
   | {
       kind: 'review';
       src: string;
@@ -346,7 +352,7 @@ export default function VisualReviewPanel({
         handle,
         pageUrl,
         nodeId,
-        note: '',
+        note: source.kind === 'upload' ? (source.draftNote ?? '') : '',
         annotations,
         editEvents: [
           ...events,
