@@ -389,6 +389,160 @@ test('Mator dock has a usable empty state, thread history, model picker, and voi
   await capture(page, info, 'mator-dock-text-first');
 });
 
+test('Mator renders persisted messages and staged cards without clipping narrow viewports', async ({
+  page,
+}, info) => {
+  const now = '2026-11-01T09:00:00.000Z';
+  const shortText = 'Hi Mator';
+  const longText = 'Review this professional credential: ' + 'credential'.repeat(24);
+  const workflowId = 'mator-layout-workflow';
+  const conversationId = 'mator-layout-thread';
+  const plan = {
+    version: 1,
+    platform: 'linkedin',
+    action: 'audit',
+    name: 'Profile audit',
+    steps: [
+      { id: 'start', kind: 'start', title: 'Start run' },
+      { id: 'session', kind: 'session', title: 'Authenticated browser' },
+      { id: 'action', kind: 'action', title: 'Inspect page' },
+      { id: 'finish', kind: 'finish', title: 'Final output' },
+    ],
+    links: [
+      { source: 'start', target: 'session' },
+      { source: 'session', target: 'action' },
+      { source: 'action', target: 'finish' },
+    ],
+  };
+  await page.route('**/api/workflows', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          id: workflowId,
+          ownerId: 'local-owner',
+          templateId: null,
+          revision: 1,
+          createdAt: now,
+          updatedAt: now,
+          plan,
+        },
+      ]),
+    })
+  );
+  await page.route('**/api/mator/workflows/*/conversations', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        currentId: conversationId,
+        items: [
+          {
+            id: conversationId,
+            workflowId,
+            title: 'Layout regression',
+            createdAt: now,
+            updatedAt: now,
+            lastMessageAt: now,
+            boundRevisionId: null,
+          },
+        ],
+      }),
+    })
+  );
+  await page.route('**/api/mator/conversations/*/events', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          id: 'short-user-message',
+          conversationId,
+          role: 'user',
+          kind: 'message',
+          text: shortText,
+          createdAt: now,
+        },
+        {
+          id: 'long-user-message',
+          conversationId,
+          role: 'user',
+          kind: 'message',
+          text: longText,
+          createdAt: '2026-11-01T09:00:01.000Z',
+        },
+        {
+          id: 'assistant-message',
+          conversationId,
+          role: 'assistant',
+          kind: 'message',
+          text: 'I can review the available evidence before proposing edits.',
+          createdAt: '2026-11-01T09:00:02.000Z',
+        },
+        {
+          id: 'staged-change',
+          conversationId,
+          role: 'assistant',
+          kind: 'action',
+          status: 'staged',
+          action: { type: 'edit_step' },
+          text: 'Review this proposal before applying any change.',
+          createdAt: '2026-11-01T09:00:03.000Z',
+        },
+      ]),
+    })
+  );
+
+  await page.goto('/dashboard/pipeline');
+  const dock = page.getByTestId('mator-chat');
+  if (!(await dock.isVisible())) {
+    await page.getByRole('button', { name: 'Open Mator' }).click();
+  }
+  const messages = dock.locator('[data-slot="message"]');
+  const shortRow = messages.filter({ hasText: shortText });
+  const longRow = messages.filter({ hasText: longText });
+  const shortContent = shortRow.locator('[data-slot="message-content"]');
+  const longContent = longRow.locator('[data-slot="message-content"]');
+  const confirm = dock.getByTestId('mator-confirmation');
+
+  await expect(shortContent).toBeVisible();
+  await expect(longContent).toBeVisible();
+  await expect(confirm).toBeVisible();
+  await expect(dock.getByText('I can review the available evidence before proposing edits.')).toBeVisible();
+
+  const metrics = await dock.evaluate((element) => {
+    const rows = [...element.querySelectorAll<HTMLElement>('[data-slot="message"]')];
+    const findRow = (value: string) => rows.find((row) => row.textContent?.includes(value));
+    const short = findRow('Hi Mator');
+    const long = findRow('credential'.repeat(24));
+    const shortBubble = short?.querySelector<HTMLElement>('[data-slot="bubble"]');
+    const longBubble = long?.querySelector<HTMLElement>('[data-slot="bubble"]');
+    const confirmCard = element.querySelector<HTMLElement>('[data-testid="mator-confirmation"]');
+    if (!shortBubble || !longBubble || !confirmCard) return null;
+    const shortBox = shortBubble.getBoundingClientRect();
+    const longBox = longBubble.getBoundingClientRect();
+    const confirmationBox = confirmCard.getBoundingClientRect();
+    const dockBox = element.getBoundingClientRect();
+    return {
+      shortWidth: shortBox.width,
+      longWidth: longBox.width,
+      confirmWidth: confirmationBox.width,
+      dockWidth: dockBox.width,
+      longOverflow: longBubble.scrollWidth - longBubble.clientWidth,
+      messageVisible: shortBubble.textContent?.includes('Hi Mator'),
+    };
+  });
+  expect(metrics, 'Rendered chat bubbles and staged card must be present').not.toBeNull();
+  expect(metrics!.messageVisible).toBe(true);
+  expect(metrics!.shortWidth).toBeGreaterThan(55);
+  expect(metrics!.shortWidth).toBeLessThan(metrics!.dockWidth * 0.72);
+  expect(metrics!.longWidth).toBeLessThanOrEqual(metrics!.dockWidth);
+  expect(metrics!.confirmWidth).toBeLessThanOrEqual(Math.min(metrics!.dockWidth, 485));
+  expect(metrics!.longOverflow).toBeLessThanOrEqual(1);
+  await capture(page, info, 'mator-content-width-regression');
+});
+
 test('Growth modal uses the YAML catalogue with actionable search and pipeline detail', async ({ page }, info) => {
   const names = [
     'linkedin-profile', 'linkedin-branding', 'linkedin-analytics', 'linkedin-content',
