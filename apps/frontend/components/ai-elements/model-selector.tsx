@@ -53,7 +53,7 @@ export function ModelSelector({
           )}
         >
           <Sparkles className="size-3 text-teal-700" aria-hidden="true" />
-          <span className={cn('max-w-28 truncate', compact && 'hidden min-[420px]:inline')}>
+          <span className={cn('max-w-28 truncate', compact && 'hidden')}>
             {current?.label ?? 'Model'}
           </span>
           <ChevronDown aria-hidden="true" className="size-3 text-slate-400" />

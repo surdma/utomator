@@ -72,6 +72,12 @@ test('retired voice deck does not come back', () => {
   assert.doesNotMatch(composer, /mator-voice-deck/);
 });
 
+test('inline chat model selector stays icon-only inside a narrow dock', () => {
+  const selector = readFileSync(aiElements('model-selector.tsx'), 'utf8');
+  assert.match(selector, /compact && 'hidden'/);
+  assert.doesNotMatch(selector, /compact && 'hidden min-\[420px\]:inline'/);
+});
+
 test('grow confirmation stage controls live in the ai-elements gate', () => {
   const source = readFileSync(aiElements('confirmation.tsx'), 'utf8');
   assert.match(source, /data-testid="mator-stage-confirm"/);
