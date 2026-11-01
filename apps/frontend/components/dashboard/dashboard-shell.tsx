@@ -30,11 +30,14 @@ import RunHistory from './pipeline/run-history';
 import OperatorChatPanel from './pipeline/operator-chat-panel';
 import { useRunMonitor } from './pipeline/use-run-monitor';
 import { collectRunSpeechUpdates } from './pipeline/mator-run-speech';
-import { useVisualReviews } from './pipeline/use-visual-reviews';
+import { useVisualReviews, imageDataUrlFromBlob } from './pipeline/use-visual-reviews';
 import {
   appendVisualReviewStep,
   reviewSection,
+  validateReviewImage,
+  REVIEW_IMAGE_ERROR,
 } from './pipeline/visual-review-model';
+import { matorAttachmentFileUrl } from './pipeline/mator-api';
 import { useMatorChat } from './pipeline/use-mator-chat';
 import { useOperatorCommands } from './pipeline/use-operator-commands';
 import { useVoiceSession } from './pipeline/use-voice-session';
@@ -219,6 +222,7 @@ export default function DashboardShell({
     onSpeakReply: (text) => voice.speak(text),
     voiceOnly,
   });
+
   // A reply from a previous workflow/thread must never be delivered in the new scope.
   useEffect(() => {
     const scope = `${activeWorkflow?.id ?? ''}:${conversationMeta?.id ?? ''}`;
@@ -428,17 +432,60 @@ export default function DashboardShell({
       chatNotice(detail);
     }
   }
+  /** Reads chat image bytes and guards the pipeline page scope for the review studio. */
+  async function buildChatAnnotationSource(
+    request: import('./pipeline/use-visual-reviews').ChatAnnotationRequest
+  ): Promise<{ imageDataUrl: string } | null> {
+    if (!normalizedHandle.trim() || !selectedPage.trim()) {
+      throw new Error(
+        'Open a pipeline account page before annotating chat images as YAML reviews'
+      );
+    }
+    if (request.file) {
+      const invalid = validateReviewImage(request.file);
+      if (invalid) throw new Error(invalid);
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            resolve({ imageDataUrl: reader.result });
+            return;
+          }
+          reject(new Error('Could not read the chosen image'));
+        };
+        reader.onerror = () =>
+          reject(new Error('Could not read the chosen image'));
+        reader.readAsDataURL(request.file!);
+      });
+    }
+    if (request.attachmentId) {
+      const response = await fetch(matorAttachmentFileUrl(request.attachmentId));
+      if (!response.ok) {
+        throw new Error('Attachment bytes are unavailable for annotation');
+      }
+      const blob = await response.blob();
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(blob.type || '')) {
+        throw new Error(REVIEW_IMAGE_ERROR);
+      }
+      return {
+        imageDataUrl: await imageDataUrlFromBlob(blob, blob.type),
+      };
+    }
+    throw new Error('Choose an image to annotate');
+  }
   const {
     imageDraft,
-    setImageDraft,
+    closeImageDraft,
     imageError,
     annotateCapture,
+    annotateChatAsset,
     saveVisualReview,
     inspectReview,
     tagExistingReview,
     reviewImage,
   } = useVisualReviews({
     platform,
+    annotateChatImage: buildChatAnnotationSource,
     onCaptureSection: setScopeSection,
     onSelectedNode: setSelectedNode,
     onReviewSaved: (id, annotationCount) => {
@@ -479,6 +526,13 @@ export default function DashboardShell({
     },
     refresh,
   });
+  // Full YAML-driven annotation entry points for chat images. The studio
+  // resolves with the created review id; linking to the chat asset happens
+  // through the standard markers PATCH (evidence is the saved review).
+  const annotateMatorDraft = async (file: File) =>
+    annotateChatAsset({ file });
+  const annotateMatorAttachment = async (attachmentId: string) =>
+    annotateChatAsset({ attachmentId });
   const latest = events.at(-1);
   const showChat =
     chatVisible &&
@@ -694,12 +748,16 @@ export default function DashboardShell({
           onSendText={(text, attachmentIds) => send(text, attachmentIds)}
           onUploadClarifyFile={uploadForClarify}
           attachmentPreviews={attachmentPreviews}
-          onSaveMarkers={(attachmentId, markers) =>
-            void saveMarkers(attachmentId, markers)
+          onSaveMarkers={(attachmentId, markers, reviewId) =>
+            void saveMarkers(attachmentId, markers, reviewId)
           }
           reviews={reviews}
           platform={platform}
           normalizedHandle={normalizedHandle}
+          selectedPage={selectedPage}
+          annotateChatImageAvailable={Boolean(selectedPage && normalizedHandle)}
+          onAnnotateDraft={annotateMatorDraft}
+          onAnnotateAttachment={annotateMatorAttachment}
           currentRunId={currentRunId}
           onAnnotateCapture={annotateCapture}
           onEditReview={tagExistingReview}
@@ -766,7 +824,7 @@ export default function DashboardShell({
           handle={normalizedHandle}
           pageUrl={selectedPage}
           nodeId="annotation"
-          onClose={() => setImageDraft(null)}
+          onClose={closeImageDraft}
           onSave={saveVisualReview}
         />
       )}

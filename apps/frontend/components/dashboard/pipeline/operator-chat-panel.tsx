@@ -58,6 +58,7 @@ import {
   stageResolution,
   shouldRenderMatorEvent,
   readClarifyQuestions,
+  type MatorChatAsset,
   type MatorChatEvent,
   type MatorConversationSummary,
 } from './mator-chat-state';
@@ -100,8 +101,23 @@ type Props = {
   attachmentPreviews?: Record<string, string>;
   onSaveMarkers?: (
     attachmentId: string,
-    markers: MatorImageMarkerDto[]
+    markers: MatorImageMarkerDto[],
+    reviewId?: string
   ) => void | Promise<unknown>;
+  /** Opens the full YAML-driven review studio for a pending draft image. */
+  onAnnotateDraft?: (
+    file: File
+  ) => Promise<{ reviewId: string } | null>;
+  /** Opens the studio for an already-sent attachment; caller links the result. */
+  onAnnotateAttachment?: (
+    attachmentId: string
+  ) => Promise<{ reviewId: string } | null>;
+  /**
+   * True only when the active pipeline page scope exists, because review
+   * YAML requires a platform/page target.
+   */
+  annotateChatImageAvailable?: boolean;
+  selectedPage?: string;
   reviews: Review[];
   platform: Platform;
   normalizedHandle: string;
@@ -202,6 +218,9 @@ export default function OperatorChatPanel({
   onUploadClarifyFile,
   attachmentPreviews = {},
   onSaveMarkers,
+  onAnnotateDraft,
+  onAnnotateAttachment,
+  annotateChatImageAvailable = false,
   reviews,
   platform,
   normalizedHandle,
@@ -277,30 +296,71 @@ export default function OperatorChatPanel({
   const markerDraft =
     voice.interim?.trim() || (voice.listening ? '' : message.trim()) || '';
 
+  const [annotateAttachmentError, setAnnotateAttachmentError] = useState("");
+
+  /**
+   * Open the review studio for a sent attachment, then persist the saved
+   * review reference with the asset's current markers. A failed link is
+   * reported — the review itself stays real saved evidence.
+   */
+  const annotateAsset = async (
+    asset: MatorChatAsset
+  ): Promise<void> => {
+    if (!onAnnotateAttachment) return;
+    setAnnotateAttachmentError("");
+    try {
+      const result = await onAnnotateAttachment(asset.id);
+      if (result?.reviewId && onSaveMarkers) {
+        await onSaveMarkers(asset.id, asset.markers ?? [], result.reviewId);
+      }
+    } catch (cause) {
+      setAnnotateAttachmentError(
+        cause instanceof Error
+          ? cause.message
+          : "Could not open the annotation studio"
+      );
+    }
+  };
+
   const attachmentFor = (event: MatorChatEvent) => {
     const assets = event.attachments?.length
       ? event.attachments
       : event.attachmentId
-        ? [{ id: event.attachmentId, name: 'Image', mime: 'image/png', markers: event.markers }]
+        ? [{ id: event.attachmentId, name: 'Image', mime: 'image/png', markers: event.markers, reviewId: event.reviewId }]
         : [];
     if (!assets.length) return null;
     return (
-      <div data-testid="mator-image-gallery" className="grid w-fit max-w-full grid-cols-3 gap-1.5 sm:grid-cols-4">
-        {assets.map((asset) => (
-          <MatorAttachmentPreview
-            key={asset.id}
-            attachmentId={asset.id}
-            filename={asset.name}
-            mime={asset.mime}
-            imageSrc={asset.mime.startsWith('image/')
-              ? attachmentPreviews[asset.id] ?? matorAttachmentFileUrl(asset.id)
-              : null}
-            markers={asset.markers ?? (asset.id === event.attachmentId ? event.markers ?? [] : [])}
-            draftText={markerDraft}
-            interactive={Boolean(onSaveMarkers)}
-            onMarkersChange={onSaveMarkers ? (markers) => onSaveMarkers(asset.id, markers) : undefined}
-          />
-        ))}
+      <div data-testid="mator-image-gallery" className="w-fit max-w-full">
+        <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
+          {assets.map((asset) => (
+            <MatorAttachmentPreview
+              key={asset.id}
+              attachmentId={asset.id}
+              filename={asset.name}
+              mime={asset.mime}
+              imageSrc={asset.mime.startsWith('image/')
+                ? attachmentPreviews[asset.id] ?? matorAttachmentFileUrl(asset.id)
+                : null}
+              markers={asset.markers ?? (asset.id === event.attachmentId ? event.markers ?? [] : [])}
+              reviewId={asset.reviewId ?? (asset.id === event.attachmentId ? event.reviewId : undefined)}
+              draftText={markerDraft}
+              interactive={Boolean(onSaveMarkers)}
+              onAnnotateFull={
+                onAnnotateAttachment &&
+                annotateChatImageAvailable &&
+                asset.mime.startsWith('image/')
+                  ? () => annotateAsset(asset)
+                  : undefined
+              }
+              onMarkersChange={onSaveMarkers ? (markers) => onSaveMarkers(asset.id, markers) : undefined}
+            />
+          ))}
+        </div>
+        {annotateAttachmentError && (
+          <p role="alert" data-testid="mator-annotate-attachment-error" className="pt-1 text-xs text-rose-700">
+            {annotateAttachmentError}
+          </p>
+        )}
       </div>
     );
   };
@@ -965,6 +1025,9 @@ export default function OperatorChatPanel({
           onUploadFile={onUploadClarifyFile}
           onSendText={onSendText}
           onSaveMarkers={onSaveMarkers}
+          onAnnotateDraft={
+            onAnnotateDraft && annotateChatImageAvailable ? onAnnotateDraft : undefined
+          }
           onPendingAssetsChange={onPendingAssetsChange}
           busy={busy}
           incomplete={incomplete}

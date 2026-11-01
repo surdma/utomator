@@ -81,6 +81,8 @@ interface Props {
   reviewCount?: number;
   inspectorRequest?: number;
   taggedReviews?: TaggedAnnotationReview[];
+  /** Clone-mode annotation entry, backed by the shell's `tagExistingReview`. */
+  onAnnotateFurther?: (review: TaggedAnnotationReview) => void;
   evidenceRoot?: string;
   onEvidenceOpen?: (runId: string, fileName: string) => void;
   children: ReactNode;
@@ -99,6 +101,7 @@ function CanvasInner({
   reviewCount = 0,
   inspectorRequest = 0,
   taggedReviews = [],
+  onAnnotateFurther,
   evidenceRoot,
   onEvidenceOpen,
   children,
@@ -434,6 +437,7 @@ function CanvasInner({
           open={detail === 'annotation'}
           onDismiss={() => setDetail(null)}
           taggedReviews={taggedReviews}
+          onAnnotateFurther={onAnnotateFurther}
         />
         <StudioDialog
           open={detail === 'stage'}

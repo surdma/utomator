@@ -1,9 +1,10 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { FileText, Plus } from 'lucide-react';
+import { FileText, Pencil, Plus } from 'lucide-react';
 import StudioDialog from '@/components/ui/studio-dialog';
 import MatorAttachmentCanvas, { type MatorCanvasMarker } from './mator-attachment-canvas';
+import { getApi } from './api-client';
 
 type Props = {
   attachmentId: string;
@@ -13,12 +14,15 @@ type Props = {
   markers: MatorCanvasMarker[];
   draftText?: string;
   interactive?: boolean;
+  reviewId?: string;
+  /** Present to open the full YAML-driven review studio (pencil entry). */
+  onAnnotateFull?: () => void | Promise<unknown>;
   onMarkersChange?: (markers: MatorCanvasMarker[]) => void | Promise<unknown>;
 };
 
 export default function MatorAttachmentPreview({
   attachmentId, imageSrc, filename = 'Image', mime = 'image/png',
-  markers, draftText = '', interactive = true, onMarkersChange,
+  markers, draftText = '', interactive = true, reviewId, onAnnotateFull, onMarkersChange,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState('');
@@ -66,21 +70,48 @@ export default function MatorAttachmentPreview({
   return (
     <>
       {isImage ? (
-        <button
-          ref={trigger}
-          type="button"
-          title={filename}
-          aria-label={`Annotate image ${filename}`}
-          data-testid="mator-image-thumbnail"
-          onClick={openEditor}
-          className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 sm:size-24"
-        >
-          {imageSrc && !broken ? (
-            // eslint-disable-next-line @next/next/no-img-element -- local blob or authorized attachment route
-            <img src={imageSrc} alt="" className="size-full object-cover" onError={() => setBroken(true)} />
-          ) : <FileText className="size-5 text-slate-500" aria-hidden="true" />}
-          {markers.length > 0 && <span className="absolute right-1 bottom-1 rounded bg-slate-950/80 px-1 text-[10px] text-white">{markers.length} notes</span>}
-        </button>
+        <>
+          <span className="relative inline-flex size-20 shrink-0 sm:size-24">
+          <button
+            ref={trigger}
+            type="button"
+            title={filename}
+            aria-label={`Annotate image ${filename}`}
+            data-testid="mator-image-thumbnail"
+            onClick={openEditor}
+            className="flex size-20 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 sm:size-24"
+          >
+            {imageSrc && !broken ? (
+              // eslint-disable-next-line @next/next/no-img-element -- local blob or authorized attachment route
+              <img src={imageSrc} alt="" className="size-full object-cover" onError={() => setBroken(true)} />
+            ) : <FileText className="size-5 text-slate-500" aria-hidden="true" />}
+            {markers.length > 0 && <span className="absolute right-1 bottom-1 rounded bg-slate-950/80 px-1 text-[10px] text-white">{markers.length} notes</span>}
+          </button>
+          {onAnnotateFull && (
+            <button
+              type="button"
+              data-testid="mator-annotation-full-pencil"
+              aria-label={`Open annotation studio for ${filename}`}
+              title="Open annotation studio (Circle, Rectangle, Draw, saved YAML)"
+              onClick={() => void onAnnotateFull()}
+              className="absolute right-1 top-1 inline-flex size-11 items-center justify-center rounded-lg bg-white/90 text-teal-800 shadow-sm hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+            >
+              <Pencil className="size-4" aria-hidden="true" />
+            </button>
+          )}
+        </span>
+        {reviewId && (
+          <a
+            data-testid="mator-annotation-yaml-link"
+            href={getApi('visual-reviews/' + reviewId + '/yaml')}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mx-auto block max-w-[6rem] truncate text-[10px] font-semibold text-teal-700 underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+          >
+            {markers.length > 0 ? `${markers.length} notes · ` : ''}YAML
+          </a>
+        )}
+        </>
       ) : (
         <div title={filename} aria-label={filename} className="flex size-20 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-1 sm:size-24">
           <FileText className="size-5 text-slate-500" aria-hidden="true" />

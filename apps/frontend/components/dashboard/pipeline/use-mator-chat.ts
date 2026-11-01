@@ -340,17 +340,17 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
   );
 
   const saveMarkers = useCallback(
-    async (attachmentId: string, markers: MatorImageMarkerDto[]) => {
+    async (attachmentId: string, markers: MatorImageMarkerDto[], reviewId?: string) => {
       setError(null);
       try {
-        const meta = await patchMatorMarkers(attachmentId, markers);
+        const meta = await patchMatorMarkers(attachmentId, markers, reviewId);
         setEvents((previous) =>
           previous.map((event) =>
             event.attachmentId === attachmentId || event.attachments?.some((asset) => asset.id === attachmentId)
               ? {
                   ...event,
-                  ...(event.attachmentId === attachmentId ? { markers: meta.markers } : {}),
-                  attachments: event.attachments?.map((asset) => asset.id === attachmentId ? { ...asset, markers: meta.markers } : asset),
+                  ...(event.attachmentId === attachmentId ? { markers: meta.markers, reviewId: meta.reviewId ?? undefined } : {}),
+                  attachments: event.attachments?.map((asset) => asset.id === attachmentId ? { ...asset, markers: meta.markers, reviewId: meta.reviewId ?? undefined } : asset),
                 }
               : event
           )
@@ -358,7 +358,6 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
         return meta;
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unable to save markers');
-        throw err;
         throw err;
       }
     },

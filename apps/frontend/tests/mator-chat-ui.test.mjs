@@ -17,6 +17,25 @@ test('image thumbnail opens annotation modal on click', () => {
   assert.match(preview, /onMarkersChange/);
 });
 
+test('chat images offer the full YAML-driven annotation studio', () => {
+  const preview = readFileSync(pipeline('mator-attachment-preview.tsx'), 'utf8');
+  // Pencil entry point mirrors the original restore design.
+  assert.match(
+    preview,
+    /data-testid="mator-annotation-full-pencil"/,
+    'a pencil button opens the full annotation studio'
+  );
+  assert.match(preview, /onAnnotateFull/);
+  // Linked saved reviews expose the annotation YAML directly.
+  assert.match(
+    preview,
+    /data-testid="mator-annotation-yaml-link"/,
+    'saved review YAML is one link away from the chat asset'
+  );
+  assert.match(preview, /reviewId/);
+  assert.match(preview, /visual-reviews\/\s*\+?\s*reviewId|visual-reviews\/'\s*\+/);
+});
+
 test('mator attachment canvas module exists', () => {
   assert.equal(existsSync(pipeline('mator-attachment-canvas.tsx')), true);
 });
@@ -67,6 +86,18 @@ test('composer is text-first with voice demoted to a small control', () => {
   const preference = readFileSync(pipeline('mator-voice-preference.ts'), 'utf8');
   assert.match(preference, /mator\.voiceOnly/, 'voice-only preference persists');
   assert.match(preference, /useSyncExternalStore/, 'text and voice decks share the same persisted preference');
+});
+
+test('pending drafts annotate through the YAML studio and fail honestly', () => {
+  const composer = readFileSync(pipeline('mator-composer.tsx'), 'utf8');
+  assert.match(composer, /onAnnotateDraft/, 'pending drafts reach the shell studio');
+  assert.match(composer, /reviewId/, 'sent drafts carry the saved review reference');
+  assert.match(
+    composer,
+    /data-testid="mator-annotate-error"/,
+    'annotation failures surface as honest alerts, not silent dismissals'
+  );
+  assert.match(composer, /role="alert"/);
 });
 
 test('retired voice deck does not come back', () => {

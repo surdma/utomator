@@ -47,7 +47,15 @@ type Props = {
   onSendMessage: (event: FormEvent<HTMLFormElement>) => void;
   onUploadFile?: (file: File) => Promise<string>;
   onSendText?: (text: string, attachmentIds?: string[]) => Promise<boolean | void> | void;
-  onSaveMarkers?: (attachmentId: string, markers: MatorCanvasMarker[]) => void | Promise<unknown>;
+  onSaveMarkers?: (
+    attachmentId: string,
+    markers: MatorCanvasMarker[],
+    reviewId?: string
+  ) => void | Promise<unknown>;
+  /** Opens the full YAML-driven review studio for a pending draft image. */
+  onAnnotateDraft?: (
+    file: File
+  ) => Promise<{ reviewId: string } | null>;
   onPendingAssetsChange?: (count: number) => void;
   busy?: boolean;
   incomplete?: boolean;
@@ -101,6 +109,8 @@ type PendingAttachment = {
   size: string;
   imageSrc: string | null;
   markers: MatorCanvasMarker[];
+  /** Saved review (annotation YAML) created from this draft image. */
+  reviewId?: string;
   uploadedId?: string;
   state: 'ready' | 'uploading' | 'error';
 };
@@ -129,6 +139,7 @@ export default function MatorComposer({
   onUploadFile,
   onSendText,
   onSaveMarkers,
+  onAnnotateDraft,
   onPendingAssetsChange,
   busy = false,
   incomplete = false,
@@ -143,6 +154,7 @@ export default function MatorComposer({
   const [pending, setPending] = useState<PendingAttachment[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [draftError, setDraftError] = useState('');
+  const [annotateError, setAnnotateError] = useState('');
   const previewUrls = useRef(new Set<string>());
   const nextAttachmentId = useRef(0);
   const formRef = useRef<HTMLFormElement>(null);
@@ -215,12 +227,15 @@ export default function MatorComposer({
           asset.uploadedId = id;
           setPending((current) => current.map((row) => row.id === asset.id ? { ...row, uploadedId: id, state: 'ready' } : row));
         }
-        if (asset.markers.length && onSaveMarkers) await onSaveMarkers(id, asset.markers);
+        if ((asset.markers.length || asset.reviewId) && onSaveMarkers) {
+          await onSaveMarkers(id, asset.markers, asset.reviewId);
+        }
         ids.push(id);
       }
       const sent = await onSendText(message.trim(), ids);
       if (sent === false) throw Error('Could not send assets. Your draft is preserved.');
       setPending([]);
+      setAnnotateError('');
       for (const asset of pending) {
         if (asset.imageSrc) {
           URL.revokeObjectURL(asset.imageSrc);
@@ -236,24 +251,54 @@ export default function MatorComposer({
     }
   };
 
+  const annotateDraftRow = async (asset: PendingAttachment) => {
+    if (!onAnnotateDraft) return;
+    setAnnotateError('');
+    try {
+      const result = await onAnnotateDraft(asset.file);
+      if (result?.reviewId) {
+        setPending((current) => current.map((row) =>
+          row.id === asset.id ? { ...row, reviewId: result.reviewId } : row
+        ));
+      }
+    } catch (cause) {
+      setAnnotateError(
+        cause instanceof Error ? cause.message : 'Could not open the annotation studio'
+      );
+    }
+  };
+
   const gallery = pending.length ? (
-    <div data-testid="mator-pending-gallery" className="grid max-h-44 grid-cols-3 gap-1.5 overflow-y-auto px-1.5 py-1.5 sm:grid-cols-4" role="list" aria-label="Assets ready to send">
-      {pending.map((asset) => (
-        <div key={asset.id} role="listitem" className="relative w-fit">
-          <MatorAttachmentPreview
-            attachmentId={asset.uploadedId ?? `draft-${asset.id}`}
-            filename={asset.name}
-            mime={asset.file.type || (asset.imageSrc ? 'image/png' : 'text/plain')}
-            imageSrc={asset.imageSrc}
-            markers={asset.markers}
-            onMarkersChange={(markers) => setPending((current) => current.map((row) => row.id === asset.id ? { ...row, markers } : row))}
-          />
-          <button type="button" aria-label={`Remove ${asset.name}`} onClick={() => removeDraft(asset.id)} className="absolute -top-1 -right-1 flex size-6 items-center justify-center rounded-full bg-slate-800 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700">
-            <X className="size-3" aria-hidden="true" />
-          </button>
-          {asset.state !== 'ready' && <span className="block text-[10px] text-slate-600">{asset.state}</span>}
-        </div>
-      ))}
+    <div className="min-w-0 px-1.5 py-1.5">
+      <div data-testid="mator-pending-gallery" className="grid max-h-44 grid-cols-3 gap-1.5 overflow-y-auto sm:grid-cols-4" role="list" aria-label="Assets ready to send">
+        {pending.map((asset) => (
+          <div key={asset.id} role="listitem" className="relative w-fit">
+            <MatorAttachmentPreview
+              attachmentId={asset.uploadedId ?? `draft-${asset.id}`}
+              filename={asset.name}
+              mime={asset.file.type || (asset.imageSrc ? 'image/png' : 'text/plain')}
+              imageSrc={asset.imageSrc}
+              markers={asset.markers}
+              reviewId={asset.reviewId}
+              onAnnotateFull={
+                onAnnotateDraft && asset.file.type.startsWith('image/')
+                  ? () => annotateDraftRow(asset)
+                  : undefined
+              }
+              onMarkersChange={(markers) => setPending((current) => current.map((row) => row.id === asset.id ? { ...row, markers } : row))}
+            />
+            <button type="button" aria-label={`Remove ${asset.name}`} onClick={() => removeDraft(asset.id)} className="absolute -top-1 -right-1 flex size-6 items-center justify-center rounded-full bg-slate-800 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700">
+              <X className="size-3" aria-hidden="true" />
+            </button>
+            {asset.state !== 'ready' && <span className="block text-[10px] text-slate-600">{asset.state}</span>}
+          </div>
+        ))}
+      </div>
+      {annotateError && (
+        <p role="alert" data-testid="mator-annotate-error" className="px-1 pt-1 text-xs text-rose-700">
+          {annotateError}
+        </p>
+      )}
     </div>
   ) : null;
 

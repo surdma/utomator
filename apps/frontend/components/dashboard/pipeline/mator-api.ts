@@ -238,6 +238,8 @@ export type MatorAttachmentMetaDto = {
   size: number;
   kind: 'image' | 'video' | 'other';
   markers: MatorImageMarkerDto[];
+  /** Visual review (annotation YAML) linked from the operator studio. */
+  reviewId?: string | null;
   createdAt: string;
 };
 
@@ -334,14 +336,18 @@ export async function synthesizeMatorSpeech(text: string, signal?: AbortSignal):
 
 export async function patchMatorMarkers(
   attachmentId: string,
-  markers: MatorImageMarkerDto[]
+  markers: MatorImageMarkerDto[],
+  reviewId?: string
 ): Promise<MatorAttachmentMetaDto> {
   const response = await fetch(
     matorPath(`attachments/${encodeURIComponent(attachmentId)}/markers`),
     {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ markers }),
+      body: JSON.stringify({
+        markers,
+        ...(reviewId !== undefined ? { reviewId } : {}),
+      }),
     }
   );
   return readJson(response, 'Unable to save markers');

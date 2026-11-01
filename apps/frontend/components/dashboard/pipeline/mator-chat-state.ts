@@ -8,6 +8,15 @@ export type MatorConversationSummary = {
   boundRevisionId: string | null;
 };
 
+export type MatorChatAsset = {
+  id: string;
+  name: string;
+  mime: string;
+  markers?: Array<{ id: string; x: number; y: number; text: string }>;
+  /** Saved visual review (annotation YAML) linked to this image. */
+  reviewId?: string;
+};
+
 export type MatorChatEvent = {
   id: string;
   conversationId: string;
@@ -16,8 +25,10 @@ export type MatorChatEvent = {
   text?: string;
   action?: unknown;
   attachmentId?: string;
-  attachments?: Array<{ id: string; name: string; mime: string; markers?: Array<{ id: string; x: number; y: number; text: string }> }>;
+  attachments?: MatorChatAsset[];
   markers?: Array<{ id: string; x: number; y: number; text: string }>;
+  /** Saved visual review for the legacy single-asset event shape. */
+  reviewId?: string;
   status?: 'staged' | 'applied' | 'rejected' | 'incomplete' | 'error';
   idempotencyKey?: string;
   resolvesEventId?: string;
