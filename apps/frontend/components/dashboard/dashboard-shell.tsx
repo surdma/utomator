@@ -29,6 +29,7 @@ import { buildRunPayload } from './pipeline/build-run-payload';
 import RunHistory from './pipeline/run-history';
 import OperatorChatPanel from './pipeline/operator-chat-panel';
 import { useRunMonitor } from './pipeline/use-run-monitor';
+import { collectRunSpeechUpdates } from './pipeline/mator-run-speech';
 import { useVisualReviews } from './pipeline/use-visual-reviews';
 import {
   appendVisualReviewStep,
@@ -182,6 +183,7 @@ export default function DashboardShell({
     onFinal: (text) => submitRef.current(text, 'voice'),
   });
   const voiceOnly = useVoiceOnlyPreference();
+  const spokenRunRef = useRef<{ runId: string | null; seen: Set<number> }>({ runId: null, seen: new Set() });
   const {
     message,
     setMessage,
@@ -216,6 +218,26 @@ export default function DashboardShell({
     onSpeakReply: (text) => voice.speak(text),
     voiceOnly,
   });
+  // Runner SSE events, not the YAML plan, are the authority for spoken status.
+  // Changes of run identity seed the history so navigating to an old run is silent.
+  useEffect(() => {
+    const tracker = spokenRunRef.current;
+    if (!currentRunId) {
+      tracker.runId = null;
+      tracker.seen.clear();
+      return;
+    }
+    if (tracker.runId !== currentRunId) {
+      tracker.runId = currentRunId;
+      tracker.seen = new Set(events.filter((item) => item.runId === currentRunId).map((item) => item.id));
+      return;
+    }
+    const summaries = collectRunSpeechUpdates(events, currentRunId, tracker.seen);
+    if (voiceOnly && settingsToggles.howTtsEnabled && summaries.length) {
+      voice.speak(summaries.join(' '));
+    }
+  }, [currentRunId, events, voiceOnly, settingsToggles.howTtsEnabled, voice.speak]);
+
   const {
     sendMessage: sendOperatorMessage,
     submitUtterance,

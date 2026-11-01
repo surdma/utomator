@@ -174,8 +174,8 @@ export default function MatorChatSettings({ disabled }: Props) {
                 onToggle={(autoApprove) => void patch({ autoApprove })}
               />
               <SettingsRow
-                label="Speak replies"
-                hint="Reads Mator's guided replies aloud."
+                label="Speak replies and workflow updates"
+                hint="In voice mode, reads new Mator replies and verified run status changes aloud."
                 checked={settings.howTtsEnabled}
                 saving={saving}
                 onToggle={(howTtsEnabled) => void patch({ howTtsEnabled })}
