@@ -7,10 +7,8 @@ import {
   type FormEvent,
 } from 'react';
 import {
-  AlertCircle,
   ArrowUp,
   ArrowRight,
-  FileText,
   LoaderCircle,
   Mic,
   Paperclip,
@@ -19,15 +17,9 @@ import {
   Volume2,
   X,
 } from 'lucide-react';
-import {
-  Attachment,
-  AttachmentAction,
-  AttachmentContent,
-  AttachmentDescription,
-  AttachmentMedia,
-  AttachmentTitle,
-} from '@/components/ui/attachment';
 import type { VoiceSession } from './use-voice-session';
+import MatorAttachmentPreview from './mator-attachment-preview';
+import type { MatorCanvasMarker } from './mator-attachment-canvas';
 import { setVoiceOnlyPreference, useVoiceOnlyPreference } from './mator-voice-preference';
 import type { MatorModelOption, MatorSettingsMasked } from './mator-api';
 import { ModelSelector } from '@/components/ai-elements/model-selector';
@@ -35,8 +27,13 @@ import { Switch } from '@/components/ui/switch';
 import MatorChatSettings from './mator-chat-settings';
 import { cn } from '@/lib/utils';
 
-export const ATTACH_ACCEPT =
-  'image/png,image/jpeg,image/webp,.pdf,.txt,.md,.csv';
+export const ATTACH_ACCEPT = 'image/*,.txt,.md,.markdown,.readme,README';
+
+function supportedFile(file: File) {
+  const name = file.name.toLowerCase();
+  const images = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif', 'image/bmp', 'image/tiff', 'image/heic', 'image/heif'];
+  return images.includes(file.type) || (['.txt', '.md', '.markdown', '.readme'].some((ext) => name.endsWith(ext)) || /^readme(?:\.[a-z0-9_-]+)?$/.test(name)) && (!file.type || ['text/plain', 'text/markdown', 'application/octet-stream'].includes(file.type));
+}
 
 const VOICE_MISSING =
   'Microphone access is unavailable here. Switch to text to keep chatting.';
@@ -48,7 +45,10 @@ type Props = {
   message: string;
   onMessageChange: (message: string) => void;
   onSendMessage: (event: FormEvent<HTMLFormElement>) => void;
-  onAttachFile: (file?: File) => unknown | Promise<unknown>;
+  onUploadFile?: (file: File) => Promise<string>;
+  onSendText?: (text: string, attachmentIds?: string[]) => Promise<boolean | void> | void;
+  onSaveMarkers?: (attachmentId: string, markers: MatorCanvasMarker[]) => void | Promise<unknown>;
+  onPendingAssetsChange?: (count: number) => void;
   busy?: boolean;
   incomplete?: boolean;
   onIncompleteContinue?: () => void;
@@ -96,9 +96,13 @@ export function VoiceMicButton({
 
 type PendingAttachment = {
   id: number;
+  file: File;
   name: string;
   size: string;
-  state: 'uploading' | 'done' | 'error';
+  imageSrc: string | null;
+  markers: MatorCanvasMarker[];
+  uploadedId?: string;
+  state: 'ready' | 'uploading' | 'error';
 };
 
 function iconButton(
@@ -122,7 +126,10 @@ export default function MatorComposer({
   message,
   onMessageChange,
   onSendMessage,
-  onAttachFile,
+  onUploadFile,
+  onSendText,
+  onSaveMarkers,
+  onPendingAssetsChange,
   busy = false,
   incomplete = false,
   onIncompleteContinue,
@@ -134,6 +141,9 @@ export default function MatorComposer({
   startPrompt = null,
 }: Props) {
   const [pending, setPending] = useState<PendingAttachment[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [draftError, setDraftError] = useState('');
+  const previewUrls = useRef(new Set<string>());
   const nextAttachmentId = useRef(0);
   const formRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -148,37 +158,105 @@ export default function MatorComposer({
     textarea.style.height = `${Math.min(textarea.scrollHeight, 116)}px`;
   }, [message, voiceOnly]);
 
-  const attach = async (files: FileList | null) => {
-    const file = files?.[0];
-    if (!file) return;
-    inputRef.current?.blur();
-    const chip: PendingAttachment = {
-      id: nextAttachmentId.current++,
-      name: file.name,
-      size: fileSizeLabel(file.size),
-      state: 'uploading',
-    };
-    setPending((current) => [...current, chip]);
-    try {
-      const result = await onAttachFile(file);
-      if (result === null) throw new Error('File upload failed');
-      setPending((current) =>
-        current.map((item) =>
-          item.id === chip.id ? { ...item, state: 'done' } : item
-        )
-      );
-    } catch {
-      setPending((current) =>
-        current.map((item) =>
-          item.id === chip.id ? { ...item, state: 'error' } : item
-        )
-      );
-      return;
+  useEffect(() => {
+    onPendingAssetsChange?.(pending.length);
+  }, [pending.length, onPendingAssetsChange]);
+
+  useEffect(() => () => {
+    for (const url of previewUrls.current) URL.revokeObjectURL(url);
+    previewUrls.current.clear();
+  }, []);
+
+  const attach = (files: FileList | null) => {
+    if (!files?.length) return;
+    const selected = Array.from(files);
+    const accepted = selected.filter(supportedFile);
+    if (accepted.length !== selected.length) {
+      setDraftError('Supported assets are raster images, TXT and README files.');
+    } else {
+      setDraftError('');
     }
-    window.setTimeout(() => {
-      setPending((current) => current.filter((item) => item.id !== chip.id));
-    }, 1200);
+    const rows = accepted.map((file) => {
+      const imageSrc = file.type.startsWith('image/') ? URL.createObjectURL(file) : null;
+      if (imageSrc) previewUrls.current.add(imageSrc);
+      return {
+        id: nextAttachmentId.current++,
+        file, name: file.name, size: fileSizeLabel(file.size),
+        imageSrc, markers: [], state: 'ready' as const,
+      };
+    });
+    setPending((current) => [...current, ...rows]);
+    inputRef.current?.blur();
   };
+
+  const removeDraft = (id: number) => {
+    setPending((current) => {
+      const removed = current.find((asset) => asset.id === id);
+      if (removed?.imageSrc) {
+        URL.revokeObjectURL(removed.imageSrc);
+        previewUrls.current.delete(removed.imageSrc);
+      }
+      return current.filter((asset) => asset.id !== id);
+    });
+  };
+
+  const sendDraft = async () => {
+    if (submitting || busy || !pending.length || !onUploadFile || !onSendText) return;
+    setSubmitting(true);
+    setDraftError('');
+    try {
+      const ids: string[] = [];
+      for (const asset of pending) {
+        let id = asset.uploadedId;
+        if (!id) {
+          setPending((current) => current.map((row) => row.id === asset.id ? { ...row, state: 'uploading' } : row));
+          id = await onUploadFile(asset.file);
+          if (!id) throw Error('Could not upload ' + asset.name);
+          asset.uploadedId = id;
+          setPending((current) => current.map((row) => row.id === asset.id ? { ...row, uploadedId: id, state: 'ready' } : row));
+        }
+        if (asset.markers.length && onSaveMarkers) await onSaveMarkers(id, asset.markers);
+        ids.push(id);
+      }
+      const sent = await onSendText(message.trim(), ids);
+      if (sent === false) throw Error('Could not send assets. Your draft is preserved.');
+      setPending([]);
+      for (const asset of pending) {
+        if (asset.imageSrc) {
+          URL.revokeObjectURL(asset.imageSrc);
+          previewUrls.current.delete(asset.imageSrc);
+        }
+      }
+      onMessageChange('');
+    } catch (cause) {
+      setPending((current) => current.map((row) => row.state === 'uploading' ? { ...row, state: 'error' } : row));
+      setDraftError(cause instanceof Error ? cause.message : 'Could not send assets');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const gallery = pending.length ? (
+    <div data-testid="mator-pending-gallery" className="grid max-h-44 grid-cols-3 gap-1.5 overflow-y-auto px-1.5 py-1.5 sm:grid-cols-4" role="list" aria-label="Assets ready to send">
+      {pending.map((asset) => (
+        <div key={asset.id} role="listitem" className="relative w-fit">
+          <MatorAttachmentPreview
+            attachmentId={asset.uploadedId ?? `draft-${asset.id}`}
+            filename={asset.name}
+            mime={asset.file.type || (asset.imageSrc ? 'image/png' : 'text/plain')}
+            imageSrc={asset.imageSrc}
+            markers={asset.markers}
+            onMarkersChange={(markers) => setPending((current) => current.map((row) => row.id === asset.id ? { ...row, markers } : row))}
+          />
+          <button type="button" aria-label={`Remove ${asset.name}`} onClick={() => removeDraft(asset.id)} className="absolute -top-1 -right-1 flex size-6 items-center justify-center rounded-full bg-slate-800 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700">
+            <X className="size-3" aria-hidden="true" />
+          </button>
+          {asset.state !== 'ready' && <span className="block text-[10px] text-slate-600">{asset.state}</span>}
+        </div>
+      ))}
+    </div>
+  ) : null;
+
 
   /* ── Voice-only deck ─────────────────────────────────────────── */
   if (voiceOnly) {
@@ -208,13 +286,21 @@ export default function MatorComposer({
             <button type="button" aria-label="Attach a file during voice conversation" data-testid="mator-voice-attach" onClick={() => inputRef.current?.click()} className={iconButton('default')}>
               <Paperclip className="size-4" aria-hidden="true" />
             </button>
-            <input ref={inputRef} type="file" accept={ATTACH_ACCEPT} className="sr-only" aria-hidden="true" tabIndex={-1} onChange={(event) => { void attach(event.target.files); event.target.value = ''; }} />
+            <input ref={inputRef} type="file" multiple accept={ATTACH_ACCEPT} className="sr-only" aria-hidden="true" tabIndex={-1} onChange={(event) => { attach(event.target.files); event.target.value = ''; }} />
             <MatorChatSettings disabled={busy} onSettingsSaved={onSettingsSaved} />
             <span className="inline-flex size-11 shrink-0 items-center justify-center" title="Switch to text conversation">
               <Switch checked={voiceOnly} onCheckedChange={setVoiceOnlyPreference} aria-label="Voice-only conversation" data-testid="mator-voice-switch" />
             </span>
           </div>
         </div>
+        {gallery}
+        {pending.length > 0 && (
+          <div className="mt-2 flex items-end gap-2">
+            <input type="text" value={message} onChange={(event) => onMessageChange(event.target.value)} aria-label="Caption for assets" placeholder="Add a caption or prompt…" className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-200 px-3 text-sm" />
+            <button type="button" data-testid="mator-send" onClick={() => void sendDraft()} disabled={submitting || busy} className="min-h-11 rounded-xl bg-teal-800 px-3 text-sm font-semibold text-white disabled:opacity-50">Send assets</button>
+          </div>
+        )}
+        {draftError && <p role="alert" className="text-xs text-rose-700">{draftError}</p>}
         <div className="mt-3 flex flex-col items-center gap-2 pb-1">
           <p
             aria-live="polite"
@@ -268,7 +354,7 @@ export default function MatorComposer({
   }
 
   /* ── Text-first deck ─────────────────────────────────────────── */
-  const canSend = Boolean(message.trim()) && !busy;
+  const canSend = Boolean(message.trim() || pending.length) && !busy && !submitting;
   const showSuggestions = emptyThread && Boolean(startPrompt);
 
   return (
@@ -298,25 +384,17 @@ export default function MatorComposer({
       )}
       <form
         ref={formRef}
-        onSubmit={onSendMessage}
+        onSubmit={(event) => {
+          if (pending.length) {
+            event.preventDefault();
+            void sendDraft();
+          } else onSendMessage(event);
+        }}
         className="flex min-w-0 flex-col gap-1.5"
       >
         <div className="min-w-0 rounded-2xl border border-slate-200 bg-white px-1.5 pt-1 pb-1.5 shadow-[inset_0_1px_2px_rgba(15,23,42,.03)] transition-colors focus-within:border-teal-600/70 focus-within:ring-2 focus-within:ring-teal-700/10">
-          {pending.length > 0 && (
-            <div className="mator-snap-x flex flex-wrap gap-1.5 px-1.5 pt-1 pb-1.5">
-              {pending.map((item) => (
-                <Chip
-                  key={item.id}
-                  attachment={item}
-                  onRemove={() =>
-                    setPending((current) =>
-                      current.filter((c) => c.id !== item.id)
-                    )
-                  }
-                />
-              ))}
-            </div>
-          )}
+          {gallery}
+          {draftError && <p role="alert" className="px-2 text-xs text-rose-700">{draftError}</p>}
           <textarea
             ref={textareaRef}
             value={message}
@@ -349,11 +427,12 @@ export default function MatorComposer({
               ref={inputRef}
               type="file"
               accept={ATTACH_ACCEPT}
+              multiple
               className="sr-only"
               aria-hidden="true"
               tabIndex={-1}
               onChange={(event) => {
-                void attach(event.target.files);
+                attach(event.target.files);
                 event.target.value = '';
               }}
             />
@@ -484,54 +563,6 @@ function IncompleteBanner({
         Continue
       </button>
     </div>
-  );
-}
-
-function Chip({
-  attachment,
-  onRemove,
-}: {
-  attachment: PendingAttachment;
-  onRemove: () => void;
-}) {
-  const isUploading = attachment.state === 'uploading';
-  return (
-    <Attachment
-      size="sm"
-      state={attachment.state}
-      role="listitem"
-      className="pr-1.5"
-    >
-      <AttachmentMedia variant="icon">
-        {isUploading ? (
-          <LoaderCircle
-            className="size-3.5 animate-spin text-teal-700"
-            aria-hidden="true"
-          />
-        ) : attachment.state === 'error' ? (
-          <AlertCircle className="size-3.5 text-rose-600" aria-hidden="true" />
-        ) : (
-          <FileText className="size-3.5" aria-hidden="true" />
-        )}
-      </AttachmentMedia>
-      <AttachmentContent>
-        <AttachmentTitle>{attachment.name}</AttachmentTitle>
-        <AttachmentDescription>
-          {attachment.state === 'error'
-            ? 'Upload failed. Try again.'
-            : isUploading
-              ? `Uploading · ${attachment.size}`
-              : attachment.size}
-        </AttachmentDescription>
-      </AttachmentContent>
-      <AttachmentAction
-        aria-label={`Dismiss status for ${attachment.name}`}
-        onClick={onRemove}
-        className="size-6"
-      >
-        <X className="size-3.5" aria-hidden="true" />
-      </AttachmentAction>
-    </Attachment>
   );
 }
 
