@@ -648,11 +648,11 @@ export default function OperatorChatPanel({
                           <Message align="end">
                             <MessageContent className="w-fit min-w-0 max-w-[min(82%,28rem)] flex-none">
                             
-                              <Bubble variant="muted" className="w-fit max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
-                                <BubbleContent>
-                                  {event.text || null}
-                                </BubbleContent>
-                              </Bubble>
+                              {event.text?.trim() && (
+                                <Bubble variant="muted" className="w-fit max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                                  <BubbleContent>{event.text}</BubbleContent>
+                                </Bubble>
+                              )}
                               {attachmentFor(event)}
                             </MessageContent>
                             <Avatar className="bg-slate-800 text-white">
