@@ -569,3 +569,49 @@ test('list events returns persisted conversation events', async () => {
     await app.close();
   }
 });
+
+test('two staged decisions are bound to their own proposal and cannot be repeated', async () => {
+  const docs = new FakeDocuments('local-owner');
+  const workflow = fakeWorkflowPort(makeRecord(defaultPlan('x', 'audit')));
+  const ports: MatorActionPorts = {
+    workflows: workflow,
+    runner: { start: () => ({ id: 'r', platform: 'x', action: 'audit', state: 'running', createdAt: '' }) },
+  };
+  const conversation = await createConversation(docs, workflow.live.id, 'Independent stages');
+  const first = await stageAction(docs, ports, {
+    workflowId: workflow.live.id, conversationId: conversation.id,
+    action: { type: 'edit_step', stepId: 'inspect', patch: { title: 'First proposed edit' } },
+  });
+  const second = await stageAction(docs, ports, {
+    workflowId: workflow.live.id, conversationId: conversation.id,
+    action: { type: 'edit_step', stepId: 'inspect', patch: { title: 'Second proposed edit' } },
+  });
+  const app = await buildMatorApp({ docs, ports });
+  try {
+    const rejectFirst = await app.inject({
+      method: 'POST', url: `/mator/conversations/${conversation.id}/stage/${first.id}/reject`,
+    });
+    assert.equal(rejectFirst.statusCode, 200);
+    assert.equal(rejectFirst.json().event.resolvesEventId, first.id);
+    assert.equal(rejectFirst.json().event.status, 'rejected');
+    const confirmSecond = await app.inject({
+      method: 'POST', url: `/mator/conversations/${conversation.id}/stage/${second.id}/confirm`,
+    });
+    assert.equal(confirmSecond.statusCode, 200);
+    assert.equal(confirmSecond.json().event.resolvesEventId, second.id);
+    assert.equal(confirmSecond.json().event.status, 'applied');
+    assert.equal(
+      workflow.live.plan.steps.find((step) => step.id === 'inspect')?.title,
+      'Second proposed edit',
+    );
+    const repeated = await app.inject({
+      method: 'POST', url: `/mator/conversations/${conversation.id}/stage/${second.id}/confirm`,
+    });
+    assert.equal(repeated.statusCode, 409);
+    const persisted = await listEvents(docs, conversation.id, {});
+    assert.equal(persisted.filter((event) => event.resolvesEventId === first.id).length, 1);
+    assert.equal(persisted.filter((event) => event.resolvesEventId === second.id).length, 1);
+  } finally {
+    await app.close();
+  }
+});
