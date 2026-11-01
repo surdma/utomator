@@ -6,7 +6,7 @@ import type { DocumentStore } from '../db/documents.js';
 
 export const MATOR_ATTACHMENTS_NAMESPACE = 'mator-attachments';
 
-/** Image attachments: max 20MB. Video attachments: max 50MB. Other types use the image cap. */
+/** Chat assets are limited to safe raster images and plain-text/README files. */
 export const MATOR_ATTACHMENT_IMAGE_MAX_BYTES = 20 * 1024 * 1024;
 export const MATOR_ATTACHMENT_VIDEO_MAX_BYTES = 50 * 1024 * 1024;
 
@@ -34,6 +34,30 @@ type WorkflowConversationIndex = {
 const defaultAttachmentRoot = () => resolve(process.cwd(), '.runtime', 'mator-attachments');
 
 const nowIso = () => new Date().toISOString();
+
+const safeImages: Record<string, string[]> = {
+  'image/png': ['.png'],
+  'image/jpeg': ['.jpg', '.jpeg'],
+  'image/webp': ['.webp'],
+  'image/gif': ['.gif'],
+  'image/avif': ['.avif'],
+  'image/bmp': ['.bmp'],
+  'image/tiff': ['.tif', '.tiff'],
+  'image/heic': ['.heic'],
+  'image/heif': ['.heif'],
+};
+
+export function validateMatorAsset(filename: string, mime: string): void {
+  const name = basename(filename).toLowerCase();
+  const ext = extname(name);
+  const acceptedImageExtensions = safeImages[mime.toLowerCase()];
+  if (acceptedImageExtensions?.includes(ext)) return;
+  const isText = ['text/plain', 'text/markdown', 'application/octet-stream'].includes(mime.toLowerCase());
+  const safeTextName = ['.txt', '.md', '.markdown', '.readme'].includes(ext) ||
+    /^readme(?:\.[a-z0-9_-]+)?$/.test(name);
+  if (isText && safeTextName) return;
+  throw Error('Unsupported attachment type. Use a raster image, TXT or README file.');
+}
 
 const kindFromMime = (mime: string): MatorAttachmentKind => {
   if (mime.startsWith('image/')) return 'image';
@@ -83,7 +107,8 @@ export async function saveAttachment(
 ): Promise<{ id: string; mime: string; size: number; kind: MatorAttachmentKind }> {
   if (!(await conversationExists(docs, input.conversationId))) throw Error('Conversation not found');
 
-  const mime = input.mime.trim() || 'application/octet-stream';
+  const mime = input.mime.trim().toLowerCase() || 'application/octet-stream';
+  validateMatorAsset(input.filename, mime);
   const kind = kindFromMime(mime);
   const bytes = Buffer.from(input.bytes);
   const maxBytes = maxBytesForKind(kind);
@@ -114,6 +139,15 @@ export async function saveAttachment(
   await docs.put(MATOR_ATTACHMENTS_NAMESPACE, id, meta, 0);
 
   return { id, mime, size: bytes.length, kind };
+}
+
+export async function getAttachmentMeta(
+  docs: DocumentStore,
+  id: string
+): Promise<MatorAttachmentMeta> {
+  const record = await loadMeta(docs, id);
+  if (!record) throw Error('Attachment not found');
+  return record.value;
 }
 
 export async function getAttachmentFile(

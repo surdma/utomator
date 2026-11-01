@@ -24,7 +24,8 @@ export type MatorEvent = {
   kind: string;
   text?: string;
   action?: unknown;
-  attachmentId?: string;
+  attachmentId?: string; // Legacy single-asset events remain readable.
+  attachments?: Array<{ id: string; name: string; mime: string }>;
   markers?: Array<{ id: string; x: number; y: number; text: string }>;
   status?: 'staged' | 'applied' | 'rejected' | 'incomplete' | 'error';
   /** The exact staged proposal resolved by an apply/reject event. */

@@ -8,7 +8,7 @@ import {
   parseMatorAction,
   stageAction,
 } from './mator-actions.js';
-import { getAttachmentFile } from './mator-attachments.js';
+import { getAttachmentFile, getAttachmentMeta } from './mator-attachments.js';
 import {
   appendEvent,
   listEvents,
@@ -313,8 +313,18 @@ export async function runMatorTurn(
   // event via CAS, then both call Groq. Consider an in-memory lock by idempotencyKey
   // (and eventually per-owner Groq rate limiting).
 
+  // Validate every attachment before recording a user turn. A pending upload
+  // is not a sent message, and attachment IDs must belong to this conversation.
+  const attachmentIds = [...new Set(input.attachmentIds ?? [])];
+  if (attachmentIds.length > 12) throw Error('Limit attachments to 12 per message');
+  const attachments = [];
+  for (const id of attachmentIds) {
+    const meta = await getAttachmentMeta(docs, id);
+    if (meta.conversationId !== input.conversationId) throw Error('Attachment belongs to another conversation');
+    attachments.push({ id, name: meta.filename, mime: meta.mime });
+  }
   const produced: MatorEvent[] = [];
-  if (input.userText !== undefined || input.attachmentIds?.length) {
+  if (input.userText !== undefined || attachments.length) {
     const userEvent = await appendEvent(
       docs,
       input.conversationId,
@@ -322,7 +332,7 @@ export async function runMatorTurn(
         role: 'user',
         kind: 'message',
         ...(input.userText !== undefined ? { text: input.userText } : {}),
-        ...(input.attachmentIds?.[0] ? { attachmentId: input.attachmentIds[0] } : {}),
+        ...(attachments[0] ? { attachmentId: attachments[0].id, attachments } : {}),
       },
       { idempotencyKey: input.idempotencyKey },
     );

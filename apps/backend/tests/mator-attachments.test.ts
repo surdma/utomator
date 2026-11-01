@@ -6,6 +6,8 @@ import test from 'node:test';
 import { createConversation } from '../src/core/mator-conversations.js';
 import {
   getAttachmentFile,
+  getAttachmentMeta,
+  validateMatorAsset,
   MATOR_ATTACHMENT_IMAGE_MAX_BYTES,
   MATOR_ATTACHMENTS_NAMESPACE,
   saveAttachment,
@@ -163,6 +165,53 @@ test('saveAttachment rejects oversized images', async () => {
         }, { root }),
       /Attachment size limit exceeded/,
     );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('supports raster images and TXT/README assets but rejects active or unsupported types', () => {
+  for (const [filename, mime] of [
+    ['diagram.png', 'image/png'],
+    ['photo.jpeg', 'image/jpeg'],
+    ['figure.webp', 'image/webp'],
+    ['notes.txt', 'text/plain'],
+    ['README', 'application/octet-stream'],
+    ['README.md', 'text/markdown'],
+  ]) {
+    assert.doesNotThrow(() => validateMatorAsset(filename, mime));
+  }
+  for (const [filename, mime] of [
+    ['attack.svg', 'image/svg+xml'],
+    ['page.html', 'text/html'],
+    ['report.pdf', 'application/pdf'],
+    ['movie.mp4', 'video/mp4'],
+    ['fake.png', 'text/html'],
+    ['page.html', 'image/png'],
+  ]) {
+    assert.throws(() => validateMatorAsset(filename, mime), /Unsupported attachment type/);
+  }
+});
+
+test('attachment metadata is owner scoped and retains the original filename', async () => {
+  const docs = new FakeDocuments('owner-metadata');
+  const root = await mkdtemp(join(tmpdir(), 'mator-assets-'));
+  try {
+    const conv = await createConversation(docs, 'wf-metadata');
+    const result = await saveAttachment(
+      docs,
+      {
+        conversationId: conv.id,
+        filename: 'README.md',
+        mime: 'text/markdown',
+        bytes: Buffer.from('# Project'),
+      },
+      { root }
+    );
+    const meta = await getAttachmentMeta(docs, result.id);
+    assert.equal(meta.filename, 'README.md');
+    assert.equal(meta.mime, 'text/markdown');
+    assert.equal(meta.conversationId, conv.id);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
