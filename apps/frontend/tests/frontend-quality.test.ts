@@ -388,3 +388,82 @@ test('Mator dock has a usable empty state, thread history, model picker, and voi
   await expect(dock.getByTestId('mator-composer')).toHaveAttribute('data-mode', 'text');
   await capture(page, info, 'mator-dock-text-first');
 });
+
+test('Growth modal uses the YAML catalogue with actionable search and pipeline detail', async ({ page }, info) => {
+  const names = [
+    'linkedin-profile', 'linkedin-branding', 'linkedin-analytics', 'linkedin-content',
+    ...Array.from({ length: 17 }, (_, index) => 'linkedin-method-' + index),
+  ];
+  await page.route('**/api/growth/templates', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(names.map((id) => ({
+        id,
+        title: id.replaceAll('-', ' '),
+        objective: 'Evidence and owner approval are required',
+        platform: 'linkedin',
+        pipelineCount: id === 'linkedin-profile' ? 6 : 2,
+        coverageCount: 2,
+        executable: id === 'linkedin-profile' || id === 'linkedin-branding',
+      }))),
+    });
+  });
+  await page.route('**/api/growth/templates/linkedin-analytics', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'linkedin-analytics',
+        title: 'Audience, post and opportunity analytics',
+        objective: 'Evidence-based review',
+        kind: 'GrowthBlueprintWorkflow',
+        executable: false,
+        limitation: 'Planning only; no provider actions',
+        coverage: [{ id: 'evidence', label: 'Source evidence' }],
+        requirements: [],
+        pipelines: [],
+        stages: [{
+          id: 'discovery',
+          title: 'Evidence and preparation',
+          action: 'manual',
+          page: 'none',
+          dependsOn: 'none',
+          sectionIds: ['evidence'],
+          stepCount: 5,
+          execution: 'design-only',
+          plan: {
+            version: 1,
+            platform: 'linkedin',
+            action: 'manual-review',
+            name: 'Evidence and preparation',
+            steps: ['todo', 'procedure', 'action', 'event', 'verify'].map((id) => ({
+              id, kind: 'note', title: 'Review ' + id,
+            })),
+            links: [],
+          },
+        }],
+      }),
+    });
+  });
+
+  await page.goto('/dashboard/pipeline');
+  await page.getByRole('button', { name: 'Choose workflow template' }).click();
+  const dialog = page.getByTestId('workflow-template-dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByTestId('growth-template-count')).toContainText('21 workflows');
+  await expect(dialog.getByTestId('growth-template-option')).toHaveCount(21);
+  await dialog.getByRole('searchbox', { name: 'Search Growth workflows' }).fill('analytics');
+  await expect(dialog.getByTestId('growth-template-option')).toHaveCount(1);
+  await expect(dialog.getByTestId('growth-template-pipeline-preview')).toBeVisible();
+  await expect(dialog.getByText('Review procedure')).toBeVisible();
+  await expect(dialog.getByText('Design only', { exact: true })).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'View source YAML' })).toHaveAttribute('href', '/api/growth/templates/linkedin-analytics/yaml');
+  await dialog.getByRole('searchbox', { name: 'Search Growth workflows' }).fill('not-a-template');
+  await expect(dialog.getByTestId('growth-templates-empty')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Clear filters' }).click();
+  await expect(dialog.getByTestId('growth-template-option')).toHaveCount(21);
+  await capture(page, info, 'growth-template-library');
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+});

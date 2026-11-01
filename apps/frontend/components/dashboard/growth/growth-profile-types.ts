@@ -3,7 +3,8 @@ import type { WorkflowPlan } from '../workflows/workflow-plan-editor';
 export type Stage = {
   id: string;
   title: string;
-  action: 'audit' | 'audit-page';
+  action: 'audit' | 'audit-page' | 'manual';
+  execution?: 'existing-runner' | 'design-only';
   page: string;
   dependsOn: string;
   sectionIds: string[];
@@ -15,6 +16,8 @@ export type Program = {
   title: string;
   objective: string;
   limitation: string;
+  kind?: 'GrowthProfileWorkflow' | 'GrowthWorkflow' | 'GrowthBlueprintWorkflow';
+  executable?: boolean;
   stages: Stage[];
   requirements: Array<{ id: string; text: string }>;
   coverage: Array<{ id: string; label: string; status: string }>;

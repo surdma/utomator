@@ -3,6 +3,7 @@
 All **existing versus proposed** functionality boundaries are explicit. Mermaid diagrams,
 illustrative interfaces and named handlers are designs unless verified in product code.
 
+- [Cross-platform Growth workflow unification v2 (proposed)](./architecture/growth-workflow-unification-v2.md): one workflow identity across providers, contextual step UI, bounded Mator failure repair, and explicit migration gates.
 - [Unified Growth, Craft, Graph, Pipeline and Execution Engine Architecture](./architecture/unified-growth-workflow-engine.md):
   actual two-contract gap, target architecture, 12 Mermaid diagrams, contracts, lifecycle,
   persistence, ownership and migration.

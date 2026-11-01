@@ -1,0 +1,34 @@
+apiVersion: "utomator.dev/v1"
+kind: "GrowthBlueprintWorkflow"
+metadata:
+  id: "linkedin-reputation"
+  version: 1
+  title: "Brand reputation, credibility & account health"
+spec:
+  platform: "linkedin"
+  objective: "Protect the credibility and security of the professional identity over time."
+  requirements:
+    requirement01: "Review the owner goal and source evidence before action"
+    requirement02: "Complete actions manually when provider operations are unavailable"
+  coverage:
+    evidence: "Owner-supplied evidence and source links"
+    outcome: "Reviewed decisions, missing data and next steps"
+  pipelines:
+    discovery:
+      title: "Evidence and preparation"
+      dependsOn: "none"
+      tasks:
+        todo: "Review factual claims, stale roles, contradictory dates and inflated accomplishments"
+        procedure: "Audit public contact surfaces, account settings and authorized integrations"
+        action: "Flag user-reported impersonation or inappropriate discussions for owner review"
+        event: "Review privacy and verification settings without changing them secretly"
+        verify: "Maintain evidenced claims and publication history"
+    review:
+      title: "Review and owner handoff"
+      dependsOn: "discovery"
+      tasks:
+        todo: "Audit public contact surfaces, account settings and authorized integrations"
+        procedure: "Flag user-reported impersonation or inappropriate discussions for owner review"
+        action: "Review privacy and verification settings without changing them secretly"
+        event: "Maintain evidenced claims and publication history"
+        verify: "Avoid artificial engagement and mass-automation tactics"

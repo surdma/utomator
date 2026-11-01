@@ -1,0 +1,34 @@
+apiVersion: "utomator.dev/v1"
+kind: "GrowthBlueprintWorkflow"
+metadata:
+  id: "linkedin-analytics"
+  version: 1
+  title: "Audience, post & opportunity analytics"
+spec:
+  platform: "linkedin"
+  objective: "Establish defensible baselines and demonstrate useful professional outcomes."
+  requirements:
+    requirement01: "Review the owner goal and source evidence before action"
+    requirement02: "Complete actions manually when provider operations are unavailable"
+  coverage:
+    evidence: "Owner-supplied evidence and source links"
+    outcome: "Reviewed decisions, missing data and next steps"
+  pipelines:
+    discovery:
+      title: "Evidence and preparation"
+      dependsOn: "none"
+      tasks:
+        todo: "Record profile visits, search appearances, impressions and eligible reach"
+        procedure: "Track relevant followers, reactions, comments, reposts and discussion quality"
+        action: "Import approved LinkedIn native analytics exports and label collection method"
+        event: "Compare weekly, monthly and quarterly baselines"
+        verify: "Compute engagement and follower-growth rates with explicit denominators"
+    review:
+      title: "Review and owner handoff"
+      dependsOn: "discovery"
+      tasks:
+        todo: "Compare weekly, monthly and quarterly baselines"
+        procedure: "Compute engagement and follower-growth rates with explicit denominators"
+        action: "Analyze pillar, format, audience and time period performance"
+        event: "Attribute interviews, leads, collaborations and meetings only when evidence allows"
+        verify: "Export historical reports with missing-data and uncertainty annotations"

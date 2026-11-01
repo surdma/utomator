@@ -6,6 +6,8 @@
 > **Date:** 28 October 2026. **Scope:** Growth, Craft, canonical graphs, pipeline releases,
 > execution, persistence and migration.
 
+> **31 October 2026 refinement:** [Cross-platform Growth workflow unification v2](./growth-workflow-unification-v2.md) specifies one platform-independent workflow identity, provider bindings, contextual step interactions, and safe Mator-assisted recovery. It supersedes platform-specific assumptions in the illustrative portions below. Both documents describe proposed architecture, not a completed runtime.
+
 This proposal documents the separation currently present in Utomator and a migration toward **one
 logical, modular execution engine**. PR #6 consolidates the Growth catalogue and MDX visual
 authoring; it does **not** implement the engine design below.

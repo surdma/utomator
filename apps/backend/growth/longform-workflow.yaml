@@ -1,0 +1,34 @@
+apiVersion: "utomator.dev/v1"
+kind: "GrowthBlueprintWorkflow"
+metadata:
+  id: "linkedin-longform"
+  version: 1
+  title: "Newsletters, events & professional communities"
+spec:
+  platform: "linkedin"
+  objective: "Plan deeper thought leadership and substantive professional participation."
+  requirements:
+    requirement01: "Review the owner goal and source evidence before action"
+    requirement02: "Complete actions manually when provider operations are unavailable"
+  coverage:
+    evidence: "Owner-supplied evidence and source links"
+    outcome: "Reviewed decisions, missing data and next steps"
+  pipelines:
+    discovery:
+      title: "Evidence and preparation"
+      dependsOn: "none"
+      tasks:
+        todo: "Research newsletter themes, draft article/edition outlines and maintain an editorial calendar"
+        procedure: "Repurpose supported original work into short-form content"
+        action: "Review eligibility to publish newsletters or articles in LinkedIn"
+        event: "Discover relevant events, groups, talks and community questions"
+        verify: "Prepare networking questions, attendance goals and follow-up notes"
+    review:
+      title: "Review and owner handoff"
+      dependsOn: "discovery"
+      tasks:
+        todo: "Repurpose supported original work into short-form content"
+        procedure: "Review eligibility to publish newsletters or articles in LinkedIn"
+        action: "Discover relevant events, groups, talks and community questions"
+        event: "Prepare networking questions, attendance goals and follow-up notes"
+        verify: "Measure readership and authentic collaboration outcomes"

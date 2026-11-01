@@ -1,0 +1,34 @@
+apiVersion: "utomator.dev/v1"
+kind: "GrowthBlueprintWorkflow"
+metadata:
+  id: "linkedin-personal-brand-positioning"
+  version: 1
+  title: "Personal brand positioning"
+spec:
+  platform: "linkedin"
+  objective: "Use when defining a career-specific professional promise and aligning a public profile with verifiable expertise."
+  requirements:
+    requirement01: "Review the owner goal and source evidence before action"
+    requirement02: "Complete actions manually when provider operations are unavailable"
+  coverage:
+    evidence: "Owner-supplied evidence and source links"
+    outcome: "Reviewed decisions, missing data and next steps"
+  pipelines:
+    discovery:
+      title: "Evidence and preparation"
+      dependsOn: "none"
+      tasks:
+        todo: "Identify career positioning"
+        procedure: "Collect proof of expertise"
+        action: "Choose a distinct message"
+        event: "Align public profile assets"
+        verify: "Check credibility and fit"
+    review:
+      title: "Review and owner handoff"
+      dependsOn: "discovery"
+      tasks:
+        todo: "Identify career positioning"
+        procedure: "Collect proof of expertise"
+        action: "Choose a distinct message"
+        event: "Align public profile assets"
+        verify: "Check credibility and fit"

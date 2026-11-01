@@ -1,0 +1,34 @@
+apiVersion: "utomator.dev/v1"
+kind: "GrowthBlueprintWorkflow"
+metadata:
+  id: "linkedin-engagement"
+  version: 1
+  title: "Engagement & community discussions"
+spec:
+  platform: "linkedin"
+  objective: "Prioritize meaningful replies on owned conversations and avoid manufactured engagement."
+  requirements:
+    requirement01: "Review the owner goal and source evidence before action"
+    requirement02: "Complete actions manually when provider operations are unavailable"
+  coverage:
+    evidence: "Owner-supplied evidence and source links"
+    outcome: "Reviewed decisions, missing data and next steps"
+  pipelines:
+    discovery:
+      title: "Evidence and preparation"
+      dependsOn: "none"
+      tasks:
+        todo: "Find relevant discussions through permitted evidence"
+        procedure: "Review and summarize accessible comments on owned content"
+        action: "Prepare context-aware replies and useful contributions"
+        event: "Manage response queue, thread context and moderation requests"
+        verify: "React, comment, repost or remove a reaction only with expressly supported provider rights"
+    review:
+      title: "Review and owner handoff"
+      dependsOn: "discovery"
+      tasks:
+        todo: "Prepare context-aware replies and useful contributions"
+        procedure: "Manage response queue, thread context and moderation requests"
+        action: "React, comment, repost or remove a reaction only with expressly supported provider rights"
+        event: "Track recurring substantive conversations and unanswered requests"
+        verify: "Review the quality and outcomes of contributions"

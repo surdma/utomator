@@ -1,0 +1,34 @@
+apiVersion: "utomator.dev/v1"
+kind: "GrowthBlueprintWorkflow"
+metadata:
+  id: "linkedin-competitors"
+  version: 1
+  title: "Creator, competitor & niche intelligence"
+spec:
+  platform: "linkedin"
+  objective: "Explain observed positioning and content patterns without inventing private growth history."
+  requirements:
+    requirement01: "Review the owner goal and source evidence before action"
+    requirement02: "Complete actions manually when provider operations are unavailable"
+  coverage:
+    evidence: "Owner-supplied evidence and source links"
+    outcome: "Reviewed decisions, missing data and next steps"
+  pipelines:
+    discovery:
+      title: "Evidence and preparation"
+      dependsOn: "none"
+      tasks:
+        todo: "Find relevant peers, creators, founders, recruiters and company pages through permitted sources"
+        procedure: "Maintain a consented creator/competitor watchlist and comparison cohorts"
+        action: "Compare public positioning, career milestones, content pillars and writing styles"
+        event: "Analyze user-supplied post excerpts, formats, hooks, engagement and visible patterns"
+        verify: "Construct sourced career/content timelines and mark unavailable early posts"
+    review:
+      title: "Review and owner handoff"
+      dependsOn: "discovery"
+      tasks:
+        todo: "Analyze user-supplied post excerpts, formats, hooks, engagement and visible patterns"
+        procedure: "Construct sourced career/content timelines and mark unavailable early posts"
+        action: "Distinguish observed metrics from hypotheses about audience and conversion"
+        event: "Identify content gaps and collaboration candidates"
+        verify: "Produce testable strategies adapted to the owner's career stage"

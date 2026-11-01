@@ -435,3 +435,55 @@ test('single-pipeline Growth reports all owner evidence without false provider v
   assert.equal(final.counts.independentlyProviderVerified, 0);
   assert.equal(runs.size, 1);
 });
+
+
+test('Growth template library exposes exactly 21 YAML workflows with connected tasks', async () => {
+  const templates = await readGrowthTemplateCatalog();
+  assert.equal(templates.length, 21);
+  assert.equal(new Set(templates.map((item) => item.program.id)).size, 21);
+  for (const { program } of templates) {
+    assert(program.stages.length >= 1);
+    assert(program.stages.every((stage) => stage.plan.links.length === stage.plan.steps.length - 1));
+    assert(program.stages.every((stage) => stage.plan.steps.length >= 5));
+  }
+  const blueprints = templates.filter((item) => item.program.kind === 'GrowthBlueprintWorkflow');
+  assert.equal(blueprints.length, 19);
+  for (const { program } of blueprints) {
+    assert.equal(program.executable, false);
+    assert.deepEqual(program.stages.map((stage) => stage.id), ['discovery', 'review']);
+    assert(program.stages.every((stage) => stage.action === 'manual'));
+    assert(program.stages.every((stage) =>
+      ['todo', 'procedure', 'action', 'event', 'verify'].every((id) =>
+        stage.plan.steps.some((step) => step.id === id),
+      ),
+    ));
+  }
+});
+
+test('planning-only YAML can be previewed but must reject Runner launch', async () => {
+  const app = buildApp();
+  try {
+    await app.ready();
+    const listed = await app.inject('/growth/templates');
+    assert.equal(listed.statusCode, 200);
+    assert.equal(listed.json().length, 21);
+    const planned = listed.json().find((item: { id: string }) => item.id === 'linkedin-analytics');
+    assert.equal(planned.executable, false);
+    const detail = await app.inject('/growth/templates/linkedin-analytics');
+    assert.equal(detail.statusCode, 200);
+    assert.equal(detail.json().kind, 'GrowthBlueprintWorkflow');
+    assert.equal(detail.json().stages.length, 2);
+    const source = await app.inject('/growth/templates/linkedin-analytics/yaml');
+    assert.equal(source.statusCode, 200);
+    assert.match(source.body, /kind: "GrowthBlueprintWorkflow"/);
+    const run = await app.inject({
+      method: 'POST',
+      url: '/growth/templates/linkedin-analytics/runs',
+      payload: { accountId: 'c63e8078-644d-4a2a-80bd-7cba9eaa0e1b' },
+    });
+    assert.equal(run.statusCode, 409, run.body);
+    assert.match(run.json().error, /design-only/i);
+  } finally {
+    await app.close();
+  }
+});
