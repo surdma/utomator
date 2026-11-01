@@ -787,15 +787,14 @@ export default function OperatorChatPanel({
                           <Confirmation
                             className="w-full max-w-[min(100%,30rem)]"
                             status={
-                              (event.status === 'staged'
-                                ? stageResolution(orderedMatorEvents, event.id) ?? event.status
-                                : event.status) as
+                              ((event.status === 'staged'
+                                ? stageResolution(orderedMatorEvents, event.id) ?? 'staged'
+                                : event.status) ?? 'staged') as
                                 | 'staged'
                                 | 'applied'
                                 | 'rejected'
                                 | 'incomplete'
                                 | 'error'
-                                | undefined) ?? 'staged'
                             }
                             action={
                               event.action &&
