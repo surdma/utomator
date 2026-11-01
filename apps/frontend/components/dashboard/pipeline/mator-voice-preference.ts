@@ -4,12 +4,13 @@ import { useSyncExternalStore } from 'react';
 
 const STORAGE_KEY = 'mator.voiceOnly';
 const CHANGE_EVENT = 'mator-voice-only-change';
+let fallbackVoiceOnly = false;
 
 function readVoiceOnly(): boolean {
   try {
     return window.localStorage.getItem(STORAGE_KEY) === '1';
   } catch {
-    return false;
+    return fallbackVoiceOnly;
   }
 }
 
@@ -23,6 +24,7 @@ function subscribeVoiceOnly(onChange: () => void) {
 }
 
 export function setVoiceOnlyPreference(voiceOnly: boolean) {
+  fallbackVoiceOnly = voiceOnly;
   try {
     window.localStorage.setItem(STORAGE_KEY, voiceOnly ? '1' : '0');
   } catch {
