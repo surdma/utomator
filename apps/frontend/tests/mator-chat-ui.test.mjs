@@ -8,10 +8,11 @@ const pipeline = (name) => resolve(root, 'components/dashboard/pipeline', name);
 const ui = (name) => resolve(root, 'components/ui', name);
 const aiElements = (name) => resolve(root, 'components/ai-elements', name);
 
-test('annotation is opt-in using an accessible pencil control', () => {
+test('image thumbnail opens annotation modal on click', () => {
   const preview = readFileSync(pipeline('mator-attachment-preview.tsx'), 'utf8');
-  assert.match(preview, /data-testid="mator-annotation-pencil"/);
-  assert.match(preview, /aria-expanded/);
+  assert.match(preview, /data-testid="mator-image-thumbnail"/);
+  assert.match(preview, /mator-image-annotation-modal/);
+  assert.doesNotMatch(preview, /mator-annotation-pencil|Open original image/);
   assert.match(preview, /MatorAttachmentCanvas/);
   assert.match(preview, /onMarkersChange/);
 });
@@ -60,7 +61,9 @@ test('composer is text-first with voice demoted to a small control', () => {
   assert.match(source, /flex-nowrap/, 'composer actions remain on one row');
   assert.match(source, /Paperclip/);
   assert.match(source, /ATTACH_ACCEPT/);
-  assert.match(source, /onAttachFile/);
+  assert.match(source, /onUploadFile/);
+  assert.match(source, /multiple/);
+  assert.match(source, /mator-pending-gallery/);
   const preference = readFileSync(pipeline('mator-voice-preference.ts'), 'utf8');
   assert.match(preference, /mator\.voiceOnly/, 'voice-only preference persists');
   assert.match(preference, /useSyncExternalStore/, 'text and voice decks share the same persisted preference');
@@ -151,7 +154,7 @@ test('dashboard shell wires mator chat chrome into the operator panel', () => {
   assert.match(shell, /onReject=\{rejectChat\}/);
   assert.match(shell, /onRestorePipeline=/);
   assert.match(shell, /incompleteContinue/);
-  assert.match(shell, /attachFile/);
+  assert.match(shell, /onPendingAssetsChange/);
   assert.match(shell, /saveMarkers/);
 });
 
@@ -169,7 +172,7 @@ test('new chat displays suggestions instead of a permanent loading skeleton', ()
   assert.match(panel, /<Suggestion suggestions=\{START_SUGGESTIONS\}/);
   assert.match(panel, /matorAttachmentFileUrl/);
   const attachment = readFileSync(pipeline('mator-attachment-preview.tsx'), 'utf8');
-  assert.match(attachment, /Open attached file/, 'original assets remain linked from the preview');
+  assert.match(attachment, /StudioDialog/, 'image click opens the modal');
 });
 
 test('model picker is connected to real chat settings and handles failures', () => {
@@ -188,8 +191,9 @@ test('model picker is connected to real chat settings and handles failures', () 
 test('attachment upload failures remain visible in the composer', () => {
   const composer = readFileSync(pipeline('mator-composer.tsx'), 'utf8');
   const shell = readFileSync(resolve(root, 'components/dashboard/dashboard-shell.tsx'), 'utf8');
-  assert.match(composer, /if \(result === null\) throw new Error/);
-  assert.match(shell, /return attachFile\(file\)/);
+  assert.match(composer, /if \(!id\) throw Error/);
+  assert.match(composer, /setDraftError/);
+  assert.match(shell, /onPendingAssetsChange/);
 });
 
 
@@ -217,4 +221,20 @@ test('legacy local command approval stays available without duplicating Mator st
   assert.match(shell, /onConfirmOperator=\{confirmPending\}/);
   assert.match(shell, /pendingLabel: operatorPendingLabel/);
   assert.doesNotMatch(composer, /mator-stage-confirm-compact/);
+});
+
+test('asset upload requires explicit send and multi-image names are metadata', () => {
+  const composer = readFileSync(pipeline('mator-composer.tsx'), 'utf8');
+  const hook = readFileSync(pipeline('use-mator-chat.ts'), 'utf8');
+  const panel = readFileSync(pipeline('operator-chat-panel.tsx'), 'utf8');
+  assert.match(composer, /accepted\.map/);
+  assert.match(composer, /onSendText\(message\.trim\(\), ids\)/);
+  assert.match(composer, /mator-pending-gallery/);
+  assert.doesNotMatch(hook, /send\(file\.name, \[uploaded\.id\]\)/);
+  assert.match(panel, /mator-image-gallery/);
+  assert.match(panel, /assets\.map/);
+});
+test('text dictation stays draft while voice-only stops submit', () => {
+  const shell = readFileSync(resolve(root, 'components/dashboard/dashboard-shell.tsx'), 'utf8');
+  assert.match(shell, /source === 'voice' && \(!voiceOnly \|\| pendingAssetsRef\.current\)/);
 });
