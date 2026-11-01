@@ -53,7 +53,7 @@ export function Confirmation({
       data-status={status}
       data-testid="mator-confirmation"
       className={cn(
-        'overflow-hidden rounded-xl border bg-white shadow-sm',
+        'min-w-0 max-w-full overflow-hidden rounded-xl border bg-white shadow-sm',
         status === 'staged'
           ? 'border-orange-200'
           : status === 'rejected'
@@ -68,7 +68,7 @@ export function Confirmation({
     >
       <div className="flex items-center justify-between gap-2 px-3 pt-2.5">
         <Badge tone={meta.tone} size="xs">
-          {meta.label}
+          {status === 'applied' && action === 'run step' ? 'Run started' : meta.label}
         </Badge>
         {action && (
           <span className="truncate text-[11px] text-slate-400">{action}</span>

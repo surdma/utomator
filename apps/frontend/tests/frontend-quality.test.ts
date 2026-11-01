@@ -483,6 +483,16 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
           createdAt: '2026-11-01T09:00:02.000Z',
         },
         {
+          id: 'informational-noop',
+          conversationId,
+          role: 'assistant',
+          kind: 'action',
+          action: { type: 'noop', reason: 'No workflow changes' },
+          status: 'applied',
+          text: 'No operation',
+          createdAt: '2026-11-01T09:00:02.500Z',
+        },
+        {
           id: 'staged-change',
           conversationId,
           role: 'assistant',
@@ -511,6 +521,8 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
   await expect(shortContent).toBeVisible();
   await expect(longContent).toBeVisible();
   await expect(confirm).toBeVisible();
+  await expect(dock.getByTestId('mator-confirmation')).toHaveCount(1);
+  await expect(dock.getByText('No operation')).toHaveCount(0);
   await expect(dock.getByText(assistantText)).toBeVisible();
 
   const metrics = await dock.evaluate((element) => {
@@ -549,6 +561,17 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
   expect(metrics!.longOverflow).toBeLessThanOrEqual(1);
   expect(metrics!.assistantOverflow).toBeLessThanOrEqual(1);
   expect(metrics!.confirmationOverflow).toBeLessThanOrEqual(1);
+  const viewport = dock.getByTestId('mator-thread-viewport');
+  await viewport.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+  const bottomGap = await viewport.evaluate((element) => {
+    const lastCard = element.querySelector<HTMLElement>('[data-testid="mator-confirmation"]');
+    return lastCard
+      ? element.getBoundingClientRect().bottom - lastCard.getBoundingClientRect().bottom
+      : null;
+  });
+  expect(bottomGap, 'the final confirmation should be measurable').not.toBeNull();
+  expect(bottomGap!, 'last chat row stays near the composer').toBeGreaterThanOrEqual(0);
+  expect(bottomGap!).toBeLessThanOrEqual(48);
   await capture(page, info, 'mator-content-width-regression');
 });
 
@@ -872,10 +895,12 @@ test('Mator approval cards decide the selected proposal, not another staged acti
   await expect(cards).toHaveCount(2);
   await cards.nth(0).getByTestId('mator-stage-confirm').click();
   await expect(cards.nth(0)).toHaveAttribute('data-status', 'applied');
+  await expect(cards).toHaveCount(2); // the linked terminal record must not render a second card
   await expect(cards.nth(1)).toHaveAttribute('data-status', 'staged');
   await cards.nth(1).getByTestId('mator-stage-reject').click();
   await page.getByRole('dialog', { name: 'Reject this staged change?' }).getByTestId('alert-confirm').click();
   await expect(cards.nth(1)).toHaveAttribute('data-status', 'rejected');
+  await expect(cards).toHaveCount(2);
   expect(decisions).toEqual([
     { stageId: firstId, decision: 'confirm' },
     { stageId: secondId, decision: 'reject' },

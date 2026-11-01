@@ -56,6 +56,7 @@ import type { Platform } from './workflow-catalog';
 import {
   findOpenClarify,
   stageResolution,
+  shouldRenderMatorEvent,
   readClarifyQuestions,
   type MatorChatEvent,
   type MatorConversationSummary,
@@ -241,7 +242,11 @@ export default function OperatorChatPanel({
   }, []);
   const showRestore = Boolean(conversationMeta?.boundRevisionId);
   const orderedMatorEvents = useMemo(() => [...matorEvents].sort((a, b) => a.createdAt.localeCompare(b.createdAt)), [matorEvents]);
-  const lastMatorEventId = orderedMatorEvents.at(-1)?.id;
+  const visibleMatorEvents = useMemo(
+    () => orderedMatorEvents.filter((event) => shouldRenderMatorEvent(orderedMatorEvents, event)),
+    [orderedMatorEvents]
+  );
+  const lastMatorEventId = visibleMatorEvents.at(-1)?.id;
   const openClarify = findOpenClarify(matorEvents);
   const clarifyQuestions = openClarify
     ? readClarifyQuestions(openClarify.action)
@@ -474,8 +479,8 @@ export default function OperatorChatPanel({
         {/* ── Transcript ─────────────────────────────────────────────── */}
         <MessageScrollerProvider autoScroll defaultScrollPosition="end">
           <MessageScroller>
-            <MessageScrollerViewport aria-label="Thread history">
-              <MessageScrollerContent className="gap-5 px-3 py-3">
+            <MessageScrollerViewport aria-label="Thread history" data-testid="mator-thread-viewport">
+              <MessageScrollerContent className="gap-4 px-3 py-3">
                 {(() => {
                   const rows: ReactNode[] = [];
                   let lastRun: string | null = null;
@@ -550,7 +555,7 @@ export default function OperatorChatPanel({
                           </MessageHeader>
                           <div
                             data-testid="saved-visual-review"
-                            className="w-full max-w-[30rem] overflow-hidden rounded-xl border border-teal-200 bg-teal-50/40"
+                            className="w-fit max-w-[min(100%,18rem)] overflow-hidden rounded-xl border border-teal-200 bg-teal-50/40"
                           >
                             <div className="flex items-center justify-between gap-2 border-b border-teal-100 bg-teal-50/80 px-3 py-2">
                               <Badge tone="teal" size="xs">
@@ -608,7 +613,7 @@ export default function OperatorChatPanel({
                       </Message>
                     </MessageScrollerItem>
                   ))}
-                {orderedMatorEvents.length === 0 ? (
+                {visibleMatorEvents.length === 0 ? (
                   loading ? (
                     <ThreadSkeleton />
                   ) : conversation.some((item) => item.id !== 'seed') ? null : (
@@ -626,7 +631,7 @@ export default function OperatorChatPanel({
                     </div>
                   )
                 ) : (
-                  orderedMatorEvents.map((event) => {
+                  visibleMatorEvents.map((event) => {
                     if (event.kind === 'message' && event.role === 'user') {
                       return (
                         <ThreadRow key={event.id} id={event.id} anchor={event.id === lastMatorEventId}>
@@ -772,11 +777,31 @@ export default function OperatorChatPanel({
                       );
                     }
 
+                    if (
+                      event.kind === 'action' &&
+                      typeof event.action === 'object' &&
+                      event.action !== null &&
+                      'type' in event.action &&
+                      (event.action as { type: unknown }).type === 'explain_how'
+                    ) {
+                      return event.text ? (
+                        <ThreadRow key={event.id} id={event.id} anchor={event.id === lastMatorEventId}>
+                          <Reasoning
+                            className="w-fit max-w-[min(100%,30rem)]"
+                            title="Guidance from Mator"
+                            content={event.text}
+                            speakLabel="Read this guidance aloud"
+                            onSpeak={() => voice.speak(event.text!, true)}
+                          />
+                        </ThreadRow>
+                      ) : null;
+                    }
+
                     if (event.status || event.action) {
                       return (
                         <ThreadRow key={event.id} id={event.id} anchor={event.id === lastMatorEventId}>
                           <Confirmation
-                            className="w-full max-w-[min(100%,30rem)]"
+                            className="w-fit min-w-0 max-w-[min(100%,30rem)]"
                             status={
                               ((event.status === 'staged'
                                 ? stageResolution(orderedMatorEvents, event.id) ?? 'staged'
@@ -875,7 +900,7 @@ export default function OperatorChatPanel({
                 )}
 
                 {/* Unpersisted command notices remain visible without duplicating stored events. */}
-                {orderedMatorEvents.length === 0 &&
+                {visibleMatorEvents.length === 0 &&
                   conversation
                     .filter((item) => item.id !== 'seed')
                     .map((item) => (
@@ -1027,7 +1052,7 @@ function ScreenshotEvidence({
       data-evidence-url={evidenceUrl}
       onClick={() => onAnnotate(event.runId, fileName)}
       aria-label={'Annotate captured image: ' + fileName}
-      className="block w-full cursor-pointer overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-left transition-colors hover:border-teal-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+      className="block w-fit max-w-[min(100%,18rem)] cursor-pointer overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-left transition-colors hover:border-teal-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
     >
       <Image
         unoptimized
@@ -1035,7 +1060,7 @@ function ScreenshotEvidence({
         width={640}
         height={400}
         alt={'Actual browser capture: ' + event.message}
-        className="h-auto w-full object-contain"
+        className="max-h-44 w-full object-contain"
       />
       <span className="flex items-center gap-2 px-3 py-2 text-[11px] text-slate-500">
         <ImageIcon className="size-3.5" aria-hidden="true" />
@@ -1053,7 +1078,7 @@ function ReviewImage({ review, src }: { review: Review; src: string }) {
       alt={'Annotated ' + review.pageUrl}
       width={640}
       height={400}
-      className="pointer-events-none h-auto w-full select-none"
+      className="pointer-events-none max-h-44 w-full select-none object-contain"
     />
   );
 }

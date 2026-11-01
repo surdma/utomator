@@ -112,6 +112,29 @@ export function stageResolution(
   return null;
 }
 
+/** Hide only duplicate UI status cards; persisted events remain available as evidence. */
+export function shouldRenderMatorEvent(
+  events: MatorChatEvent[],
+  event: MatorChatEvent
+): boolean {
+  if (event.kind !== 'action') return true;
+  const type = isRecord(event.action) ? event.action.type : null;
+  if (type === 'noop') return false;
+  // Older histories may contain staged explanations; display their text as guidance.
+  if (type === 'explain_how') {
+    return event.status !== 'applied' && Boolean(event.text?.trim());
+  }
+  if (event.status !== 'applied' && event.status !== 'rejected') return true;
+  const priorStage = event.resolvesEventId
+    ? events.find((candidate) => candidate.id === event.resolvesEventId)
+    : events.slice(0, events.findIndex((candidate) => candidate.id === event.id))
+        .reverse().find((candidate) => candidate.status === 'staged');
+  return !(
+    priorStage?.status === 'staged' &&
+    stageResolution(events, priorStage.id) === event.status
+  );
+}
+
 function isAssistantTerminal(event: MatorChatEvent): boolean {
   if (event.role !== 'assistant') return false;
   if (
@@ -132,7 +155,7 @@ export function findPendingStage(
 ): MatorChatEvent | null {
   for (let index = events.length - 1; index >= 0; index -= 1) {
     const event = events[index];
-    if (event?.status !== 'staged') continue;
+    if (event?.status !== 'staged' || !shouldRenderMatorEvent(events, event)) continue;
     if (!stageResolution(events, event.id)) return event;
   }
   return null;

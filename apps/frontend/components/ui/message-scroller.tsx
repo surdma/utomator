@@ -52,7 +52,7 @@ export function MessageScrollerContent({
 }: React.ComponentProps<typeof HeadlessMessageScroller.Content>) {
   return (
     <HeadlessMessageScroller.Content
-      className={cn('flex flex-col gap-5 px-4 py-3', className)}
+      className={cn('flex min-h-full flex-col gap-5 px-4 py-3 [&>*:first-child]:mt-auto', className)}
       {...props}
     />
   );

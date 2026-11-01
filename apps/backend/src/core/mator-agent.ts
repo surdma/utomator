@@ -249,6 +249,19 @@ async function persistAction(
     return [event];
   }
 
+  // Informational actions do not mutate the workflow and must never enter approval.
+  if (input.action.type === 'noop') return [];
+  if (input.action.type === 'explain_how') {
+    const text = input.text?.trim() || input.action.text.trim();
+    if (!text) return [];
+    const event = await appendEvent(docs, input.conversationId, {
+      role: 'assistant',
+      kind: 'how',
+      text,
+    });
+    return [event];
+  }
+
   const live = await ports.workflows.get(input.workflowId);
   if (!live) throw Error('Workflow not found');
   assertActionAgainstPlan(input.action, live.plan);
@@ -474,13 +487,15 @@ export async function runMatorTurn(
       text: LOOP_CAP_EXPLAIN,
     });
     produced.push(...stopEvents);
-  } else if (!capped.length && !groq.payload.how?.trim()) {
-    const noopEvents = await persistAction(docs, ports, settings, {
-      workflowId,
-      conversationId: input.conversationId,
-      action: { type: 'noop', reason: 'No actions from model' },
+  }
+
+  if (!produced.some((event) => event.role === 'assistant')) {
+    const fallback = await appendEvent(docs, input.conversationId, {
+      role: 'assistant',
+      kind: 'message',
+      text: 'Mator did not provide an answer. No workflow changes were made. Try a more specific question.',
     });
-    produced.push(...noopEvents);
+    produced.push(fallback);
   }
 
   return { events: produced };

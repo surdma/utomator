@@ -8,6 +8,7 @@ import {
   formatClarifyReply,
   mergeMatorEvents,
   stageResolution,
+  shouldRenderMatorEvent,
   pendingStageLabel,
   readClarifyQuestions,
   shouldSpeakHow,
@@ -345,4 +346,27 @@ test('legacy unlinked stage decisions do not resolve every earlier proposal', ()
   assert.equal(stageResolution(events, 'old-two'), 'applied');
   assert.equal(stageResolution(events, 'old-one'), null);
   assert.equal(findPendingStage(events)?.id, 'old-one');
+});
+
+
+test('informational and historic no-op actions never become fake confirmation cards', () => {
+  const stage = { ...base, id: 'stage-1', role: 'assistant', kind: 'action', status: 'staged', action: { type: 'edit_step', stepId: 'inspect' } };
+  const decision = { ...base, id: 'applied-1', role: 'assistant', kind: 'action', status: 'applied', resolvesEventId: 'stage-1', action: stage.action };
+  const noop = { ...base, id: 'noop-1', role: 'assistant', kind: 'action', status: 'applied', action: { type: 'noop', reason: 'No changes' } };
+  const how = { ...base, id: 'how-1', role: 'assistant', kind: 'how', text: 'Here is an explanation.' };
+  const records = [stage, decision, noop, how];
+  assert.deepEqual(records.filter(event => shouldRenderMatorEvent(records, event)).map(event => event.id), ['stage-1', 'how-1']);
+  assert.equal(stageResolution(records, 'stage-1'), 'applied');
+  assert.equal(findPendingStage(records), null);
+  const orphan = { ...decision, id: 'orphan', resolvesEventId: 'not-found' };
+  assert.equal(shouldRenderMatorEvent([orphan], orphan), true, 'unmatched decision evidence stays visible');
+});
+
+test('historic unlinked decision is shown once while unrelated events are retained', () => {
+  const stage = { ...base, id: 'stage-old', role: 'assistant', kind: 'action', status: 'staged', action: { type: 'edit_step' } };
+  const applied = { ...base, id: 'applied-old', role: 'assistant', kind: 'action', status: 'applied', action: stage.action };
+  const oldExplanation = { ...base, id: 'old-how', role: 'assistant', kind: 'action', status: 'staged', action: { type: 'explain_how' }, text: 'Try reviewing the proposal.' };
+  const records = [stage, applied, oldExplanation];
+  assert.deepEqual(records.filter(event => shouldRenderMatorEvent(records, event)).map(event => event.id), ['stage-old', 'old-how']);
+  assert.equal(findPendingStage(records), null);
 });

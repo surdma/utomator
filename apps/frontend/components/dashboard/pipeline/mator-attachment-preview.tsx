@@ -24,6 +24,7 @@ export default function MatorAttachmentPreview({
 }: Props) {
   const [editing, setEditing] = useState(false);
   const [note, setNote] = useState('');
+  const [failedImageSrc, setFailedImageSrc] = useState<string | null>(null);
   const id = useId();
   const pencilRef = useRef<HTMLButtonElement>(null);
   const noteRef = useRef<HTMLInputElement>(null);
@@ -32,6 +33,7 @@ export default function MatorAttachmentPreview({
   useEffect(() => {
     if (editing) noteRef.current?.focus();
   }, [editing]);
+
 
   const close = () => {
     setEditing(false);
@@ -54,6 +56,25 @@ export default function MatorAttachmentPreview({
       className="w-fit min-w-0 max-w-full rounded-xl border border-slate-200 bg-white p-2 shadow-sm"
       aria-label="Conversation attachment"
     >
+      {imageSrc && failedImageSrc !== imageSrc && (
+        <a
+          href={matorAttachmentFileUrl(attachmentId)}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Open original image"
+          className="mb-2 block w-fit max-w-full overflow-hidden rounded-lg bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+        >
+          {/* Attachment URLs may be local blobs or authenticated file routes. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imageSrc}
+            alt="Attached image preview"
+            loading="lazy"
+            className="block max-h-28 max-w-32 object-contain"
+            onError={() => setFailedImageSrc(imageSrc)}
+          />
+        </a>
+      )}
       <div className="flex min-w-0 flex-nowrap items-center gap-1.5">
         <span aria-hidden="true" className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-teal-700">
           <FileImage className="size-4" />

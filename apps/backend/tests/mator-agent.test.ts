@@ -359,26 +359,15 @@ test('runMatorTurn caps action processing at 3 when model returns 5', async () =
       { fetch: fetchMock },
     );
 
-    const actionEvents = events.filter((e) => e.kind === 'action' && e.status === 'staged');
-    assert.ok(actionEvents.length <= MAX_MATOR_ACTIONS_PER_TURN + 1);
-    const processedNoops = actionEvents.filter(
-      (e) => (e.action as { type?: string; reason?: string })?.type === 'noop' && /^action-/.test((e.action as { reason?: string }).reason ?? ''),
+    assert.equal(
+      events.filter((event) => event.kind === 'action' && (event.status === 'staged' || event.status === 'applied')).length,
+      0,
+      'noop actions must not masquerade as completed changes',
     );
-    assert.equal(processedNoops.length, MAX_MATOR_ACTIONS_PER_TURN);
     assert.ok(
-      actionEvents.some(
-        (e) =>
-          (e.action as { type?: string })?.type === 'explain_how' ||
-          (e.action as { type?: string })?.type === 'noop',
-      ),
+      events.some((event) => event.kind === 'how' && /Stopped after 3 actions/i.test(event.text ?? '')),
+      'the action cap remains visible as guidance without approval',
     );
-    const stop = actionEvents.find(
-      (e) =>
-        (e.action as { type?: string })?.type === 'explain_how' ||
-        ((e.action as { type?: string; reason?: string })?.type === 'noop' &&
-          !/^action-/.test((e.action as { reason?: string }).reason ?? '')),
-    );
-    assert.ok(stop, 'forced explain_how/noop after cap');
   });
 });
 
@@ -491,5 +480,44 @@ test('runMatorTurn degraded mode does not invent actions when Groq is down', asy
       0,
     );
     assert.ok(events.some((e) => e.role === 'assistant' || e.role === 'system'));
+  });
+});
+
+
+test('informational answer and noop never create staged or applied events', async () => {
+  await withEncryption(async () => {
+    const docs = new FakeDocuments('local-owner');
+    await seedWithKey(docs);
+    const workflow = fakeWorkflowPort(makeRecord(defaultPlan('x', 'audit')));
+    const conversation = await createConversation(docs, workflow.live.id, 'Information');
+    const fetchMock: typeof fetch = async () => groqJsonResponse({
+      how: 'I can explain this, but it does not change the workflow.',
+      actions: [{ type: 'noop', reason: 'No action requested' }],
+    });
+    const { events } = await runMatorTurn(docs, portsFor(workflow), {
+      conversationId: conversation.id,
+      userText: 'Explain the weather without changing anything',
+      idempotencyKey: 'info-noop',
+    }, { fetch: fetchMock });
+    assert.ok(events.some(event => event.kind === 'how'));
+    assert.equal(events.filter(event => event.status === 'staged' || event.status === 'applied').length, 0);
+    assert.equal(workflow.live.revision, 1);
+  });
+});
+
+test('empty Groq action response cannot invent an applied mutation', async () => {
+  await withEncryption(async () => {
+    const docs = new FakeDocuments('local-owner');
+    await seedWithKey(docs);
+    const workflow = fakeWorkflowPort(makeRecord(defaultPlan('x', 'audit')));
+    const conversation = await createConversation(docs, workflow.live.id, 'Empty reply');
+    const { events } = await runMatorTurn(docs, portsFor(workflow), {
+      conversationId: conversation.id,
+      userText: 'Hello',
+      idempotencyKey: 'no-op-empty',
+    }, { fetch: async () => groqJsonResponse({ actions: [] }) });
+    assert.ok(events.some(event => event.kind === 'message' && /No workflow changes/.test(event.text ?? '')));
+    assert.equal(events.filter(event => event.kind === 'action').length, 0);
+    assert.equal(workflow.live.revision, 1);
   });
 });
