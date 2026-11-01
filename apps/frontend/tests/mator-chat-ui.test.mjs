@@ -190,3 +190,10 @@ test('attachment upload failures remain visible in the composer', () => {
   assert.match(composer, /if \(result === null\) throw new Error/);
   assert.match(shell, /return attachFile\(file\)/);
 });
+
+
+test('composer never duplicates a staged action approval card', () => {
+  const source = readFileSync(pipeline('mator-composer.tsx'), 'utf8');
+  assert.doesNotMatch(source, /mator-stage-confirm-compact/);
+  assert.doesNotMatch(source, /Not staged/);
+});

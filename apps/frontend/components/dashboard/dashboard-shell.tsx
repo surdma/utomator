@@ -211,7 +211,6 @@ export default function DashboardShell({
     incomplete,
     incompleteContinue,
     error: matorError,
-    pendingLabel: matorPendingLabel,
     pending: matorPending,
   } = useMatorChat({
     workflowId: activeWorkflow?.id ?? null,
@@ -243,7 +242,6 @@ export default function DashboardShell({
     sendMessage: sendOperatorMessage,
     submitUtterance,
     confirmPending,
-    pendingLabel: operatorPendingLabel,
     handleCraftCommand,
   } = useOperatorCommands({
     message,
@@ -338,8 +336,6 @@ export default function DashboardShell({
       throw err;
     }
   };
-
-  const pendingLabel = matorPendingLabel ?? operatorPendingLabel;
 
   useEffect(() => {
     submitRef.current = routeUtterance;
@@ -705,7 +701,6 @@ export default function DashboardShell({
           }}
           checkpoint={checkpoint}
           voice={voice}
-          pendingLabel={pendingLabel}
           onConfirm={confirmChat}
           onReject={rejectChat}
           busy={matorPending}

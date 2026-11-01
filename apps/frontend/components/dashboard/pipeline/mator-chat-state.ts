@@ -155,7 +155,11 @@ export function findPendingStage(
 ): MatorChatEvent | null {
   for (let index = events.length - 1; index >= 0; index -= 1) {
     const event = events[index];
-    if (event?.status !== 'staged' || !shouldRenderMatorEvent(events, event)) continue;
+    if (
+      event?.status !== 'staged' ||
+      !shouldRenderMatorEvent(events, event) ||
+      (isRecord(event.action) && event.action.type === 'explain_how')
+    ) continue;
     if (!stageResolution(events, event.id)) return event;
   }
   return null;

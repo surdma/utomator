@@ -44,9 +44,6 @@ const VOICE_MISSING =
 
 type Props = {
   voice: VoiceSession;
-  pendingLabel: string | null;
-  onConfirm: () => void;
-  onReject?: () => void;
   message: string;
   onMessageChange: (message: string) => void;
   onSendMessage: (event: FormEvent<HTMLFormElement>) => void;
@@ -119,8 +116,6 @@ function iconButton(
 
 export default function MatorComposer({
   voice,
-  pendingLabel,
-  onConfirm,
   message,
   onMessageChange,
   onSendMessage,
@@ -259,21 +254,6 @@ export default function MatorComposer({
             </p>
           )}
         </div>
-        {pendingLabel && (
-          <div className="flex items-center justify-between gap-2 rounded-xl border border-orange-200 bg-orange-50/80 px-3 py-2 text-[11px] font-semibold text-orange-900">
-            <span className="truncate">Not staged · {pendingLabel}</span>
-            <button
-              type="button"
-              data-testid="mator-stage-confirm-compact"
-              disabled={busy}
-              onClick={onConfirm}
-              className="inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-lg bg-orange-700 px-2 text-[11px] font-bold text-white hover:bg-orange-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-700 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <Send className="size-3" aria-hidden="true" />
-              Stage this
-            </button>
-          </div>
-        )}
         {voiceOnly && incomplete && (
           <IncompleteBanner onContinue={onIncompleteContinue} busy={busy} />
         )}
@@ -430,30 +410,11 @@ export default function MatorComposer({
             </div>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 px-1.5">
-          {pendingLabel ? (
-            <div
-              data-testid="pending-stage"
-              className="flex min-h-8 flex-1 items-center justify-between gap-2 rounded-xl border border-orange-200 bg-orange-50/80 px-2.5 py-1 text-[11px] font-semibold text-orange-900"
-            >
-              <span className="truncate">Not staged · {pendingLabel}</span>
-              <button
-                type="button"
-                data-testid="mator-stage-confirm-compact"
-                disabled={busy}
-                onClick={onConfirm}
-                className="inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-lg bg-orange-700 px-2 text-[11px] font-bold text-white hover:bg-orange-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-700 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <ArrowRight className="size-3" aria-hidden="true" />
-                Stage this
-              </button>
-            </div>
-          ) : (
-            <span className="hidden truncate text-[10px] text-slate-400 select-none sm:flex sm:items-center sm:gap-1">
-              <Volume2 className="size-3" aria-hidden="true" />
-              Enter sends · Shift+Enter adds a line
-            </span>
-          )}
+        <div className="flex items-center px-1.5">
+          <span className="hidden truncate text-[10px] text-slate-400 select-none sm:flex sm:items-center sm:gap-1">
+            <Volume2 className="size-3" aria-hidden="true" />
+            Enter sends · Shift+Enter adds a line
+          </span>
         </div>
       </form>
     </div>

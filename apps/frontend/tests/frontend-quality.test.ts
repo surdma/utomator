@@ -893,6 +893,7 @@ test('Mator approval cards decide the selected proposal, not another staged acti
   }
   const cards = dock.getByTestId('mator-confirmation');
   await expect(cards).toHaveCount(2);
+  await expect(dock.getByTestId('mator-stage-confirm-compact')).toHaveCount(0);
   await cards.nth(0).getByTestId('mator-stage-confirm').click();
   await expect(cards.nth(0)).toHaveAttribute('data-status', 'applied');
   await expect(cards).toHaveCount(2); // the linked terminal record must not render a second card
