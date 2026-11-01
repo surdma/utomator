@@ -286,13 +286,23 @@ export async function uploadMatorAttachment(
 
 export async function transcribeMatorAudio(file: Blob): Promise<string> {
   const data = await fileToBase64(file);
+  const mime = file.type || 'audio/webm';
+  const extensionByMime: Record<string, string> = {
+    'audio/mp4': 'm4a',
+    'audio/x-m4a': 'm4a',
+    'audio/mpeg': 'mp3',
+    'audio/ogg': 'ogg',
+    'audio/wav': 'wav',
+    'audio/webm': 'webm',
+  };
+  const extension = extensionByMime[mime.split(';')[0].toLowerCase()] ?? 'webm';
   const response = await fetch(matorPath('audio/transcriptions'), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       data,
-      mime: file.type || 'audio/webm',
-      filename: 'mator-speech.webm',
+      mime,
+      filename: `mator-speech.${extension}`,
     }),
   });
   const body = await readJson<{ text: string }>(
