@@ -27,6 +27,8 @@ export type MatorEvent = {
   attachmentId?: string;
   markers?: Array<{ id: string; x: number; y: number; text: string }>;
   status?: 'staged' | 'applied' | 'rejected' | 'incomplete' | 'error';
+  /** The exact staged proposal resolved by an apply/reject event. */
+  resolvesEventId?: string;
   idempotencyKey?: string;
   createdAt: string;
 };
