@@ -5,7 +5,7 @@ import {
   type MatorAction,
   type MatorActionPorts,
   MatorActionValidationError,
-  parseMatorAction,
+  parseGeneratedMatorAction,
   stageAction,
 } from './mator-actions.js';
 import { getAttachmentFile, getAttachmentMeta } from './mator-attachments.js';
@@ -467,7 +467,7 @@ export async function runMatorTurn(
 
   for (const raw of capped) {
     try {
-      const action = parseMatorAction(raw);
+      const action = parseGeneratedMatorAction(raw);
       const plan = (await ports.workflows.get(workflowId))?.plan ?? live.plan;
       assertActionAgainstPlan(action, plan);
       const actionEvents = await persistAction(docs, ports, settings, {

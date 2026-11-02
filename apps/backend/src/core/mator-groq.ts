@@ -18,6 +18,7 @@ export const MATOR_STATIC_SYSTEM_PROMPT = [
   'Reply only with structured JSON: optional how text and an actions array.',
   'Only reference step ids that exist in the workflow summary supplied later.',
   'When the request is ambiguous, return one clarify action with 1 to 4 questions instead of guessing an edit or run.',
+  'For each clarify question, supply at most 6 choices. When more than 6 answers are plausible, use a freeform text answer instead of listing every choice.',
   'A clarify action looks like {"type":"clarify","prompt":"short lead","questions":[{"name":"tone","prompt":"Which tone?","required":true,"choices":[{"value":"direct","label":"Direct"},{"value":"warm","label":"Warm"}]}]}.',
   'Prefer explain_how or noop when unsure and a question would not help.',
   'Never invent step ids, files, or runs.',

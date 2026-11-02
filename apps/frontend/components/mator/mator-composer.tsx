@@ -169,6 +169,12 @@ export default function MatorComposer({
     if (!files?.length) return;
     const selected = Array.from(files);
     const accepted = selected.filter(supportedFile);
+    // The backend accepts at most 12 attachment IDs per message. Reject the
+    // selection before allocating previews or uploading any of its files.
+    if (pending.length + accepted.length > 12) {
+      setDraftError('You can attach up to 12 files to one message.');
+      return;
+    }
     if (accepted.length !== selected.length) {
       setDraftError('Supported assets are raster images, TXT and README files.');
     } else {

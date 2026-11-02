@@ -333,6 +333,42 @@ export function parseMatorAction(raw: unknown): MatorAction {
   }
 }
 
+/**
+ * Groq may return more choices than the compact questionnaire accepts.
+ * Retain strict validation for stored/client actions, but recover generated
+ * oversized questions as free-text prompts rather than showing an internal
+ * schema error to the user. Other validation failures stay failures.
+ */
+export function parseGeneratedMatorAction(raw: unknown): MatorAction {
+  try {
+    return parseMatorAction(raw);
+  } catch (error) {
+    if (
+      !(error instanceof MatorActionValidationError) ||
+      !/^Too many choices on questions\\[\\d+\\]$/.test(error.message) ||
+      !isPlainObject(raw) ||
+      raw.type !== 'clarify' ||
+      !Array.isArray(raw.questions)
+    ) {
+      throw error;
+    }
+    const questions = raw.questions.map((question) => {
+      if (!isPlainObject(question) || !Array.isArray(question.choices) || question.choices.length <= 6)
+        return question;
+      if (question.inputType !== undefined && question.inputType !== 'text') return question;
+      return {
+        ...question,
+        choices: [],
+        freeform: question.freeform ?? {
+          label: 'Your answer',
+          placeholder: 'Describe your preference',
+        },
+      };
+    });
+    return parseMatorAction({ ...raw, questions });
+  }
+}
+
 function parseClarifyAction(raw: Record<string, unknown>): Extract<MatorAction, { type: 'clarify' }> {
   if (!Array.isArray(raw.questions) || raw.questions.length < 1 || raw.questions.length > 4)
     throw new MatorActionValidationError('clarify needs 1 to 4 questions', 'questions');

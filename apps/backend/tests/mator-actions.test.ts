@@ -7,6 +7,7 @@ import {
   applyAction,
   MatorActionValidationError,
   parseMatorAction,
+  parseGeneratedMatorAction,
   restoreConversationPipeline,
   stageAction,
   type MatorActionPorts,
@@ -181,6 +182,60 @@ test('parseMatorAction accepts a clarify questionnaire', () => {
     () => parseMatorAction({ type: 'clarify', questions: [] }),
     (error: unknown) => error instanceof MatorActionValidationError,
   );
+});
+
+test('generated clarify recovers oversized choice sets without dropping a question', () => {
+  const tooMany = Array.from({ length: 7 }, (_, index) => ({
+    value: 'option_' + index,
+    label: 'Option ' + index,
+  }));
+  const raw = {
+    type: 'clarify',
+    prompt: 'Which setting should change?',
+    questions: [
+      { name: 'setting', prompt: 'Which setting?', required: true, choices: tooMany },
+      { name: 'tone', prompt: 'Which tone?', required: false, choices: [
+        { value: 'warm', label: 'Warm' }, { value: 'direct', label: 'Direct' },
+      ] },
+    ],
+  };
+  assert.throws(
+    () => parseMatorAction(raw),
+    (error: unknown) => error instanceof MatorActionValidationError &&
+      error.message === 'Too many choices on questions[0]',
+  );
+  const recovered = parseGeneratedMatorAction(raw);
+  assert.equal(recovered.type, 'clarify');
+  if (recovered.type !== 'clarify') return;
+  assert.equal(recovered.questions.length, 2);
+  assert.equal(recovered.questions[0]?.prompt, 'Which setting?');
+  assert.deepEqual(recovered.questions[0]?.choices, []);
+  assert.equal(recovered.questions[0]?.freeform?.label, 'Your answer');
+  assert.equal(recovered.questions[0]?.required, true);
+  assert.equal(recovered.questions[1]?.choices.length, 2);
+  assert.equal(raw.questions[0]?.choices.length, 7, 'model response is not mutated');
+});
+
+test('generated clarify recovery cannot bypass invalid action validation', () => {
+  assert.throws(() => parseGeneratedMatorAction({
+    type: 'clarify',
+    questions: [{ name: 'file', prompt: 'Choose a file', inputType: 'file',
+      choices: Array.from({ length: 7 }, (_, index) => ({
+        value: String(index), label: String(index),
+      })),
+    }],
+  }), MatorActionValidationError);
+  assert.throws(() => parseGeneratedMatorAction({
+    type: 'delete_everything',
+  }), MatorActionValidationError);
+  assert.throws(() => parseGeneratedMatorAction({
+    type: 'clarify',
+    questions: Array.from({ length: 5 }, (_, index) => ({
+      name: 'q' + index, prompt: 'Prompt', choices: [
+        { value: 'a', label: 'A' }, { value: 'b', label: 'B' },
+      ],
+    })),
+  }), MatorActionValidationError);
 });
 
 test('clarify validates URL and file answer types without inventing attachments', () => {
