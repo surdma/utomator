@@ -51,6 +51,9 @@ automation(linkedin)/state/
 automation(linkedin)/server.log
 automation(linkedin)/pnpm-lock.yaml
 
+# brainstorm mockups and session keys
+/.superpowers/
+
 # pnpm workspace and local browser sessions
 /apps/frontend/.next/
 /apps/frontend/node_modules/

@@ -3,7 +3,6 @@
 import { type ComponentType, type Dispatch, type SetStateAction } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import PipelineRunSetupForm from './workspace/pipeline-run-setup-form';
-import WorkspaceModel from './workspace/workspace-model';
 import FloatingWorkflowControls from './workspace/floating-workflow-controls';
 import WorkflowPlanEditor, {
   type WorkflowPlan,
@@ -115,7 +114,6 @@ export default function PipelineWorkspace({
     <>
       {pane === 'workspace' && (
         <>
-          <WorkspaceModel />
           <WorkflowPlanEditor
             plan={workflowPlan}
             templates={templatePlans}

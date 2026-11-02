@@ -1,31 +1,19 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 
 export default function PageTransition() {
+  const reduce = useReducedMotion();
+  if (reduce) return null;
+
   return (
-    <>
-      <motion.div
-        className="fixed top-0 right-full bottom-0 z-30 w-screen"
-        style={{ transformOrigin: 'right', background: '#06b6d4' }}
-        initial={{ x: '100%', scaleX: 1 }}
-        animate={{ x: '0%', scaleX: 0 }}
-        transition={{ duration: 0.6, ease: 'easeInOut' }}
-      />
-      <motion.div
-        className="fixed top-0 right-full bottom-0 z-20 w-screen"
-        style={{ transformOrigin: 'right', background: 'var(--bg)' }}
-        initial={{ x: '100%', scaleX: 1 }}
-        animate={{ x: '0%', scaleX: 0 }}
-        transition={{ delay: 0.15, duration: 0.6, ease: 'easeInOut' }}
-      />
-      <motion.div
-        className="fixed top-0 right-full bottom-0 z-10 w-screen"
-        style={{ transformOrigin: 'right', background: '#8b5cf6' }}
-        initial={{ x: '100%', scaleX: 1 }}
-        animate={{ x: '0%', scaleX: 0 }}
-        transition={{ delay: 0.3, duration: 0.6, ease: 'easeInOut' }}
-      />
-    </>
+    <motion.div
+      aria-hidden="true"
+      className="pointer-events-none fixed inset-y-0 right-full z-30 w-screen bg-[#24302A]"
+      style={{ transformOrigin: 'right' }}
+      initial={{ x: '100%', scaleX: 1 }}
+      animate={{ x: '0%', scaleX: 0 }}
+      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+    />
   );
 }

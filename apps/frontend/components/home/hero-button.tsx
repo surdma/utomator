@@ -1,65 +1,26 @@
-'use client';
-
-import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { ArrowUpRight } from 'lucide-react';
 
-function ArrowIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M7 17L17 7" />
-      <path d="M7 7h10v10" />
-    </svg>
-  );
-}
-
-function DownloadIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <polyline points="7 10 12 15 17 10" />
-      <line x1="12" y1="15" x2="12" y2="3" />
-    </svg>
-  );
-}
+const focus =
+  'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[3px] focus-visible:outline-[#1A211C]';
 
 export default function HeroButton() {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.6 }}
-      className="flex flex-wrap items-center gap-4"
-    >
+    <div className="mt-8 flex flex-wrap items-center gap-3">
       <Link
         href="/dashboard/workspace"
-        className="site-action site-action--primary"
+        className={`inline-flex min-h-11 cursor-pointer touch-manipulation items-center gap-2 bg-[#1A211C] px-5 text-sm font-semibold transition-colors duration-200 ease-out hover:bg-[#24302A] active:scale-[0.98] motion-reduce:transform-none ${focus}`}
+        style={{ color: '#F4EFE4' }}
       >
-        Open workspace <DownloadIcon className="h-4 w-4" />
+        Open workspace
+        <ArrowUpRight aria-hidden="true" className="size-4" />
       </Link>
       <Link
         href="/dashboard/growth"
-        className="site-action site-action--secondary"
+        className={`inline-flex min-h-11 cursor-pointer touch-manipulation items-center px-3 text-sm font-semibold text-[#1A211C] underline-offset-4 hover:underline ${focus}`}
       >
-        Explore capabilities <ArrowIcon className="h-4 w-4" />
+        Growth
       </Link>
-    </motion.div>
+    </div>
   );
 }

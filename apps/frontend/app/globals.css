@@ -77,10 +77,7 @@ a {
 /* ── Utility classes ─────────────────────────── */
 @layer utilities {
   .text-gradient {
-    background: linear-gradient(135deg, #06b6d4, #8b5cf6, #ec4899);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: #1a211c;
   }
 
   .text-gradient-cyan {
@@ -132,7 +129,7 @@ a {
     inset: 0;
     padding: 1px;
     border-radius: inherit;
-    background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+    background: #1a211c;
     -webkit-mask:
       linear-gradient(#fff 0 0) content-box,
       linear-gradient(#fff 0 0);
@@ -180,7 +177,7 @@ a {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
 }
 
-/* Shared portfolio actions. Keep the ink readable at both ends of the gradient. */
+/* Shared landing actions. Ink on the bench, readable at button size. */
 .site-action {
   display: inline-flex;
   align-items: center;
@@ -202,12 +199,11 @@ a {
     background-color 0.18s ease;
 }
 .site-action--primary {
-  background: linear-gradient(135deg, #06b6d4, #8b5cf6);
-  color: #020617;
+  background: #1a211c;
+  color: #f4efe4;
 }
 .site-action--primary:hover {
-  background: linear-gradient(135deg, #22d3ee, #a78bfa);
-  box-shadow: 0 6px 20px rgba(88, 80, 170, 0.18);
+  background: #24302a;
 }
 .site-action--secondary {
   background: var(--bg-card);
@@ -225,7 +221,7 @@ a {
   transform: translateY(0);
 }
 .site-action:focus-visible {
-  outline: 3px solid #0e7490;
+  outline: 3px solid #1a211c;
   outline-offset: 3px;
 }
 .site-action:disabled,
