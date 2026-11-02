@@ -7,6 +7,7 @@ const root = resolve(import.meta.dirname, '..');
 const app = resolve(root, 'app');
 const routes = [
   'pipeline',
+  'workspace',
   'growth',
   'editorial',
   'research',
@@ -223,8 +224,15 @@ test('Growth YAML loads through the existing Templates modal and nested artboard
     editor,
     /<GrowthProfilePipelines\s+templateId\s*=\s*\{\s*growthTemplateId\s*\}/
   );
-  assert.match(graph, /growth-pipeline-node-/);
-  assert.match(graph, /growth-task-node-/);
+  const graphNode = readFileSync(
+    resolve(
+      root,
+      'components/dashboard/growth/artboard/growth-graph-node-card.tsx'
+    ),
+    'utf8'
+  );
+  assert.match(graphNode, /growth-pipeline-node-/);
+  assert.match(graphNode, /growth-task-node-/);
   const graphModel = readFileSync(
     resolve(root, 'components/dashboard/growth/growth-graph-model.ts'),
     'utf8'
@@ -236,5 +244,5 @@ test('Growth YAML loads through the existing Templates modal and nested artboard
     resolve(root, 'app/growth/default-growth-profile/page.tsx'),
     'utf8'
   );
-  assert.match(legacy, /redirect\(['"]\/dashboard\/pipeline['"]\)/);
+  assert.match(legacy, /redirect\(['"]\/dashboard\/workspace['"]\)/);
 });

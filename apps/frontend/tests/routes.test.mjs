@@ -6,6 +6,7 @@ const root = new URL('../', import.meta.url);
 const read = (path) => readFile(new URL(path, root), 'utf8');
 const pages = [
   'pipeline',
+  'workspace',
   'crafts',
   'editorial',
   'growth',
@@ -58,7 +59,7 @@ test('the marketing root is separate and every operator page is nested under das
   );
   assert.match(
     await read('app/dashboard/page.tsx'),
-    /redirect\(['"]\/dashboard\/pipeline['"]\)/
+    /redirect\(['"]\/dashboard\/workspace['"]\)/
   );
   assert.match(
     await read('components/dashboard/dashboard-shell.tsx'),
@@ -66,7 +67,7 @@ test('the marketing root is separate and every operator page is nested under das
   );
   assert.match(
     await read('components/home/hero-button.tsx'),
-    /href="\/dashboard\/pipeline"/
+    /href="\/dashboard\/workspace"/
   );
 });
 test('API proxy remains loopback-only and craft endpoints are allowlisted', async () => {

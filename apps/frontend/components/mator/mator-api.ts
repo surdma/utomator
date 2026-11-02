@@ -1,4 +1,4 @@
-import { getApi } from './api-client.ts';
+import { getApi } from '../dashboard/pipeline/api-client.ts';
 import type {
   MatorChatEvent,
   MatorConversationSummary,

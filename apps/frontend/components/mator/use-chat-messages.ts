@@ -5,7 +5,7 @@
  * Kept as a thin local-seed wrapper for tests / offline fallbacks.
  */
 import { useState } from 'react';
-import type { ChatMessage } from './run-models';
+import type { ChatMessage } from '@/components/dashboard/pipeline/run-models';
 import { seedConversation } from './mator-chat-state';
 
 export function useChatMessages() {

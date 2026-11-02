@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, test } from 'node:test';
-import { patchMatorMarkers } from '../components/dashboard/pipeline/mator-api.ts';
+import { patchMatorMarkers } from '../components/mator/mator-api.ts';
 
 const root = resolve(import.meta.dirname, '..');
-const pipeline = (name) => resolve(root, 'components/dashboard/pipeline', name);
+const mator = (name) => resolve(root, 'components/mator', name);
 const workflows = (name) =>
   resolve(root, 'components/dashboard/workflows', name);
 
@@ -91,7 +91,7 @@ test('a failed review link rejects with the backend message (no fake success)', 
 });
 
 test('annotate flow resolves honestly: dismissed studio yields null', () => {
-  const source = readFileSync(pipeline('use-visual-reviews.ts'), 'utf8');
+  const source = readFileSync(mator('use-visual-reviews.ts'), 'utf8');
   assert.match(
     source,
     /annotateChatAsset[\s\S]*?new Promise/,
@@ -110,7 +110,7 @@ test('annotate flow resolves honestly: dismissed studio yields null', () => {
 });
 
 test('sent attachments link the saved review through saveMarkers', () => {
-  const panel = readFileSync(pipeline('operator-chat-panel.tsx'), 'utf8');
+  const panel = readFileSync(mator('operator-chat-panel.tsx'), 'utf8');
   assert.match(
     panel,
     /annotateAsset[\s\S]*?onSaveMarkers\(asset\.id, asset\.markers \?\? \[\], result\.reviewId\)/,
@@ -154,7 +154,7 @@ test('fetched chat images use the same size and type rules as uploads', () => {
 });
 
 test('chat annotation carries the typed draft into the review note', () => {
-  const reviews = readFileSync(pipeline('use-visual-reviews.ts'), 'utf8');
+  const reviews = readFileSync(mator('use-visual-reviews.ts'), 'utf8');
   const panel = readFileSync(
     resolve(root, 'components/dashboard/reviews/visual-review-panel.tsx'),
     'utf8'

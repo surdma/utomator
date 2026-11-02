@@ -35,7 +35,7 @@ test('retired Mator UI modules cannot return without a reference audit', () => {
 
 test('dashboard pages consume the shared dashboard shell', () => {
   for (const route of [
-    'pipeline',
+    'workspace',
     'settings',
     'growth',
     'history',
@@ -51,15 +51,15 @@ test('dashboard pages consume the shared dashboard shell', () => {
 });
 
 test('mator action chat UI modules ship with required testids', () => {  const panel = readFileSync(
-    component('pipeline/operator-chat-panel.tsx'),
+    component('../mator/operator-chat-panel.tsx'),
     'utf8'
   );
   const composer = readFileSync(
-    component('pipeline/mator-composer.tsx'),
+    component('../mator/mator-composer.tsx'),
     'utf8'
   );
   assert.equal(
-    existsSync(component('pipeline/mator-attachment-canvas.tsx')),
+    existsSync(component('../mator/mator-attachment-canvas.tsx')),
     true
   );
   assert.match(panel, /data-testid="mator-chat"/);
@@ -67,11 +67,11 @@ test('mator action chat UI modules ship with required testids', () => {  const p
   assert.match(panel, /data-testid="mator-restore-pipeline"/);
   assert.match(composer, /data-testid="mator-input"/);
   assert.match(
-    readFileSync(component('../ai-elements/confirmation.tsx'), 'utf8'),
+    readFileSync(component('../mator/elements/confirmation.tsx'), 'utf8'),
     /data-testid="mator-stage-confirm"/
   );
   assert.match(
-    readFileSync(component('pipeline/mator-attachment-canvas.tsx'), 'utf8'),
+    readFileSync(component('../mator/mator-attachment-canvas.tsx'), 'utf8'),
     /data-testid="mator-attachment-canvas"/
   );
 });
@@ -79,7 +79,7 @@ test('mator action chat UI modules ship with required testids', () => {  const p
 test('one shell-level VisualReviewPanel serves chat and artboard annotation', () => {
   const shell = readFileSync(component('dashboard-shell.tsx'), 'utf8');
   const visualReviews = readFileSync(
-    component('pipeline/use-visual-reviews.ts'),
+    component('../mator/use-visual-reviews.ts'),
     'utf8'
   );
   const panel = readFileSync(
@@ -110,7 +110,7 @@ test('one shell-level VisualReviewPanel serves chat and artboard annotation', ()
   assert.match(shell, /annotateMatorDraft/);
   assert.match(shell, /annotateMatorAttachment/);
   assert.match(shell, /annotateChatImage/);
-  const chatPanel = readFileSync(component('pipeline/operator-chat-panel.tsx'), 'utf8');
+  const chatPanel = readFileSync(component('../mator/operator-chat-panel.tsx'), 'utf8');
   assert.match(chatPanel, /annotateChatImageAvailable/);
   assert.match(
     chatPanel,

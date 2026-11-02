@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/toast';
-import { ModelSelector } from '@/components/ai-elements/model-selector';
+import { ModelSelector } from './elements/model-selector';
 import {
   fetchMatorModels,
   fetchMatorSettings,

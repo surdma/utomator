@@ -11,7 +11,7 @@ test('pipeline coordinates dedicated controllers rather than owning run transpor
   const monitor = read('pipeline/use-run-monitor.ts');
   const workspace = read('pipeline/use-workflow-workspace.ts');
   const chat = read('pipeline/use-operator-commands.ts');
-  const visual = read('pipeline/use-visual-reviews.ts');
+  const visual = read('../mator/use-visual-reviews.ts');
   assert.match(page, /useRunMonitor\(/);
   assert.match(page, /useWorkflowWorkspace\(/);
   assert.match(page, /useMatorChat\(/);

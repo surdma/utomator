@@ -27,31 +27,25 @@ import {
 import {
   Archive,
   ArrowDownToLine,
-  ArrowLeft,
   CircleHelp,
   Copy,
   FileCode2,
   Plus,
   RotateCcw,
-  Save,
   ShieldCheck,
-  Sparkles,
   Trash2,
   Unplug,
 } from 'lucide-react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  Button,
-} from '@/components/ui/automate-card';
+import { Button } from '@/components/ui/automate-card';
+import { CraftBackLink } from './library/craft-back-link';
+import { CraftTitleCard } from './library/craft-title-card';
+import { CraftLibraryDialogs } from './library/craft-library-dialogs';
 import CraftCatalog from './craft-catalog';
 import Stage from './craft-stage';
 import { renderMdx } from './craft-mdx';
 import type { Category, Kind, Craft, Draft } from './craft-types';
 export type { Category, Kind, Step, Link, Craft } from './craft-types';
 import { craftCategoryTitles as titles } from './craft-category-titles';
-import StudioDialog from '@/components/ui/studio-dialog';
 import GrowthCapabilityDetails, {
   capabilityForSlug,
 } from '../growth/growth-capability-details';
@@ -654,8 +648,7 @@ function Inner({
         />
       )}
       {view !== 'catalog' && (
-        <button
-          type="button"
+        <CraftBackLink
           onClick={() => {
             if (changed || mdxDirty) {
               setLeaveOpen(true);
@@ -663,11 +656,7 @@ function Inner({
             }
             onBack();
           }}
-          className="inline-flex min-h-10 w-fit items-center gap-2 rounded-lg px-2 text-xs font-semibold text-teal-800 hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-teal-600"
-        >
-          <ArrowLeft className="size-4" />
-          Growth library
-        </button>
+        />
       )}
       {view !== 'catalog' && chosen && draft && (
         <GrowthCapabilityDetails
@@ -681,48 +670,21 @@ function Inner({
         />
       )}
       {view !== 'catalog' && chosen && draft && (
-        <Card>
-          <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 border-b border-slate-100">
-            <div className="min-w-0 flex-1">
-              <input
-                aria-label="Craft title"
-                className="w-full max-w-lg bg-transparent text-lg font-extrabold text-slate-900 outline-teal-600"
-                value={draft.name}
-                readOnly={readOnly}
-                onChange={(e) =>
-                  update((prev) => ({ ...prev, name: e.target.value }))
-                }
-              />
-              <p className="mt-1 text-xs text-slate-500">
-                Growth flow · {draft.slug} ·{' '}
-                {readOnly ? 'Shared default · read only' : 'My craft'} · v
-                {chosen.version} · {draft.steps.length} steps · {totalLinks}{' '}
-                connections
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-semibold"
-                onClick={() => onChat('/craft open ' + draft.slug)}
-              >
-                <Sparkles className="size-4" />
-                Use in Chat
-              </button>
-              <Button
-                size="sm"
-                disabled={readOnly || !changed || busy}
-                variant="primary"
-                onClick={() => {
-                  void save();
-                }}
-              >
-                <Save className="size-4" />
-                {busy ? 'Saving' : 'Save'}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4 pt-4">
+        <CraftTitleCard
+          chosen={chosen}
+          draft={draft}
+          readOnly={readOnly}
+          totalLinks={totalLinks}
+          changed={changed}
+          busy={busy}
+          onNameChange={(name) =>
+            update((prev) => ({ ...prev, name }))
+          }
+          onChatOpen={() => onChat('/craft open ' + draft.slug)}
+          onSave={() => {
+            void save();
+          }}
+        >
             <div className="grid gap-3 sm:grid-cols-[1fr_160px_125px]">
               <label className="text-xs font-semibold text-slate-600">
                 Trigger description
@@ -1099,8 +1061,7 @@ function Inner({
                 </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
+        </CraftTitleCard>
       )}
       {notice && (
         <p
@@ -1110,56 +1071,21 @@ function Inner({
           {notice}
         </p>
       )}
-      <StudioDialog
-        open={deleteOpen}
-        onDismiss={() => setDeleteOpen(false)}
-        title="Delete craft"
-        description={
-          'Permanently remove ' +
-          (baseline?.name || 'this craft') +
-          ' from the your personal collection?'
-        }
-        testId="delete-craft-dialog"
-      >
-        <p className="text-sm leading-6 text-slate-600">
-          This removes its graph and MDX source. This action cannot be undone.
-        </p>
-        {error && (
-          <p role="alert" className="mt-3 text-sm text-rose-700">
-            {error}
-          </p>
-        )}
-        <div className="mt-5 flex justify-end gap-2">
-          <Button onClick={() => setDeleteOpen(false)}>Cancel</Button>
-          <Button
-            variant="danger"
-            disabled={busy || readOnly}
-            onClick={() => void destroy()}
-          >
-            {busy ? 'Deleting…' : 'Delete craft'}
-          </Button>
-        </div>
-      </StudioDialog>
-      <StudioDialog
-        open={leaveOpen}
-        onDismiss={() => setLeaveOpen(false)}
-        title="Discard unsaved changes?"
-        description="Your unsaved graph or MDX source edits will be lost."
-        testId="discard-craft-dialog"
-      >
-        <div className="flex justify-end gap-2">
-          <Button onClick={() => setLeaveOpen(false)}>Keep editing</Button>
-          <Button
-            variant="danger"
-            onClick={() => {
-              setLeaveOpen(false);
-              onBack();
-            }}
-          >
-            Discard and leave
-          </Button>
-        </div>
-      </StudioDialog>
+      <CraftLibraryDialogs
+        deleteOpen={deleteOpen}
+        onDeleteDismiss={() => setDeleteOpen(false)}
+        baselineName={baseline?.name}
+        deleteError={error}
+        deleteBusy={busy}
+        deleteReadOnly={readOnly}
+        onDeleteConfirm={() => void destroy()}
+        leaveOpen={leaveOpen}
+        onLeaveDismiss={() => setLeaveOpen(false)}
+        onLeaveConfirm={() => {
+          setLeaveOpen(false);
+          onBack();
+        }}
+      />
       {error && (
         <p
           role="alert"

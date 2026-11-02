@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { collectRunSpeechUpdates, summarizeRunEventForSpeech } from '../components/dashboard/pipeline/mator-run-speech.ts';
+import { collectRunSpeechUpdates, summarizeRunEventForSpeech } from '../components/mator/mator-run-speech.ts';
 
 const runEvent = (id, kind, message, runId='run-1') => ({ id, kind, message, runId, time:'2026-11-01T11:00:00Z' });
 

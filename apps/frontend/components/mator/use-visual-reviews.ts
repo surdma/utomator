@@ -4,11 +4,11 @@ import { useRef, useState } from 'react';
 import type {
   ImageSource,
   VisualReviewDraft,
-} from '../reviews/visual-review-panel';
-import type { Platform } from './workflow-catalog';
-import type { Review } from './run-models';
-import { getApi } from './api-client';
-import { captureSection, validateReviewImage } from './visual-review-model';
+} from '@/components/dashboard/reviews/visual-review-panel';
+import type { Platform } from '@/components/dashboard/pipeline/workflow-catalog';
+import type { Review } from '@/components/dashboard/pipeline/run-models';
+import { getApi } from '@/components/dashboard/pipeline/api-client';
+import { captureSection, validateReviewImage } from '@/components/dashboard/pipeline/visual-review-model';
 
 /** Chat assets that can open the full review studio. */
 export type ChatAnnotationRequest = {

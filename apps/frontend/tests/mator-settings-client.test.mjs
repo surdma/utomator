@@ -4,7 +4,7 @@ import {
   fetchMatorSettings,
   matorSettingsUrl,
   saveMatorSettings,
-} from '../components/dashboard/pipeline/mator-api.ts';
+} from '../components/mator/mator-api.ts';
 
 const originalFetch = globalThis.fetch;
 afterEach(() => {

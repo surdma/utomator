@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { chunkMatorSpeech, playMatorSpeechChunks } from '../components/dashboard/pipeline/mator-speech-chunks.ts';
+import { chunkMatorSpeech, playMatorSpeechChunks } from '../components/mator/mator-speech-chunks.ts';
 
 test('short speech and empty input', () => {
   assert.deepEqual(chunkMatorSpeech('Pipeline started.'), ['Pipeline started.']);

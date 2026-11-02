@@ -94,7 +94,7 @@ export function useOperatorCommands({
     setActiveWorkflow(null);
     setAction(command.action);
     setForm(command.fields);
-    navigatePane('pipeline');
+    navigatePane('workspace');
   }
 
   function unsupported() {
@@ -184,7 +184,7 @@ export function useOperatorCommands({
       invalidateWorkflowSelection();
       setActiveWorkflow(null);
       setAction('audit-page');
-      navigatePane('pipeline');
+      navigatePane('workspace');
       setSelectedNode('inspect');
       reply(
         'Scoped read-only inspection staged for ' +

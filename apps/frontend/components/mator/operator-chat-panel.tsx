@@ -37,22 +37,20 @@ import {
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller';
 import { Card } from '@/components/ui/automate-card';
-import { Confirmation } from '@/components/ai-elements/confirmation';
-import { Reasoning } from '@/components/ai-elements/reasoning';
-import { Task } from '@/components/ai-elements/task';
-import { Checkpoint } from '@/components/ai-elements/checkpoint';
-import { Queue } from '@/components/ai-elements/queue';
-import { Suggestion } from '@/components/ai-elements/suggestion';
+import { Confirmation } from './elements/confirmation';
+import { Reasoning } from './elements/reasoning';
+import { Checkpoint } from './elements/checkpoint';
+import { Queue } from './elements/queue';
+import { Suggestion } from './elements/suggestion';
 import MatorClarifyForm from './mator-clarify-form';
 import MatorComposer from './mator-composer';
 import { MarkdownReply } from './markdown-reply';
-import { getApi } from './api-client';
+import { getApi } from '@/components/dashboard/pipeline/api-client';
 import MatorAttachmentPreview from './mator-attachment-preview';
 import type { VoiceSession } from './use-voice-session';
-import type { MatorClarifyQuestion } from './mator-chat-state';
-import type { DashboardPane } from './dashboard-route';
-import type { ChatMessage, Event as RunEvent, Review } from './run-models';
-import type { Platform } from './workflow-catalog';
+import type { DashboardPane } from '@/components/dashboard/pipeline/dashboard-route';
+import type { ChatMessage, Event as RunEvent, Review } from '@/components/dashboard/pipeline/run-models';
+import type { Platform } from '@/components/dashboard/pipeline/workflow-catalog';
 import {
   findOpenClarify,
   stageResolution,
@@ -63,9 +61,14 @@ import {
   type MatorConversationSummary,
 } from './mator-chat-state';
 import { fetchMatorModels, matorAttachmentFileUrl, type MatorSettingsMasked, type MatorImageMarkerDto, type MatorModelOption } from './mator-api';
+import { threadWhen, clarifyCount } from './chat/mator-thread-format';
+import { ThreadRow } from './chat/mator-thread-row';
+import { AssistantAvatar } from './chat/mator-assistant-avatar';
+import { TaskBlock } from './chat/mator-task-block';
+import { ReviewImage } from './chat/mator-review-image';
 
 const PANE_LABEL: Partial<Record<DashboardPane, string>> = {
-  pipeline: 'Workflow',
+  workspace: 'Workspace',
   crafts: 'Craft',
   profile: 'Profile',
   growth: 'Growth',
@@ -132,7 +135,7 @@ type Props = {
   onMessageChange: (message: string) => void;
   onSendMessage: (event: FormEvent<HTMLFormElement>) => void;
   onPendingAssetsChange?: (count: number) => void;
-  checkpoint: import('./run-models').Checkpoint | null;
+  checkpoint: import('@/components/dashboard/pipeline/run-models').Checkpoint | null;
   voice: VoiceSession;
   operatorPendingLabel?: string | null;
   onConfirmOperator?: () => void;
@@ -150,55 +153,6 @@ const START_SUGGESTIONS = [
   { label: 'Add a skill', prompt: 'Add a skill called ' },
   { label: 'Draft a post', prompt: 'Draft a post about ' },
 ];
-
-function threadWhen(iso: string | null) {
-  if (!iso) return '';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-}
-
-function clarifyCount(questions: MatorClarifyQuestion[]) {
-  return questions.length;
-}
-
-/** Mount-in-place row: transform/opacity only; disabled under reduced motion. */
-function ThreadRow({
-  id,
-  anchor = false,
-  side = 'start',
-  children,
-}: {
-  id: string;
-  anchor?: boolean;
-  side?: 'start' | 'end';
-  children: ReactNode;
-}) {
-  const reduceMotion = useReducedMotion();
-  return (
-    <MessageScrollerItem messageId={id} scrollAnchor={anchor}>
-      <motion.div
-        initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.22, ease: 'easeOut' }}
-        data-message-side={side}
-        className={side === 'end' ? 'flex w-full min-w-0 justify-end' : 'w-full min-w-0'}
-      >
-        {children}
-      </motion.div>
-    </MessageScrollerItem>
-  );
-}
-
-function AssistantAvatar() {
-  return (
-    <Avatar className="size-8 bg-gradient-to-br from-teal-700 to-teal-800 text-white">
-      <AvatarFallback>
-        <Workflow className="size-4" aria-hidden="true" />
-      </AvatarFallback>
-    </Avatar>
-  );
-}
 
 export default function OperatorChatPanel({
   pane,
@@ -1059,27 +1013,7 @@ export default function OperatorChatPanel({
   );
 }
 
-/* Localized evidence + review rendering helpers. */
-
-function TaskBlock({
-  steps,
-  evidence,
-}: {
-  steps: RunEvent[];
-  evidence?: ReactNode;
-}) {
-  const itemSteps = steps.map((event) => ({
-    id: String(event.id),
-    title: `${event.kind === 'error' ? 'Failed' : event.kind}: ${event.message}`,
-    status: event.kind === 'error' ? ('error' as const) : ('done' as const),
-  }));
-  return (
-    <div className="min-w-0 w-full max-w-[min(100%,32rem)] space-y-2">
-      <Task steps={itemSteps} running={false} />
-      {evidence}
-    </div>
-  );
-}
+/* Localized evidence rendering — workflow-screenshot test id stays here. */
 
 function ScreenshotEvidence({
   event,
@@ -1112,18 +1046,5 @@ function ScreenshotEvidence({
         {fileName} · Click image to annotate
       </span>
     </button>
-  );
-}
-
-function ReviewImage({ review, src }: { review: Review; src: string }) {
-  return (
-    <Image
-      unoptimized
-      src={src}
-      alt={'Annotated ' + review.pageUrl}
-      width={640}
-      height={400}
-      className="pointer-events-none max-h-44 w-full select-none object-contain"
-    />
   );
 }

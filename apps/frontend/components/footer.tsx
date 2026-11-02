@@ -16,7 +16,7 @@ export default function Footer() {
           </span>
         </div>
         <div className="flex items-center gap-5">
-          <Link href="/dashboard/pipeline">Pipeline</Link>
+          <Link href="/dashboard/workspace">Workspace</Link>
           <span>© {new Date().getFullYear()} Utomator</span>
         </div>
       </div>

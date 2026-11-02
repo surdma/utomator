@@ -5,7 +5,7 @@ import {
   createMatorSendGate,
   finishMatorSendFailure,
   finishMatorSendSuccess,
-} from '../components/dashboard/pipeline/mator-send-gate.ts';
+} from '../components/mator/mator-send-gate.ts';
 
 /**
  * Asserted double-send policy:

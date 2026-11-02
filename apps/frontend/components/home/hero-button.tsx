@@ -49,7 +49,7 @@ export default function HeroButton() {
       className="flex flex-wrap items-center gap-4"
     >
       <Link
-        href="/dashboard/pipeline"
+        href="/dashboard/workspace"
         className="site-action site-action--primary"
       >
         Open workspace <DownloadIcon className="h-4 w-4" />

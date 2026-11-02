@@ -4,12 +4,12 @@ import { resolve } from 'node:path';
 import { test } from 'node:test';
 
 const root = resolve(import.meta.dirname, '..');
-const pipeline = (name) => resolve(root, 'components/dashboard/pipeline', name);
+const mator = (name) => resolve(root, 'components/mator', name);
 const ui = (name) => resolve(root, 'components/ui', name);
-const aiElements = (name) => resolve(root, 'components/ai-elements', name);
+const aiElements = (name) => resolve(root, 'components/mator/elements', name);
 
 test('image thumbnail opens annotation studio on click', () => {
-  const preview = readFileSync(pipeline('mator-attachment-preview.tsx'), 'utf8');
+  const preview = readFileSync(mator('mator-attachment-preview.tsx'), 'utf8');
   assert.match(preview, /data-testid="mator-image-thumbnail"/);
   assert.match(preview, /onAnnotateFull/, 'image click delegates to studio');
   assert.doesNotMatch(preview, /mator-annotation-pencil|Open original image/);
@@ -17,7 +17,7 @@ test('image thumbnail opens annotation studio on click', () => {
 });
 
 test('chat images offer the full YAML-driven annotation studio', () => {
-  const preview = readFileSync(pipeline('mator-attachment-preview.tsx'), 'utf8');
+  const preview = readFileSync(mator('mator-attachment-preview.tsx'), 'utf8');
   // Image click itself opens the full annotation studio (no separate pencil button).
   assert.match(preview, /onAnnotateFull/, 'image click opens the studio');
   assert.doesNotMatch(preview, /mator-annotation-full-pencil/, 'no separate pencil button');
@@ -32,11 +32,11 @@ test('chat images offer the full YAML-driven annotation studio', () => {
 });
 
 test('mator attachment canvas module exists', () => {
-  assert.equal(existsSync(pipeline('mator-attachment-canvas.tsx')), true);
+  assert.equal(existsSync(mator('mator-attachment-canvas.tsx')), true);
 });
 
 test('operator chat panel exposes required mator testids and chrome', () => {
-  const source = readFileSync(pipeline('operator-chat-panel.tsx'), 'utf8');
+  const source = readFileSync(mator('operator-chat-panel.tsx'), 'utf8');
   for (const testid of [
     'mator-chat',
     'mator-conversation-switcher',
@@ -64,7 +64,7 @@ test('operator chat panel exposes required mator testids and chrome', () => {
 });
 
 test('composer is text-first with voice demoted to a small control', () => {
-  const source = readFileSync(pipeline('mator-composer.tsx'), 'utf8');
+  const source = readFileSync(mator('mator-composer.tsx'), 'utf8');
   assert.match(source, /data-testid="mator-input"/);
   assert.match(source, /data-testid="mator-send"/);
   assert.match(source, /data-testid="mator-attach"/);
@@ -78,13 +78,13 @@ test('composer is text-first with voice demoted to a small control', () => {
   assert.match(source, /onUploadFile/);
   assert.match(source, /multiple/);
   assert.match(source, /mator-pending-gallery/);
-  const preference = readFileSync(pipeline('mator-voice-preference.ts'), 'utf8');
+  const preference = readFileSync(mator('mator-voice-preference.ts'), 'utf8');
   assert.match(preference, /mator\.voiceOnly/, 'voice-only preference persists');
   assert.match(preference, /useSyncExternalStore/, 'text and voice decks share the same persisted preference');
 });
 
 test('pending drafts annotate through the YAML studio and fail honestly', () => {
-  const composer = readFileSync(pipeline('mator-composer.tsx'), 'utf8');
+  const composer = readFileSync(mator('mator-composer.tsx'), 'utf8');
   assert.match(composer, /onAnnotateDraft/, 'pending drafts reach the shell studio');
   assert.match(composer, /reviewId/, 'sent drafts carry the saved review reference');
   assert.match(
@@ -96,8 +96,8 @@ test('pending drafts annotate through the YAML studio and fail honestly', () => 
 });
 
 test('retired voice deck does not come back', () => {
-  assert.equal(existsSync(pipeline('voice-deck.tsx')), false);
-  const composer = readFileSync(pipeline('mator-composer.tsx'), 'utf8');
+  assert.equal(existsSync(mator('voice-deck.tsx')), false);
+  const composer = readFileSync(mator('mator-composer.tsx'), 'utf8');
   assert.doesNotMatch(composer, /mator-voice-deck/);
 });
 
@@ -115,11 +115,11 @@ test('grow confirmation stage controls live in the ai-elements gate', () => {
 });
 
 test('composer carries incomplete and clarify interaction contracts', () => {
-  const source = readFileSync(pipeline('mator-composer.tsx'), 'utf8');
+  const source = readFileSync(mator('mator-composer.tsx'), 'utf8');
   assert.match(source, /onIncompleteContinue/);
   assert.match(source, /data-testid="mator-incomplete-continue"/);
 
-  const form = readFileSync(pipeline('mator-clarify-form.tsx'), 'utf8');
+  const form = readFileSync(mator('mator-clarify-form.tsx'), 'utf8');
   assert.match(form, /data-testid="mator-clarify-form"/);
   assert.match(form, /formatClarifyReply/);
   assert.match(form, /onUploadFile/);
@@ -154,7 +154,7 @@ test('processable foundation modules exist for the dock', () => {
 });
 
 test('attachment canvas pins markers with reduced-motion aware motion', () => {
-  const source = readFileSync(pipeline('mator-attachment-canvas.tsx'), 'utf8');
+  const source = readFileSync(mator('mator-attachment-canvas.tsx'), 'utf8');
   assert.match(source, /data-testid="mator-attachment-canvas"/);
   assert.match(source, /useReducedMotion/);
   assert.match(source, /framer-motion/);
@@ -162,7 +162,7 @@ test('attachment canvas pins markers with reduced-motion aware motion', () => {
 });
 
 test('chat settings expose only real backend knobs', () => {
-  const source = readFileSync(pipeline('mator-chat-settings.tsx'), 'utf8');
+  const source = readFileSync(mator('mator-chat-settings.tsx'), 'utf8');
   assert.match(source, /saveMatorSettings/);
   assert.match(source, /reasoningEffort/);
   assert.match(source, /autoApprove/);
@@ -185,26 +185,26 @@ test('dashboard shell wires mator chat chrome into the operator panel', () => {
 });
 
 test('incomplete Continue sends Continue via useMatorChat through the composer', () => {
-  const hook = readFileSync(pipeline('use-mator-chat.ts'), 'utf8');
+  const hook = readFileSync(mator('use-mator-chat.ts'), 'utf8');
   assert.match(hook, /incompleteContinue\s*=\s*useCallback/);
   assert.match(hook, /await send\(['"]Continue['"]\)/);
 });
 
 
 test('new chat displays suggestions instead of a permanent loading skeleton', () => {
-  const panel = readFileSync(pipeline('operator-chat-panel.tsx'), 'utf8');
+  const panel = readFileSync(mator('operator-chat-panel.tsx'), 'utf8');
   assert.match(panel, /data-testid="mator-empty-thread"/);
   assert.match(panel, /loading \? \(/);
   assert.match(panel, /<Suggestion suggestions=\{START_SUGGESTIONS\}/);
   assert.match(panel, /matorAttachmentFileUrl/);
-  const attachment = readFileSync(pipeline('mator-attachment-preview.tsx'), 'utf8');
+  const attachment = readFileSync(mator('mator-attachment-preview.tsx'), 'utf8');
   assert.match(attachment, /onAnnotateFull/, 'image click opens the studio');
 });
 
 test('model picker is connected to real chat settings and handles failures', () => {
-  const panel = readFileSync(pipeline('operator-chat-panel.tsx'), 'utf8');
+  const panel = readFileSync(mator('operator-chat-panel.tsx'), 'utf8');
   const shell = readFileSync(resolve(root, 'components/dashboard/dashboard-shell.tsx'), 'utf8');
-  const settings = readFileSync(pipeline('mator-chat-settings.tsx'), 'utf8');
+  const settings = readFileSync(mator('mator-chat-settings.tsx'), 'utf8');
   assert.match(panel, /fetchMatorModels/);
   assert.match(panel, /models=\{models\}/);
   assert.match(panel, /onModelChange=\{/);
@@ -215,7 +215,7 @@ test('model picker is connected to real chat settings and handles failures', () 
 });
 
 test('attachment upload failures remain visible in the composer', () => {
-  const composer = readFileSync(pipeline('mator-composer.tsx'), 'utf8');
+  const composer = readFileSync(mator('mator-composer.tsx'), 'utf8');
   const shell = readFileSync(resolve(root, 'components/dashboard/dashboard-shell.tsx'), 'utf8');
   assert.match(composer, /if \(!id\) throw Error/);
   assert.match(composer, /setDraftError/);
@@ -224,13 +224,13 @@ test('attachment upload failures remain visible in the composer', () => {
 
 
 test('composer never duplicates a staged action approval card', () => {
-  const source = readFileSync(pipeline('mator-composer.tsx'), 'utf8');
+  const source = readFileSync(mator('mator-composer.tsx'), 'utf8');
   assert.doesNotMatch(source, /mator-stage-confirm-compact/);
   assert.doesNotMatch(source, /Not staged/);
 });
 
 test('Mator keeps latest replies at the live edge instead of anchoring them at the viewport top', () => {
-  const source = readFileSync(pipeline('operator-chat-panel.tsx'), 'utf8');
+  const source = readFileSync(mator('operator-chat-panel.tsx'), 'utf8');
   assert.match(source, /defaultScrollPosition="end"/);
   assert.doesNotMatch(source, /lastMatorEventId/);
   assert.doesNotMatch(source, /anchor=\{event\.id ===/);
@@ -238,8 +238,8 @@ test('Mator keeps latest replies at the live edge instead of anchoring them at t
 });
 
 test('legacy local command approval stays available without duplicating Mator stages', () => {
-  const composer = readFileSync(pipeline('mator-composer.tsx'), 'utf8');
-  const panel = readFileSync(pipeline('operator-chat-panel.tsx'), 'utf8');
+  const composer = readFileSync(mator('mator-composer.tsx'), 'utf8');
+  const panel = readFileSync(mator('operator-chat-panel.tsx'), 'utf8');
   const shell = readFileSync(resolve(root, 'components/dashboard/dashboard-shell.tsx'), 'utf8');
   assert.match(composer, /data-testid="operator-pending-approval"/);
   assert.match(composer, /data-testid="operator-confirm-pending"/);
@@ -250,9 +250,9 @@ test('legacy local command approval stays available without duplicating Mator st
 });
 
 test('asset upload requires explicit send and multi-image names are metadata', () => {
-  const composer = readFileSync(pipeline('mator-composer.tsx'), 'utf8');
-  const hook = readFileSync(pipeline('use-mator-chat.ts'), 'utf8');
-  const panel = readFileSync(pipeline('operator-chat-panel.tsx'), 'utf8');
+  const composer = readFileSync(mator('mator-composer.tsx'), 'utf8');
+  const hook = readFileSync(mator('use-mator-chat.ts'), 'utf8');
+  const panel = readFileSync(mator('operator-chat-panel.tsx'), 'utf8');
   assert.match(composer, /accepted\.map/);
   assert.match(composer, /onSendText\(message\.trim\(\), ids\)/);
   assert.match(composer, /mator-pending-gallery/);

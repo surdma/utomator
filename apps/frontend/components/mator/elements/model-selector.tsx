@@ -5,7 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Check, ChevronDown, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Popover } from '@/components/ui/popover';
-import type { MatorModelOption } from '@/components/dashboard/pipeline/mator-api';
+import type { MatorModelOption } from '../mator-api';
 import { cn } from '@/lib/utils';
 
 type Props = {

@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import Logo from '@/components/logo';
 const links = [
-  { title: 'Pipeline', href: '/dashboard/pipeline' },
+  { title: 'Workspace', href: '/dashboard/workspace' },
   { title: 'Growth', href: '/dashboard/growth' },
   { title: 'Crafts', href: '/dashboard/crafts' },
 ];

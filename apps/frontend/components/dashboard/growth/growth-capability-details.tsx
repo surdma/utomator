@@ -77,7 +77,7 @@ export default function GrowthCapabilityDetails({ slug }: { slug: string }) {
           )}
           {capability.id === 'profile' && (
             <a
-              href="/dashboard/pipeline"
+              href="/dashboard/workspace"
               className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-teal-800 underline underline-offset-4"
             >
               Open profile Growth pipelines <ArrowUpRight className="size-4" />

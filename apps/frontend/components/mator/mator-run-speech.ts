@@ -1,4 +1,4 @@
-import type { Event as RunEvent } from './run-models';
+import type { Event as RunEvent } from '../dashboard/pipeline/run-models';
 
 /**
  * Convert only real Runner stream records into short spoken updates.

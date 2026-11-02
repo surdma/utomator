@@ -4,7 +4,7 @@ import {
   acquireCurrentVoiceStream,
   createVoiceDeliveryGate,
   readVoiceSupport,
-} from '../components/dashboard/pipeline/voice-support.ts';
+} from '../components/mator/voice-support.ts';
 
 test('voice support stays unavailable when speech recognition is missing', () => {
   assert.equal(readVoiceSupport(undefined), 'unsupported');

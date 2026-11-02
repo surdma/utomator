@@ -48,7 +48,7 @@ export default function DashboardSidebar({
 
         {(
           [
-            { id: 'pipeline', label: 'Pipeline', icon: Activity },
+            { id: 'workspace', label: 'Workspace', icon: Activity },
             { id: 'history', label: 'Run history', icon: History },
           ] as const
         ).map((item) => (

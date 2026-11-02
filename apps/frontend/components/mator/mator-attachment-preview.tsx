@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { FileText } from 'lucide-react';
 import type { MatorCanvasMarker } from './mator-attachment-canvas';
-import { getApi } from './api-client';
+import { getApi } from '@/components/dashboard/pipeline/api-client';
 
 type Props = {
   attachmentId: string;

@@ -142,7 +142,7 @@ export function buildGrowthGraph(
         label: stage.title,
         subtitle:
           stage.stepCount +
-          ' connected tasks · ' +
+          ' tasks, steps, actions, and events · ' +
           stage.sectionIds.length +
           ' coverage requirements',
         state: state?.state ?? 'waiting',

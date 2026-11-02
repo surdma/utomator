@@ -306,8 +306,8 @@ test('dashboard navigation stays usable after extracting the shell', async ({
   await sidebar.getByRole('button', { name: 'Run history' }).click();
   await expect(page).toHaveURL(/\/dashboard\/history$/);
   if (await toggle.isVisible()) await toggle.click();
-  await sidebar.getByRole('button', { name: 'Pipeline', exact: true }).click();
-  await expect(page).toHaveURL(/\/dashboard\/pipeline$/);
+  await sidebar.getByRole('button', { name: 'Workspace', exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard\/workspace$/);
 });
 
 

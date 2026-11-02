@@ -4,7 +4,8 @@ import { getDashboardRoute } from '../components/dashboard/pipeline/dashboard-ro
 
 test('dashboard pages resolve their active pane without effect-driven state', () => {
   for (const [path, pane] of [
-    ['/dashboard/pipeline', 'pipeline'],
+    ['/dashboard/workspace', 'workspace'],
+    ['/dashboard/pipeline', 'workspace'],
     ['/dashboard/history', 'history'],
     ['/dashboard/settings', 'settings'],
     ['/dashboard/resumes/profile', 'resumes'],

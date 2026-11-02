@@ -12,7 +12,7 @@ import {
   pendingStageLabel,
   readClarifyQuestions,
   shouldSpeakHow,
-} from '../components/dashboard/pipeline/mator-chat-state.ts';
+} from '../components/mator/mator-chat-state.ts';
 
 const base = {
   conversationId: 'c1',

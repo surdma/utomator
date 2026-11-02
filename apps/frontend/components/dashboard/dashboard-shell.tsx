@@ -27,20 +27,20 @@ import { workflows, type Platform } from './pipeline/workflow-catalog';
 import PipelineWorkspace from './pipeline/pipeline-workspace';
 import { buildRunPayload } from './pipeline/build-run-payload';
 import RunHistory from './pipeline/run-history';
-import OperatorChatPanel from './pipeline/operator-chat-panel';
+import OperatorChatPanel from '@/components/mator/operator-chat-panel';
 import { useRunMonitor } from './pipeline/use-run-monitor';
-import { collectRunSpeechUpdates } from './pipeline/mator-run-speech';
-import { useVisualReviews, imageDataUrlFromBlob } from './pipeline/use-visual-reviews';
+import { collectRunSpeechUpdates } from '@/components/mator/mator-run-speech';
+import { useVisualReviews, imageDataUrlFromBlob } from '@/components/mator/use-visual-reviews';
 import {
   appendVisualReviewStep,
   reviewSection,
   validateReviewImage,
 } from './pipeline/visual-review-model';
-import { matorAttachmentFileUrl } from './pipeline/mator-api';
-import { useMatorChat } from './pipeline/use-mator-chat';
+import { matorAttachmentFileUrl } from '@/components/mator/mator-api';
+import { useMatorChat } from '@/components/mator/use-mator-chat';
 import { useOperatorCommands } from './pipeline/use-operator-commands';
-import { useVoiceSession } from './pipeline/use-voice-session';
-import { useVoiceOnlyPreference } from './pipeline/mator-voice-preference';
+import { useVoiceSession } from '@/components/mator/use-voice-session';
+import { useVoiceOnlyPreference } from '@/components/mator/mator-voice-preference';
 import { useWorkflowWorkspace } from './pipeline/use-workflow-workspace';
 import RunTrackingDialog from './pipeline/run-tracking-dialog';
 import CheckpointDialog from './pipeline/checkpoint-dialog';
@@ -52,7 +52,7 @@ import {
 } from './pipeline/use-dashboard-navigation';
 
 export default function DashboardShell({
-  initialPane = 'pipeline',
+  initialPane = 'workspace',
 }: {
   initialPane?: DashboardPane;
 }) {
@@ -401,7 +401,7 @@ export default function DashboardShell({
     setAction(next);
     setForm({});
     setRunFormError('');
-    navigatePane('pipeline');
+    navigatePane('workspace');
     setMobileMenu(false);
   }
   async function startRun() {
@@ -433,7 +433,7 @@ export default function DashboardShell({
   }
   /** Reads chat image bytes and guards the pipeline page scope for the review studio. */
   async function buildChatAnnotationSource(
-    request: import('./pipeline/use-visual-reviews').ChatAnnotationRequest
+    request: import('@/components/mator/use-visual-reviews').ChatAnnotationRequest
   ): Promise<{ imageDataUrl: string } | null> {
     if (!normalizedHandle.trim() || !selectedPage.trim()) {
       throw new Error(
@@ -518,7 +518,7 @@ export default function DashboardShell({
       setAction('audit-page');
       setSelectedNode('inspect');
       setConfigRequest((value) => value + 1);
-      navigatePane('pipeline');
+      navigatePane('workspace');
     },
     onSelectReviewAccount: (review) => {
       choosePlatform(review.platform);
@@ -650,7 +650,7 @@ export default function DashboardShell({
               runs={runs}
               onSelect={(run) => {
                 selectRun(run);
-                navigatePane('pipeline');
+                navigatePane('workspace');
               }}
             />
           )}

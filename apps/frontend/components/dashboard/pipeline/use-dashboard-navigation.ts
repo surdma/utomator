@@ -36,9 +36,7 @@ export function useDashboardNavigation(initialPane: DashboardPane) {
     )
       return;
     setPane(next);
-    navigate(
-      next === 'pipeline' ? '/dashboard/pipeline' : '/dashboard/' + next
-    );
+    navigate('/dashboard/' + next);
   }
   function navigateSubpage(path: string) {
     if (
