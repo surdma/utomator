@@ -313,10 +313,13 @@ test('Growth workspace connects 21 capability and toolkit graphs, MDX, export an
       scroll: document.documentElement.scrollWidth,
     }));
     assert(bounds.scroll <= bounds.viewport + 1, 'Growth library fits mobile width');
-    await mobile.getByRole('button', { name: 'Toggle navigation' }).click();
-    assert.equal(await mobile.getByTestId('automation-navigation-sidebar').isVisible(), true);
-    await mobile.getByRole('button', { name: 'Close navigation' }).click();
-    assert.equal(await mobile.getByTestId('automation-navigation-sidebar').isVisible(), false);
+    assert.equal(await mobile.getByTestId('studio-bottom-nav').isVisible(), true);
+    assert.equal(
+      await mobile.getByTestId('automation-navigation-sidebar').isVisible(),
+      false,
+    );
+    await mobile.getByRole('button', { name: 'Workspace', exact: true }).click();
+    assert.match(mobile.url(), /\/dashboard\/workspace$/);
     await mobile.close();
   } finally {
     await browser.close();

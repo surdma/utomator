@@ -294,22 +294,13 @@ test('dashboard navigation stays usable after extracting the shell', async ({
   page,
 }) => {
   await page.goto('/dashboard/pipeline');
-  const sidebar = page.getByTestId('automation-navigation-sidebar');
-  const toggle = page.getByRole('button', { name: 'Toggle navigation' });
-  if (await toggle.isVisible()) {
-    await toggle.click();
-    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  }
-  await expect(
-    sidebar.getByRole('button', { name: 'Run history' })
-  ).toBeVisible();
-  await sidebar.getByRole('button', { name: 'Run history' }).click();
+  const history = page.getByRole('button', { name: 'Run history' });
+  await expect(history).toBeVisible();
+  await history.click();
   await expect(page).toHaveURL(/\/dashboard\/history$/);
-  if (await toggle.isVisible()) await toggle.click();
-  await sidebar.getByRole('button', { name: 'Workspace', exact: true }).click();
+  await page.getByRole('button', { name: 'Workspace', exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard\/workspace$/);
 });
-
 
 test('Mator dock has a usable empty state, thread history, model picker, and voice-only switch', async ({
   page,
@@ -377,15 +368,28 @@ test('Mator dock has a usable empty state, thread history, model picker, and voi
   await expect(dock.getByTestId('mator-conversation-switcher')).toBeHidden();
 
   await dock.getByTestId('mator-settings-trigger').click();
-  await expect(dock.getByRole('dialog', { name: 'Chat settings' })).toBeVisible();
-  await expect(dock.getByRole('slider', { name: 'Reasoning effort' })).toHaveValue('1');
+  await expect(
+    dock.getByRole('dialog', { name: 'Chat settings' })
+  ).toBeVisible();
+  await expect(
+    dock.getByRole('slider', { name: 'Reasoning effort' })
+  ).toHaveValue('1');
   await page.keyboard.press('Escape');
 
   await dock.getByTestId('mator-voice-switch').click();
-  await expect(dock.getByTestId('mator-composer')).toHaveAttribute('data-mode', 'voice-only');
-  await expect(dock.getByTestId('mator-voice-switch')).toHaveAttribute('aria-checked', 'true');
+  await expect(dock.getByTestId('mator-composer')).toHaveAttribute(
+    'data-mode',
+    'voice-only'
+  );
+  await expect(dock.getByTestId('mator-voice-switch')).toHaveAttribute(
+    'aria-checked',
+    'true'
+  );
   await dock.getByTestId('mator-voice-switch').click();
-  await expect(dock.getByTestId('mator-composer')).toHaveAttribute('data-mode', 'text');
+  await expect(dock.getByTestId('mator-composer')).toHaveAttribute(
+    'data-mode',
+    'text'
+  );
   await capture(page, info, 'mator-dock-text-first');
 });
 
@@ -394,7 +398,8 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
 }, info) => {
   const now = '2026-11-01T09:00:00.000Z';
   const shortText = 'Hi Mator';
-  const longText = 'Review this professional credential: ' + 'credential'.repeat(24);
+  const longText =
+    'Review this professional credential: ' + 'credential'.repeat(24);
   const assistantText = 'I can review this evidence: ' + 'evidence'.repeat(26);
   const confirmationText = 'Review this proposal: ' + 'approval'.repeat(26);
   const workflowId = 'mator-layout-workflow';
@@ -526,19 +531,39 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
   await expect(dock.getByText(assistantText)).toBeVisible();
 
   const metrics = await dock.evaluate((element) => {
-    const rows = [...element.querySelectorAll<HTMLElement>('[data-slot="message"]')];
-    const findRow = (value: string) => rows.find((row) => row.textContent?.includes(value));
+    const rows = [
+      ...element.querySelectorAll<HTMLElement>('[data-slot="message"]'),
+    ];
+    const findRow = (value: string) =>
+      rows.find((row) => row.textContent?.includes(value));
     const short = findRow('Hi Mator');
     const long = findRow('credential'.repeat(24));
-    const shortBubble = short?.querySelector<HTMLElement>('[data-slot="bubble"]');
+    const shortBubble = short?.querySelector<HTMLElement>(
+      '[data-slot="bubble"]'
+    );
     const longBubble = long?.querySelector<HTMLElement>('[data-slot="bubble"]');
-    const confirmCard = element.querySelector<HTMLElement>('[data-testid="mator-confirmation"]');
+    const confirmCard = element.querySelector<HTMLElement>(
+      '[data-testid="mator-confirmation"]'
+    );
     const assistant = findRow('evidence'.repeat(26));
     const assistantText = assistant?.querySelector<HTMLElement>('p');
     const confirmationText = confirmCard?.querySelector<HTMLElement>('p');
-    const shortAvatar = short?.querySelector<HTMLElement>('[data-slot="avatar"]');
+    const shortAvatar = short?.querySelector<HTMLElement>(
+      '[data-slot="avatar"]'
+    );
     const longAvatar = long?.querySelector<HTMLElement>('[data-slot="avatar"]');
-    if (!shortBubble || !longBubble || !confirmCard || !assistantText || !confirmationText || !shortAvatar || !longAvatar || !short || !long) return null;
+    if (
+      !shortBubble ||
+      !longBubble ||
+      !confirmCard ||
+      !assistantText ||
+      !confirmationText ||
+      !shortAvatar ||
+      !longAvatar ||
+      !short ||
+      !long
+    )
+      return null;
     const shortBox = shortBubble.getBoundingClientRect();
     const longBox = longBubble.getBoundingClientRect();
     const confirmationBox = confirmCard.getBoundingClientRect();
@@ -552,46 +577,84 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
       assistantReplyLeft: assistantBox.left,
       shortBubbleToAvatar: shortAvatarBox.left - shortBox.right,
       longBubbleToAvatar: longAvatarBox.left - longBox.right,
-      shortAvatarToRowRight: short.getBoundingClientRect().right - shortAvatarBox.right,
-      longAvatarToRowRight: long.getBoundingClientRect().right - longAvatarBox.right,
-      userSideIsEnd: short.closest('[data-message-side]')?.getAttribute('data-message-side') === 'end',
+      shortAvatarToRowRight:
+        short.getBoundingClientRect().right - shortAvatarBox.right,
+      longAvatarToRowRight:
+        long.getBoundingClientRect().right - longAvatarBox.right,
+      userSideIsEnd:
+        short
+          .closest('[data-message-side]')
+          ?.getAttribute('data-message-side') === 'end',
       assistantSideIsStart: assistant?.getAttribute('data-align') === 'start',
       longWidth: longBox.width,
       confirmWidth: confirmationBox.width,
       dockWidth: dockBox.width,
       longOverflow: longBubble.scrollWidth - longBubble.clientWidth,
       assistantOverflow: assistantText.scrollWidth - assistantText.clientWidth,
-      confirmationOverflow: confirmationText.scrollWidth - confirmationText.clientWidth,
+      confirmationOverflow:
+        confirmationText.scrollWidth - confirmationText.clientWidth,
       messageVisible: shortBubble.textContent?.includes('Hi Mator'),
     };
   });
-  expect(metrics, 'Rendered chat bubbles and staged card must be present').not.toBeNull();
+  expect(
+    metrics,
+    'Rendered chat bubbles and staged card must be present'
+  ).not.toBeNull();
   expect(metrics!.messageVisible).toBe(true);
   expect(metrics!.shortWidth).toBeGreaterThan(55);
-  expect(metrics!.userSideIsEnd, 'a persisted user turn must align to the right').toBe(true);
-  expect(metrics!.assistantSideIsStart, 'a Mator reply must align to the left').toBe(true);
-  expect(metrics!.shortUserBubbleLeft - metrics!.assistantReplyLeft, 'user text is visually to the right of Mator').toBeGreaterThan(36);
-  for (const gap of [metrics!.shortBubbleToAvatar, metrics!.longBubbleToAvatar]) {
-    expect(gap, 'user bubble should sit beside the right-side ME avatar').toBeGreaterThanOrEqual(-1);
+  expect(
+    metrics!.userSideIsEnd,
+    'a persisted user turn must align to the right'
+  ).toBe(true);
+  expect(
+    metrics!.assistantSideIsStart,
+    'a Mator reply must align to the left'
+  ).toBe(true);
+  expect(
+    metrics!.shortUserBubbleLeft - metrics!.assistantReplyLeft,
+    'user text is visually to the right of Mator'
+  ).toBeGreaterThan(36);
+  for (const gap of [
+    metrics!.shortBubbleToAvatar,
+    metrics!.longBubbleToAvatar,
+  ]) {
+    expect(
+      gap,
+      'user bubble should sit beside the right-side ME avatar'
+    ).toBeGreaterThanOrEqual(-1);
     expect(gap).toBeLessThanOrEqual(24);
   }
-  for (const gap of [metrics!.shortAvatarToRowRight, metrics!.longAvatarToRowRight]) {
-    expect(gap, 'ME avatar stays anchored to the right edge').toBeGreaterThanOrEqual(-1);
+  for (const gap of [
+    metrics!.shortAvatarToRowRight,
+    metrics!.longAvatarToRowRight,
+  ]) {
+    expect(
+      gap,
+      'ME avatar stays anchored to the right edge'
+    ).toBeGreaterThanOrEqual(-1);
     expect(gap).toBeLessThanOrEqual(2);
   }
   expect(metrics!.shortWidth).toBeLessThan(metrics!.dockWidth * 0.72);
   expect(metrics!.longWidth).toBeLessThanOrEqual(metrics!.dockWidth);
-  expect(metrics!.confirmWidth).toBeLessThanOrEqual(Math.min(metrics!.dockWidth, 485));
+  expect(metrics!.confirmWidth).toBeLessThanOrEqual(
+    Math.min(metrics!.dockWidth, 485)
+  );
   expect(metrics!.longOverflow).toBeLessThanOrEqual(1);
   expect(metrics!.assistantOverflow).toBeLessThanOrEqual(1);
   expect(metrics!.confirmationOverflow).toBeLessThanOrEqual(1);
   const viewport = dock.getByTestId('mator-thread-viewport');
-  await viewport.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+  await viewport.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
   const tail = await viewport.evaluate((element) => {
-    const lastCard = element.querySelector<HTMLElement>('[data-testid="mator-confirmation"]');
+    const lastCard = element.querySelector<HTMLElement>(
+      '[data-testid="mator-confirmation"]'
+    );
     return lastCard
       ? {
-          gap: element.getBoundingClientRect().bottom - lastCard.getBoundingClientRect().bottom,
+          gap:
+            element.getBoundingClientRect().bottom -
+            lastCard.getBoundingClientRect().bottom,
           pixelTolerance: 1 / window.devicePixelRatio,
         }
       : null;
@@ -599,12 +662,17 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
   expect(tail, 'the final confirmation should be measurable').not.toBeNull();
   // Fractional browser layout may overlap the viewport edge by less than one device pixel.
   // Keep the strict 48px upper bound so an anchored-message whitespace regression still fails.
-  expect(tail!.gap, 'last chat row stays near the composer').toBeGreaterThanOrEqual(-tail!.pixelTolerance);
+  expect(
+    tail!.gap,
+    'last chat row stays near the composer'
+  ).toBeGreaterThanOrEqual(-tail!.pixelTolerance);
   expect(tail!.gap).toBeLessThanOrEqual(48);
   await capture(page, info, 'mator-content-width-regression');
 });
 
-test('Mator sends text, preserves failed drafts, and places the newest reply last', async ({ page }, info) => {
+test('Mator sends text, preserves failed drafts, and places the newest reply last', async ({
+  page,
+}, info) => {
   const workflowId = '11111111-1111-4111-8111-111111111111';
   const conversationId = '22222222-2222-4222-8222-222222222222';
   const now = '2026-11-01T09:00:00.000Z';
@@ -634,15 +702,17 @@ test('Mator sends text, preserves failed drafts, and places the newest reply las
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify([{
-        id: workflowId,
-        ownerId: 'local-owner',
-        templateId: null,
-        revision: 1,
-        createdAt: now,
-        updatedAt: now,
-        plan,
-      }]),
+      body: JSON.stringify([
+        {
+          id: workflowId,
+          ownerId: 'local-owner',
+          templateId: null,
+          revision: 1,
+          createdAt: now,
+          updatedAt: now,
+          plan,
+        },
+      ]),
     })
   );
   await page.route('**/api/mator/workflows/*/conversations', (route) =>
@@ -651,15 +721,17 @@ test('Mator sends text, preserves failed drafts, and places the newest reply las
       contentType: 'application/json',
       body: JSON.stringify({
         currentId: conversationId,
-        items: [{
-          id: conversationId,
-          workflowId,
-          title: 'Delivery regression',
-          createdAt: now,
-          updatedAt: now,
-          lastMessageAt: now,
-          boundRevisionId: null,
-        }],
+        items: [
+          {
+            id: conversationId,
+            workflowId,
+            title: 'Delivery regression',
+            createdAt: now,
+            updatedAt: now,
+            lastMessageAt: now,
+            boundRevisionId: null,
+          },
+        ],
       }),
     })
   );
@@ -678,11 +750,15 @@ test('Mator sends text, preserves failed drafts, and places the newest reply las
       await route.fulfill({
         status: 503,
         contentType: 'application/json',
-        body: JSON.stringify({ error: 'Chat provider temporarily unavailable' }),
+        body: JSON.stringify({
+          error: 'Chat provider temporarily unavailable',
+        }),
       });
       return;
     }
-    const timestamp = new Date(Date.parse(now) + events.length * 1000).toISOString();
+    const timestamp = new Date(
+      Date.parse(now) + events.length * 1000
+    ).toISOString();
     const user = {
       id: 'user-' + sent.length,
       conversationId,
@@ -722,35 +798,57 @@ test('Mator sends text, preserves failed drafts, and places the newest reply las
   failNext = true;
   await input.fill('Keep my unsent draft');
   await input.press('Enter');
-  await expect(dock.getByRole('alert')).toContainText('Chat provider temporarily unavailable');
+  await expect(dock.getByRole('alert')).toContainText(
+    'Chat provider temporarily unavailable'
+  );
   await expect(input).toHaveValue('Keep my unsent draft');
   await dock.getByTestId('mator-send').click();
   await expect(dock.getByText('Reply to: Keep my unsent draft')).toBeVisible();
-  await expect(dock.locator('[data-slot="message"]').last()).toContainText('Reply to: Keep my unsent draft');
-  expect(sent).toEqual(['First question', 'Keep my unsent draft', 'Keep my unsent draft']);
+  await expect(dock.locator('[data-slot="message"]').last()).toContainText(
+    'Reply to: Keep my unsent draft'
+  );
+  expect(sent).toEqual([
+    'First question',
+    'Keep my unsent draft',
+    'Keep my unsent draft',
+  ]);
 
   await page.reload();
   const restored = page.getByTestId('mator-chat');
   if (!(await restored.isVisible())) {
     await page.getByRole('button', { name: 'Open Mator' }).click();
   }
-  await expect(restored.getByText('Reply to: Keep my unsent draft')).toBeVisible();
-  await expect(restored.locator('[data-slot="message"]').last()).toContainText('Reply to: Keep my unsent draft');
+  await expect(
+    restored.getByText('Reply to: Keep my unsent draft')
+  ).toBeVisible();
+  await expect(restored.locator('[data-slot="message"]').last()).toContainText(
+    'Reply to: Keep my unsent draft'
+  );
   await capture(page, info, 'mator-message-delivery-and-reload');
 });
 
-test('Mator accepts recorded speech when SpeechRecognition is unavailable', async ({ page }) => {
+test('Mator accepts recorded speech when SpeechRecognition is unavailable', async ({
+  page,
+}) => {
   const workflowId = '11111111-1111-4111-8111-111111111111';
   const conversationId = '22222222-2222-4222-8222-222222222222';
   const now = '2026-11-01T09:00:00.000Z';
   await page.addInitScript(() => {
-    Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: undefined });
-    Object.defineProperty(window, 'webkitSpeechRecognition', { configurable: true, value: undefined });
+    Object.defineProperty(window, 'SpeechRecognition', {
+      configurable: true,
+      value: undefined,
+    });
+    Object.defineProperty(window, 'webkitSpeechRecognition', {
+      configurable: true,
+      value: undefined,
+    });
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
-      value: { getUserMedia: async () => ({
-        getTracks: () => [{ stop: () => {} }],
-      }) },
+      value: {
+        getUserMedia: async () => ({
+          getTracks: () => [{ stop: () => {} }],
+        }),
+      },
     });
     Object.defineProperty(window, 'MediaRecorder', {
       configurable: true,
@@ -759,10 +857,14 @@ test('Mator accepts recorded speech when SpeechRecognition is unavailable', asyn
         mimeType = 'audio/mp4';
         ondataavailable: ((event: { data: Blob }) => void) | null = null;
         onstop: (() => void) | null = null;
-        start() { this.state = 'recording'; }
+        start() {
+          this.state = 'recording';
+        }
         stop() {
           this.state = 'inactive';
-          this.ondataavailable?.({ data: new Blob(['recorded speech'], { type: 'audio/mp4' }) });
+          this.ondataavailable?.({
+            data: new Blob(['recorded speech'], { type: 'audio/mp4' }),
+          });
           this.onstop?.();
         }
       },
@@ -772,19 +874,27 @@ test('Mator accepts recorded speech when SpeechRecognition is unavailable', asyn
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify([{
-        id: workflowId, ownerId: 'local-owner', templateId: null,
-        revision: 1, createdAt: now, updatedAt: now,
-        plan: {
-          version: 1, platform: 'linkedin', action: 'audit',
-          name: 'Profile audit',
-          steps: [
-            { id: 'start', kind: 'start', title: 'Start run' },
-            { id: 'finish', kind: 'finish', title: 'Final output' },
-          ],
-          links: [{ source: 'start', target: 'finish' }],
+      body: JSON.stringify([
+        {
+          id: workflowId,
+          ownerId: 'local-owner',
+          templateId: null,
+          revision: 1,
+          createdAt: now,
+          updatedAt: now,
+          plan: {
+            version: 1,
+            platform: 'linkedin',
+            action: 'audit',
+            name: 'Profile audit',
+            steps: [
+              { id: 'start', kind: 'start', title: 'Start run' },
+              { id: 'finish', kind: 'finish', title: 'Final output' },
+            ],
+            links: [{ source: 'start', target: 'finish' }],
+          },
         },
-      }]),
+      ]),
     })
   );
   await page.route('**/api/mator/workflows/*/conversations', (route) =>
@@ -793,10 +903,17 @@ test('Mator accepts recorded speech when SpeechRecognition is unavailable', asyn
       contentType: 'application/json',
       body: JSON.stringify({
         currentId: conversationId,
-        items: [{
-          id: conversationId, workflowId, title: 'Speech regression',
-          createdAt: now, updatedAt: now, lastMessageAt: now, boundRevisionId: null,
-        }],
+        items: [
+          {
+            id: conversationId,
+            workflowId,
+            title: 'Speech regression',
+            createdAt: now,
+            updatedAt: now,
+            lastMessageAt: now,
+            boundRevisionId: null,
+          },
+        ],
       }),
     })
   );
@@ -805,7 +922,10 @@ test('Mator accepts recorded speech when SpeechRecognition is unavailable', asyn
   );
   let transcriptionFilename = '';
   await page.route('**/api/mator/audio/transcriptions', (route) => {
-    const request = route.request().postDataJSON() as { filename: string; mime: string };
+    const request = route.request().postDataJSON() as {
+      filename: string;
+      mime: string;
+    };
     transcriptionFilename = request.filename;
     expect(request.mime).toBe('audio/mp4');
     return route.fulfill({
@@ -831,8 +951,22 @@ test('Mator accepts recorded speech when SpeechRecognition is unavailable', asyn
       contentType: 'application/json',
       body: JSON.stringify({
         events: [
-          { id: 'voice-user', conversationId, role: 'user', kind: 'message', text: received, createdAt: now },
-          { id: 'voice-reply', conversationId, role: 'assistant', kind: 'message', text: 'Heard your profile question', createdAt: '2026-11-01T09:00:01.000Z' },
+          {
+            id: 'voice-user',
+            conversationId,
+            role: 'user',
+            kind: 'message',
+            text: received,
+            createdAt: now,
+          },
+          {
+            id: 'voice-reply',
+            conversationId,
+            role: 'assistant',
+            kind: 'message',
+            text: 'Heard your profile question',
+            createdAt: '2026-11-01T09:00:01.000Z',
+          },
         ],
       }),
     });
@@ -843,7 +977,10 @@ test('Mator accepts recorded speech when SpeechRecognition is unavailable', asyn
     await page.getByRole('button', { name: 'Open Mator' }).click();
   }
   await dock.getByTestId('mator-voice-switch').click();
-  await expect(dock.getByTestId('mator-composer')).toHaveAttribute('data-mode', 'voice-only');
+  await expect(dock.getByTestId('mator-composer')).toHaveAttribute(
+    'data-mode',
+    'voice-only'
+  );
   const mic = dock.getByTestId('mator-voice-listening');
   await expect(mic).toBeEnabled();
   await mic.click();
@@ -857,8 +994,9 @@ test('Mator accepts recorded speech when SpeechRecognition is unavailable', asyn
   await expect(dock.getByTestId('mator-input')).toHaveValue('');
 });
 
-
-test('Mator discards a delayed transcription after switching workflow chat threads', async ({ page }) => {
+test('Mator discards a delayed transcription after switching workflow chat threads', async ({
+  page,
+}) => {
   const workflowId = '11111111-1111-4111-8111-111111111111';
   const a = '22222222-2222-4222-8222-222222222222';
   const b = '33333333-3333-4333-8333-333333333333';
@@ -867,15 +1005,27 @@ test('Mator discards a delayed transcription after switching workflow chat threa
   const sent: string[] = [];
   let startTranscription: () => void = () => {};
   let releaseTranscription: () => void = () => {};
-  const receivedTranscription = new Promise<void>((resolve) => { startTranscription = resolve; });
-  const holdTranscription = new Promise<void>((resolve) => { releaseTranscription = resolve; });
+  const receivedTranscription = new Promise<void>((resolve) => {
+    startTranscription = resolve;
+  });
+  const holdTranscription = new Promise<void>((resolve) => {
+    releaseTranscription = resolve;
+  });
 
   await page.addInitScript(() => {
-    Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: undefined });
-    Object.defineProperty(window, 'webkitSpeechRecognition', { configurable: true, value: undefined });
+    Object.defineProperty(window, 'SpeechRecognition', {
+      configurable: true,
+      value: undefined,
+    });
+    Object.defineProperty(window, 'webkitSpeechRecognition', {
+      configurable: true,
+      value: undefined,
+    });
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
-      value: { getUserMedia: async () => ({ getTracks: () => [{ stop: () => {} }] }) },
+      value: {
+        getUserMedia: async () => ({ getTracks: () => [{ stop: () => {} }] }),
+      },
     });
     Object.defineProperty(window, 'MediaRecorder', {
       configurable: true,
@@ -884,61 +1034,96 @@ test('Mator discards a delayed transcription after switching workflow chat threa
         mimeType = 'audio/mp4';
         ondataavailable: ((event: { data: Blob }) => void) | null = null;
         onstop: (() => void) | null = null;
-        start() { this.state = 'recording'; }
+        start() {
+          this.state = 'recording';
+        }
         stop() {
           this.state = 'inactive';
-          this.ondataavailable?.({ data: new Blob(['voice'], { type: 'audio/mp4' }) });
+          this.ondataavailable?.({
+            data: new Blob(['voice'], { type: 'audio/mp4' }),
+          });
           this.onstop?.();
         }
       },
     });
   });
-  await page.route('**/api/workflows', (route) => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify([{
-      id: workflowId, ownerId: 'local-owner', templateId: null,
-      revision: 1, createdAt: now, updatedAt: now,
-      plan: {
-        version: 1, platform: 'linkedin', action: 'audit', name: 'Profile audit',
-        steps: [
-          { id: 'start', kind: 'start', title: 'Start run' },
-          { id: 'finish', kind: 'finish', title: 'Final output' },
-        ],
-        links: [{ source: 'start', target: 'finish' }],
-      },
-    }]),
-  }));
-  await page.route('**/api/mator/workflows/*/conversations', (route) => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify({
-      currentId: active,
-      items: [a, b].map((id, index) => ({
-        id, workflowId, title: index === 0 ? 'Thread A' : 'Thread B',
-        createdAt: now, updatedAt: now, lastMessageAt: now, boundRevisionId: null,
-      })),
-    }),
-  }));
+  await page.route('**/api/workflows', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          id: workflowId,
+          ownerId: 'local-owner',
+          templateId: null,
+          revision: 1,
+          createdAt: now,
+          updatedAt: now,
+          plan: {
+            version: 1,
+            platform: 'linkedin',
+            action: 'audit',
+            name: 'Profile audit',
+            steps: [
+              { id: 'start', kind: 'start', title: 'Start run' },
+              { id: 'finish', kind: 'finish', title: 'Final output' },
+            ],
+            links: [{ source: 'start', target: 'finish' }],
+          },
+        },
+      ]),
+    })
+  );
+  await page.route('**/api/mator/workflows/*/conversations', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        currentId: active,
+        items: [a, b].map((id, index) => ({
+          id,
+          workflowId,
+          title: index === 0 ? 'Thread A' : 'Thread B',
+          createdAt: now,
+          updatedAt: now,
+          lastMessageAt: now,
+          boundRevisionId: null,
+        })),
+      }),
+    })
+  );
   await page.route('**/api/mator/workflows/*/current', (route) => {
-    active = (route.request().postDataJSON() as { conversationId: string }).conversationId;
+    active = (route.request().postDataJSON() as { conversationId: string })
+      .conversationId;
     return route.fulfill({
-      status: 200, contentType: 'application/json',
+      status: 200,
+      contentType: 'application/json',
       body: JSON.stringify({ currentId: active }),
     });
   });
-  await page.route('**/api/mator/conversations/*/events', (route) => route.fulfill({
-    status: 200, contentType: 'application/json', body: '[]',
-  }));
+  await page.route('**/api/mator/conversations/*/events', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '[]',
+    })
+  );
   await page.route('**/api/mator/audio/transcriptions', async (route) => {
     startTranscription();
     await holdTranscription;
     await route.fulfill({
-      status: 200, contentType: 'application/json',
+      status: 200,
+      contentType: 'application/json',
       body: JSON.stringify({ text: 'This speech belongs only to thread A' }),
     });
   });
   await page.route('**/api/mator/conversations/*/messages', (route) => {
     sent.push(route.request().url());
-    return route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"Unexpected send"}' });
+    return route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: '{"error":"Unexpected send"}',
+    });
   });
 
   await page.goto('/dashboard/pipeline');
@@ -954,105 +1139,200 @@ test('Mator discards a delayed transcription after switching workflow chat threa
   await receivedTranscription;
 
   await dock.getByTestId('mator-thread-pill').click();
-  await dock.getByTestId('mator-conversation-switcher').getByRole('button', { name: /Thread B/ }).click();
+  await dock
+    .getByTestId('mator-conversation-switcher')
+    .getByRole('button', { name: /Thread B/ })
+    .click();
   await expect(dock.getByTestId('mator-thread-pill')).toContainText('Thread B');
   expect(active).toBe(b);
 
-  const transcriptResponse = page.waitForResponse((res) =>
-    res.url().includes('/api/mator/audio/transcriptions') && res.status() === 200
+  const transcriptResponse = page.waitForResponse(
+    (res) =>
+      res.url().includes('/api/mator/audio/transcriptions') &&
+      res.status() === 200
   );
   releaseTranscription();
   await transcriptResponse;
   await page.waitForTimeout(150);
-  expect(sent, 'no stale speech may be posted to a different thread').toEqual([]);
-  await expect(dock.getByText('This speech belongs only to thread A')).toHaveCount(0);
+  expect(sent, 'no stale speech may be posted to a different thread').toEqual(
+    []
+  );
+  await expect(
+    dock.getByText('This speech belongs only to thread A')
+  ).toHaveCount(0);
 });
 
-test('Mator stages multiple images and captions until explicit send, then restores annotation gallery', async ({ page }) => {
+test('Mator stages multiple images and captions until explicit send, then restores annotation gallery', async ({
+  page,
+}) => {
   const workflowId = '11111111-1111-4111-8111-111111111111';
   const conversationId = '22222222-2222-4222-8222-222222222222';
   const now = '2026-11-01T09:00:00.000Z';
-  const assets: Array<{ id: string; name: string; mime: string; markers: Array<{ id: string; x: number; y: number; text: string }> }> = [];
+  const assets: Array<{
+    id: string;
+    name: string;
+    mime: string;
+    markers: Array<{ id: string; x: number; y: number; text: string }>;
+  }> = [];
   const sent: Array<{ text?: string; attachmentIds?: string[] }> = [];
   let events: Array<Record<string, unknown>> = [];
   let uploads = 0;
-  await page.route('**/api/workflows', (route) => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify([{
-      id: workflowId, ownerId: 'local-owner', templateId: null, revision: 1, createdAt: now, updatedAt: now,
-      plan: {
-        version: 1, platform: 'linkedin', action: 'audit', name: 'Profile audit',
-        steps: [{ id: 'start', kind: 'start', title: 'Start run' }, { id: 'finish', kind: 'finish', title: 'Final output' }],
-        links: [{ source: 'start', target: 'finish' }],
-      },
-    }]),
-  }));
-  await page.route('**/api/mator/workflows/*/conversations', (route) => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify({
-      currentId: conversationId,
-      items: [{ id: conversationId, workflowId, title: 'Asset draft', createdAt: now, updatedAt: now, lastMessageAt: now, boundRevisionId: null }],
-    }),
-  }));
-  await page.route('**/api/mator/conversations/*/events', (route) => route.fulfill({
-    status: 200, contentType: 'application/json', body: JSON.stringify(events),
-  }));
+  await page.route('**/api/workflows', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          id: workflowId,
+          ownerId: 'local-owner',
+          templateId: null,
+          revision: 1,
+          createdAt: now,
+          updatedAt: now,
+          plan: {
+            version: 1,
+            platform: 'linkedin',
+            action: 'audit',
+            name: 'Profile audit',
+            steps: [
+              { id: 'start', kind: 'start', title: 'Start run' },
+              { id: 'finish', kind: 'finish', title: 'Final output' },
+            ],
+            links: [{ source: 'start', target: 'finish' }],
+          },
+        },
+      ]),
+    })
+  );
+  await page.route('**/api/mator/workflows/*/conversations', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        currentId: conversationId,
+        items: [
+          {
+            id: conversationId,
+            workflowId,
+            title: 'Asset draft',
+            createdAt: now,
+            updatedAt: now,
+            lastMessageAt: now,
+            boundRevisionId: null,
+          },
+        ],
+      }),
+    })
+  );
+  await page.route('**/api/mator/conversations/*/events', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(events),
+    })
+  );
   await page.route('**/api/mator/conversations/*/attachments', (route) => {
     uploads += 1;
-    const body = route.request().postDataJSON() as { filename: string; mime: string };
-    const asset = { id: 'upload-' + uploads, name: body.filename, mime: body.mime, markers: [] };
+    const body = route.request().postDataJSON() as {
+      filename: string;
+      mime: string;
+    };
+    const asset = {
+      id: 'upload-' + uploads,
+      name: body.filename,
+      mime: body.mime,
+      markers: [],
+    };
     assets.push(asset);
     return route.fulfill({
-      status: 201, contentType: 'application/json',
-      body: JSON.stringify({ id: asset.id, mime: asset.mime, kind: 'image', size: 70 }),
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: asset.id,
+        mime: asset.mime,
+        kind: 'image',
+        size: 70,
+      }),
     });
   });
   await page.route('**/api/mator/attachments/*/markers', (route) => {
     const assetId = route.request().url().split('/').at(-2);
     const asset = assets.find((value) => value.id === assetId);
     if (!asset) throw Error('Unknown uploaded asset');
-    asset.markers = (route.request().postDataJSON() as { markers: typeof asset.markers }).markers;
+    asset.markers = (
+      route.request().postDataJSON() as { markers: typeof asset.markers }
+    ).markers;
     return route.fulfill({
-      status: 200, contentType: 'application/json', body: JSON.stringify(asset),
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(asset),
     });
   });
   await page.route('**/api/mator/conversations/*/messages', (route) => {
-    const request = route.request().postDataJSON() as { text?: string; attachmentIds?: string[] };
+    const request = route.request().postDataJSON() as {
+      text?: string;
+      attachmentIds?: string[];
+    };
     sent.push(request);
     const user = {
-      id: 'asset-user', conversationId, role: 'user', kind: 'message', text: request.text,
+      id: 'asset-user',
+      conversationId,
+      role: 'user',
+      kind: 'message',
+      text: request.text,
       attachmentId: request.attachmentIds?.[0],
       attachments: assets.map((asset) => ({ ...asset })),
       createdAt: now,
     };
     const assistant = {
-      id: 'asset-reply', conversationId, role: 'assistant', kind: 'message',
-      text: 'Both images received for review.', createdAt: '2026-11-01T09:00:01.000Z',
+      id: 'asset-reply',
+      conversationId,
+      role: 'assistant',
+      kind: 'message',
+      text: 'Both images received for review.',
+      createdAt: '2026-11-01T09:00:01.000Z',
     };
     events = [user, assistant];
     return route.fulfill({
-      status: 200, contentType: 'application/json',
+      status: 200,
+      contentType: 'application/json',
       body: JSON.stringify({ events }),
     });
   });
 
   await page.goto('/dashboard/pipeline');
   const dock = page.getByTestId('mator-chat');
-  if (!(await dock.isVisible())) await page.getByRole('button', { name: 'Open Mator' }).click();
+  if (!(await dock.isVisible()))
+    await page.getByRole('button', { name: 'Open Mator' }).click();
   // Wait for the persisted conversation to initialize before staging files.
   // The composer is keyed by conversation ID, so initialization remounts it.
-  await expect(dock.getByTestId('mator-thread-pill')).toContainText('Asset draft');
-  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/0V8AAAAASUVORK5CYII=', 'base64');
+  await expect(dock.getByTestId('mator-thread-pill')).toContainText(
+    'Asset draft'
+  );
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/0V8AAAAASUVORK5CYII=',
+    'base64'
+  );
   await dock.locator('input[type="file"]').setInputFiles([
     { name: 'diagram-one.png', mimeType: 'image/png', buffer: png },
     { name: 'diagram-two.jpeg', mimeType: 'image/jpeg', buffer: png },
   ]);
-  await expect(dock.getByTestId('mator-pending-gallery').getByTestId('mator-image-thumbnail')).toHaveCount(2);
+  await expect(
+    dock
+      .getByTestId('mator-pending-gallery')
+      .getByTestId('mator-image-thumbnail')
+  ).toHaveCount(2);
   expect(uploads, 'selection must not contact the backend').toBe(0);
   expect(sent, 'selection must not create a message').toEqual([]);
 
-  await dock.getByTestId('mator-pending-gallery').getByTestId('mator-image-thumbnail').first().click();
-  const modal = page.locator('dialog[open][data-testid="mator-image-annotation-modal"]');
+  await dock
+    .getByTestId('mator-pending-gallery')
+    .getByTestId('mator-image-thumbnail')
+    .first()
+    .click();
+  const modal = page.locator(
+    'dialog[open][data-testid="mator-image-annotation-modal"]'
+  );
   await expect(modal).toBeVisible();
   await modal.getByLabel('Annotation comment').fill('Keep the legend readable');
   await modal.getByRole('button', { name: 'Add comment at center' }).click();
@@ -1062,55 +1342,116 @@ test('Mator stages multiple images and captions until explicit send, then restor
 
   await dock.getByTestId('mator-input').fill('Compare the two diagrams.');
   await dock.getByTestId('mator-send').click();
-  await expect(dock.getByText('Both images received for review.')).toBeVisible();
+  await expect(
+    dock.getByText('Both images received for review.')
+  ).toBeVisible();
   expect(uploads).toBe(2);
-  expect(sent).toEqual([{ text: 'Compare the two diagrams.', attachmentIds: ['upload-1', 'upload-2'] }]);
+  expect(sent).toEqual([
+    {
+      text: 'Compare the two diagrams.',
+      attachmentIds: ['upload-1', 'upload-2'],
+    },
+  ]);
   expect(assets[0].markers).toHaveLength(1);
   const gallery = dock.getByTestId('mator-image-gallery').first();
   await expect(gallery.getByTestId('mator-image-thumbnail')).toHaveCount(2);
   await page.reload();
   const restored = page.getByTestId('mator-chat');
-  if (!(await restored.isVisible())) await page.getByRole('button', { name: 'Open Mator' }).click();
-  await expect(restored.getByTestId('mator-image-gallery').first().getByTestId('mator-image-thumbnail')).toHaveCount(2);
+  if (!(await restored.isVisible()))
+    await page.getByRole('button', { name: 'Open Mator' }).click();
+  await expect(
+    restored
+      .getByTestId('mator-image-gallery')
+      .first()
+      .getByTestId('mator-image-thumbnail')
+  ).toHaveCount(2);
 });
 
-test('Mator approval cards decide the selected proposal, not another staged action', async ({ page }, info) => {
+test('Mator approval cards decide the selected proposal, not another staged action', async ({
+  page,
+}, info) => {
   const workflowId = '11111111-1111-4111-8111-111111111111';
   const conversationId = '22222222-2222-4222-8222-222222222222';
   const firstId = '33333333-3333-4333-8333-333333333333';
   const secondId = '44444444-4444-4444-8444-444444444444';
   const now = '2026-11-01T09:00:00.000Z';
   const actions = [
-    { id: firstId, conversationId, role: 'assistant', kind: 'action', status: 'staged', text: 'Change the first step', action: { type: 'edit_step', stepId: 'inspect' }, createdAt: now },
-    { id: secondId, conversationId, role: 'assistant', kind: 'action', status: 'staged', text: 'Change the second step', action: { type: 'edit_step', stepId: 'verify' }, createdAt: '2026-11-01T09:00:01.000Z' },
+    {
+      id: firstId,
+      conversationId,
+      role: 'assistant',
+      kind: 'action',
+      status: 'staged',
+      text: 'Change the first step',
+      action: { type: 'edit_step', stepId: 'inspect' },
+      createdAt: now,
+    },
+    {
+      id: secondId,
+      conversationId,
+      role: 'assistant',
+      kind: 'action',
+      status: 'staged',
+      text: 'Change the second step',
+      action: { type: 'edit_step', stepId: 'verify' },
+      createdAt: '2026-11-01T09:00:01.000Z',
+    },
   ];
   const decisions: Array<{ stageId: string; decision: string }> = [];
-  await page.route('**/api/workflows', (route) => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify([{
-      id: workflowId, ownerId: 'local-owner', templateId: null,
-      revision: 1, createdAt: now, updatedAt: now,
-      plan: {
-        version: 1, platform: 'linkedin', action: 'audit', name: 'Profile audit',
-        steps: [
-          { id: 'start', kind: 'start', title: 'Start run' },
-          { id: 'finish', kind: 'finish', title: 'Final output' },
+  await page.route('**/api/workflows', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          id: workflowId,
+          ownerId: 'local-owner',
+          templateId: null,
+          revision: 1,
+          createdAt: now,
+          updatedAt: now,
+          plan: {
+            version: 1,
+            platform: 'linkedin',
+            action: 'audit',
+            name: 'Profile audit',
+            steps: [
+              { id: 'start', kind: 'start', title: 'Start run' },
+              { id: 'finish', kind: 'finish', title: 'Final output' },
+            ],
+            links: [{ source: 'start', target: 'finish' }],
+          },
+        },
+      ]),
+    })
+  );
+  await page.route('**/api/mator/workflows/*/conversations', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        currentId: conversationId,
+        items: [
+          {
+            id: conversationId,
+            workflowId,
+            title: 'Approval test',
+            createdAt: now,
+            updatedAt: now,
+            lastMessageAt: now,
+            boundRevisionId: null,
+          },
         ],
-        links: [{ source: 'start', target: 'finish' }],
-      },
-    }]),
-  }));
-  await page.route('**/api/mator/workflows/*/conversations', (route) => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify({
-      currentId: conversationId,
-      items: [{ id: conversationId, workflowId, title: 'Approval test',
-        createdAt: now, updatedAt: now, lastMessageAt: now, boundRevisionId: null }],
-    }),
-  }));
-  await page.route('**/api/mator/conversations/*/events', (route) => route.fulfill({
-    status: 200, contentType: 'application/json', body: JSON.stringify(actions),
-  }));
+      }),
+    })
+  );
+  await page.route('**/api/mator/conversations/*/events', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(actions),
+    })
+  );
   await page.route('**/api/mator/conversations/*/stage/*/*', (route) => {
     const path = new URL(route.request().url()).pathname;
     const match = path.match(/\/stage\/([^/]+)\/(confirm|reject)$/);
@@ -1129,7 +1470,9 @@ test('Mator approval cards decide the selected proposal, not another staged acti
     };
     actions.push(event);
     return route.fulfill({
-      status: 200, contentType: 'application/json', body: JSON.stringify({ event }),
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ event }),
     });
   });
   await page.goto('/dashboard/pipeline');
@@ -1145,7 +1488,10 @@ test('Mator approval cards decide the selected proposal, not another staged acti
   await expect(cards).toHaveCount(2); // the linked terminal record must not render a second card
   await expect(cards.nth(1)).toHaveAttribute('data-status', 'staged');
   await cards.nth(1).getByTestId('mator-stage-reject').click();
-  await page.getByRole('dialog', { name: 'Reject this staged change?' }).getByTestId('alert-confirm').click();
+  await page
+    .getByRole('dialog', { name: 'Reject this staged change?' })
+    .getByTestId('alert-confirm')
+    .click();
   await expect(cards.nth(1)).toHaveAttribute('data-status', 'rejected');
   await expect(cards).toHaveCount(2);
   expect(decisions).toEqual([
@@ -1155,7 +1501,9 @@ test('Mator approval cards decide the selected proposal, not another staged acti
   await capture(page, info, 'mator-independent-staged-decisions');
 });
 
-test('Mator creates a persisted workflow and accepts the first chat message', async ({ page }) => {
+test('Mator creates a persisted workflow and accepts the first chat message', async ({
+  page,
+}) => {
   const workflowId = '11111111-1111-4111-8111-111111111111';
   const conversationId = '22222222-2222-4222-8222-222222222222';
   const now = '2026-11-01T09:00:00.000Z';
@@ -1167,7 +1515,10 @@ test('Mator creates a persisted workflow and accepts the first chat message', as
     createdAt: now,
     updatedAt: now,
     plan: {
-      version: 1, platform: 'linkedin', action: 'audit', name: 'Profile audit',
+      version: 1,
+      platform: 'linkedin',
+      action: 'audit',
+      name: 'Profile audit',
       steps: [
         { id: 'start', kind: 'start', title: 'Start run' },
         { id: 'finish', kind: 'finish', title: 'Final output' },
@@ -1181,19 +1532,38 @@ test('Mator creates a persisted workflow and accepts the first chat message', as
   await page.route('**/api/workflows', (route) => {
     if (route.request().method() === 'POST') {
       created = true;
-      return route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify(record) });
+      return route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify(record),
+      });
     }
-    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(created ? [record] : []) });
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(created ? [record] : []),
+    });
   });
   await page.route('**/api/mator/workflows/*/conversations', (route) => {
     if (route.request().method() === 'POST') {
       conversationCreated = true;
-      return route.fulfill({ status: 201, contentType: 'application/json',
-        body: JSON.stringify({ id: conversationId, workflowId, title: 'New conversation',
-          createdAt: now, updatedAt: now, lastMessageAt: null, boundRevisionId: null }),
+      return route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: conversationId,
+          workflowId,
+          title: 'New conversation',
+          createdAt: now,
+          updatedAt: now,
+          lastMessageAt: null,
+          boundRevisionId: null,
+        }),
       });
     }
-    return route.fulfill({ status: 200, contentType: 'application/json',
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
       body: JSON.stringify({ currentId: null, items: [] }),
     });
   });
@@ -1202,13 +1572,29 @@ test('Mator creates a persisted workflow and accepts the first chat message', as
   );
   await page.route('**/api/mator/conversations/*/messages', (route) => {
     message = (route.request().postDataJSON() as { text: string }).text;
-    return route.fulfill({ status: 200, contentType: 'application/json',
-      body: JSON.stringify({ events: [
-        { id: 'first-input', conversationId, role: 'user', kind: 'message', text: message, createdAt: now },
-        { id: 'first-reply', conversationId, role: 'assistant', kind: 'message',
-          text: 'Mator received the first message',
-          createdAt: '2026-11-01T09:00:01.000Z' },
-      ] }),
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        events: [
+          {
+            id: 'first-input',
+            conversationId,
+            role: 'user',
+            kind: 'message',
+            text: message,
+            createdAt: now,
+          },
+          {
+            id: 'first-reply',
+            conversationId,
+            role: 'assistant',
+            kind: 'message',
+            text: 'Mator received the first message',
+            createdAt: '2026-11-01T09:00:01.000Z',
+          },
+        ],
+      }),
     });
   });
   await page.goto('/dashboard/pipeline');
@@ -1220,83 +1606,111 @@ test('Mator creates a persisted workflow and accepts the first chat message', as
   await expect(input).toBeVisible();
   await input.fill('I need my first workflow');
   await dock.getByTestId('mator-send').click();
-  await expect(dock.getByText('Mator received the first message')).toBeVisible();
+  await expect(
+    dock.getByText('Mator received the first message')
+  ).toBeVisible();
   expect(created).toBe(true);
   expect(conversationCreated).toBe(true);
   expect(message).toBe('I need my first workflow');
 });
 
-test('Growth modal uses the YAML catalogue with actionable search and pipeline detail', async ({ page }, info) => {
+test('Growth modal uses the YAML catalogue with actionable search and pipeline detail', async ({
+  page,
+}, info) => {
   const names = [
-    'linkedin-profile', 'linkedin-branding', 'linkedin-analytics', 'linkedin-content',
+    'linkedin-profile',
+    'linkedin-branding',
+    'linkedin-analytics',
+    'linkedin-content',
     ...Array.from({ length: 17 }, (_, index) => 'linkedin-method-' + index),
   ];
   await page.route('**/api/growth/templates', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(names.map((id) => ({
-        id,
-        title: id.replaceAll('-', ' '),
-        objective: 'Evidence and owner approval are required',
-        platform: 'linkedin',
-        pipelineCount: id === 'linkedin-profile' ? 6 : 2,
-        coverageCount: 2,
-        executable: id === 'linkedin-profile' || id === 'linkedin-branding',
-      }))),
+      body: JSON.stringify(
+        names.map((id) => ({
+          id,
+          title: id.replaceAll('-', ' '),
+          objective: 'Evidence and owner approval are required',
+          platform: 'linkedin',
+          pipelineCount: id === 'linkedin-profile' ? 6 : 2,
+          coverageCount: 2,
+          executable: id === 'linkedin-profile' || id === 'linkedin-branding',
+        }))
+      ),
     });
   });
-  await page.route('**/api/growth/templates/linkedin-analytics', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        id: 'linkedin-analytics',
-        title: 'Audience, post and opportunity analytics',
-        objective: 'Evidence-based review',
-        kind: 'GrowthBlueprintWorkflow',
-        executable: false,
-        limitation: 'Planning only; no provider actions',
-        coverage: [{ id: 'evidence', label: 'Source evidence' }],
-        requirements: [],
-        pipelines: [],
-        stages: [{
-          id: 'discovery',
-          title: 'Evidence and preparation',
-          action: 'manual',
-          page: 'none',
-          dependsOn: 'none',
-          sectionIds: ['evidence'],
-          stepCount: 5,
-          execution: 'design-only',
-          plan: {
-            version: 1,
-            platform: 'linkedin',
-            action: 'manual-review',
-            name: 'Evidence and preparation',
-            steps: ['todo', 'procedure', 'action', 'event', 'verify'].map((id) => ({
-              id, kind: 'note', title: 'Review ' + id,
-            })),
-            links: [],
-          },
-        }],
-      }),
-    });
-  });
+  await page.route(
+    '**/api/growth/templates/linkedin-analytics',
+    async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'linkedin-analytics',
+          title: 'Audience, post and opportunity analytics',
+          objective: 'Evidence-based review',
+          kind: 'GrowthBlueprintWorkflow',
+          executable: false,
+          limitation: 'Planning only; no provider actions',
+          coverage: [{ id: 'evidence', label: 'Source evidence' }],
+          requirements: [],
+          pipelines: [],
+          stages: [
+            {
+              id: 'discovery',
+              title: 'Evidence and preparation',
+              action: 'manual',
+              page: 'none',
+              dependsOn: 'none',
+              sectionIds: ['evidence'],
+              stepCount: 5,
+              execution: 'design-only',
+              plan: {
+                version: 1,
+                platform: 'linkedin',
+                action: 'manual-review',
+                name: 'Evidence and preparation',
+                steps: ['todo', 'procedure', 'action', 'event', 'verify'].map(
+                  (id) => ({
+                    id,
+                    kind: 'note',
+                    title: 'Review ' + id,
+                  })
+                ),
+                links: [],
+              },
+            },
+          ],
+        }),
+      });
+    }
+  );
 
   await page.goto('/dashboard/pipeline');
   await page.getByRole('button', { name: 'Choose workflow template' }).click();
   const dialog = page.getByTestId('workflow-template-dialog');
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByTestId('growth-template-count')).toContainText('21 workflows');
+  await expect(dialog.getByTestId('growth-template-count')).toContainText(
+    '21 workflows'
+  );
   await expect(dialog.getByTestId('growth-template-option')).toHaveCount(21);
-  await dialog.getByRole('searchbox', { name: 'Search Growth workflows' }).fill('analytics');
+  await dialog
+    .getByRole('searchbox', { name: 'Search Growth workflows' })
+    .fill('analytics');
   await expect(dialog.getByTestId('growth-template-option')).toHaveCount(1);
-  await expect(dialog.getByTestId('growth-template-pipeline-preview')).toBeVisible();
+  await expect(
+    dialog.getByTestId('growth-template-pipeline-preview')
+  ).toBeVisible();
   await expect(dialog.getByText('Review procedure')).toBeVisible();
   await expect(dialog.getByText('Design only', { exact: true })).toBeVisible();
-  await expect(dialog.getByRole('link', { name: 'View source YAML' })).toHaveAttribute('href', '/api/growth/templates/linkedin-analytics/yaml');
-  await dialog.getByRole('searchbox', { name: 'Search Growth workflows' }).fill('not-a-template');
+  await expect(
+    dialog.getByRole('link', { name: 'View source YAML' })
+  ).toHaveAttribute('href', '/api/growth/templates/linkedin-analytics/yaml');
+  await dialog
+    .getByRole('searchbox', { name: 'Search Growth workflows' })
+    .fill('not-a-template');
   await expect(dialog.getByTestId('growth-templates-empty')).toBeVisible();
   await dialog.getByRole('button', { name: 'Clear filters' }).click();
   await expect(dialog.getByTestId('growth-template-option')).toHaveCount(21);
@@ -1304,7 +1718,6 @@ test('Growth modal uses the YAML catalogue with actionable search and pipeline d
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
 });
-
 
 async function installMatorClarificationFixture(
   page: Page,
@@ -1327,86 +1740,149 @@ async function installMatorClarificationFixture(
   };
   const events: Array<Record<string, unknown>> = [clarify];
 
-  await page.route('**/api/workflows', (route) => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify([{
-      id: workflowId, ownerId: 'local-owner', templateId: null,
-      revision: 1, createdAt: now, updatedAt: now,
-      plan: {
-        version: 1, platform: 'linkedin', action: 'audit', name: 'Clarification flow',
-        steps: [{ id: 'start', kind: 'start', title: 'Begin' }, { id: 'finish', kind: 'finish', title: 'Finish' }],
-        links: [{ source: 'start', target: 'finish' }],
-      },
-    }]),
-  }));
-  await page.route('**/api/mator/workflows/*/conversations', (route) => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify({
-      currentId: conversationId,
-      items: [{ id: conversationId, workflowId, title: 'Clarification flow',
-        createdAt: now, updatedAt: now, lastMessageAt: now, boundRevisionId: null }],
-    }),
-  }));
-  await page.route('**/api/mator/conversations/*/events', (route) => route.fulfill({
-    status: 200, contentType: 'application/json', body: JSON.stringify(events),
-  }));
+  await page.route('**/api/workflows', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          id: workflowId,
+          ownerId: 'local-owner',
+          templateId: null,
+          revision: 1,
+          createdAt: now,
+          updatedAt: now,
+          plan: {
+            version: 1,
+            platform: 'linkedin',
+            action: 'audit',
+            name: 'Clarification flow',
+            steps: [
+              { id: 'start', kind: 'start', title: 'Begin' },
+              { id: 'finish', kind: 'finish', title: 'Finish' },
+            ],
+            links: [{ source: 'start', target: 'finish' }],
+          },
+        },
+      ]),
+    })
+  );
+  await page.route('**/api/mator/workflows/*/conversations', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        currentId: conversationId,
+        items: [
+          {
+            id: conversationId,
+            workflowId,
+            title: 'Clarification flow',
+            createdAt: now,
+            updatedAt: now,
+            lastMessageAt: now,
+            boundRevisionId: null,
+          },
+        ],
+      }),
+    })
+  );
+  await page.route('**/api/mator/conversations/*/events', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(events),
+    })
+  );
   await page.route('**/api/mator/conversations/*/attachments', (route) => {
     uploads += 1;
-    const body = route.request().postDataJSON() as { filename: string; data: string };
+    const body = route.request().postDataJSON() as {
+      filename: string;
+      data: string;
+    };
     expect(body.filename).toBeTruthy();
     expect(body.data.length).toBeGreaterThan(0);
     return route.fulfill({
-      status: 200, contentType: 'application/json',
-      body: JSON.stringify({ id: 'uploaded-once', filename: body.filename, mime: 'image/png' }),
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'uploaded-once',
+        filename: body.filename,
+        mime: 'image/png',
+      }),
     });
   });
   await page.route('**/api/mator/conversations/*/messages', (route) => {
-    const payload = route.request().postDataJSON() as { text?: string; attachmentIds?: string[] };
+    const payload = route.request().postDataJSON() as {
+      text?: string;
+      attachmentIds?: string[];
+    };
     received.push(payload);
     if (failNext) {
       failNext = false;
       return route.fulfill({
-        status: 503, contentType: 'application/json',
+        status: 503,
+        contentType: 'application/json',
         body: JSON.stringify({ error: 'Provider busy, retry this answer' }),
       });
     }
     const user = {
       id: 'answered-' + received.length,
-      conversationId, role: 'user', kind: 'message',
+      conversationId,
+      role: 'user',
+      kind: 'message',
       text: payload.text ?? 'Attachment',
       createdAt: '2026-11-01T09:00:01.000Z',
     };
     events.push(user);
     return route.fulfill({
-      status: 200, contentType: 'application/json',
+      status: 200,
+      contentType: 'application/json',
       body: JSON.stringify({ events: [user] }),
     });
   });
   return {
     received,
     uploads: () => uploads,
-    failOnce: () => { failNext = true; },
+    failOnce: () => {
+      failNext = true;
+    },
   };
 }
 
-test('Mator clarification uploads a file only when answers are sent and retries without a second upload', async ({ page }) => {
-  const fixture = await installMatorClarificationFixture(page, [{
-    name: 'evidence', prompt: 'Attach supporting evidence',
-    required: true, multiple: false, choices: [], inputType: 'file',
-  }]);
+test('Mator clarification uploads a file only when answers are sent and retries without a second upload', async ({
+  page,
+}) => {
+  const fixture = await installMatorClarificationFixture(page, [
+    {
+      name: 'evidence',
+      prompt: 'Attach supporting evidence',
+      required: true,
+      multiple: false,
+      choices: [],
+      inputType: 'file',
+    },
+  ]);
   await page.goto('/dashboard/pipeline');
   const dock = page.getByTestId('mator-chat');
-  if (!(await dock.isVisible())) await page.getByRole('button', { name: 'Open Mator' }).click();
+  if (!(await dock.isVisible()))
+    await page.getByRole('button', { name: 'Open Mator' }).click();
   const card = dock.getByTestId('mator-clarify-card');
   await expect(card).toBeVisible();
   await card.getByLabel('Attach supporting evidence').setInputFiles({
-    name: 'diagram.png', mimeType: 'image/png', buffer: Buffer.from('test png file'),
+    name: 'diagram.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('test png file'),
   });
   expect(fixture.uploads()).toBe(0);
   fixture.failOnce();
   await card.getByRole('button', { name: 'Send answers' }).click();
-  await expect(card.getByRole('alert')).toContainText('Mator could not send the answers');
-  await expect(dock.getByTestId('mator-chat-error')).toContainText('Provider busy');
+  await expect(card.getByRole('alert')).toContainText(
+    'Mator could not send the answers'
+  );
+  await expect(dock.getByTestId('mator-chat-error')).toContainText(
+    'Provider busy'
+  );
   expect(fixture.uploads()).toBe(1);
   expect(fixture.received).toHaveLength(1);
   expect(fixture.received[0].attachmentIds).toEqual(['uploaded-once']);
@@ -1417,15 +1893,24 @@ test('Mator clarification uploads a file only when answers are sent and retries 
   expect(fixture.received[1].attachmentIds).toEqual(['uploaded-once']);
 });
 
-test('Mator clarification validates URL protocol before sending any message', async ({ page }) => {
-  const fixture = await installMatorClarificationFixture(page, [{
-    name: 'source', prompt: 'Provide source URL', required: true,
-    multiple: false, choices: [], inputType: 'url',
-    freeform: { label: 'Website link' },
-  }]);
+test('Mator clarification validates URL protocol before sending any message', async ({
+  page,
+}) => {
+  const fixture = await installMatorClarificationFixture(page, [
+    {
+      name: 'source',
+      prompt: 'Provide source URL',
+      required: true,
+      multiple: false,
+      choices: [],
+      inputType: 'url',
+      freeform: { label: 'Website link' },
+    },
+  ]);
   await page.goto('/dashboard/pipeline');
   const dock = page.getByTestId('mator-chat');
-  if (!(await dock.isVisible())) await page.getByRole('button', { name: 'Open Mator' }).click();
+  if (!(await dock.isVisible()))
+    await page.getByRole('button', { name: 'Open Mator' }).click();
   const card = dock.getByTestId('mator-clarify-card');
   await expect(card).toBeVisible();
   const input = card.getByLabel('Website link');

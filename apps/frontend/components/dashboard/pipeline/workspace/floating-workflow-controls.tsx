@@ -52,7 +52,7 @@ export default function FloatingWorkflowControls({
 }: Props) {
   return (
     <div
-      className="pointer-events-none fixed bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/30 bg-[#111e2b] p-1.5 shadow-2xl"
+      className="pointer-events-none fixed bottom-5 left-1/2 z-30 hidden -translate-x-1/2 items-center gap-2 rounded-full border border-white/30 bg-[#111e2b] p-1.5 shadow-2xl lg:flex"
       data-testid="floating-workflow-controls"
     >
       {!selectedGrowthTemplateId && (
@@ -110,7 +110,8 @@ export default function FloatingWorkflowControls({
   );
 }
 
-function WorkflowRunButton({
+export function WorkflowRunButton({
+  appearance = 'dock',
   active,
   platform,
   action,
@@ -127,6 +128,7 @@ function WorkflowRunButton({
   launchRun,
   cancelRun,
 }: {
+  appearance?: 'dock' | 'nav';
   active: Run | null;
   platform: Platform;
   action: string;
@@ -175,7 +177,11 @@ function WorkflowRunButton({
           : 'Start workflow';
 
   return (
-    <>
+    <span
+      className={
+        appearance === 'nav' ? 'relative mx-1 inline-flex shrink-0' : 'contents'
+      }
+    >
       <button
         type="button"
         aria-label={ariaLabel}
@@ -196,20 +202,29 @@ function WorkflowRunButton({
           else void launchRun();
         }}
         className={
-          'pointer-events-auto inline-flex min-h-12 items-center justify-center gap-3 rounded-full px-6 text-sm font-bold transition disabled:opacity-50 ' +
-          (mode === 'stop'
-            ? 'bg-rose-500 text-white hover:bg-rose-400'
-            : 'bg-white text-slate-950 hover:bg-teal-50')
+          appearance === 'nav'
+            ? 'pointer-events-auto relative z-10 inline-flex size-14 shrink-0 items-center justify-center rounded-full text-white shadow-lg transition disabled:opacity-50 ' +
+              (mode === 'stop'
+                ? 'bg-rose-500 hover:bg-rose-400'
+                : 'bg-[#111e2b] hover:bg-slate-800')
+            : 'pointer-events-auto inline-flex min-h-12 items-center justify-center gap-3 rounded-full px-6 text-sm font-bold transition disabled:opacity-50 ' +
+              (mode === 'stop'
+                ? 'bg-rose-500 text-white hover:bg-rose-400'
+                : 'bg-white text-slate-950 hover:bg-teal-50')
         }
       >
         {mode === 'pause' ? (
-          <Pause className="size-5" />
+          <Pause className={appearance === 'nav' ? 'size-6' : 'size-5'} />
         ) : mode === 'stop' ? (
           <Square className="size-4 fill-current" />
         ) : (
-          <Play className="size-5" />
+          <Play className={appearance === 'nav' ? 'size-6' : 'size-5'} />
         )}
-        {label}
+        {appearance === 'dock' ? (
+          label
+        ) : (
+          <span className="sr-only">{label}</span>
+        )}
       </button>
       {(mode === 'pause' || mode === 'resume') && (
         <button
@@ -219,11 +234,15 @@ function WorkflowRunButton({
           onClick={() => {
             void cancelRun();
           }}
-          className="pointer-events-auto inline-flex size-12 items-center justify-center rounded-full bg-rose-500 text-white transition hover:bg-rose-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300"
+          className={
+            appearance === 'nav'
+              ? 'pointer-events-auto absolute -top-1 -right-1 z-20 inline-flex size-7 items-center justify-center rounded-full bg-rose-500 text-white ring-2 ring-white'
+              : 'pointer-events-auto inline-flex size-12 items-center justify-center rounded-full bg-rose-500 text-white transition hover:bg-rose-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300'
+          }
         >
           <Square className="size-4 fill-current" />
         </button>
       )}
-    </>
+    </span>
   );
 }

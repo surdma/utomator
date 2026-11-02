@@ -1,6 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from 'react';
 import Image from 'next/image';
 import {
   AlertCircle,
@@ -49,7 +55,11 @@ import { getApi } from '@/components/dashboard/pipeline/api-client';
 import MatorAttachmentPreview from './mator-attachment-preview';
 import type { VoiceSession } from './use-voice-session';
 import type { DashboardPane } from '@/components/dashboard/pipeline/dashboard-route';
-import type { ChatMessage, Event as RunEvent, Review } from '@/components/dashboard/pipeline/run-models';
+import type {
+  ChatMessage,
+  Event as RunEvent,
+  Review,
+} from '@/components/dashboard/pipeline/run-models';
 import type { Platform } from '@/components/dashboard/pipeline/workflow-catalog';
 import {
   findOpenClarify,
@@ -60,7 +70,13 @@ import {
   type MatorChatEvent,
   type MatorConversationSummary,
 } from './mator-chat-state';
-import { fetchMatorModels, matorAttachmentFileUrl, type MatorSettingsMasked, type MatorImageMarkerDto, type MatorModelOption } from './mator-api';
+import {
+  fetchMatorModels,
+  matorAttachmentFileUrl,
+  type MatorSettingsMasked,
+  type MatorImageMarkerDto,
+  type MatorModelOption,
+} from './mator-api';
 import { threadWhen, clarifyCount } from './chat/mator-thread-format';
 import { ThreadRow } from './chat/mator-thread-row';
 import { AssistantAvatar } from './chat/mator-assistant-avatar';
@@ -96,10 +112,13 @@ type Props = {
   modelId?: string | null;
   onModelChange?: (modelId: string) => Promise<unknown>;
   onSettingsSaved?: (settings: MatorSettingsMasked) => void;
-  onSwitchConversation?:  (conversationId: string) => void;
+  onSwitchConversation?: (conversationId: string) => void;
   onNewConversation?: () => void;
   onRestorePipeline?: () => void;
-  onSendText?: (text: string, attachmentIds?: string[]) => Promise<boolean | void> | void;
+  onSendText?: (
+    text: string,
+    attachmentIds?: string[]
+  ) => Promise<boolean | void> | void;
   onUploadClarifyFile?: (file: File) => Promise<string>;
   attachmentPreviews?: Record<string, string>;
   onSaveMarkers?: (
@@ -108,9 +127,7 @@ type Props = {
     reviewId?: string
   ) => void | Promise<unknown>;
   /** Opens the full YAML-driven review studio for a pending draft image. */
-  onAnnotateDraft?: (
-    file: File
-  ) => Promise<{ reviewId: string } | null>;
+  onAnnotateDraft?: (file: File) => Promise<{ reviewId: string } | null>;
   /** Opens the studio for an already-sent attachment; caller links the result. */
   onAnnotateAttachment?: (
     attachmentId: string,
@@ -135,7 +152,8 @@ type Props = {
   onMessageChange: (message: string) => void;
   onSendMessage: (event: FormEvent<HTMLFormElement>) => void;
   onPendingAssetsChange?: (count: number) => void;
-  checkpoint: import('@/components/dashboard/pipeline/run-models').Checkpoint | null;
+  checkpoint:
+    import('@/components/dashboard/pipeline/run-models').Checkpoint | null;
   voice: VoiceSession;
   operatorPendingLabel?: string | null;
   onConfirmOperator?: () => void;
@@ -212,17 +230,27 @@ export default function OperatorChatPanel({
     let mounted = true;
     void fetchMatorModels()
       .then(({ models: available }) => {
-        if (mounted) setModels(available.filter((model) => model.role === 'chat'));
+        if (mounted)
+          setModels(available.filter((model) => model.role === 'chat'));
       })
       .catch(() => {
         // Model selection is optional while the engine is unavailable.
       });
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
   const showRestore = Boolean(conversationMeta?.boundRevisionId);
-  const orderedMatorEvents = useMemo(() => [...matorEvents].sort((a, b) => a.createdAt.localeCompare(b.createdAt)), [matorEvents]);
+  const orderedMatorEvents = useMemo(
+    () =>
+      [...matorEvents].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+    [matorEvents]
+  );
   const visibleMatorEvents = useMemo(
-    () => orderedMatorEvents.filter((event) => shouldRenderMatorEvent(orderedMatorEvents, event)),
+    () =>
+      orderedMatorEvents.filter((event) =>
+        shouldRenderMatorEvent(orderedMatorEvents, event)
+      ),
     [orderedMatorEvents]
   );
   const openClarify = findOpenClarify(matorEvents);
@@ -254,18 +282,16 @@ export default function OperatorChatPanel({
   const markerDraft =
     voice.interim?.trim() || (voice.listening ? '' : message.trim()) || '';
 
-  const [annotateAttachmentError, setAnnotateAttachmentError] = useState("");
+  const [annotateAttachmentError, setAnnotateAttachmentError] = useState('');
 
   /**
    * Open the review studio for a sent attachment, then persist the saved
    * review reference with the asset's current markers. A failed link is
    * reported — the review itself stays real saved evidence.
    */
-  const annotateAsset = async (
-    asset: MatorChatAsset
-  ): Promise<void> => {
+  const annotateAsset = async (asset: MatorChatAsset): Promise<void> => {
     if (!onAnnotateAttachment) return;
-    setAnnotateAttachmentError("");
+    setAnnotateAttachmentError('');
     try {
       const result = await onAnnotateAttachment(
         asset.id,
@@ -284,7 +310,7 @@ export default function OperatorChatPanel({
       setAnnotateAttachmentError(
         cause instanceof Error
           ? cause.message
-          : "Could not open the annotation studio"
+          : 'Could not open the annotation studio'
       );
     }
   };
@@ -293,7 +319,15 @@ export default function OperatorChatPanel({
     const assets = event.attachments?.length
       ? event.attachments
       : event.attachmentId
-        ? [{ id: event.attachmentId, name: 'Image', mime: 'image/png', markers: event.markers, reviewId: event.reviewId }]
+        ? [
+            {
+              id: event.attachmentId,
+              name: 'Image',
+              mime: 'image/png',
+              markers: event.markers,
+              reviewId: event.reviewId,
+            },
+          ]
         : [];
     if (!assets.length) return null;
     return (
@@ -305,13 +339,26 @@ export default function OperatorChatPanel({
               attachmentId={asset.id}
               filename={asset.name}
               mime={asset.mime}
-              imageSrc={asset.mime.startsWith('image/')
-                ? attachmentPreviews[asset.id] ?? matorAttachmentFileUrl(asset.id)
-                : null}
-              markers={asset.markers ?? (asset.id === event.attachmentId ? event.markers ?? [] : [])}
-              reviewId={asset.reviewId ?? (asset.id === event.attachmentId ? event.reviewId : undefined)}
+              imageSrc={
+                asset.mime.startsWith('image/')
+                  ? (attachmentPreviews[asset.id] ??
+                    matorAttachmentFileUrl(asset.id))
+                  : null
+              }
+              markers={
+                asset.markers ??
+                (asset.id === event.attachmentId ? (event.markers ?? []) : [])
+              }
+              reviewId={
+                asset.reviewId ??
+                (asset.id === event.attachmentId ? event.reviewId : undefined)
+              }
               interactive={Boolean(onSaveMarkers)}
-              onMarkersChange={onSaveMarkers ? (markers) => onSaveMarkers(asset.id, markers) : undefined}
+              onMarkersChange={
+                onSaveMarkers
+                  ? (markers) => onSaveMarkers(asset.id, markers)
+                  : undefined
+              }
               onAnnotateFull={
                 onAnnotateAttachment &&
                 annotateChatImageAvailable &&
@@ -323,7 +370,11 @@ export default function OperatorChatPanel({
           ))}
         </div>
         {annotateAttachmentError && (
-          <p role="alert" data-testid="mator-annotate-attachment-error" className="pt-1 text-xs text-rose-700">
+          <p
+            role="alert"
+            data-testid="mator-annotate-attachment-error"
+            className="pt-1 text-xs text-rose-700"
+          >
             {annotateAttachmentError}
           </p>
         )}
@@ -335,13 +386,14 @@ export default function OperatorChatPanel({
     <aside
       data-testid="automation-right-sidebar"
       className={
+        (mobileChatOpen || showChat ? 'flex min-w-0 flex-col ' : 'hidden ') +
         (mobileChatOpen
-          ? 'fixed inset-y-0 right-0 z-50 flex w-[min(92vw,410px)] bg-[#f5f7f8] pr-1 pl-1 shadow-2xl'
-          : 'hidden') +
+          ? 'fixed inset-0 z-50 h-dvh w-full bg-[#f5f7f8] p-2 '
+          : '') +
         (showChat
-          ? ' lg:static lg:flex lg:h-full lg:min-h-0 lg:w-auto lg:overflow-hidden lg:bg-transparent lg:p-0 lg:shadow-none'
-          : ' lg:hidden') +
-        ' min-w-0 flex-col'
+          ? 'lg:static lg:z-auto lg:flex lg:h-full lg:min-h-0 lg:w-full lg:overflow-hidden lg:bg-transparent lg:p-0 lg:shadow-none '
+          : 'lg:hidden ') +
+        (mobileChatOpen ? '' : 'max-lg:hidden')
       }
     >
       <button
@@ -515,7 +567,10 @@ export default function OperatorChatPanel({
         {/* ── Transcript ─────────────────────────────────────────────── */}
         <MessageScrollerProvider autoScroll defaultScrollPosition="end">
           <MessageScroller>
-            <MessageScrollerViewport aria-label="Thread history" data-testid="mator-thread-viewport">
+            <MessageScrollerViewport
+              aria-label="Thread history"
+              data-testid="mator-thread-viewport"
+            >
               <MessageScrollerContent className="gap-4 px-3 py-3">
                 {(() => {
                   const rows: ReactNode[] = [];
@@ -585,7 +640,7 @@ export default function OperatorChatPanel({
                             <Workflow className="size-4" aria-hidden="true" />
                           </AvatarFallback>
                         </Avatar>
-                        <MessageContent className="min-w-0 max-w-[min(90%,34rem)] break-words [overflow-wrap:anywhere]">
+                        <MessageContent className="max-w-[min(90%,34rem)] min-w-0 [overflow-wrap:anywhere] break-words">
                           <MessageHeader>
                             Saved visual review · {review.nodeId} node
                           </MessageHeader>
@@ -653,17 +708,27 @@ export default function OperatorChatPanel({
                   loading ? (
                     <ThreadSkeleton />
                   ) : conversation.some((item) => item.id !== 'seed') ? null : (
-                    <div data-testid="mator-empty-thread" className="flex min-h-56 flex-col justify-center gap-4 px-3 py-8">
+                    <div
+                      data-testid="mator-empty-thread"
+                      className="flex min-h-56 flex-col justify-center gap-4 px-3 py-8"
+                    >
                       <div className="flex items-center gap-3">
                         <AssistantAvatar />
                         <div>
-                          <p className="text-sm font-semibold text-slate-900">What would you like to do?</p>
+                          <p className="text-sm font-semibold text-slate-900">
+                            What would you like to do?
+                          </p>
                           <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
-                            Ask Mator for help with this workflow, or start with a suggestion.
+                            Ask Mator for help with this workflow, or start with
+                            a suggestion.
                           </p>
                         </div>
                       </div>
-                      <Suggestion suggestions={START_SUGGESTIONS} onSelect={onMessageChange} disabled={busy} />
+                      <Suggestion
+                        suggestions={START_SUGGESTIONS}
+                        onSelect={onMessageChange}
+                        disabled={busy}
+                      />
                     </div>
                   )
                 ) : (
@@ -671,11 +736,16 @@ export default function OperatorChatPanel({
                     if (event.kind === 'message' && event.role === 'user') {
                       return (
                         <ThreadRow key={event.id} id={event.id} side="end">
-                          <Message align="end" className="ml-auto w-full justify-end">
-                            <MessageContent className="ml-auto flex w-fit min-w-0 max-w-[min(82%,28rem)] flex-none flex-col items-end">
-                            
+                          <Message
+                            align="end"
+                            className="ml-auto w-full justify-end"
+                          >
+                            <MessageContent className="ml-auto flex w-fit max-w-[min(82%,28rem)] min-w-0 flex-none flex-col items-end">
                               {event.text?.trim() && (
-                                <Bubble variant="muted" className="ml-auto w-fit max-w-full whitespace-pre-wrap break-words text-left [overflow-wrap:anywhere]">
+                                <Bubble
+                                  variant="muted"
+                                  className="ml-auto w-fit max-w-full text-left [overflow-wrap:anywhere] break-words whitespace-pre-wrap"
+                                >
                                   <BubbleContent>{event.text}</BubbleContent>
                                 </Bubble>
                               )}
@@ -710,7 +780,7 @@ export default function OperatorChatPanel({
                         <ThreadRow key={event.id} id={event.id}>
                           <Message>
                             <AssistantAvatar />
-                            <MessageContent className="min-w-0 max-w-[min(90%,34rem)] break-words [overflow-wrap:anywhere]">
+                            <MessageContent className="max-w-[min(90%,34rem)] min-w-0 [overflow-wrap:anywhere] break-words">
                               <MessageHeader>Utomator · Mator</MessageHeader>
                               <MarkdownReply text={event.text ?? ''} />
                               <MessageFooter className="mt-1.5 flex items-center gap-1">
@@ -768,7 +838,7 @@ export default function OperatorChatPanel({
                                 />
                               </AvatarFallback>
                             </Avatar>
-                            <MessageContent className="min-w-0 max-w-[min(90%,34rem)] break-words [overflow-wrap:anywhere]">
+                            <MessageContent className="max-w-[min(90%,34rem)] min-w-0 [overflow-wrap:anywhere] break-words">
                               <MessageHeader>Mator</MessageHeader>
                               <div className="flex flex-wrap items-center gap-1.5">
                                 <Badge
@@ -781,7 +851,10 @@ export default function OperatorChatPanel({
                                 </Badge>
                               </div>
                               {event.text && (
-                                <Bubble variant="outline" className="mt-1 w-fit max-w-full break-words [overflow-wrap:anywhere]">
+                                <Bubble
+                                  variant="outline"
+                                  className="mt-1 w-fit max-w-full [overflow-wrap:anywhere] break-words"
+                                >
                                   <BubbleContent>{event.text}</BubbleContent>
                                 </Bubble>
                               )}
@@ -815,10 +888,13 @@ export default function OperatorChatPanel({
                       return (
                         <ThreadRow key={event.id} id={event.id}>
                           <Confirmation
-                            className="w-fit min-w-0 max-w-[min(100%,30rem)]"
+                            className="w-fit max-w-[min(100%,30rem)] min-w-0"
                             status={
                               ((event.status === 'staged'
-                                ? stageResolution(orderedMatorEvents, event.id) ?? 'staged'
+                                ? (stageResolution(
+                                    orderedMatorEvents,
+                                    event.id
+                                  ) ?? 'staged')
                                 : event.status) ?? 'staged') as
                                 | 'staged'
                                 | 'applied'
@@ -848,7 +924,11 @@ export default function OperatorChatPanel({
                     }
 
                     if (event.attachmentId || event.attachments?.length) {
-                      return <ThreadRow key={event.id} id={event.id}>{attachmentFor(event)}</ThreadRow>;
+                      return (
+                        <ThreadRow key={event.id} id={event.id}>
+                          {attachmentFor(event)}
+                        </ThreadRow>
+                      );
                     }
 
                     if (event.text) {
@@ -876,11 +956,11 @@ export default function OperatorChatPanel({
                                 )}
                               </AvatarFallback>
                             </Avatar>
-                            <MessageContent className="min-w-0 max-w-[min(90%,34rem)] break-words [overflow-wrap:anywhere]">
+                            <MessageContent className="max-w-[min(90%,34rem)] min-w-0 [overflow-wrap:anywhere] break-words">
                               <MessageHeader>
                                 {(event.kind || 'event').toUpperCase()}
                               </MessageHeader>
-                              <Bubble className="w-fit max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                              <Bubble className="w-fit max-w-full [overflow-wrap:anywhere] break-words whitespace-pre-wrap">
                                 <BubbleContent>{event.text}</BubbleContent>
                               </Bubble>
                             </MessageContent>
@@ -901,13 +981,33 @@ export default function OperatorChatPanel({
                       <MessageScrollerItem
                         key={item.id}
                         messageId={String(item.id)}
-                        className={item.sender === 'user' ? 'flex w-full justify-end' : 'w-full'}
+                        className={
+                          item.sender === 'user'
+                            ? 'flex w-full justify-end'
+                            : 'w-full'
+                        }
                       >
-                        <Message align={item.sender === 'user' ? 'end' : 'start'} className={item.sender === 'user' ? 'ml-auto w-full justify-end' : 'mr-auto w-full justify-start'}>
+                        <Message
+                          align={item.sender === 'user' ? 'end' : 'start'}
+                          className={
+                            item.sender === 'user'
+                              ? 'ml-auto w-full justify-end'
+                              : 'mr-auto w-full justify-start'
+                          }
+                        >
                           {item.sender === 'assistant' && <AssistantAvatar />}
-                          <MessageContent className={item.sender === 'user' ? 'ml-auto flex w-fit min-w-0 max-w-[min(82%,28rem)] flex-none flex-col items-end' : 'min-w-0 max-w-[min(90%,34rem)]'}>
+                          <MessageContent
+                            className={
+                              item.sender === 'user'
+                                ? 'ml-auto flex w-fit max-w-[min(82%,28rem)] min-w-0 flex-none flex-col items-end'
+                                : 'max-w-[min(90%,34rem)] min-w-0'
+                            }
+                          >
                             {item.sender === 'user' ? (
-                              <Bubble variant="muted" className="ml-auto w-fit max-w-full whitespace-pre-wrap break-words text-left [overflow-wrap:anywhere]">
+                              <Bubble
+                                variant="muted"
+                                className="ml-auto w-fit max-w-full text-left [overflow-wrap:anywhere] break-words whitespace-pre-wrap"
+                              >
                                 <BubbleContent>{item.text}</BubbleContent>
                               </Bubble>
                             ) : (
@@ -922,7 +1022,6 @@ export default function OperatorChatPanel({
                         </Message>
                       </MessageScrollerItem>
                     ))}
-
               </MessageScrollerContent>
             </MessageScrollerViewport>
             <MessageScrollerButton />
@@ -959,7 +1058,9 @@ export default function OperatorChatPanel({
                   questions={clarifyQuestions}
                   disabled={busy}
                   onUploadFile={onUploadClarifyFile}
-                  onSubmit={(text, attachmentIds) => onSendText?.(text, attachmentIds)}
+                  onSubmit={(text, attachmentIds) =>
+                    onSendText?.(text, attachmentIds)
+                  }
                 />
               </div>
             </motion.div>
@@ -967,12 +1068,22 @@ export default function OperatorChatPanel({
         </AnimatePresence>
 
         {(imageError || chatError) && (
-          <div role="alert" data-testid="mator-chat-error" className="mx-3 my-2 flex min-w-0 max-w-[min(100%,30rem)] items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-900">
-            <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <div
+            role="alert"
+            data-testid="mator-chat-error"
+            className="mx-3 my-2 flex max-w-[min(100%,30rem)] min-w-0 items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-900"
+          >
+            <AlertCircle
+              className="mt-0.5 size-4 shrink-0"
+              aria-hidden="true"
+            />
             <div className="min-w-0 text-xs leading-relaxed">
-              <p className="font-semibold">Mator couldn&apos;t complete that request</p>
-              <p className="mt-1 break-words [overflow-wrap:anywhere]">
-                {chatError && /\b(400|429|5\d\d|groq|bad request)\b/i.test(chatError)
+              <p className="font-semibold">
+                Mator couldn&apos;t complete that request
+              </p>
+              <p className="mt-1 [overflow-wrap:anywhere] break-words">
+                {chatError &&
+                /\b(400|429|5\d\d|groq|bad request)\b/i.test(chatError)
                   ? 'The AI service could not complete the request. Review your chat settings, then retry. Your draft is preserved.'
                   : chatError || imageError}
               </p>
@@ -993,7 +1104,9 @@ export default function OperatorChatPanel({
           onSendText={onSendText}
           onSaveMarkers={onSaveMarkers}
           onAnnotateDraft={
-            onAnnotateDraft && annotateChatImageAvailable ? onAnnotateDraft : undefined
+            onAnnotateDraft && annotateChatImageAvailable
+              ? onAnnotateDraft
+              : undefined
           }
           onPendingAssetsChange={onPendingAssetsChange}
           busy={busy}
@@ -1005,7 +1118,12 @@ export default function OperatorChatPanel({
           onSettingsSaved={onSettingsSaved}
           onModelChange={(selectedModelId) => {
             void onModelChange?.(selectedModelId).catch((cause: unknown) =>
-              toast(cause instanceof Error ? cause.message : 'Unable to change chat model', 'error')
+              toast(
+                cause instanceof Error
+                  ? cause.message
+                  : 'Unable to change chat model',
+                'error'
+              )
             );
           }}
         />

@@ -49,6 +49,7 @@ import RunTrackingDialog from './pipeline/run-tracking-dialog';
 import CheckpointDialog from './pipeline/checkpoint-dialog';
 import DashboardHeader from './pipeline/dashboard-header';
 import DashboardSidebar from './pipeline/dashboard-sidebar';
+import DashboardBottomNav from './pipeline/dashboard-bottom-nav';
 import {
   useDashboardNavigation,
   type DashboardPane,
@@ -63,8 +64,6 @@ export default function DashboardShell({
     pathname,
     pane,
     setPane,
-    mobileMenu,
-    setMobileMenu,
     selectedCraftId,
     selectedCraftSlug,
     libraryView,
@@ -154,7 +153,6 @@ export default function DashboardShell({
   function selectSocialAccount(account: SocialAccount) {
     setConnectorRequest(account.id);
     setConnectorOpenSignal((value) => value + 1);
-    setMobileMenu(false);
   }
   const selected =
     workflows[platform].find((workflow) => workflow.id === action) ||
@@ -416,7 +414,6 @@ export default function DashboardShell({
     setForm({});
     setRunFormError('');
     navigatePane('workspace');
-    setMobileMenu(false);
   }
   async function startRun() {
     const payload = buildRunPayload({
@@ -564,42 +561,18 @@ export default function DashboardShell({
     >
       <DashboardHeader
         available={available}
-        mobileMenu={mobileMenu}
-        onToggleNavigation={() => {
-          setMobileMenu(!mobileMenu);
-          setMobileChatOpen(false);
-        }}
         onOpenTracking={() => setTrackingOpen(true)}
         onRefresh={() => void refresh()}
       />
-      {(mobileMenu || mobileChatOpen) && (
-        <button
-          type="button"
-          aria-label="Close side panel"
-          onClick={() => {
-            setMobileMenu(false);
-            setMobileChatOpen(false);
-          }}
-          className="fixed inset-0 z-40 bg-slate-950/40 lg:hidden"
-        />
-      )}
       <div
         className={
-          'mx-auto grid w-full max-w-[1920px] grid-cols-1 gap-5 px-4 py-5 md:px-6 lg:min-h-0 lg:flex-1 lg:overflow-hidden ' +
+          'mx-auto grid w-full max-w-[1920px] grid-cols-1 gap-5 px-4 pt-5 pb-28 md:px-6 lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:pb-5 ' +
           (showChat
-            ? 'lg:grid-cols-[220px_minmax(0,1fr)_minmax(360px,420px)] xl:grid-cols-[232px_minmax(0,1fr)_440px]'
+            ? 'lg:grid-cols-[220px_minmax(0,1.7fr)_minmax(16rem,1fr)] xl:grid-cols-[232px_minmax(0,1.7fr)_minmax(16rem,1fr)]'
             : 'lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[232px_minmax(0,1fr)]')
         }
       >
-        <DashboardSidebar
-          pane={pane}
-          mobileMenu={mobileMenu}
-          onClose={() => setMobileMenu(false)}
-          onNavigate={(next) => {
-            navigatePane(next);
-            setMobileMenu(false);
-          }}
-        />
+        <DashboardSidebar pane={pane} onNavigate={navigatePane} />
         <main
           data-testid="automation-main-scroll"
           className="min-w-0 space-y-5 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pr-2"
@@ -797,6 +770,27 @@ export default function DashboardShell({
           chatError={matorError}
         />
       </div>
+      <DashboardBottomNav
+        pane={pane}
+        onNavigate={navigatePane}
+        showRun={pane === 'workspace' && !selectedGrowthTemplateId}
+        active={active}
+        platform={platform}
+        action={action}
+        busy={busy}
+        available={available}
+        connectorReady={connectorReady}
+        loadingWorkflow={loadingWorkflow}
+        workflowPlan={workflowPlan}
+        activeWorkflow={activeWorkflow}
+        planDirty={planDirty}
+        formDirty={formDirty}
+        resumeRun={resumeRun}
+        pauseRun={pauseRun}
+        launchRun={launchRun}
+        cancelRun={cancelRun}
+        chatOpen={mobileChatOpen}
+      />
 
       <RunTrackingDialog
         open={trackingOpen}
@@ -823,9 +817,10 @@ export default function DashboardShell({
             setMobileChatOpen(true);
           }}
           className={
-            'fixed right-5 bottom-24 z-30 inline-flex min-h-12 items-center gap-2 rounded-full bg-slate-950 px-5 text-sm font-bold text-white shadow-2xl ring-2 ring-white/80 hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-teal-600 lg:bottom-5 ' +
-            (showChat ? 'lg:hidden' : '') +
-            (mobileChatOpen ? ' hidden' : '')
+            mobileChatOpen
+              ? 'hidden'
+              : 'fixed right-4 bottom-32 z-30 inline-flex min-h-12 items-center gap-2 rounded-full bg-slate-950 px-5 text-sm font-bold text-white shadow-2xl ring-2 ring-white/80 hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-teal-600 lg:bottom-5 ' +
+                (showChat ? 'lg:hidden' : '')
           }
         >
           <MessageSquare className="size-5" aria-hidden="true" />

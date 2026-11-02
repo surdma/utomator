@@ -8,44 +8,21 @@ import {
   History,
   NotebookPen,
   UserRound,
-  X,
 } from 'lucide-react';
 import type { DashboardPane } from './use-dashboard-navigation';
 
 type Props = {
   pane: DashboardPane;
-  mobileMenu: boolean;
-  onClose: () => void;
   onNavigate: (pane: DashboardPane) => void;
 };
 
-export default function DashboardSidebar({
-  pane,
-  mobileMenu,
-  onClose,
-  onNavigate,
-}: Props) {
+export default function DashboardSidebar({ pane, onNavigate }: Props) {
   return (
     <aside
       data-testid="automation-navigation-sidebar"
-      className={
-        (mobileMenu
-          ? 'fixed inset-y-0 left-0 z-50 block w-[min(85vw,290px)] p-3'
-          : 'hidden') +
-        ' min-w-0 lg:static lg:block lg:h-full lg:w-auto lg:overflow-hidden lg:p-0'
-      }
+      className="hidden min-w-0 lg:flex lg:h-full lg:w-auto lg:overflow-hidden"
     >
-      <div className="h-full rounded-2xl bg-[#111a25] p-4 text-white shadow-xl shadow-slate-900/10 lg:overflow-hidden">
-        <button
-          type="button"
-          aria-label="Close navigation"
-          onClick={onClose}
-          className="mb-3 flex min-h-10 w-full items-center justify-end gap-2 rounded-lg px-2 text-xs font-semibold text-slate-200 hover:bg-slate-800 lg:hidden"
-        >
-          <X className="size-4" />
-          Close
-        </button>
-
+      <div className="h-full w-full rounded-2xl bg-[#111a25] p-4 text-white shadow-xl shadow-slate-900/10 lg:overflow-hidden">
         {(
           [
             { id: 'workspace', label: 'Workspace', icon: Activity },
