@@ -345,7 +345,7 @@ export function parseGeneratedMatorAction(raw: unknown): MatorAction {
   } catch (error) {
     if (
       !(error instanceof MatorActionValidationError) ||
-      !/^Too many choices on questions\\[\\d+\\]$/.test(error.message) ||
+      !/^Too many choices on questions\[\d+\]$/.test(error.message) ||
       !isPlainObject(raw) ||
       raw.type !== 'clarify' ||
       !Array.isArray(raw.questions)
