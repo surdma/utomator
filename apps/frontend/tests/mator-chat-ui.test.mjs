@@ -13,7 +13,10 @@ test('image thumbnail opens annotation studio on click', () => {
   assert.match(preview, /data-testid="mator-image-thumbnail"/);
   assert.match(preview, /onAnnotateFull/, 'image click delegates to studio');
   assert.doesNotMatch(preview, /mator-annotation-pencil|Open original image/);
-  assert.doesNotMatch(preview, /StudioDialog|MatorAttachmentCanvas|onMarkersChange/);
+  assert.match(preview, /StudioDialog|mator-image-annotation-modal/, 'missing account context keeps an accessible quick-marker modal');
+  assert.match(preview, /MatorAttachmentCanvas/);
+  assert.match(preview, /onMarkersChange/, 'quick annotations persist through the parent callback');
+  assert.match(preview, /onAnnotateFull/, 'full YAML studio remains available in pipeline context');
 });
 
 test('chat images offer the full YAML-driven annotation studio', () => {

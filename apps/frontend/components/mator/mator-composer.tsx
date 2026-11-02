@@ -275,6 +275,11 @@ export default function MatorComposer({
               imageSrc={asset.imageSrc}
               markers={asset.markers}
               reviewId={asset.reviewId}
+              onMarkersChange={(markers) => {
+                setPending((current) => current.map((row) =>
+                  row.id === asset.id ? { ...row, markers } : row
+                ));
+              }}
               onAnnotateFull={
                 onAnnotateDraft && asset.file.type.startsWith('image/')
                   ? () => annotateDraftRow(asset)

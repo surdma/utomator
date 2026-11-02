@@ -311,6 +311,7 @@ export default function OperatorChatPanel({
               markers={asset.markers ?? (asset.id === event.attachmentId ? event.markers ?? [] : [])}
               reviewId={asset.reviewId ?? (asset.id === event.attachmentId ? event.reviewId : undefined)}
               interactive={Boolean(onSaveMarkers)}
+              onMarkersChange={onSaveMarkers ? (markers) => onSaveMarkers(asset.id, markers) : undefined}
               onAnnotateFull={
                 onAnnotateAttachment &&
                 annotateChatImageAvailable &&
