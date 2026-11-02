@@ -43,7 +43,9 @@ export default function MatorClarifyForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const inFlight = useRef(false);
-  const uploaded = useRef(new WeakMap<File, string>());
+  // An input element survives retries even if FormData constructs a new File
+  // wrapper (notably in WebKit). Its onChange handler invalidates the cached ID.
+  const uploaded = useRef(new WeakMap<HTMLInputElement, string>());
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -77,20 +79,24 @@ export default function MatorClarifyForm({
             form.set(question.name, url.href);
           }
           if (question.inputType === 'file') {
-            if (!(answer instanceof File) || !answer.size) {
+            const control = event.currentTarget.elements.namedItem(question.name);
+            const input = control instanceof HTMLInputElement ? control : null;
+            const file = input?.files?.[0] ?? (answer instanceof File ? answer : null);
+            if (!file?.size) {
               if (question.required) throw new Error('Attach a file for ' + question.prompt);
               form.delete(question.name);
               continue;
             }
+            if (!input) throw new Error('Attachment input is unavailable. Please retry.');
             if (!onUploadFile) throw new Error('Attachment upload is unavailable. Please try again.');
-            let id = uploaded.current.get(answer);
+            let id = uploaded.current.get(input);
             if (!id) {
-              id = await onUploadFile(answer);
-              if (!id) throw new Error('Could not upload ' + answer.name);
-              uploaded.current.set(answer, id);
+              id = await onUploadFile(file);
+              if (!id) throw new Error('Could not upload ' + file.name);
+              uploaded.current.set(input, id);
             }
             attachments.push(id);
-            form.set(question.name, answer.name);
+            form.set(question.name, file.name);
           }
         }
         const sent = await onSubmit(formatClarifyReply(questions, form), attachments);
@@ -136,6 +142,7 @@ export default function MatorClarifyForm({
                   accept={ATTACH_ACCEPT}
                   aria-label={question.prompt}
                   aria-required={question.required}
+                  onChange={(event) => uploaded.current.delete(event.currentTarget)}
                   className="min-h-11 w-full min-w-0 text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-teal-50 file:px-2 file:py-2 file:text-teal-800"
                 />
               </label>
