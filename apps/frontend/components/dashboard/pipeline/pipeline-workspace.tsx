@@ -32,9 +32,7 @@ type Props = {
   planDirty: boolean;
   formDirty: boolean;
   planSaving: boolean;
-  savedWorkflows: WorkflowRecord[];
   activeWorkflow: WorkflowRecord | null;
-  selectSavedWorkflow: (id: string | null) => void;
   configRequest: number;
   setWorkflowPlan: Dispatch<SetStateAction<WorkflowPlan>>;
   setPlanDirty: Dispatch<SetStateAction<boolean>>;
@@ -80,9 +78,7 @@ export default function PipelineWorkspace({
   planDirty,
   formDirty,
   planSaving,
-  savedWorkflows,
   activeWorkflow,
-  selectSavedWorkflow,
   configRequest,
   setWorkflowPlan,
   setPlanDirty,
@@ -149,9 +145,6 @@ export default function PipelineWorkspace({
             busy={busy}
             dirty={planDirty || formDirty}
             saving={planSaving}
-            savedWorkflows={savedWorkflows}
-            workflowId={activeWorkflow?.id ?? null}
-            onWorkflowSelect={selectSavedWorkflow}
             configRequest={configRequest}
             onPlanChange={(next) => {
               setWorkflowPlan(next);
@@ -159,9 +152,6 @@ export default function PipelineWorkspace({
             }}
             onTemplateApply={applyTemplate}
             onSave={saveWorkflowPlan}
-            onStop={() => {
-              void cancelRun();
-            }}
             runError={runFormError}
             evidenceRoot={
               active ? getApi('runs/' + active.id + '/evidence/') : undefined
@@ -205,6 +195,7 @@ export default function PipelineWorkspace({
           resumeRun={resumeRun}
           pauseRun={pauseRun}
           launchRun={launchRun}
+          cancelRun={cancelRun}
           setConnectorOpenSignal={setConnectorOpenSignal}
           platformLabel={platformLabel}
           PlatformIcon={PlatformIcon}

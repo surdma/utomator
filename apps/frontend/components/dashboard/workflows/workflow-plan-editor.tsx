@@ -47,13 +47,9 @@ type Props = {
   busy: boolean;
   dirty: boolean;
   saving: boolean;
-  savedWorkflows: Array<{ id: string; revision: number; plan: WorkflowPlan }>;
-  workflowId: string | null;
-  onWorkflowSelect: (id: string | null) => void;
   onPlanChange: (plan: WorkflowPlan) => void;
   onTemplateApply: (plan: WorkflowPlan, templateId: string) => Promise<void>;
   onSave: () => Promise<void>;
-  onStop: () => void;
   runError?: string;
   configRequest?: number;
   children: ReactNode;
@@ -125,13 +121,9 @@ function EditorBody(props: Props) {
     busy,
     dirty,
     saving,
-    savedWorkflows,
-    workflowId,
-    onWorkflowSelect,
     onPlanChange,
     onTemplateApply,
     onSave,
-    onStop,
     runError,
     configRequest = 0,
     children,
@@ -375,25 +367,6 @@ function EditorBody(props: Props) {
       data-testid="workflow-artboard"
       className="flex h-full min-h-[630px] flex-col overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-sm lg:min-h-[calc(100dvh-8rem)]"
     >
-      <WorkflowEditorToolbar
-        plan={plan}
-        growthTemplateId={growthTemplateId}
-        connected={connected}
-        accountLabel={accountLabel}
-        workflowId={workflowId}
-        savedWorkflows={savedWorkflows}
-        busy={busy}
-        saving={saving}
-        dirty={dirty}
-        onWorkflowSelect={onWorkflowSelect}
-        onOpenTemplates={() => setTemplateOpen(true)}
-        onClearGrowth={onClearGrowth}
-        onOpenAddStep={() => setAddOpen(true)}
-        onSave={onSave}
-        onSaveError={setEditorError}
-        onOpenConfig={() => setConfigOpen(true)}
-        onStop={onStop}
-      />
       {(runError || editorError) && (
         <p
           role="alert"
@@ -407,7 +380,7 @@ function EditorBody(props: Props) {
         className="relative min-h-[480px] flex-1 bg-[#f3f6f7]"
       >
         {growthTemplateId ? (
-          <div className="h-full max-h-[calc(100dvh-9rem)] overflow-y-auto p-3">
+          <div className="h-full overflow-y-auto pt-16 pr-16 pb-3 pl-3">
             <GrowthProfilePipelines
               templateId={growthTemplateId}
               platform={plan.platform}
@@ -467,11 +440,25 @@ function EditorBody(props: Props) {
           </ReactFlow>
         )}
         {!growthTemplateId && (
-          <div className="pointer-events-none absolute top-3 left-3 rounded-lg bg-white/90 px-2.5 py-1.5 text-[11px] text-slate-600 shadow">
-            Drag nodes to arrange · Drag connector to insert/reorder optional
-            tasks · Click to edit
+          <div className="pointer-events-none absolute bottom-3 left-14 z-10 max-w-[min(100%-8rem,28rem)] truncate rounded-lg bg-white/90 px-2.5 py-1.5 text-[11px] text-slate-600 shadow">
+            Drag nodes to arrange · Drag a connector to reorder · Click to edit
           </div>
         )}
+        <WorkflowEditorToolbar
+          plan={plan}
+          growthTemplateId={growthTemplateId}
+          connected={connected}
+          accountLabel={accountLabel}
+          busy={busy}
+          saving={saving}
+          dirty={dirty}
+          onOpenTemplates={() => setTemplateOpen(true)}
+          onClearGrowth={onClearGrowth}
+          onOpenAddStep={() => setAddOpen(true)}
+          onSave={onSave}
+          onSaveError={setEditorError}
+          onOpenConfig={() => setConfigOpen(true)}
+        />
       </div>
       {!growthTemplateId && (
         <div className="flex flex-wrap justify-between gap-2 border-t border-slate-200 px-4 py-3 text-xs text-slate-600">

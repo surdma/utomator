@@ -30,7 +30,10 @@ import RunHistory from './pipeline/run-history';
 import OperatorChatPanel from '@/components/mator/operator-chat-panel';
 import { useRunMonitor } from './pipeline/use-run-monitor';
 import { collectRunSpeechUpdates } from '@/components/mator/mator-run-speech';
-import { useVisualReviews, imageDataUrlFromBlob } from '@/components/mator/use-visual-reviews';
+import {
+  useVisualReviews,
+  imageDataUrlFromBlob,
+} from '@/components/mator/use-visual-reviews';
 import {
   appendVisualReviewStep,
   reviewSection,
@@ -136,7 +139,6 @@ export default function DashboardShell({
     templatePlans,
     selectedGrowthTemplateId,
     setSelectedGrowthTemplateId,
-    savedWorkflows,
     activeWorkflow,
     setActiveWorkflow,
     loadingWorkflow,
@@ -147,7 +149,6 @@ export default function DashboardShell({
     saveWorkflowPlan,
     applyGrowthTemplate,
     applyTemplate,
-    selectSavedWorkflow,
     invalidateWorkflowSelection,
   } = useWorkflowWorkspace({ busy, setRunFormError });
   function selectSocialAccount(account: SocialAccount) {
@@ -187,7 +188,10 @@ export default function DashboardShell({
   });
   const voiceOnly = useVoiceOnlyPreference();
   const voiceScopeRef = useRef<string | null>(null);
-  const spokenRunRef = useRef<{ runId: string | null; seen: Set<number> }>({ runId: null, seen: new Set() });
+  const spokenRunRef = useRef<{ runId: string | null; seen: Set<number> }>({
+    runId: null,
+    seen: new Set(),
+  });
   const {
     message,
     setMessage,
@@ -242,10 +246,18 @@ export default function DashboardShell({
     }
     if (tracker.runId !== currentRunId) {
       tracker.runId = currentRunId;
-      tracker.seen = new Set(events.filter((item) => item.runId === currentRunId).map((item) => item.id));
+      tracker.seen = new Set(
+        events
+          .filter((item) => item.runId === currentRunId)
+          .map((item) => item.id)
+      );
       return;
     }
-    const summaries = collectRunSpeechUpdates(events, currentRunId, tracker.seen);
+    const summaries = collectRunSpeechUpdates(
+      events,
+      currentRunId,
+      tracker.seen
+    );
     if (voiceOnly && settingsToggles.howTtsEnabled && summaries.length) {
       voice.speak(summaries.join(' '));
     }
@@ -288,7 +300,9 @@ export default function DashboardShell({
       // Dictation in text mode edits the draft. Voice-only stop sends
       // automatically unless the user is composing a captioned asset message.
       if (source === 'voice' && (!voiceOnly || pendingAssetsRef.current)) {
-        setMessage((current) => [current.trim(), request].filter(Boolean).join(' '));
+        setMessage((current) =>
+          [current.trim(), request].filter(Boolean).join(' ')
+        );
         return;
       }
       // Never TTS the user transcript (voice or typed).
@@ -458,7 +472,9 @@ export default function DashboardShell({
       });
     }
     if (request.attachmentId) {
-      const response = await fetch(matorAttachmentFileUrl(request.attachmentId));
+      const response = await fetch(
+        matorAttachmentFileUrl(request.attachmentId)
+      );
       if (!response.ok) {
         throw new Error('Attachment bytes are unavailable for annotation');
       }
@@ -616,9 +632,7 @@ export default function DashboardShell({
             planDirty={planDirty}
             formDirty={formDirty}
             planSaving={planSaving}
-            savedWorkflows={savedWorkflows}
             activeWorkflow={activeWorkflow}
-            selectSavedWorkflow={selectSavedWorkflow}
             configRequest={configRequest}
             setWorkflowPlan={setWorkflowPlan}
             setPlanDirty={setPlanDirty}

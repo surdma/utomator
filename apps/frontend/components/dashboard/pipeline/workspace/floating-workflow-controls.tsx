@@ -1,7 +1,7 @@
 'use client';
 
 import { type ComponentType, type Dispatch, type SetStateAction } from 'react';
-import { Check, Pause, Play, Plus } from 'lucide-react';
+import { Check, Pause, Play, Plus, Square } from 'lucide-react';
 import type { Platform } from '../workflow-catalog';
 import type { Run } from '../run-models';
 import type { WorkflowPlan } from '../../workflows/workflow-plan-editor';
@@ -23,6 +23,7 @@ type Props = {
   resumeRun: () => Promise<void>;
   pauseRun: () => Promise<void>;
   launchRun: () => Promise<void>;
+  cancelRun: () => Promise<void>;
   setConnectorOpenSignal: Dispatch<SetStateAction<number>>;
   platformLabel: string;
   PlatformIcon: ComponentType<{ className: string }>;
@@ -44,6 +45,7 @@ export default function FloatingWorkflowControls({
   resumeRun,
   pauseRun,
   launchRun,
+  cancelRun,
   setConnectorOpenSignal,
   platformLabel,
   PlatformIcon,
@@ -54,46 +56,23 @@ export default function FloatingWorkflowControls({
       data-testid="floating-workflow-controls"
     >
       {!selectedGrowthTemplateId && (
-        <button
-          type="button"
-          aria-label={
-            active?.state === 'paused'
-              ? 'Resume workflow'
-              : active?.state === 'running'
-                ? 'Pause workflow'
-                : 'Start workflow'
-          }
-          disabled={
-            active?.state === 'paused'
-              ? false
-              : active?.state === 'running'
-                ? false
-                : busy ||
-                  available !== 'ready' ||
-                  !connectorReady ||
-                  loadingWorkflow ||
-                  workflowPlan.platform !== platform ||
-                  workflowPlan.action !== action ||
-                  (Boolean(activeWorkflow) && (planDirty || formDirty))
-          }
-          onClick={() => {
-            if (active?.state === 'paused') void resumeRun();
-            else if (active?.state === 'running') void pauseRun();
-            else void launchRun();
-          }}
-          className="pointer-events-auto inline-flex min-h-12 items-center justify-center gap-3 rounded-full bg-white px-6 text-sm font-bold text-slate-950 transition hover:bg-teal-50 disabled:opacity-50"
-        >
-          {active?.state === 'running' ? (
-            <Pause className="size-5" />
-          ) : (
-            <Play className="size-5" />
-          )}
-          {active?.state === 'paused'
-            ? 'Resume'
-            : active?.state === 'running'
-              ? 'Pause'
-              : 'Run workflow'}
-        </button>
+        <WorkflowRunButton
+          active={active}
+          platform={platform}
+          action={action}
+          busy={busy}
+          available={available}
+          connectorReady={connectorReady}
+          loadingWorkflow={loadingWorkflow}
+          workflowPlan={workflowPlan}
+          activeWorkflow={activeWorkflow}
+          planDirty={planDirty}
+          formDirty={formDirty}
+          resumeRun={resumeRun}
+          pauseRun={pauseRun}
+          launchRun={launchRun}
+          cancelRun={cancelRun}
+        />
       )}
       <button
         type="button"
@@ -128,5 +107,123 @@ export default function FloatingWorkflowControls({
         </span>
       </button>
     </div>
+  );
+}
+
+function WorkflowRunButton({
+  active,
+  platform,
+  action,
+  busy,
+  available,
+  connectorReady,
+  loadingWorkflow,
+  workflowPlan,
+  activeWorkflow,
+  planDirty,
+  formDirty,
+  resumeRun,
+  pauseRun,
+  launchRun,
+  cancelRun,
+}: {
+  active: Run | null;
+  platform: Platform;
+  action: string;
+  busy: boolean;
+  available: 'checking' | 'ready' | 'offline';
+  connectorReady: boolean;
+  loadingWorkflow: boolean;
+  workflowPlan: WorkflowPlan;
+  activeWorkflow: WorkflowRecord | null;
+  planDirty: boolean;
+  formDirty: boolean;
+  resumeRun: () => Promise<void>;
+  pauseRun: () => Promise<void>;
+  launchRun: () => Promise<void>;
+  cancelRun: () => Promise<void>;
+}) {
+  const state = active?.state;
+  const canStop =
+    state === 'running' ||
+    state === 'paused' ||
+    state === 'approval-needed' ||
+    state === 'input-needed';
+  const mode =
+    state === 'paused'
+      ? 'resume'
+      : state === 'running'
+        ? 'pause'
+        : canStop
+          ? 'stop'
+          : 'run';
+  const label =
+    mode === 'resume'
+      ? 'Resume'
+      : mode === 'pause'
+        ? 'Pause'
+        : mode === 'stop'
+          ? 'Stop'
+          : 'Run workflow';
+  const ariaLabel =
+    mode === 'resume'
+      ? 'Resume workflow'
+      : mode === 'pause'
+        ? 'Pause workflow'
+        : mode === 'stop'
+          ? 'Stop workflow'
+          : 'Start workflow';
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        disabled={
+          mode === 'run' &&
+          (busy ||
+            available !== 'ready' ||
+            !connectorReady ||
+            loadingWorkflow ||
+            workflowPlan.platform !== platform ||
+            workflowPlan.action !== action ||
+            (Boolean(activeWorkflow) && (planDirty || formDirty)))
+        }
+        onClick={() => {
+          if (mode === 'resume') void resumeRun();
+          else if (mode === 'pause') void pauseRun();
+          else if (mode === 'stop') void cancelRun();
+          else void launchRun();
+        }}
+        className={
+          'pointer-events-auto inline-flex min-h-12 items-center justify-center gap-3 rounded-full px-6 text-sm font-bold transition disabled:opacity-50 ' +
+          (mode === 'stop'
+            ? 'bg-rose-500 text-white hover:bg-rose-400'
+            : 'bg-white text-slate-950 hover:bg-teal-50')
+        }
+      >
+        {mode === 'pause' ? (
+          <Pause className="size-5" />
+        ) : mode === 'stop' ? (
+          <Square className="size-4 fill-current" />
+        ) : (
+          <Play className="size-5" />
+        )}
+        {label}
+      </button>
+      {(mode === 'pause' || mode === 'resume') && (
+        <button
+          type="button"
+          aria-label="Stop workflow"
+          title="Stop workflow"
+          onClick={() => {
+            void cancelRun();
+          }}
+          className="pointer-events-auto inline-flex size-12 items-center justify-center rounded-full bg-rose-500 text-white transition hover:bg-rose-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300"
+        >
+          <Square className="size-4 fill-current" />
+        </button>
+      )}
+    </>
   );
 }

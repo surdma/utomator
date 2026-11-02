@@ -84,8 +84,8 @@ export function WorkflowEditorDialogs({
       <StudioDialog
         open={configOpen}
         onDismiss={onConfigDismiss}
-        title="Configure workflow action"
-        description="Set the account, page scope and supported action fields. Use the main Start button when ready."
+        title="Workflow configuration"
+        description="Account, page, and fields for this workflow. Run, pause, resume, or stop it from the dock."
         size="wide"
         testId="workflow-configuration-dialog"
       >
