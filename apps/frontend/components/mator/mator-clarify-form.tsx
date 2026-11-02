@@ -50,7 +50,8 @@ export default function MatorClarifyForm({
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (inFlight.current || disabled) return;
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     inFlight.current = true;
     setSubmitting(true);
     setError('');
@@ -79,7 +80,7 @@ export default function MatorClarifyForm({
             form.set(question.name, url.href);
           }
           if (question.inputType === 'file') {
-            const control = event.currentTarget.elements.namedItem(question.name);
+            const control = formElement.elements.namedItem(question.name);
             const input = control instanceof HTMLInputElement ? control : null;
             const file = input?.files?.[0] ?? (answer instanceof File ? answer : null);
             if (!file?.size) {
