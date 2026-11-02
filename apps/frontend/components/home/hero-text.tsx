@@ -1,21 +1,92 @@
-export default function HeroText({
-  displayClassName,
-}: {
-  displayClassName: string;
-}) {
+'use client';
+
+import { motion, useReducedMotion } from 'framer-motion';
+import { useEffect, useState } from 'react';
+
+const roles = [
+  'Browser workflows',
+  'Human approval',
+  'Traceable execution',
+  'Local-first control',
+];
+
+export default function HeroText() {
+  const reduce = useReducedMotion();
+  const [roleIndex, setRoleIndex] = useState(0);
+  const [displayText, setDisplayText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    if (reduce) return;
+    const currentRole = roles[roleIndex];
+    let timeout: ReturnType<typeof setTimeout>;
+
+    if (!isDeleting && displayText === currentRole) {
+      timeout = setTimeout(() => setIsDeleting(true), 2000);
+    } else if (isDeleting && displayText === '') {
+      timeout = setTimeout(() => {
+        setIsDeleting(false);
+        setRoleIndex((prev) => (prev + 1) % roles.length);
+      }, 0);
+    } else {
+      timeout = setTimeout(
+        () => {
+          setDisplayText(
+            isDeleting
+              ? currentRole.substring(0, displayText.length - 1)
+              : currentRole.substring(0, displayText.length + 1)
+          );
+        },
+        isDeleting ? 30 : 60
+      );
+    }
+
+    return () => clearTimeout(timeout);
+  }, [displayText, isDeleting, roleIndex, reduce]);
+
+  const typed = reduce ? roles[0] : displayText;
+
   return (
-    <div className="flex max-w-xl flex-col gap-5">
-      <p className="font-mono text-xs tracking-[0.2em] text-[#3D4942] uppercase">
-        On this machine
-      </p>
-      <h1
-        className={`${displayClassName} text-[2.55rem] leading-[0.92] font-semibold tracking-[-0.045em] text-balance text-[#1A211C] sm:text-6xl lg:text-[4.15rem]`}
+    <div className="flex flex-col gap-4 md:gap-6">
+      <motion.p
+        initial={reduce ? false : { opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="font-mono text-sm tracking-wider text-teal-700 uppercase md:text-base"
       >
-        Utomator holds the run.
-      </h1>
-      <p className="max-w-[34ch] text-base leading-relaxed text-[#3D4942] sm:text-lg">
-        Inspect the page. Approve the change. Keep the evidence.
-      </p>
+        Introducing
+      </motion.p>
+
+      <motion.h1
+        initial={reduce ? false : { opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="text-3xl leading-tight font-bold text-slate-900 md:text-6xl lg:text-7xl"
+      >
+        Utomator
+        <br />
+        <span className="text-gradient text-nowrap">
+          {typed}
+          {reduce ? null : (
+            <motion.span
+              animate={{ opacity: [1, 0] }}
+              transition={{ duration: 0.5, repeat: Infinity }}
+              className="ml-1 inline-block h-[1em] w-0.5 bg-cyan-500 align-middle"
+            />
+          )}
+        </span>
+      </motion.h1>
+
+      <motion.p
+        initial={reduce ? false : { opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className="max-w-xl text-base leading-relaxed text-slate-600 md:text-lg"
+      >
+        Plan and review browser workflows for your LinkedIn and X accounts.
+        Inspect first, approve changes explicitly, and keep evidence of what
+        actually happened.
+      </motion.p>
     </div>
   );
 }

@@ -2,7 +2,7 @@
 @import '@xyflow/react/dist/style.css';
 
 @theme {
-  --color-light: #f8fafc;
+  --color-light: #f5f7f8;
   --color-light-card: #ffffff;
   --color-light-border: #e2e8f0;
   --color-accent: #06b6d4;
@@ -49,7 +49,7 @@ body {
 
 /* ── Site colors: light only ────────────────── */
 :root {
-  --bg: #f8fafc;
+  --bg: #f5f7f8;
   --bg-secondary: #f1f5f9;
   --bg-card: #ffffff;
   --bg-card-hover: #f8fafc;
@@ -77,7 +77,10 @@ a {
 /* ── Utility classes ─────────────────────────── */
 @layer utilities {
   .text-gradient {
-    color: #1a211c;
+    background: linear-gradient(135deg, #0891b2, #0f766e);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
   .text-gradient-cyan {
@@ -129,7 +132,7 @@ a {
     inset: 0;
     padding: 1px;
     border-radius: inherit;
-    background: #1a211c;
+    background: linear-gradient(135deg, #22d3ee, #0f766e);
     -webkit-mask:
       linear-gradient(#fff 0 0) content-box,
       linear-gradient(#fff 0 0);
@@ -177,7 +180,7 @@ a {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
 }
 
-/* Shared landing actions. Ink on the bench, readable at button size. */
+/* Shared landing actions. Same ink as the studio controls. */
 .site-action {
   display: inline-flex;
   align-items: center;
@@ -199,11 +202,11 @@ a {
     background-color 0.18s ease;
 }
 .site-action--primary {
-  background: #1a211c;
-  color: #f4efe4;
+  background: #020617;
+  color: #ffffff;
 }
 .site-action--primary:hover {
-  background: #24302a;
+  background: #115e59;
 }
 .site-action--secondary {
   background: var(--bg-card);
@@ -221,7 +224,7 @@ a {
   transform: translateY(0);
 }
 .site-action:focus-visible {
-  outline: 3px solid #1a211c;
+  outline: 3px solid #0f766e;
   outline-offset: 3px;
 }
 .site-action:disabled,

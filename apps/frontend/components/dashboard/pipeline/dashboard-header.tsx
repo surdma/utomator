@@ -1,13 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import {
-  Activity,
-  ExternalLink,
-  Menu,
-  RotateCcw,
-  Workflow,
-} from 'lucide-react';
+import { Activity, ExternalLink, Menu, RotateCcw } from 'lucide-react';
+import { AppMark } from '@/components/logo';
 import { Button } from '@/components/ui/automate-card';
 
 type Props = {
@@ -39,9 +34,7 @@ export default function DashboardHeader({
           >
             <Menu className="size-5" />
           </Button>
-          <div className="flex size-10 items-center justify-center rounded-xl bg-slate-950 text-white">
-            <Workflow className="size-5" />
-          </div>
+          <AppMark className="size-10" />
           <div>
             <p className="text-sm leading-tight font-extrabold tracking-[-.02em]">
               Utomator{' '}
