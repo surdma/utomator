@@ -309,11 +309,17 @@ test('the first visit shows a blank Artboard and a genuinely broader workflow li
   assert.match(empty, /Create new workflow/);
   assert.match(empty, /Continue a saved workflow/);
   const editorToolbar = readFileSync(
-    resolve(root, 'components/dashboard/workflows/editor/workflow-editor-toolbar.tsx'),
+    resolve(
+      root,
+      'components/dashboard/workflows/editor/workflow-editor-toolbar.tsx'
+    ),
     'utf8'
   );
   const workspaceEditor = readFileSync(
-    resolve(root, 'components/dashboard/workflows/workflow-plan-editor.tsx'),
+    resolve(
+      root,
+      'components/dashboard/workflows/workflow-plan-editor.tsx'
+    ),
     'utf8'
   );
   assert.match(editorToolbar, /onReturnToWorkspace/);
