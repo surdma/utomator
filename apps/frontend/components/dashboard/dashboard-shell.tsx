@@ -139,6 +139,7 @@ export default function DashboardShell({
     setWorkspaceOpen,
     savedWorkflows,
     beginNewWorkflow,
+    openActionWorkflow,
     selectSavedWorkflow,
     closeWorkspace,
     activeWorkflow,
@@ -313,11 +314,8 @@ export default function DashboardShell({
     navigatePane,
     navigateCraft,
     setCraftsRevision,
-    invalidateWorkflowSelection,
-    setActiveWorkflow,
-    setAction,
-    setForm,
     setSelectedNode,
+    onStageWorkflow: openActionWorkflow,
   });
   useEffect(() => {
     setConversationRef.current = setConversation;
@@ -448,16 +446,18 @@ export default function DashboardShell({
     setHandle('');
   }
   function chooseAction(next: string) {
-    setSelectedGrowthTemplateId(null);
-    invalidateWorkflowSelection();
-    setActiveWorkflow(null);
-    setWorkspaceOpen(false);
-    setAction(next);
-    setForm({});
-    setRunFormError('');
+    void openActionWorkflow(next).catch((reason) => {
+      const message =
+        reason instanceof Error ? reason.message : 'Unable to load action workflow';
+      setRunFormError(message);
+      chatNotice(message);
+    });
     navigatePane('workspace');
   }
   async function startRun() {
+    if (!workspaceOpen || selectedGrowthTemplateId) {
+      throw Error('Choose an executable workflow before starting a run');
+    }
     const payload = buildRunPayload({
       loadingWorkflow,
       activeWorkflow,

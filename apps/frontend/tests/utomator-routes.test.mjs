@@ -325,6 +325,18 @@ test('the first visit shows a blank Artboard and a genuinely broader workflow li
   assert.match(editorToolbar, /onReturnToWorkspace/);
   assert.match(workspaceEditor, /workflow-leave-confirmation/);
   assert.match(workspaceEditor, /Discard draft/);
+  const commandBridge = readFileSync(
+    resolve(root, 'components/dashboard/pipeline/use-operator-commands.ts'),
+    'utf8'
+  );
+  const dashboard = readFileSync(
+    resolve(root, 'components/dashboard/dashboard-shell.tsx'),
+    'utf8'
+  );
+  assert.match(hook, /async function openActionWorkflow/);
+  assert.match(hook, /getApi\('workflow-plans\/'/);
+  assert.match(commandBridge, /onStageWorkflow\(command.action, command.fields\)/);
+  assert.match(dashboard, /if \(!workspaceOpen \|\| selectedGrowthTemplateId\)/);
   assert.match(library, /ActionTemplateBrowser/);
   assert.match(library, /Workflow library/);
   assert.doesNotMatch(library, /Growth workflow library/);

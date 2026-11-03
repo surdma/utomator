@@ -214,6 +214,57 @@ export function useWorkflowWorkspace({
       setPlanSaving(false);
     }
   }
+  async function openActionWorkflow(
+    nextAction: string,
+    parameters: Record<string, string> = {}
+  ): Promise<void> {
+    if (busy) throw Error('Stop the active workflow before changing actions');
+    if (planSaving) throw Error('Wait for the current workflow to finish saving');
+    if (
+      workspaceOpen &&
+      !selectedGrowthTemplateId &&
+      (planDirty || formDirty)
+    )
+      throw Error('Save or discard the current workflow edits first');
+
+    const selection = ++workflowSelectionEpoch.current;
+    setLoadingWorkflow(true);
+    setRunFormError('');
+    try {
+      const response = await fetch(
+        getApi('workflow-plans/' + platform + '/' + encodeURIComponent(nextAction)),
+        { cache: 'no-store' }
+      );
+      const result = (await response.json()) as WorkflowPlan & {
+        error?: string;
+      };
+      if (
+        !response.ok ||
+        result.platform !== platform ||
+        result.action !== nextAction ||
+        !Array.isArray(result.steps)
+      )
+        throw Error(result.error || 'The selected action workflow is unavailable');
+      if (selection !== workflowSelectionEpoch.current) return;
+      setSelectedGrowthTemplateId(null);
+      setActiveWorkflow(null);
+      setAction(nextAction);
+      setWorkflowPlan(result);
+      setForm({ ...(result.parameters ?? {}), ...parameters });
+      setPlanDirty(Object.keys(parameters).length > 0);
+      setWorkspaceOpen(true);
+    } catch (cause) {
+      const message =
+        cause instanceof Error ? cause.message : 'Could not open the action workflow';
+      if (selection === workflowSelectionEpoch.current)
+        setRunFormError(message);
+      throw Error(message);
+    } finally {
+      if (selection === workflowSelectionEpoch.current)
+        setLoadingWorkflow(false);
+    }
+  }
+
   function beginNewWorkflow() {
     if (busy || planSaving) return;
     workflowSelectionEpoch.current++;
@@ -286,6 +337,7 @@ export function useWorkflowWorkspace({
     workspaceOpen,
     setWorkspaceOpen,
     beginNewWorkflow,
+    openActionWorkflow,
     closeWorkspace,
     loadingWorkflow,
     planDirty,

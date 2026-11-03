@@ -12,7 +12,6 @@ import { workflows, type Platform } from './workflow-catalog';
 import { executeCraftCommand } from './craft-command-service';
 import type { DashboardPane } from './dashboard-route';
 import type { ChatMessage } from './run-models';
-import type { WorkflowRecord } from './use-workflow-workspace';
 import type { ParsedCommand } from './command-parser';
 import {
   decideUtterance,
@@ -34,10 +33,10 @@ type Options = {
   navigatePane: (next: DashboardPane) => void;
   navigateCraft: (id: string | null, slug?: string) => void;
   setCraftsRevision: Dispatch<SetStateAction<number>>;
-  invalidateWorkflowSelection: () => void;
-  setActiveWorkflow: Dispatch<SetStateAction<WorkflowRecord | null>>;
-  setAction: Dispatch<SetStateAction<string>>;
-  setForm: Dispatch<SetStateAction<Record<string, string>>>;
+  onStageWorkflow: (
+    action: string,
+    fields?: Record<string, string>
+  ) => Promise<void>;
   setSelectedNode: Dispatch<SetStateAction<string>>;
 };
 
@@ -54,10 +53,7 @@ export function useOperatorCommands({
   navigatePane,
   navigateCraft,
   setCraftsRevision,
-  invalidateWorkflowSelection,
-  setActiveWorkflow,
-  setAction,
-  setForm,
+  onStageWorkflow,
   setSelectedNode,
 }: Options) {
   const [pending, setPending] = useState<ParsedCommand | null>(null);
@@ -89,12 +85,9 @@ export function useOperatorCommands({
     );
   }
 
-  function stage(command: ParsedCommand) {
-    invalidateWorkflowSelection();
-    setActiveWorkflow(null);
-    setAction(command.action);
-    setForm(command.fields);
+  function stage(command: ParsedCommand): Promise<void> {
     navigatePane('workspace');
+    return onStageWorkflow(command.action, command.fields);
   }
 
   function unsupported() {
@@ -125,8 +118,19 @@ export function useOperatorCommands({
       return;
     }
     setPendingCommand(next.pending);
-    if (next.stage) stage(next.stage);
-    if (next.reply) reply(next.reply);
+    if (next.stage) {
+      void stage(next.stage)
+        .then(() => {
+          if (next.reply) reply(next.reply);
+        })
+        .catch((cause) =>
+          reply(
+            cause instanceof Error ? cause.message : 'Unable to stage this workflow'
+          )
+        );
+    } else if (next.reply) {
+      reply(next.reply);
+    }
   }
 
   async function handleCraftCommand(text: string) {
@@ -181,16 +185,23 @@ export function useOperatorCommands({
       return;
     }
     if (decision.kind === 'inspect-page') {
-      invalidateWorkflowSelection();
-      setActiveWorkflow(null);
-      setAction('audit-page');
       navigatePane('workspace');
-      setSelectedNode('inspect');
-      reply(
-        'Scoped read-only inspection staged for ' +
-          selectedPage +
-          '. Use Start Inspect selected page in the artboard to open the real page.'
-      );
+      void onStageWorkflow('audit-page')
+        .then(() => {
+          setSelectedNode('inspect');
+          reply(
+            'Scoped read-only inspection staged for ' +
+              selectedPage +
+              '. Use Start Inspect selected page in the artboard to open the real page.'
+          );
+        })
+        .catch((cause) =>
+          reply(
+            cause instanceof Error
+              ? cause.message
+              : 'Could not load the inspection workflow'
+          )
+        );
       return;
     }
     apply(decision);
