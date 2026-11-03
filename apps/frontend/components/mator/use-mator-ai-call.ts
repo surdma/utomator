@@ -1,0 +1,130 @@
+'use client';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { transcribeMatorAudio } from './mator-api';
+import { MatorDuplexAudio } from './mator-duplex-audio';
+import {
+  MatorCallCoordinator,
+  type MatorCallStatus,
+  type MatorCallTurnResult,
+} from './mator-call-coordinator';
+import type { MatorClarifyQuestion } from './mator-chat-state';
+import type { VoiceSession } from './use-voice-session';
+
+export type MatorAiCall = {
+  state: MatorCallStatus;
+  active: boolean;
+  seconds: number;
+  voiceLevel: number;
+  lastTurn: { transcript: string; reply: string } | null;
+  question: { value: MatorClarifyQuestion; index: number; total: number } | null;
+  lastQuestionAnswer: { prompt: string; answer: string } | null;
+  start: () => void;
+  end: () => void;
+  pause: () => void;
+  resume: () => void;
+  interrupt: () => void;
+  muteMic: (muted: boolean) => void;
+  muteSpeaker: (muted: boolean) => void;
+  answerVisual: (answers: string[], attachmentIds?: string[]) => Promise<void>;
+  approvalResolved: (eventId: string, decision: 'confirm' | 'reject') => Promise<void>;
+};
+const INITIAL:MatorCallStatus={phase:'idle',detail:'',scope:null,micMuted:false,speakerMuted:false};
+export function matorAiCallScope(workflowId:string|null,conversationId:string|null):string|null {
+  return workflowId&&conversationId?`${workflowId}:${conversationId}`:null;
+}
+
+/** Call state is ephemeral; only the in-composer mode toggle survives reloads. */
+export function useMatorAiCall({workflowId,conversationId,voiceOnly,voice,sendTurn}:{
+  workflowId:string|null;
+  conversationId:string|null;
+  voiceOnly:boolean;
+  voice:VoiceSession;
+  sendTurn:(text:string,scope:string,signal:AbortSignal,attachmentIds?:string[])=>Promise<MatorCallTurnResult>;
+}):MatorAiCall {
+  const [state,setState]=useState<MatorCallStatus>(INITIAL);
+  const [lastTurn,setLastTurn]=useState<{transcript:string;reply:string}|null>(null);
+  const [seconds,setSeconds]=useState(0);
+  const [voiceLevel,setVoiceLevel]=useState(0);
+  const [question,setQuestion]=useState<MatorAiCall['question']>(null);
+  const [lastQuestionAnswer,setLastQuestionAnswer]=useState<MatorAiCall['lastQuestionAnswer']>(null);
+  const startTimeRef=useRef(0);
+  const lastMeterRef=useRef(0);
+  const sessionRef=useRef<MatorDuplexAudio|null>(null);
+  const voiceRef=useRef(voice);
+  const sendRef=useRef(sendTurn);
+  voiceRef.current=voice;
+  sendRef.current=sendTurn;
+  const scope=matorAiCallScope(workflowId,conversationId);
+  const coordinatorRef=useRef<MatorCallCoordinator|null>(null);
+  if(!coordinatorRef.current){
+    coordinatorRef.current=new MatorCallCoordinator({
+      capture:(signal)=>{
+        if(!sessionRef.current) sessionRef.current=new MatorDuplexAudio(level=>{
+          const now=Date.now();
+          if(now-lastMeterRef.current>=120||level===0){lastMeterRef.current=now;setVoiceLevel(level);}
+        });
+        return sessionRef.current.capture(signal);
+      },
+      transcribe:(audio,signal)=>transcribeMatorAudio(audio,signal),
+      respond:(transcript,{scope:activeScope,signal,attachmentIds})=>
+        sendRef.current(transcript,activeScope,signal,attachmentIds),
+      speak:(text,signal)=>{
+        if(!sessionRef.current)throw new Error('Microphone session is unavailable.');
+        return sessionRef.current.speakAndCatch(text,signal);
+      },
+      stopOutput:()=>sessionRef.current?.stopOutput(),
+      onState:(next)=>{
+        setState(next);
+        if(next.phase==='ended'){
+          sessionRef.current?.close();sessionRef.current=null;
+          setVoiceLevel(0);setSeconds(0);setQuestion(null);setLastQuestionAnswer(null);
+        }
+      },
+      onQuestion:(value,index,total)=>setQuestion(value?{value,index,total}:null),
+      onQuestionAnswer:(value,answer)=>setLastQuestionAnswer({prompt:value.prompt,answer}),
+      onTranscript:transcript=>setLastTurn({transcript,reply:''}),
+      onTurn:({transcript,result})=>setLastTurn({transcript,reply:result.reply}),
+    });
+  }
+  const coordinator=coordinatorRef.current;
+  const end=useCallback(()=>{
+    coordinator.end();
+    sessionRef.current?.close();sessionRef.current=null;
+  },[coordinator]);
+
+  useEffect(()=>{
+    if(!voiceOnly||!scope)end();
+    else coordinator.changeScope(scope);
+  },[voiceOnly,scope,end,coordinator]);
+  useEffect(()=>()=>end(),[end]);
+  useEffect(()=>{
+    const handleVisibility=()=>{if(document.hidden&&coordinator.active)coordinator.pause();};
+    document.addEventListener('visibilitychange',handleVisibility);
+    return()=>document.removeEventListener('visibilitychange',handleVisibility);
+  },[coordinator]);
+  useEffect(()=>{
+    if(!coordinator.active)return;
+    const update=()=>setSeconds(Math.floor((Date.now()-startTimeRef.current)/1000));
+    const interval=window.setInterval(update,1000);
+    update();
+    return()=>window.clearInterval(interval);
+  },[coordinator,state.phase]);
+  const start=useCallback(()=>{
+    if(!scope)return;
+    voiceRef.current.cancelPendingTranscript();voiceRef.current.stopSpeaking();
+    setLastTurn(null);setQuestion(null);setLastQuestionAnswer(null);startTimeRef.current=Date.now();setSeconds(0);
+    // Mic consent begins synchronously from Start call, not from the mode toggle.
+    coordinator.start(scope);
+  },[scope,coordinator]);
+
+  return {
+    state,active:coordinator.active,seconds,voiceLevel,lastTurn,question,lastQuestionAnswer,
+    start,end,pause:()=>coordinator.pause(),resume:()=>coordinator.resume(),
+    interrupt:()=>coordinator.interrupt(),
+    muteMic:(muted)=>coordinator.setMicMuted(muted),
+    muteSpeaker:(muted)=>coordinator.setSpeakerMuted(muted),
+    answerVisual:(answers,ids)=>coordinator.answerVisual(answers,ids),
+    approvalResolved:(id,decision)=>coordinator.stageDecisionSucceeded(id,decision),
+  };
+}

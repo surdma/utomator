@@ -28,7 +28,8 @@ type Props = {
   questions: MatorClarifyQuestion[];
   disabled?: boolean;
   onUploadFile?: (file: File) => Promise<string>;
-  onSubmit: (text: string, attachmentIds?: string[]) => Promise<boolean | void> | void;
+  onSubmit?: (text: string, attachmentIds?: string[]) => Promise<boolean | void> | void;
+  onAnswerData?: (answers: Record<string, string[]>, attachmentIds: string[]) => Promise<boolean | void> | void;
   className?: string;
 };
 
@@ -38,6 +39,7 @@ export default function MatorClarifyForm({
   disabled = false,
   onUploadFile,
   onSubmit,
+  onAnswerData,
   className,
 }: Props) {
   const [submitting, setSubmitting] = useState(false);
@@ -100,7 +102,15 @@ export default function MatorClarifyForm({
             form.set(question.name, file.name);
           }
         }
-        const sent = await onSubmit(formatClarifyReply(questions, form), attachments);
+        const answers: Record<string, string[]> = {};
+        for (const question of questions) {
+          answers[question.name] = form.getAll(question.name)
+            .filter((value): value is string => typeof value === 'string')
+            .map((value) => value.trim()).filter(Boolean);
+        }
+        const sent = onAnswerData
+          ? await onAnswerData(answers, attachments)
+          : await onSubmit?.(formatClarifyReply(questions, form), attachments);
         if (sent === false) throw new Error('Mator could not send the answers. Please retry.');
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : 'Could not submit answers.');

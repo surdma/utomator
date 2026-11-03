@@ -86,6 +86,8 @@ export type VoiceSession = {
   toggleListen: () => void;
   toggleMute: () => void;
   speak: (text: string, force?: boolean) => void;
+  speakAndWait: (text: string, force?: boolean, signal?: AbortSignal) => Promise<void>;
+  stopSpeaking: () => void;
   cancelPendingTranscript: () => void;
 };
 
@@ -140,10 +142,11 @@ export function useVoiceSession({
   }
 
   function speakWithBrowser(clean: string, epoch: number): Promise<void> {
-    return new Promise((resolve) => {
-      if (speechEpochRef.current !== epoch || typeof window === 'undefined' ||
-          !window.speechSynthesis || typeof SpeechSynthesisUtterance === 'undefined') {
-        resolve();
+    return new Promise((resolve, reject) => {
+      if (speechEpochRef.current !== epoch) { resolve(); return; }
+      if (typeof window === 'undefined' || !window.speechSynthesis ||
+          typeof SpeechSynthesisUtterance === 'undefined') {
+        reject(new Error('Browser speech output is unavailable.'));
         return;
       }
       const utterance = new SpeechSynthesisUtterance(clean);
@@ -153,18 +156,19 @@ export function useVoiceSession({
       );
       if (english) utterance.voice = english;
       let settled = false;
-      const finish = () => {
+      const finish = (problem?: Error) => {
         if (settled) return;
         settled = true;
         if (playbackCancelRef.current === finish) playbackCancelRef.current = null;
-        resolve();
+        if (problem) reject(problem);
+        else resolve();
       };
       playbackCancelRef.current = finish;
       utterance.onstart = () => {
         if (speechEpochRef.current === epoch) setSpeaking(true);
       };
       utterance.onend = finish;
-      utterance.onerror = finish;
+      utterance.onerror = () => finish(new Error('Browser speech playback failed.'));
       window.speechSynthesis.speak(utterance);
     });
   }
@@ -204,27 +208,44 @@ export function useVoiceSession({
     });
   }
 
-  function speak(text: string, force = false) {
-    if (typeof window === 'undefined' || (mutedRef.current && !force)) return;
+  function speakAndWait(text: string, force = false, signal?: AbortSignal): Promise<void> {
+    if (typeof window === 'undefined' || signal?.aborted || (mutedRef.current && !force)) {
+      return Promise.resolve();
+    }
     const clean = text.replace(/\s+/g, ' ').trim();
-    if (!clean) return;
+    if (!clean) return Promise.resolve();
     stopSpeech();
     const epoch = speechEpochRef.current;
     const controller = new AbortController();
     speechAbortRef.current = controller;
-    void playMatorSpeechChunks(clean, {
+    const onAbort = () => stopSpeech();
+    signal?.addEventListener('abort', onAbort, { once: true });
+    return playMatorSpeechChunks(clean, {
       synthesize: (segment) => synthesizeMatorSpeech(segment, controller.signal),
       play: (blob) => playAudio(blob, epoch),
       fallback: (remaining) => speakWithBrowser(remaining, epoch),
       isCancelled: () => epoch !== speechEpochRef.current || controller.signal.aborted ||
-        (mutedRef.current && !force),
-    }).catch(() => {
-      if (speechEpochRef.current === epoch) setError('Voice playback failed. The written reply is still available.');
+        signal?.aborted === true || (mutedRef.current && !force),
+    }).catch((error: unknown) => {
+      if (speechEpochRef.current === epoch) {
+        setError('Voice playback failed. The written reply is still available.');
+      }
+      throw error;
     }).finally(() => {
+      signal?.removeEventListener('abort', onAbort);
       if (speechEpochRef.current !== epoch) return;
       if (speechAbortRef.current === controller) speechAbortRef.current = null;
       setSpeaking(false);
     });
+  }
+
+  function speak(text: string, force = false) {
+    // Non-call playback is optional. Call mode awaits and handles rejection.
+    void speakAndWait(text, force).catch(() => {});
+  }
+
+  function stopSpeaking() {
+    if (typeof window !== 'undefined') stopSpeech();
   }
 
   function toggleMute() {
@@ -472,6 +493,8 @@ export function useVoiceSession({
     toggleListen,
     toggleMute,
     speak,
+    speakAndWait,
+    stopSpeaking,
     cancelPendingTranscript,
   };
 }

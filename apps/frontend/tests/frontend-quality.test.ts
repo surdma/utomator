@@ -827,339 +827,135 @@ test('Mator sends text, preserves failed drafts, and places the newest reply las
   await capture(page, info, 'mator-message-delivery-and-reload');
 });
 
-test('Mator accepts recorded speech when SpeechRecognition is unavailable', async ({
-  page,
-}) => {
+// Replacement for the old manually-tapped voice deck tests. Uses the real
+// composer and hooks, but deterministic browser media and mocked API responses.
+async function mockMatorCallWorkspace(page: Page, workflowId: string, conversations: string[]) {
+  const now = '2026-11-02T09:00:00.000Z';
+  let current = conversations[0]!;
+  await page.route('**/api/workflows', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify([{ id: workflowId, ownerId: 'local-owner', templateId: null,
+      revision: 1, createdAt: now, updatedAt: now,
+      plan: { version: 1, platform: 'linkedin', action: 'audit', name: 'Profile audit',
+        steps: [ { id: 'start', kind: 'start', title: 'Start run' },
+          { id: 'finish', kind: 'finish', title: 'Final output' } ],
+        links: [{ source: 'start', target: 'finish' }] } }]),
+  }));
+  await page.route('**/api/mator/workflows/*/conversations', (route) => route.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({ currentId: current, items: conversations.map((id, index) => ({
+      id, workflowId, title: `Thread ${index === 0 ? 'A' : 'B'}`,
+      createdAt: now, updatedAt: now, lastMessageAt: now, boundRevisionId: null,
+    })) }),
+  }));
+  await page.route('**/api/mator/workflows/*/current', (route) => {
+    current = (route.request().postDataJSON() as { conversationId: string }).conversationId;
+    return route.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({ currentId: current }) });
+  });
+  await page.route('**/api/mator/conversations/*/events', (route) => route.fulfill({
+    status: 200, contentType: 'application/json', body: '[]',
+  }));
+}
+
+test('Mator AI Call automatically handles two audio turns and two matched replies', async ({ page }) => {
   const workflowId = '11111111-1111-4111-8111-111111111111';
   const conversationId = '22222222-2222-4222-8222-222222222222';
-  const now = '2026-11-01T09:00:00.000Z';
-  await page.addInitScript(() => {
-    Object.defineProperty(window, 'SpeechRecognition', {
-      configurable: true,
-      value: undefined,
-    });
-    Object.defineProperty(window, 'webkitSpeechRecognition', {
-      configurable: true,
-      value: undefined,
-    });
-    Object.defineProperty(navigator, 'mediaDevices', {
-      configurable: true,
-      value: {
-        getUserMedia: async () => ({
-          getTracks: () => [{ stop: () => {} }],
-        }),
-      },
-    });
-    Object.defineProperty(window, 'MediaRecorder', {
-      configurable: true,
-      value: class {
-        state = 'inactive';
-        mimeType = 'audio/mp4';
-        ondataavailable: ((event: { data: Blob }) => void) | null = null;
-        onstop: (() => void) | null = null;
-        start() {
-          this.state = 'recording';
-        }
-        stop() {
-          this.state = 'inactive';
-          this.ondataavailable?.({
-            data: new Blob(['recorded speech'], { type: 'audio/mp4' }),
-          });
-          this.onstop?.();
-        }
-      },
-    });
-  });
-  await page.route('**/api/workflows', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify([
-        {
-          id: workflowId,
-          ownerId: 'local-owner',
-          templateId: null,
-          revision: 1,
-          createdAt: now,
-          updatedAt: now,
-          plan: {
-            version: 1,
-            platform: 'linkedin',
-            action: 'audit',
-            name: 'Profile audit',
-            steps: [
-              { id: 'start', kind: 'start', title: 'Start run' },
-              { id: 'finish', kind: 'finish', title: 'Final output' },
-            ],
-            links: [{ source: 'start', target: 'finish' }],
-          },
-        },
-      ]),
-    })
-  );
-  await page.route('**/api/mator/workflows/*/conversations', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        currentId: conversationId,
-        items: [
-          {
-            id: conversationId,
-            workflowId,
-            title: 'Speech regression',
-            createdAt: now,
-            updatedAt: now,
-            lastMessageAt: now,
-            boundRevisionId: null,
-          },
-        ],
-      }),
-    })
-  );
-  await page.route('**/api/mator/conversations/*/events', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
-  );
-  let transcriptionFilename = '';
+  await page.addInitScript(installFakeCallHardware);
+  await mockMatorCallWorkspace(page, workflowId, [conversationId]);
+  let transcripts = 0;
+  let messageCalls = 0;
+  const received: string[] = [];
+  const spoken: string[] = [];
   await page.route('**/api/mator/audio/transcriptions', (route) => {
-    const request = route.request().postDataJSON() as {
-      filename: string;
-      mime: string;
-    };
-    transcriptionFilename = request.filename;
-    expect(request.mime).toBe('audio/mp4');
-    return route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ text: 'Spoken profile question' }),
+    const body = route.request().postDataJSON() as { mime: string; filename: string };
+    expect(body.mime).toBe('audio/wav');
+    expect(body.filename).toBe('mator-speech.wav');
+    transcripts++;
+    return route.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({ text: transcripts === 1 ? 'First spoken question' : 'Second spoken question' }) });
+  });
+  await page.route('**/api/mator/conversations/*/messages', (route) => {
+    const body = route.request().postDataJSON() as { text: string; interactionMode: string };
+    expect(body.interactionMode).toBe('ai_call');
+    const text = body.text;
+    received.push(text);
+    messageCalls++;
+    return route.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({ events: [
+        { id: `call-user-${messageCalls}`, conversationId, role: 'user', kind: 'message',
+          text, createdAt: `2026-11-02T09:00:0${messageCalls}.000Z` },
+        { id: `call-reply-${messageCalls}`, conversationId, role: 'assistant', kind: 'message',
+          text: `Mator answer ${messageCalls}`, createdAt: `2026-11-02T09:00:1${messageCalls}.000Z` },
+      ] }),
     });
   });
-  let received = '';
-  let spoken = '';
-  await page.route('**/api/mator/audio/speech', async (route) => {
-    spoken = (route.request().postDataJSON() as { text: string }).text;
-    await route.fulfill({
-      status: 200,
-      contentType: 'audio/wav',
-      body: 'audio playback fixture',
-    });
-  });
-  await page.route('**/api/mator/conversations/*/messages', async (route) => {
-    received = (route.request().postDataJSON() as { text: string }).text;
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        events: [
-          {
-            id: 'voice-user',
-            conversationId,
-            role: 'user',
-            kind: 'message',
-            text: received,
-            createdAt: now,
-          },
-          {
-            id: 'voice-reply',
-            conversationId,
-            role: 'assistant',
-            kind: 'message',
-            text: 'Heard your profile question',
-            createdAt: '2026-11-01T09:00:01.000Z',
-          },
-        ],
-      }),
-    });
+  await page.route('**/api/mator/audio/speech', (route) => {
+    spoken.push((route.request().postDataJSON() as { text: string }).text);
+    return route.fulfill({ status: 200, contentType: 'audio/wav', body: 'fake audio' });
   });
   await page.goto('/dashboard/pipeline');
   const dock = page.getByTestId('mator-chat');
-  if (!(await dock.isVisible())) {
-    await page.getByRole('button', { name: 'Open Mator' }).click();
-  }
+  if (!(await dock.isVisible())) await page.getByRole('button', { name: 'Open Mator' }).click();
   await dock.getByTestId('mator-voice-switch').click();
-  await expect(dock.getByTestId('mator-composer')).toHaveAttribute(
-    'data-mode',
-    'voice-only'
-  );
-  const mic = dock.getByTestId('mator-voice-listening');
-  await expect(mic).toBeEnabled();
-  await mic.click();
-  await expect(mic).toHaveAttribute('aria-pressed', 'true');
-  await mic.click();
-  await expect(dock.getByText('Heard your profile question')).toBeVisible();
-  expect(received).toBe('Spoken profile question');
-  expect(transcriptionFilename).toBe('mator-speech.m4a');
-  await expect.poll(() => spoken).toBe('Heard your profile question');
-  await dock.getByTestId('mator-voice-switch').click();
-  await expect(dock.getByTestId('mator-input')).toHaveValue('');
+  await expect(dock.getByTestId('mator-composer')).toHaveAttribute('data-mode', 'voice-only');
+  // Switching the composer mode never opens the microphone.
+  expect(await page.evaluate(() => (window as unknown as { __matorCallQA: { captures: number } }).__matorCallQA.captures)).toBe(0);
+  await dock.getByTestId('mator-call-start').click();
+  await expect.poll(() => received.length, { timeout: 25000 }).toBeGreaterThanOrEqual(2);
+  await expect.poll(() => spoken.length, { timeout: 25000 }).toBeGreaterThanOrEqual(2);
+  await dock.getByTestId('mator-call-end').click();
+  expect(received.slice(0, 2)).toEqual(['First spoken question', 'Second spoken question']);
+  expect(spoken.slice(0, 2)).toEqual(['Mator answer 1', 'Mator answer 2']);
+  const qa = await page.evaluate(() => (window as unknown as { __matorCallQA: {
+    captures: number; plays: number; overlapping: number; openTracks: number;
+  } }).__matorCallQA);
+  expect(qa.captures).toBe(1);
+  expect(qa.plays).toBeGreaterThanOrEqual(2);
+  expect(qa.overlapping, 'Barge-in monitoring must overlap microphone access with speech output').toBeGreaterThanOrEqual(2);
+  expect(qa.openTracks, 'hanging up must release microphone tracks').toBe(0);
+  await expect(dock.getByTestId('mator-call-status')).toContainText('Call ended');
+  await expect(dock.getByText('Mator answer 2')).toBeVisible();
 });
 
-test('Mator discards a delayed transcription after switching workflow chat threads', async ({
-  page,
-}) => {
+test('Mator AI Call cannot deliver a late transcript after switching conversation', async ({ page }) => {
   const workflowId = '11111111-1111-4111-8111-111111111111';
   const a = '22222222-2222-4222-8222-222222222222';
   const b = '33333333-3333-4333-8333-333333333333';
-  const now = '2026-11-01T09:00:00.000Z';
-  let active = a;
+  await page.addInitScript(installFakeCallHardware);
+  await mockMatorCallWorkspace(page, workflowId, [a, b]);
+  let seenRequest: () => void = () => {};
+  let unblock: () => void = () => {};
+  const seen = new Promise<void>((resolve) => { seenRequest = resolve; });
+  const pending = new Promise<void>((resolve) => { unblock = resolve; });
   const sent: string[] = [];
-  let startTranscription: () => void = () => {};
-  let releaseTranscription: () => void = () => {};
-  const receivedTranscription = new Promise<void>((resolve) => {
-    startTranscription = resolve;
-  });
-  const holdTranscription = new Promise<void>((resolve) => {
-    releaseTranscription = resolve;
-  });
-
-  await page.addInitScript(() => {
-    Object.defineProperty(window, 'SpeechRecognition', {
-      configurable: true,
-      value: undefined,
-    });
-    Object.defineProperty(window, 'webkitSpeechRecognition', {
-      configurable: true,
-      value: undefined,
-    });
-    Object.defineProperty(navigator, 'mediaDevices', {
-      configurable: true,
-      value: {
-        getUserMedia: async () => ({ getTracks: () => [{ stop: () => {} }] }),
-      },
-    });
-    Object.defineProperty(window, 'MediaRecorder', {
-      configurable: true,
-      value: class {
-        state = 'inactive';
-        mimeType = 'audio/mp4';
-        ondataavailable: ((event: { data: Blob }) => void) | null = null;
-        onstop: (() => void) | null = null;
-        start() {
-          this.state = 'recording';
-        }
-        stop() {
-          this.state = 'inactive';
-          this.ondataavailable?.({
-            data: new Blob(['voice'], { type: 'audio/mp4' }),
-          });
-          this.onstop?.();
-        }
-      },
-    });
-  });
-  await page.route('**/api/workflows', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify([
-        {
-          id: workflowId,
-          ownerId: 'local-owner',
-          templateId: null,
-          revision: 1,
-          createdAt: now,
-          updatedAt: now,
-          plan: {
-            version: 1,
-            platform: 'linkedin',
-            action: 'audit',
-            name: 'Profile audit',
-            steps: [
-              { id: 'start', kind: 'start', title: 'Start run' },
-              { id: 'finish', kind: 'finish', title: 'Final output' },
-            ],
-            links: [{ source: 'start', target: 'finish' }],
-          },
-        },
-      ]),
-    })
-  );
-  await page.route('**/api/mator/workflows/*/conversations', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        currentId: active,
-        items: [a, b].map((id, index) => ({
-          id,
-          workflowId,
-          title: index === 0 ? 'Thread A' : 'Thread B',
-          createdAt: now,
-          updatedAt: now,
-          lastMessageAt: now,
-          boundRevisionId: null,
-        })),
-      }),
-    })
-  );
-  await page.route('**/api/mator/workflows/*/current', (route) => {
-    active = (route.request().postDataJSON() as { conversationId: string })
-      .conversationId;
-    return route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ currentId: active }),
-    });
-  });
-  await page.route('**/api/mator/conversations/*/events', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: '[]',
-    })
-  );
   await page.route('**/api/mator/audio/transcriptions', async (route) => {
-    startTranscription();
-    await holdTranscription;
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ text: 'This speech belongs only to thread A' }),
-    });
+    seenRequest();
+    await pending;
+    try { await route.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({ text: 'Only for thread A' }) }); }
+    catch { /* The canceled request may already be aborted by the browser. */ }
   });
   await page.route('**/api/mator/conversations/*/messages', (route) => {
     sent.push(route.request().url());
-    return route.fulfill({
-      status: 503,
-      contentType: 'application/json',
-      body: '{"error":"Unexpected send"}',
-    });
+    return route.fulfill({ status: 503, contentType: 'application/json',
+      body: '{"error":"Unexpected call message after thread switch"}' });
   });
-
   await page.goto('/dashboard/pipeline');
   const dock = page.getByTestId('mator-chat');
-  if (!(await dock.isVisible())) {
-    await page.getByRole('button', { name: 'Open Mator' }).click();
-  }
+  if (!(await dock.isVisible())) await page.getByRole('button', { name: 'Open Mator' }).click();
   await dock.getByTestId('mator-voice-switch').click();
-  const mic = dock.getByTestId('mator-voice-listening');
-  await mic.click();
-  await expect(mic).toHaveAttribute('aria-pressed', 'true');
-  await mic.click();
-  await receivedTranscription;
-
+  await dock.getByTestId('mator-call-start').click();
+  await seen;
   await dock.getByTestId('mator-thread-pill').click();
-  await dock
-    .getByTestId('mator-conversation-switcher')
-    .getByRole('button', { name: /Thread B/ })
-    .click();
+  await dock.getByTestId('mator-conversation-switcher').getByRole('button', { name: /Thread B/ }).click();
   await expect(dock.getByTestId('mator-thread-pill')).toContainText('Thread B');
-  expect(active).toBe(b);
-
-  const transcriptResponse = page.waitForResponse(
-    (res) =>
-      res.url().includes('/api/mator/audio/transcriptions') &&
-      res.status() === 200
-  );
-  releaseTranscription();
-  await transcriptResponse;
+  unblock();
   await page.waitForTimeout(150);
-  expect(sent, 'no stale speech may be posted to a different thread').toEqual(
-    []
-  );
-  await expect(
-    dock.getByText('This speech belongs only to thread A')
-  ).toHaveCount(0);
+  expect(sent, 'no stale call turn should reach the new conversation').toEqual([]);
+  expect(await page.evaluate(() => (window as unknown as { __matorCallQA: { openTracks: number } }).__matorCallQA.openTracks)).toBe(0);
+  await expect(dock.getByTestId('mator-call-start')).toBeVisible();
 });
 
 test('Mator stages multiple images and captions until explicit send, then restores annotation gallery', async ({
@@ -1925,3 +1721,80 @@ test('Mator clarification validates URL protocol before sending any message', as
   expect(fixture.received[0].text).toContain('https://example.com/evidence');
   expect(fixture.uploads()).toBe(0);
 });
+
+/** Deterministic fake microphone, local VAD input and playback for browser QA.
+ * Keep this fixture inside Playwright's addInitScript: it is not production code.
+ */
+function installFakeCallHardware() {
+  const status = { captures: 0, plays: 0, overlapping: 0, openTracks: 0 };
+  Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: undefined });
+  Object.defineProperty(window, 'webkitSpeechRecognition', { configurable: true, value: undefined });
+  Object.defineProperty(window, '__matorCallQA', { configurable: true, value: status });
+  Object.defineProperty(window, 'AudioContext', {
+    configurable: true,
+    value: class {
+      state = 'running';
+      sampleRate = 48000;
+      destination = {};
+      started = performance.now();
+      get currentTime() { return (performance.now() - this.started) / 1000; }
+      createMediaStreamSource() { return { connect: () => {}, disconnect: () => {} }; }
+      createAnalyser() {
+        return {
+          fftSize: 2048,
+          getFloatTimeDomainData: (samples: Float32Array) => {
+            // Every two seconds a new 450ms utterance arrives without a mic tap.
+            const cycle = (performance.now() - this.started) % 2000;
+            samples.fill(cycle < 450 ? 0.075 : 0);
+          },
+        };
+      }
+      createBufferSource() {
+        let ended = false;
+        let cancel: ReturnType<typeof setTimeout> | null = null;
+        return {
+          buffer: null,
+          onended: null as null | (() => void),
+          connect: () => {},
+          disconnect: () => {},
+          start() {
+            status.plays++;
+            if (status.openTracks > 0) status.overlapping++;
+            cancel = setTimeout(() => {
+              if (ended) return;
+              ended = true;
+              this.onended?.();
+            }, 70);
+          },
+          stop() {
+            if (ended) return;
+            ended = true;
+            if (cancel) clearTimeout(cancel);
+            this.onended?.();
+          },
+        };
+      }
+      async decodeAudioData(_buffer: ArrayBuffer) {
+        return {length:3840, getChannelData: (_index:number) => new Float32Array(3840)};
+      }
+      resume() { return Promise.resolve(); }
+      close() { return Promise.resolve(); }
+    },
+  });
+  Object.defineProperty(navigator, 'mediaDevices', {
+    configurable: true,
+    value: {
+      getUserMedia: async () => {
+        status.captures++;
+        status.openTracks++;
+        let closed = false;
+        const track = {
+          get readyState() { return closed ? 'ended' : 'live'; },
+          stop: () => { if (!closed) { closed = true; status.openTracks--; } },
+        };
+        return { getTracks: () => [track], getAudioTracks: () => [track] };
+      },
+    },
+  });
+  // The production duplex audio path emits WAV PCM rather than MediaRecorder blobs.
+}

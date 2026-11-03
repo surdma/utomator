@@ -8,6 +8,7 @@ import {
   restoreConversationPipeline,
 } from './mator-actions.js';
 import { MatorConfigError, requireGroqKey, runMatorTurn } from './mator-agent.js';
+import { parseMatorInteractionMode } from './mator-interaction-mode.js';
 import {
   getAttachmentFile,
   getAttachmentMeta,
@@ -306,7 +307,7 @@ export function registerMatorRoutes(app: FastifyInstance, deps: MatorRouteDeps):
 
   app.post<{
     Params: { id: string };
-    Body: { text?: string; attachmentIds?: string[] };
+    Body: { text?: string; attachmentIds?: string[]; interactionMode?: unknown };
   }>('/mator/conversations/:id/messages', async (request, reply) => {
     const docs = await requireDocuments(deps, reply);
     if (!docs) return;
@@ -321,6 +322,9 @@ export function registerMatorRoutes(app: FastifyInstance, deps: MatorRouteDeps):
     try {
       const located = await findConversation(docs, request.params.id);
       if (!located) return jsonError(reply, 404, 'Conversation not found');
+      let interactionMode: 'text' | 'ai_call';
+      try { interactionMode = parseMatorInteractionMode(request.body?.interactionMode); }
+      catch { return jsonError(reply, 400, 'interactionMode must be text or ai_call'); }
       const result = await runMatorTurn(
         docs,
         deps.ports,
@@ -329,6 +333,7 @@ export function registerMatorRoutes(app: FastifyInstance, deps: MatorRouteDeps):
           userText: request.body?.text,
           attachmentIds: request.body?.attachmentIds,
           idempotencyKey: idempotencyKey.trim(),
+          interactionMode,
         },
         { fetch: deps.fetch },
       );

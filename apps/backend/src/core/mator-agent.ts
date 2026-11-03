@@ -31,6 +31,7 @@ import {
   readEnvGroqApiKey,
 } from './mator-settings.js';
 import type { WorkflowPlan } from './workflow-plan.js';
+import { mayAutoApproveMatorAction, type MatorInteractionMode } from './mator-interaction-mode.js';
 
 export { GROQ_OPENAI_BASE_URL };
 export const MAX_MATOR_ACTIONS_PER_TURN = 3;
@@ -53,6 +54,7 @@ export class MatorConfigError extends Error {
 
 export type RunMatorTurnInput = {
   conversationId: string;
+  interactionMode?: MatorInteractionMode;
   userText?: string;
   attachmentIds?: string[];
   idempotencyKey?: string;
@@ -236,6 +238,7 @@ async function persistAction(
     conversationId: string;
     action: MatorAction;
     text?: string;
+    interactionMode: MatorInteractionMode;
   },
 ): Promise<MatorEvent[]> {
   if (input.action.type === 'clarify') {
@@ -273,7 +276,7 @@ async function persistAction(
     text: input.text,
   });
   const out: MatorEvent[] = [staged];
-  if (settings.autoApprove) {
+  if (mayAutoApproveMatorAction(settings.autoApprove, input.interactionMode)) {
     const applied = await applyAction(
       docs,
       ports,
@@ -474,6 +477,7 @@ export async function runMatorTurn(
         workflowId,
         conversationId: input.conversationId,
         action,
+        interactionMode: input.interactionMode ?? 'text',
       });
       produced.push(...actionEvents);
     } catch (error) {
@@ -501,6 +505,7 @@ export async function runMatorTurn(
       conversationId: input.conversationId,
       action: stopAction,
       text: LOOP_CAP_EXPLAIN,
+      interactionMode: input.interactionMode ?? 'text',
     });
     produced.push(...stopEvents);
   }

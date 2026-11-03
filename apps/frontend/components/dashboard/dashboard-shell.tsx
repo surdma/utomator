@@ -15,7 +15,7 @@ import CareerStudio from '@/components/dashboard/career/career-studio';
 import AccountHome, {
   type SocialAccount,
 } from '@/components/dashboard/account/account-home';
-import ActivityIntelligence from '@/components/dashboard/intelligence/activity-intelligence';
+import ActivityIntelligence from '@/components/dashboard/career/intelligence/activity-intelligence';
 import LinkedInResearchStudio from '@/components/dashboard/research/linkedin-research-studio';
 import LinkedInEditorialStudio from '@/components/dashboard/editorial/linkedin-editorial-studio';
 
@@ -44,6 +44,7 @@ import { useMatorChat } from '@/components/mator/use-mator-chat';
 import { useOperatorCommands } from './pipeline/use-operator-commands';
 import { useVoiceSession } from '@/components/mator/use-voice-session';
 import { useVoiceOnlyPreference } from '@/components/mator/mator-voice-preference';
+import { useMatorAiCall } from '@/components/mator/use-mator-ai-call';
 import { useWorkflowWorkspace } from './pipeline/use-workflow-workspace';
 import RunTrackingDialog from './pipeline/run-tracking-dialog';
 import CheckpointDialog from './pipeline/checkpoint-dialog';
@@ -185,6 +186,7 @@ export default function DashboardShell({
     onFinal: (text) => submitRef.current(text, 'voice'),
   });
   const voiceOnly = useVoiceOnlyPreference();
+  const callActiveRef = useRef(false);
   const voiceScopeRef = useRef<string | null>(null);
   const spokenRunRef = useRef<{ runId: string | null; seen: Set<number> }>({
     runId: null,
@@ -197,6 +199,7 @@ export default function DashboardShell({
     setConversation,
     chatNotice,
     send,
+    sendCallTurn,
     sendMessage: sendMatorMessage,
     confirmStage,
     rejectStage,
@@ -219,10 +222,19 @@ export default function DashboardShell({
     pending: matorPending,
   } = useMatorChat({
     workflowId: activeWorkflow?.id ?? null,
-    onSpeakHow: (text) => voice.speak(text),
-    onSpeakReply: (text) => voice.speak(text),
+    onSpeakHow: (text) => { if (!callActiveRef.current) voice.speak(text); },
+    onSpeakReply: (text) => { if (!callActiveRef.current) voice.speak(text); },
     voiceOnly,
   });
+
+  const aiCall = useMatorAiCall({
+    workflowId: activeWorkflow?.id ?? null,
+    conversationId: conversationMeta?.id ?? null,
+    voiceOnly,
+    voice,
+    sendTurn: sendCallTurn,
+  });
+  callActiveRef.current = aiCall.active;
 
   // A reply from a previous workflow/thread must never be delivered in the new scope.
   useEffect(() => {
@@ -256,10 +268,10 @@ export default function DashboardShell({
       currentRunId,
       tracker.seen
     );
-    if (voiceOnly && settingsToggles.howTtsEnabled && summaries.length) {
+    if (voiceOnly && !aiCall.active && settingsToggles.howTtsEnabled && summaries.length) {
       voice.speak(summaries.join(' '));
     }
-  }, [currentRunId, events, voiceOnly, settingsToggles.howTtsEnabled, voice]);
+  }, [currentRunId, events, voiceOnly, aiCall.active, settingsToggles.howTtsEnabled, voice]);
 
   const {
     sendMessage: sendOperatorMessage,
@@ -295,9 +307,8 @@ export default function DashboardShell({
     (text: string, source: 'voice' | 'text') => {
       const request = text.trim();
       if (!request) return;
-      // Dictation in text mode edits the draft. Voice-only stop sends
-      // automatically unless the user is composing a captioned asset message.
-      if (source === 'voice' && (!voiceOnly || pendingAssetsRef.current)) {
+      // The text-mode mic only dictates. AI Call owns its separate turn loop.
+      if (source === 'voice') {
         setMessage((current) =>
           [current.trim(), request].filter(Boolean).join(' ')
         );
@@ -313,12 +324,10 @@ export default function DashboardShell({
         submitUtterance(request, source);
         return;
       }
-      // Voice and text use the same persistent conversation. Missing storage
-      // is reported by the Mator hook rather than silently routing to a local command.
-      if (source === 'voice') setMessage(request);
+      // The call's microphone does not come through this text-input route.
       void send(request);
     },
-    [send, setMessage, submitUtterance, voiceOnly]
+    [send, setMessage, submitUtterance]
   );
 
   const sendMessage = (event: FormEvent<HTMLFormElement>) => {
@@ -336,11 +345,15 @@ export default function DashboardShell({
   };
 
   const confirmChat = (eventId?: string) => {
-    if (eventId) void confirmStage(eventId);
+    if (eventId) void confirmStage(eventId).then((ok) => {
+      if (ok) void aiCall.approvalResolved(eventId, 'confirm');
+    });
   };
 
   const rejectChat = (eventId?: string) => {
-    if (eventId) void rejectStage(eventId);
+    if (eventId) void rejectStage(eventId).then((ok) => {
+      if (ok) void aiCall.approvalResolved(eventId, 'reject');
+    });
   };
 
   const restoreMatorPipelineUi = async () => {
@@ -711,6 +724,7 @@ export default function DashboardShell({
           mobileChatOpen={mobileChatOpen}
           showChat={showChat}
           onClose={() => {
+            aiCall.end();
             voice.cancelPendingTranscript();
             setChatVisible(false);
             setMobileChatOpen(false);
@@ -725,10 +739,12 @@ export default function DashboardShell({
           onModelChange={(modelId) => patchSettings({ modelId })}
           onSettingsSaved={syncSettingsFromComposer}
           onSwitchConversation={(id) => {
+            aiCall.end();
             voice.cancelPendingTranscript();
             void switchConversation(id);
           }}
           onNewConversation={() => {
+            aiCall.end();
             voice.cancelPendingTranscript();
             void newConversation();
           }}
@@ -760,6 +776,8 @@ export default function DashboardShell({
           }}
           checkpoint={checkpoint}
           voice={voice}
+          call={aiCall}
+          callReady={Boolean(activeWorkflow?.id && conversationMeta?.id)}
           operatorPendingLabel={operatorPendingLabel}
           onConfirmOperator={confirmPending}
           onConfirm={confirmChat}

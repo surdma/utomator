@@ -50,6 +50,7 @@ import { Queue } from './elements/queue';
 import { Suggestion } from './elements/suggestion';
 import MatorClarifyForm from './mator-clarify-form';
 import MatorComposer from './mator-composer';
+import type { MatorAiCall } from './use-mator-ai-call';
 import { MarkdownReply } from './markdown-reply';
 import { getApi } from '@/components/dashboard/pipeline/api-client';
 import MatorAttachmentPreview from './mator-attachment-preview';
@@ -155,6 +156,8 @@ type Props = {
   checkpoint:
     import('@/components/dashboard/pipeline/run-models').Checkpoint | null;
   voice: VoiceSession;
+  call: MatorAiCall;
+  callReady: boolean;
   operatorPendingLabel?: string | null;
   onConfirmOperator?: () => void;
   onConfirm: (eventId?: string) => void;
@@ -211,6 +214,8 @@ export default function OperatorChatPanel({
   onSendMessage,
   onPendingAssetsChange,
   voice,
+  call,
+  callReady,
   operatorPendingLabel,
   onConfirmOperator,
   onConfirm,
@@ -1030,7 +1035,7 @@ export default function OperatorChatPanel({
 
         {/* ── Clarify dialog card (anchored above composer) ───────────── */}
         <AnimatePresence initial={false}>
-          {openClarify && clarifyQuestions && (
+          {openClarify && clarifyQuestions && !call.active && (
             <motion.div
               key="clarify-card"
               initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 12 }}
@@ -1067,6 +1072,29 @@ export default function OperatorChatPanel({
           )}
         </AnimatePresence>
 
+        {call.active && call.question && (
+          <div data-testid="mator-call-question" role="group"
+            aria-label={`Clarification question ${call.question.index} of ${call.question.total}`}
+            className="mx-2 mb-2 rounded-2xl border border-teal-200 bg-teal-50/60 p-3">
+            <p className="text-xs font-semibold text-teal-900">Question {call.question.index} of {call.question.total}</p>
+            <p className="mt-2 text-sm font-medium leading-relaxed text-slate-900">{call.question.value.prompt}</p>
+            {call.state.phase === 'clarifying-voice' && (
+              <p className="mt-2 text-xs text-slate-600">Answer aloud. Mator will continue automatically.</p>
+            )}
+            {call.state.phase === 'clarifying-form' && (
+              <div className="mt-3">
+                <MatorClarifyForm key={call.question.value.name} questions={[call.question.value]}
+                  onUploadFile={onUploadClarifyFile}
+                  onAnswerData={async (answers, ids) => {
+                    await call.answerVisual(answers[call.question!.value.name] ?? [], ids);
+                    return true;
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
         {(imageError || chatError) && (
           <div
             role="alert"
@@ -1093,6 +1121,8 @@ export default function OperatorChatPanel({
         <Queue active={busy} className="px-4 pt-2 pb-0" />
 
         <MatorComposer
+          call={call}
+          callReady={callReady}
           key={conversationMeta?.id ?? 'no-conversation'}
           voice={voice}
           operatorPendingLabel={operatorPendingLabel}

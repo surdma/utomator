@@ -156,8 +156,9 @@ export async function fetchMatorEvents(
 
 export async function postMatorMessage(
   conversationId: string,
-  body: { text?: string; attachmentIds?: string[] },
-  idempotencyKey: string
+  body: { text?: string; attachmentIds?: string[]; interactionMode?: 'text' | 'ai_call' },
+  idempotencyKey: string,
+  signal?: AbortSignal
 ): Promise<{ events: MatorChatEvent[] }> {
   const response = await fetch(
     matorPath(`conversations/${encodeURIComponent(conversationId)}/messages`),
@@ -167,6 +168,7 @@ export async function postMatorMessage(
         'content-type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
+      signal,
       body: JSON.stringify(body),
     }
   );
@@ -286,7 +288,7 @@ export async function uploadMatorAttachment(
   return readJson(response, 'Unable to upload attachment');
 }
 
-export async function transcribeMatorAudio(file: Blob): Promise<string> {
+export async function transcribeMatorAudio(file: Blob, signal?: AbortSignal): Promise<string> {
   const data = await fileToBase64(file);
   const mime = file.type || 'audio/webm';
   const extensionByMime: Record<string, string> = {
@@ -300,6 +302,7 @@ export async function transcribeMatorAudio(file: Blob): Promise<string> {
   const extension = extensionByMime[mime.split(';')[0].toLowerCase()] ?? 'webm';
   const response = await fetch(matorPath('audio/transcriptions'), {
     method: 'POST',
+    signal,
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       data,

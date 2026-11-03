@@ -45,6 +45,8 @@ import {
   finishMatorSendSuccess,
   type MatorSendGate,
 } from './mator-send-gate.ts';
+import { resolveMatorCallTurn } from './mator-call-contract.ts';
+import type { MatorCallTurnResult } from './mator-call-coordinator.ts';
 
 function newIdempotencyKey() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -296,6 +298,50 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
     [message, speakNewHow]
   );
 
+  // Call requests reuse the exact Mator event stream and the same send gate,
+  // but do not mutate the editable text draft or trigger the chat TTS callback.
+  const sendCallTurn = useCallback(async (
+    transcript: string, scope: string, signal: AbortSignal, attachmentIds?: string[]
+  ): Promise<MatorCallTurnResult> => {
+    const id = conversationIdRef.current;
+    const request = transcript.trim();
+    if (!id || !workflowId || scope !== `${workflowId}:${id}` || !request) {
+      throw new Error('The active Mator conversation changed.');
+    }
+    if (signal.aborted) throw new Error('The call was cancelled.');
+    if (inFlightRef.current) throw new Error('Mator is already processing another message.');
+    const signature = JSON.stringify({ request, ids: attachmentIds ?? [], mode: 'ai_call' });
+    if (sendGateRef.current.idempotencyKey && lastSendPayloadRef.current !== signature) {
+      sendGateRef.current = createMatorSendGate();
+    }
+    const started = beginMatorSend(sendGateRef.current, newIdempotencyKey);
+    if (!started) throw new Error('Mator is processing another message.');
+    sendGateRef.current = started.next;
+    lastSendPayloadRef.current = signature;
+    inFlightRef.current = true;
+    setPending(true);
+    setError(null);
+    try {
+      const response = await postMatorMessage(id, { text: request, ...(attachmentIds?.length ? {attachmentIds}:{}), interactionMode: 'ai_call' }, started.key, signal);
+      if (signal.aborted || conversationIdRef.current !== id) {
+        throw new Error('The call conversation changed before its reply arrived.');
+      }
+      setEvents((previous) => mergeMatorEvents(previous, response.events));
+      sendGateRef.current = finishMatorSendSuccess(sendGateRef.current);
+      lastSendPayloadRef.current = null;
+      return resolveMatorCallTurn(response.events);
+    } catch (cause) {
+      sendGateRef.current = finishMatorSendFailure(sendGateRef.current);
+      if (!signal.aborted && conversationIdRef.current === id) {
+        setError(cause instanceof Error ? cause.message : 'Unable to send call turn');
+      }
+      throw cause;
+    } finally {
+      inFlightRef.current = false;
+      setPending(false);
+    }
+  }, [workflowId]);
+
   const uploadForClarify = useCallback(async (file: File): Promise<string> => {
     const conversationId = conversationIdRef.current;
     if (!conversationId) throw new Error('Select a workflow conversation first.');
@@ -387,6 +433,7 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
     try {
       const result = await confirmMatorStage(conversationId, target.id);
       setEvents((previous) => mergeMatorEvents(previous, [result.event]));
+      return true;
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Unable to confirm staged action'
@@ -407,6 +454,7 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
     try {
       const result = await rejectMatorStage(conversationId, target.id);
       setEvents((previous) => mergeMatorEvents(previous, [result.event]));
+      return true;
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Unable to reject staged action'
@@ -521,6 +569,7 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
     message,
     setMessage,
     send,
+    sendCallTurn,
     sendMessage,
     confirmStage,
     rejectStage,
