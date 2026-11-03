@@ -1,6 +1,6 @@
 # Mator Artboard unification: stacked PR implementation ledger
 
-> **Status: INVESTIGATED → PLANNED. Not implementation-complete.** This draft workstream branches from PR #15 (`d398f60ce59743e047fdf366b88e05b435117c2b`) and targets `work/mator-e2e-tracked-20261101`, **not** `main`. Preserve PR #15's Mator chat/voice changes. The source-backed prior investigation and five Mermaid diagrams are in [mator-unified-artboard-investigation.md](mator-unified-artboard-investigation.md).
+> **Status: U1 IMPLEMENTED and focused CI-validated; NOT FULLY REVIEWED OR MERGE-READY.** This draft workstream branches from PR #15 (`d398f60ce59743e047fdf366b88e05b435117c2b`) and targets `work/mator-e2e-tracked-20261101`, **not** `main`. Preserve PR #15's Mator chat/voice changes. The source-backed prior investigation and five Mermaid diagrams are in [mator-unified-artboard-investigation.md](mator-unified-artboard-investigation.md).
 
 ## Verified baseline (2026-11-03)
 
@@ -40,9 +40,9 @@ Retain existing header/toolbar, selection, run forms, evidence links, account ch
 This session can read and write the remote repository through GitHub, but `git ls-remote` from the executable container fails with `Could not resolve host: github.com`. Therefore a local full workspace checkout, dependency install, browser startup and Playwright run are not currently available. Documentation and planned work are not equivalent to production implementation. **Do not move this PR out of draft on the strength of planning alone.**
 
 
-## U1 source integration candidate (2026-11-03)
+## U1 source integration and validated UI revisions (2026-11-03)
 
-**Status: SOURCE CANDIDATE, not locally validated, reviewed, or integration-verified.** The implementation change is scoped to frontend surface and regressions, with no new backend endpoints or permissions. The source is prepared to route the existing saved-plan graph and Growth YAML graph through a single React Flow canvas inside the existing editor shell. The separate Growth screen and nested Artboard are intentionally retired.
+**Status: production code committed, with real GitHub Actions TypeScript, focused unit, frontend build, and selected real-browser integration checks passing. A full repository-wide green gate and independent Dogfood/review are still outstanding.** The implementation change is scoped to frontend surface and regressions, with no new backend endpoints or permissions. The source is prepared to route the existing saved-plan graph and Growth YAML graph through a single React Flow canvas inside the existing editor shell. The separate Growth screen and nested Artboard are intentionally retired.
 
 The compiled task inspector is **read-only**; task titles, kind, messages, typed input bindings, coverage, journal and source YAML may be inspected, but changes to Growth YAML are not persisted because the server does not expose a validated write endpoint. The same existing Growth coordinator handles starting a complete serial program, child approval/resume/cancel, evidence submission and allowed advance. No independent selected-pipeline launch is advertised.
 
@@ -52,17 +52,32 @@ The browser regression tests specifically assert one active graph, six connected
 
 ```mermaid
 flowchart TD
-  Workspace[PipelineWorkspace] --> Shell[WorkflowPlanEditor persistent shell]
+  Workspace[PipelineWorkspace] --> Choice{Workflow opened?}
+  Choice -->|No| Empty[Blank Artboard - no automatic workflow]
+  Empty --> New[Create new workflow]
+  Empty --> Library[Workflow library]
+  Empty --> Resume[Resume saved workflow]
+  New --> Draft[Unsaved valid four-step Runner draft]
+  Library --> Sources{Template source}
+  Sources --> ActionTemplates[Action templates from platform catalogue]
+  Sources --> YamlTemplates[YAML programmes from restricted catalogue]
+  ActionTemplates --> SaveCopy[Save own workflow revision]
+  Draft --> Shell[WorkflowPlanEditor persistent shell]
+  Resume --> Shell
+  SaveCopy --> Shell
+  YamlTemplates --> Shell
+  Choice -->|Yes| Shell
   Shell --> Toolbar[Template selector and action rail]
   Shell --> Graph[One ReactFlow canvas]
   Shell --> Footer[Contextual status and evidence entry]
   Shell --> Dialog[GrowthWorkspaceDialogs]
-  Graph --> Context{Selected Growth template?}
-  Context -->|No| Saved[Saved WorkflowPlan steps]
+  Toolbar --> Leave[Return to blank workspace with unsaved confirmation]
+  Graph --> Context{YAML programme selected?}
+  Context -->|No| Saved[Editable WorkflowPlan step cards]
   Context -->|Yes| Growth[buildGrowthGraph]
-  Growth --> Overview[Connected pipeline graph]
-  Overview --> TaskGraph[Selected pipeline task graph]
-  TaskGraph --> ReadOnly[Read-only task inspection]
+  Growth --> Overview[Connected pipeline cards]
+  Overview --> TaskGraph[Selected pipeline task cards]
+  TaskGraph --> ReadOnly[Read-only compiled configuration and journal]
   Dialog --> Controls[Existing GrowthRunControls]
   Dialog --> Evidence[Existing GrowthEvidenceForm]
   Dialog --> Coverage[Existing GrowthCoverageList]
@@ -107,6 +122,19 @@ Source: [diagrams/mator-unified-artboard-execution.mmd](diagrams/mator-unified-a
 
 ### Outstanding before review or merge
 
-- Run TypeScript, Prettier, ESLint, frontend unit tests, backend browser integration tests and Playwright responsive/keyboard checks in a real checked-out workspace. The current sandbox has Node.js but cannot resolve/reach GitHub or acquire the pnpm checkout/dependencies.
+- Run repository-wide strict code quality and full Playwright responsive/keyboard checks in a real checked-out workspace; focused GitHub Actions already executed typecheck, unit tests and three real-browser scenarios. The current sandbox has Node.js but cannot resolve/reach GitHub or acquire the pnpm checkout/dependencies.
 - Independently review the compiled task selection behavior, focus return when a dialog closes, responsive graph viewport at phone/tablet widths, and status/evidence attribution.
 - U2–U5 remain separate work packages; no source-preserving Growth YAML editing, arbitrary pipeline execution API, or provider-level profile updates are implied by U1.
+
+
+## U1 clarification: initial canvas and workflow terminology
+
+The workspace now starts with **no selected plan** even if local saved workflows are listed. Loading the dashboard fetches `GET /workflows` for the resume list but does not POST a default workflow or select the earliest saved plan. A user must explicitly choose **Browse templates**, **Create new workflow**, or **Continue a saved workflow**. The blank Artboard remains one UI entry point, not a second editor. The toolbar offers a way back, with an unsaved-change confirmation for drafts.
+
+**Create new workflow** produces an *unsaved* minimal serial plan with the four mandatory Runner steps (`start`, `session`, `action`, `finish`). A true zero-step executable plan would violate backend `validatePlan`; only the landing canvas is genuinely empty. Saving uses the existing revisioned workflow endpoint, and no run is launched on creation or template selection.
+
+The neutral **Workflow library** contains two explicitly differentiated sources: the current YAML programme catalogue and the real platform action-template catalogue. The first retains its existing supported/planning-only classification, and the second uses `workflow-templates/:platform` plus the revisioned saved-workflow API. No extra social platform automations have been invented; X shows actual action templates only. Growth remains a specific programme domain rather than the name of the whole template library.
+
+The YAML pipeline/task cards now borrow the original saved-step card language, including numbered headers, grounded step-kind icons, real status pills, and useful footer affordances. Read-only compiled tasks are not misleadingly marked editable. The existing coordinator remains the sole execution path; evidence and checkpoint state are still tied to real Runner journals.
+
+**Evidence:** GitHub Actions integration run [41643060127](https://github.com/surdma/utomator/actions/runs/41643060127) passed TypeScript/focused unit and **3 real-browser tests (0 failed)** for pipeline/drill-down, design-only nonexecution and blank Artboard action-template opt-in. [41644627061](https://github.com/surdma/utomator/actions/runs/41644627061) additionally passed the return-to-workspace/unsaved confirmation scenario. The full suite has inherited failures unrelated to the changed Artboard flow; maintain draft status and fix or triage them, not weaken their gates.
