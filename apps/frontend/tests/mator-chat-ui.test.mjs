@@ -198,7 +198,7 @@ test('new chat displays suggestions instead of a permanent loading skeleton', ()
   const panel = readFileSync(mator('operator-chat-panel.tsx'), 'utf8');
   assert.match(panel, /data-testid="mator-empty-thread"/);
   assert.match(panel, /loading \? \(/);
-  assert.match(panel, /<Suggestion suggestions=\{START_SUGGESTIONS\}/);
+  assert.match(panel, /<Suggestion[^>]*?suggestions=\{START_SUGGESTIONS\}/s);
   assert.match(panel, /matorAttachmentFileUrl/);
   const attachment = readFileSync(mator('mator-attachment-preview.tsx'), 'utf8');
   assert.match(attachment, /onAnnotateFull/, 'image click opens the studio');
@@ -266,11 +266,13 @@ test('asset upload requires explicit send and multi-image names are metadata', (
 test('text dictation stays in the draft and AI Call requires an explicit start', () => {
   const shell = readFileSync(resolve(root, 'components/dashboard/dashboard-shell.tsx'), 'utf8');
   const composer = readFileSync(mator('mator-composer.tsx'), 'utf8');
-  const callPanel = readFileSync(mator('mator-ai-call-panel.tsx'), 'utf8');
+  const listener = readFileSync(mator('mator-voice-listener.tsx'), 'utf8');
   assert.match(shell, /if \(source === 'voice'\) \{/);
   assert.match(shell, /\[current\.trim\(\), request\]\.filter\(Boolean\)\.join\(' '\)/);
   assert.match(shell, /const aiCall = useMatorAiCall\(/);
-  assert.match(composer, /<MatorAiCallPanel call=\{call\}/);
-  assert.match(callPanel, /data-testid="mator-call-start"/);
-  assert.match(callPanel, /onClick=\{call\.start\}/);
+  assert.match(composer, /<MatorVoiceListener call=\{call\}/);
+  assert.match(listener, /data-testid="mator-call-start"/);
+  assert.match(listener, /onClick=\{call\.start\}/);
+  assert.match(listener, /mator-galaxy/, 'the voice dock stays a transparent galaxy listener, not a card');
+  assert.doesNotMatch(listener, /mator-call-last-turn/, 'call turns read from the live transcript instead of a collapsed text card');
 });

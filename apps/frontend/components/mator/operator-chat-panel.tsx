@@ -50,6 +50,7 @@ import { Queue } from './elements/queue';
 import { Suggestion } from './elements/suggestion';
 import MatorClarifyForm from './mator-clarify-form';
 import MatorComposer from './mator-composer';
+import { MatorCallControls } from './mator-voice-listener';
 import type { MatorAiCall } from './use-mator-ai-call';
 import { MarkdownReply } from './markdown-reply';
 import { getApi } from '@/components/dashboard/pipeline/api-client';
@@ -542,6 +543,7 @@ export default function OperatorChatPanel({
               )}
             </nav>
           </Popover>
+          {call.active && <MatorCallControls call={call} />}
           <button
             type="button"
             onClick={onClose}
@@ -1075,7 +1077,7 @@ export default function OperatorChatPanel({
         {call.active && call.question && (
           <div data-testid="mator-call-question" role="group"
             aria-label={`Clarification question ${call.question.index} of ${call.question.total}`}
-            className="mx-2 mb-2 rounded-2xl border border-teal-200 bg-teal-50/60 p-3">
+            className="mx-2 mb-2 rounded-2xl border border-teal-100 bg-white/75 p-3 backdrop-blur-sm">
             <p className="text-xs font-semibold text-teal-900">Question {call.question.index} of {call.question.total}</p>
             <p className="mt-2 text-sm font-medium leading-relaxed text-slate-900">{call.question.value.prompt}</p>
             {call.state.phase === 'clarifying-voice' && (

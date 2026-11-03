@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import type { VoiceSession } from './use-voice-session';
 import type { MatorAiCall } from './use-mator-ai-call';
-import MatorAiCallPanel from './mator-ai-call-panel';
+import MatorVoiceListener from './mator-voice-listener';
 import MatorAttachmentPreview from './mator-attachment-preview';
 import type { MatorCanvasMarker } from './mator-attachment-canvas';
 import { setVoiceOnlyPreference, useVoiceOnlyPreference } from './mator-voice-preference';
@@ -305,13 +305,14 @@ export default function MatorComposer({
   ) : null;
 
 
-  /* ── AI Call retains the existing compact composer shell and file controls. ── */
+  /* ── AI Call: transparent galaxy listener dock replaces the text composer
+     and the old card; the header owns mute + end call during the call. ── */
   if (voiceOnly) {
     return (
       <div
         data-testid="mator-composer"
         data-mode="voice-only"
-        className="shrink-0 border-t border-slate-200 bg-gradient-to-b from-slate-50/60 to-white px-4 pt-3 pb-3"
+        className="shrink-0 px-2 pt-1 pb-1"
       >
         <div className="flex min-w-0 flex-nowrap items-center justify-between gap-1">
           <span className="inline-flex min-w-0 shrink-0 items-center gap-1.5 whitespace-nowrap text-xs font-semibold text-teal-800">
@@ -337,8 +338,8 @@ export default function MatorComposer({
           </div>
         )}
         {draftError && <p role="alert" className="text-xs text-rose-700">{draftError}</p>}
-        <div className="mt-3 pb-1">
-          <MatorAiCallPanel call={call} ready={callReady && !busy} />
+        <div className="mt-1">
+          <MatorVoiceListener call={call} ready={callReady && !busy} />
         </div>
         {operatorPendingLabel && onConfirmOperator && (
           <OperatorPendingApproval label={operatorPendingLabel} onConfirm={onConfirmOperator} busy={busy} />
