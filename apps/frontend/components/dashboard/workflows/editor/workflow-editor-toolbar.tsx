@@ -1,7 +1,14 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { ArrowLeft, LayoutTemplate, ListChecks, Plus, Save, Settings2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  LayoutTemplate,
+  ListChecks,
+  Plus,
+  Save,
+  Settings2,
+} from 'lucide-react';
 import type { WorkflowPlan } from '../workflow-types';
 
 type Props = {

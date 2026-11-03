@@ -165,7 +165,8 @@ function EditorBody(props: Props) {
   const growthProgram = growth.program;
   const growthRun = growth.run;
   const growthStage =
-    growthProgram?.stages.find((stage) => stage.id === growthPipelineId) ?? null;
+    growthProgram?.stages.find((stage) => stage.id === growthPipelineId) ??
+    null;
   const liveGrowthPipeline = growthRun?.pipelineRuns.find(
     (item) => item.id === growthPipelineId
   );
@@ -182,13 +183,7 @@ function EditorBody(props: Props) {
             liveGrowthPipeline
           )
         : null,
-    [
-      growthProgram,
-      growthRun,
-      growthStage,
-      growthJournal,
-      liveGrowthPipeline,
-    ]
+    [growthProgram, growthRun, growthStage, growthJournal, liveGrowthPipeline]
   );
   const [outputOpen, setOutputOpen] = useState(false);
   const [editorError, setEditorError] = useState('');
@@ -267,8 +262,9 @@ function EditorBody(props: Props) {
     }),
     [plan, latest, state]
   );
-  const [nodes, setNodes, onNodesChange] =
-    useNodesState<ArtboardNode>(data.nodes);
+  const [nodes, setNodes, onNodesChange] = useNodesState<ArtboardNode>(
+    data.nodes
+  );
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       setNodes((previous) => {
@@ -565,7 +561,9 @@ function EditorBody(props: Props) {
                 ? 'Planning-only tasks, not executable Runner operations.'
                 : 'Select a task to inspect its compiled configuration and recorded evidence.'}
               {growthJournalError && (
-                <span className="block text-amber-800">{growthJournalError}</span>
+                <span className="block text-amber-800">
+                  {growthJournalError}
+                </span>
               )}
             </div>
           )}
@@ -607,13 +605,15 @@ function EditorBody(props: Props) {
               onClick={() => setGrowthDetailsOpen(true)}
               className="min-h-10 font-bold text-teal-800 focus-visible:outline-2 focus-visible:outline-teal-700"
             >
-              Run controls and evidence <ChevronRight className="inline size-4" />
+              Run controls and evidence{' '}
+              <ChevronRight className="inline size-4" />
             </button>
           </>
         ) : (
           <>
             <span>
-              Live status: <strong className="capitalize">{state ?? 'idle'}</strong>
+              Live status:{' '}
+              <strong className="capitalize">{state ?? 'idle'}</strong>
               {runId ? ' · ' + runId.slice(0, 8) : ''}
             </span>
             <button
@@ -697,10 +697,7 @@ function EditorBody(props: Props) {
 export default function WorkflowPlanEditor(props: Props) {
   return (
     <ReactFlowProvider>
-      <EditorBody
-        key={props.growthTemplateId ?? 'saved-workflow'}
-        {...props}
-      />
+      <EditorBody key={props.growthTemplateId ?? 'saved-workflow'} {...props} />
     </ReactFlowProvider>
   );
 }

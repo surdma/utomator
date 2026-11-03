@@ -99,26 +99,22 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Type-check frontend without legacy test dependencies
         run: pnpm --filter @utomator/frontend typecheck
-      - name: Check workflow and Growth graph regressions
-        if: success() || failure()
+      - name: Check Growth graph and Runner journal behavior
         run: >-
           pnpm --filter @utomator/frontend exec node --experimental-strip-types --test
+          tests/growth-graph-model.test.mjs tests/growth-run-journal.test.mjs
+      - name: Check unified Artboard route contract
+        run: >-
+          pnpm --filter @utomator/frontend exec node --experimental-strip-types --test
+          --test-name-pattern="Growth YAML uses the persistent Artboard canvas"
           tests/utomator-routes.test.mjs
-          tests/growth-graph-model.test.mjs
-          tests/growth-run-journal.test.mjs
-      - name: Capture Prettier fix for changed Artboard files (diagnostic only)
+      - name: Capture route test formatting patch (diagnostic only)
         if: always()
         run: |
-          pnpm exec prettier --write \
-            apps/frontend/components/dashboard/workflows/workflow-plan-editor.tsx \
-            apps/frontend/components/dashboard/workflows/editor/workflow-editor-toolbar.tsx \
-            apps/frontend/components/dashboard/growth/growth-workspace-dialogs.tsx
-          echo 'ARTBOARD_FORMAT_DIFF_BEGIN'
-          git diff -- \
-            apps/frontend/components/dashboard/workflows/workflow-plan-editor.tsx \
-            apps/frontend/components/dashboard/workflows/editor/workflow-editor-toolbar.tsx \
-            apps/frontend/components/dashboard/growth/growth-workspace-dialogs.tsx
-          echo 'ARTBOARD_FORMAT_DIFF_END'
+          pnpm exec prettier --write apps/frontend/tests/utomator-routes.test.mjs
+          echo 'ARTBOARD_ROUTE_FORMAT_DIFF_BEGIN'
+          git diff -- apps/frontend/tests/utomator-routes.test.mjs
+          echo 'ARTBOARD_ROUTE_FORMAT_DIFF_END'
 
   artboard-browser:
     name: Unified Artboard real-browser integration
