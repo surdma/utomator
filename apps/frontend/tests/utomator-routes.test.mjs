@@ -205,7 +205,10 @@ test('Growth YAML uses the persistent Artboard canvas and real Runner controls',
     'utf8'
   );
   const graphNode = readFileSync(
-    resolve(root, 'components/dashboard/growth/artboard/growth-graph-node-card.tsx'),
+    resolve(
+      root,
+      'components/dashboard/growth/artboard/growth-graph-node-card.tsx'
+    ),
     'utf8'
   );
   const graphModel = readFileSync(
@@ -213,10 +216,16 @@ test('Growth YAML uses the persistent Artboard canvas and real Runner controls',
     'utf8'
   );
   const toolbar = readFileSync(
-    resolve(root, 'components/dashboard/workflows/editor/workflow-editor-toolbar.tsx'),
+    resolve(
+      root,
+      'components/dashboard/workflows/editor/workflow-editor-toolbar.tsx'
+    ),
     'utf8'
   );
-  const proxy = readFileSync(resolve(root, 'app/api/[...path]/route.ts'), 'utf8');
+  const proxy = readFileSync(
+    resolve(root, 'app/api/[...path]/route.ts'),
+    'utf8'
+  );
   const optionsModel = readFileSync(
     resolve(root, 'components/dashboard/workflows/template-options.ts'),
     'utf8'

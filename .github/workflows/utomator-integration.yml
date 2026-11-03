@@ -108,13 +108,6 @@ jobs:
           pnpm --filter @utomator/frontend exec node --experimental-strip-types --test
           --test-name-pattern="Growth YAML uses the persistent Artboard canvas"
           tests/utomator-routes.test.mjs
-      - name: Capture route test formatting patch (diagnostic only)
-        if: always()
-        run: |
-          pnpm exec prettier --write apps/frontend/tests/utomator-routes.test.mjs
-          echo 'ARTBOARD_ROUTE_FORMAT_DIFF_BEGIN'
-          git diff -- apps/frontend/tests/utomator-routes.test.mjs
-          echo 'ARTBOARD_ROUTE_FORMAT_DIFF_END'
 
   artboard-browser:
     name: Unified Artboard real-browser integration
