@@ -103,10 +103,11 @@ jobs:
         run: >-
           pnpm --filter @utomator/frontend exec node --experimental-strip-types --test
           tests/growth-graph-model.test.mjs tests/growth-run-journal.test.mjs
+          tests/default-workflow-plan.test.mjs
       - name: Check unified Artboard route contract
         run: >-
           pnpm --filter @utomator/frontend exec node --experimental-strip-types --test
-          --test-name-pattern="Growth YAML uses the persistent Artboard canvas"
+          --test-name-pattern="Growth YAML uses the persistent Artboard canvas|the first visit shows a blank Artboard"
           tests/utomator-routes.test.mjs
 
   artboard-browser:
@@ -138,7 +139,7 @@ jobs:
       - name: Exercise executable and design-only Growth YAML in the original Artboard
         run: >-
           pnpm --filter @utomator/backend exec node --import tsx --test
-          --test-name-pattern="Growth profile YAML uses one Artboard|planning-only Growth YAML stays read-only"
+          --test-name-pattern="Growth profile YAML uses one Artboard|planning-only Growth YAML stays read-only|blank Artboard opens action templates"
           tests/browser.integration.test.ts
         env:
           NODE_ENV: test

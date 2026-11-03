@@ -72,7 +72,7 @@ export function WorkflowEditorToolbar({
   onOpenConfig,
 }: Props) {
   const title = growthTemplateId
-    ? growthTitle || 'Growth workflow'
+    ? growthTitle || 'Workflow'
     : plan.name || 'Untitled workflow';
   const taskLabel =
     plan.steps.length +
@@ -131,13 +131,13 @@ export function WorkflowEditorToolbar({
         {growthTemplateId ? (
           <>
             <RailButton
-              label="Growth execution and evidence"
+              label="Workflow execution and evidence"
               onClick={() => onOpenGrowthDetails?.()}
             >
               <ListChecks className="size-4" />
             </RailButton>
             <RailButton
-              label="Action workflows"
+              label="Back to workspace"
               onClick={() => onClearGrowth?.()}
             >
               <ArrowLeft className="size-4" />

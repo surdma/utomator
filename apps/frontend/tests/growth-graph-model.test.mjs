@@ -108,3 +108,24 @@ test('missing run evidence stays waiting and cannot imply completion', () => {
   assert.equal(graph.nodes[1].data.state, 'waiting');
   assert.equal(graph.edges[0].animated, false);
 });
+
+test('pipeline and task cards receive numbered step metadata and real step kinds', () => {
+  const overview = buildGrowthGraph(program, null, null, [], undefined);
+  assert.equal(overview.nodes[0].data.kind, 'pipeline');
+  assert.equal(overview.nodes[0].data.index, 1);
+  assert.equal(overview.nodes[0].data.stepCount, 2);
+  const tasks = buildGrowthGraph(program, null, stage, [], undefined);
+  assert.equal(tasks.nodes[0].data.kind, 'task');
+  assert.equal(tasks.nodes[0].data.index, 1);
+  assert.equal(tasks.nodes[0].data.stepKind, 'start');
+  assert.equal(tasks.nodes[1].data.stepKind, 'inspect');
+  assert.equal(tasks.nodes[1].data.designOnly, false);
+  const designOnly = buildGrowthGraph(
+    { ...program, kind: 'GrowthBlueprintWorkflow' },
+    null,
+    stage,
+    [],
+    undefined
+  );
+  assert.equal(designOnly.nodes[1].data.designOnly, true);
+});

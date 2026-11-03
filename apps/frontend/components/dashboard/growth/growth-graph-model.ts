@@ -1,5 +1,5 @@
 import type { Edge, Node } from '@xyflow/react';
-import type { WorkflowPlan } from '../workflows/workflow-plan-editor';
+import type { WorkflowPlan, StepKind } from '../workflows/workflow-types';
 
 export type GrowthGraphStage = {
   id: string;
@@ -45,6 +45,11 @@ export type GrowthGraphData = Record<string, unknown> & {
   state: string;
   nodeId: string;
   kind: 'pipeline' | 'task';
+  index: number;
+  total: number;
+  stepKind?: StepKind;
+  stepCount?: number;
+  designOnly: boolean;
   failure?: string;
 };
 
@@ -91,13 +96,12 @@ export function buildGrowthGraph(
       data: {
         kind: 'task',
         nodeId: step.id,
+        index: index + 1,
+        total: selected.plan.steps.length,
+        stepKind: step.kind,
+        designOnly: program.kind === 'GrowthBlueprintWorkflow',
         label: step.title,
-        subtitle:
-          step.kind +
-          ' · ' +
-          String(index + 1) +
-          ' of ' +
-          selected.plan.steps.length,
+        subtitle: step.kind.replaceAll('-', ' ') + ' step',
         state: taskStates.get(step.id) ?? 'waiting',
         failure:
           taskStates.get(step.id) === 'failed'
@@ -139,10 +143,14 @@ export function buildGrowthGraph(
       data: {
         kind: 'pipeline',
         nodeId: stage.id,
+        index: index + 1,
+        total: program.stages.length,
+        stepCount: stage.stepCount,
+        designOnly: program.kind === 'GrowthBlueprintWorkflow',
         label: stage.title,
         subtitle:
           stage.stepCount +
-          ' tasks, steps, actions, and events · ' +
+          ' steps · ' +
           stage.sectionIds.length +
           ' coverage requirements',
         state: state?.state ?? 'waiting',

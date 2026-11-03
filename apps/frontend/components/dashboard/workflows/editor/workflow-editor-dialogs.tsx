@@ -123,8 +123,8 @@ export function WorkflowEditorDialogs({
       <StudioDialog
         open={templateOpen}
         onDismiss={onTemplateDismiss}
-        title="Growth workflow templates"
-        description="Browse 21 Growth workflows, inspect their YAML pipelines and steps, and distinguish supported Runner actions from planning-only procedures."
+        title="Workflow library"
+        description="Browse action templates and YAML workflows. Inspect connected steps and execution limits before opening a workflow."
         size="wide"
         scrollMode="contained"
         testId="workflow-template-dialog"

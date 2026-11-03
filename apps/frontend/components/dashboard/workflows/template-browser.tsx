@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Check, ChevronRight, FileCode2, GitBranch, Search, ShieldCheck, Workflow } from 'lucide-react';
 import type { WorkflowPlan } from './workflow-plan-editor';
+import ActionTemplateBrowser from './action-template-browser';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Program } from '../growth/growth-profile-types';
 import {
@@ -34,6 +35,9 @@ const categoryLabels: Record<GrowthTemplateCategory, string> = {
 
 export default function TemplateBrowser({
   activePlatform,
+  templates,
+  connected,
+  onApply,
   onApplied,
   onGrowthApply,
 }: Props) {
@@ -42,6 +46,9 @@ export default function TemplateBrowser({
   const [catalogError, setCatalogError] = useState('');
   const [refresh, setRefresh] = useState(0);
   const [query, setQuery] = useState('');
+  const [source, setSource] = useState<'yaml' | 'action'>(
+    activePlatform === 'linkedin' ? 'yaml' : 'action'
+  );
   const [category, setCategory] = useState<GrowthTemplateCategory>('All');
   const [readiness, setReadiness] = useState<Readiness>('all');
   const [picked, setPicked] = useState<string | null>(null);
@@ -56,17 +63,17 @@ export default function TemplateBrowser({
     const controller = new AbortController();
     void fetch('/api/growth/templates', { cache: 'no-store', signal: controller.signal })
       .then(async (response) => {
-        if (!response.ok) throw Error('The Growth YAML library is unavailable.');
+        if (!response.ok) throw Error('The YAML workflow catalogue is unavailable.');
         const data = (await response.json()) as GrowthTemplateSummary[];
         if (!Array.isArray(data) || data.some((item) => typeof item.id !== 'string' || typeof item.executable !== 'boolean'))
-          throw Error('The Growth library returned an invalid catalogue.');
+          throw Error('The YAML workflow catalogue returned an invalid response.');
         if (!controller.signal.aborted) {
           setCatalog(data);
           setCatalogError('');
         }
       })
       .catch((cause) => {
-        if (!controller.signal.aborted) setCatalogError(cause instanceof Error ? cause.message : 'Unable to load Growth workflows');
+        if (!controller.signal.aborted) setCatalogError(cause instanceof Error ? cause.message : 'Unable to load YAML workflows');
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
@@ -87,7 +94,7 @@ export default function TemplateBrowser({
   const selectedId = selected?.id ?? null;
 
   useEffect(() => {
-    if (!selectedId) return;
+    if (!selectedId || source !== 'yaml') return;
     const controller = new AbortController();
     queueMicrotask(() => {
       if (!controller.signal.aborted) {
@@ -118,7 +125,7 @@ export default function TemplateBrowser({
     return () => {
       controller.abort();
     };
-  }, [selectedId, detailRefresh]);
+  }, [selectedId, detailRefresh, source]);
 
   const currentDetail = detail?.id === selected?.id ? detail : null;
   async function loadSelected() {
@@ -129,32 +136,57 @@ export default function TemplateBrowser({
       await onGrowthApply(selected.id);
       onApplied();
     } catch (cause) {
-      setApplyError(cause instanceof Error ? cause.message : 'Unable to open this Growth workflow');
+      setApplyError(cause instanceof Error ? cause.message : 'Unable to open this workflow');
     } finally {
       setApplying(false);
     }
+  }
+
+  if (source === 'action') {
+    return (
+      <ActionTemplateBrowser
+        platform={activePlatform}
+        templates={templates}
+        connected={connected}
+        onApply={onApply}
+        onApplied={onApplied}
+        onBrowseYaml={
+          activePlatform === 'linkedin'
+            ? () => setSource('yaml')
+            : undefined
+        }
+      />
+    );
   }
 
   return (
     <div data-testid="social-template-browser" className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-1">
         <div>
-          <p className="text-[11px] font-semibold tracking-wide text-teal-800 uppercase">Growth workflow library</p>
+          <p className="text-[11px] font-semibold tracking-wide text-teal-800 uppercase">Workflow library</p>
           <p className="mt-0.5 text-xs leading-5 text-slate-600">
-            One YAML source per workflow. Inspect pipelines and steps before opening them.
+            Browse YAML programmes or switch to action templates. Select a workflow to inspect its actual steps.
           </p>
         </div>
         <span data-testid="growth-template-count" className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700">
           {options.length} workflows
         </span>
       </header>
+      <nav aria-label="Workflow template source" className="flex shrink-0 gap-2">
+        <span aria-current="page" className="inline-flex min-h-11 items-center rounded-xl bg-slate-950 px-4 text-xs font-semibold text-white">
+          YAML programmes
+        </span>
+        <button type="button" onClick={() => setSource('action')} className="min-h-11 rounded-xl border border-slate-200 px-4 text-xs font-semibold text-slate-700 transition hover:border-teal-400">
+          Action templates
+        </button>
+      </nav>
       <div className="flex shrink-0 flex-wrap gap-2">
         <label className="relative min-w-0 flex-[2_1_220px]">
           <Search className="pointer-events-none absolute top-3.5 left-3 size-4 text-slate-500" aria-hidden="true" />
-          <span className="sr-only">Search Growth workflows</span>
+          <span className="sr-only">Search workflows</span>
           <input
             type="search"
-            aria-label="Search Growth workflows"
+            aria-label="Search workflows"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Find profile, content, jobs, analytics…"
@@ -162,9 +194,9 @@ export default function TemplateBrowser({
           />
         </label>
         <label className="min-w-0 flex-[1_1_140px]">
-          <span className="sr-only">Filter Growth category</span>
+          <span className="sr-only">Filter workflow category</span>
           <select
-            aria-label="Filter Growth category"
+            aria-label="Filter workflow category"
             value={category}
             onChange={(event) => setCategory(event.target.value as GrowthTemplateCategory)}
             className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 focus-visible:outline-2 focus-visible:outline-teal-700"
@@ -187,9 +219,9 @@ export default function TemplateBrowser({
         </label>
       </div>
       <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_minmax(0,1.1fr)] gap-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:grid-rows-1">
-        <div className="min-h-0 overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-slate-50/60 p-2" role="region" aria-label="Growth workflow results">
+        <div className="min-h-0 overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-slate-50/60 p-2" role="region" aria-label="YAML workflow results">
           {loading ? (
-            <div role="status" aria-label="Loading Growth templates" className="space-y-3 p-2">
+            <div role="status" aria-label="Loading YAML templates" className="space-y-3 p-2">
               {[0, 1, 2, 3].map((item) => (
                 <div key={item} className="space-y-2 rounded-xl bg-white p-4">
                   <Skeleton className="h-4 w-2/3 rounded" />
@@ -206,7 +238,7 @@ export default function TemplateBrowser({
             </div>
           ) : filtered.length === 0 ? (
             <div data-testid="growth-templates-empty" className="space-y-3 p-5 text-sm text-slate-600">
-              <p>No Growth workflows match these filters.</p>
+              <p>No YAML workflows match these filters.</p>
               <button type="button" className="min-h-11 rounded-xl border border-slate-300 px-3 font-semibold" onClick={() => { setQuery(''); setCategory('All'); setReadiness('all'); }}>
                 Clear filters
               </button>

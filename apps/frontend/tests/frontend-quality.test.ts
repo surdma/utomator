@@ -1485,7 +1485,7 @@ test('Growth modal uses the YAML catalogue with actionable search and pipeline d
   );
 
   await page.goto('/dashboard/pipeline');
-  await page.getByRole('button', { name: 'Choose workflow template' }).click();
+  await page.getByRole('button', { name: 'Browse templates' }).click();
   const dialog = page.getByTestId('workflow-template-dialog');
   await expect(dialog).toBeVisible();
   await expect(dialog.getByTestId('growth-template-count')).toContainText(
@@ -1493,7 +1493,7 @@ test('Growth modal uses the YAML catalogue with actionable search and pipeline d
   );
   await expect(dialog.getByTestId('growth-template-option')).toHaveCount(21);
   await dialog
-    .getByRole('searchbox', { name: 'Search Growth workflows' })
+    .getByRole('searchbox', { name: 'Search workflows' })
     .fill('analytics');
   await expect(dialog.getByTestId('growth-template-option')).toHaveCount(1);
   await expect(
@@ -1505,7 +1505,7 @@ test('Growth modal uses the YAML catalogue with actionable search and pipeline d
     dialog.getByRole('link', { name: 'View source YAML' })
   ).toHaveAttribute('href', '/api/growth/templates/linkedin-analytics/yaml');
   await dialog
-    .getByRole('searchbox', { name: 'Search Growth workflows' })
+    .getByRole('searchbox', { name: 'Search workflows' })
     .fill('not-a-template');
   await expect(dialog.getByTestId('growth-templates-empty')).toBeVisible();
   await dialog.getByRole('button', { name: 'Clear filters' }).click();

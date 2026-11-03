@@ -245,7 +245,7 @@ test('Growth YAML uses the persistent Artboard canvas and real Runner controls',
   assert.match(editor, /growth-nested-artboard/);
   assert.match(editor, /Back to pipelines/);
   assert.match(editor, /<GrowthWorkspaceDialogs/);
-  assert.match(toolbar, /Growth execution and evidence/);
+  assert.match(toolbar, /Workflow execution and evidence/);
   assert.match(details, /<GrowthRunControls/);
   assert.match(details, /<GrowthEvidenceForm/);
   assert.match(details, /<GrowthCoverageList/);
@@ -261,4 +261,54 @@ test('Growth YAML uses the persistent Artboard canvas and real Runner controls',
     'utf8'
   );
   assert.match(legacy, /redirect\(['"]\/dashboard\/workspace['"]\)/);
+});
+
+test('the first visit shows a blank Artboard and a genuinely broader workflow library', () => {
+  const hook = readFileSync(
+    resolve(root, 'components/dashboard/pipeline/use-workflow-workspace.ts'),
+    'utf8'
+  );
+  const workspace = readFileSync(
+    resolve(root, 'components/dashboard/pipeline/pipeline-workspace.tsx'),
+    'utf8'
+  );
+  const empty = readFileSync(
+    resolve(root, 'components/dashboard/workflows/editor/workflow-empty-state.tsx'),
+    'utf8'
+  );
+  const library = readFileSync(
+    resolve(root, 'components/dashboard/workflows/template-browser.tsx'),
+    'utf8'
+  );
+  const action = readFileSync(
+    resolve(root, 'components/dashboard/workflows/action-template-browser.tsx'),
+    'utf8'
+  );
+  const graph = readFileSync(
+    resolve(root, 'components/dashboard/growth/artboard/growth-graph-node-card.tsx'),
+    'utf8'
+  );
+  const step = readFileSync(
+    resolve(root, 'components/dashboard/workflows/workflow-step-card.tsx'),
+    'utf8'
+  );
+  assert.match(hook, /useState\(false\)/);
+  assert.doesNotMatch(hook, /createDefaultWorkspace/);
+  assert.match(hook, /beginNewWorkflow/);
+  assert.match(hook, /selectSavedWorkflow/);
+  assert.match(workspace, /!workspaceOpen\s*\?\s*\(/);
+  assert.match(workspace, /<WorkflowEmptyState/);
+  assert.match(empty, /workflow-empty-state/);
+  assert.match(empty, /Browse templates/);
+  assert.match(empty, /Create new workflow/);
+  assert.match(empty, /Continue a saved workflow/);
+  assert.match(library, /ActionTemplateBrowser/);
+  assert.match(library, /Workflow library/);
+  assert.doesNotMatch(library, /Growth workflow library/);
+  assert.match(action, /onApply\(selected, selected.platform \+ '-' \+ selected.action\)/);
+  assert.match(action, /Use this template/);
+  assert.match(graph, /stepIconFor/);
+  assert.match(step, /stepIconFor/);
+  assert.match(graph, /STEP /);
+  assert.match(graph, /INSPECT · READ ONLY/);
 });

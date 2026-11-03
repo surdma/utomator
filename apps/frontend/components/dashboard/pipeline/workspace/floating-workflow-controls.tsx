@@ -9,6 +9,7 @@ import type { WorkflowRecord } from '../use-workflow-workspace';
 
 type Props = {
   selectedGrowthTemplateId: string | null;
+  workspaceOpen: boolean;
   active: Run | null;
   platform: Platform;
   action: string;
@@ -31,6 +32,7 @@ type Props = {
 
 export default function FloatingWorkflowControls({
   selectedGrowthTemplateId,
+  workspaceOpen,
   active,
   platform,
   action,
@@ -55,7 +57,7 @@ export default function FloatingWorkflowControls({
       className="pointer-events-none fixed bottom-5 left-1/2 z-30 hidden -translate-x-1/2 items-center gap-2 rounded-full border border-white/30 bg-[#111e2b] p-1.5 shadow-2xl lg:flex"
       data-testid="floating-workflow-controls"
     >
-      {!selectedGrowthTemplateId && (
+      {(workspaceOpen || Boolean(active)) && !selectedGrowthTemplateId && (
         <WorkflowRunButton
           active={active}
           platform={platform}

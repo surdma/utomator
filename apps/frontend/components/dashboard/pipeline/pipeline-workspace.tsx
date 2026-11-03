@@ -3,6 +3,7 @@
 import { type ComponentType, type Dispatch, type SetStateAction } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import PipelineRunSetupForm from './workspace/pipeline-run-setup-form';
+import WorkflowEmptyState from '../workflows/editor/workflow-empty-state';
 import FloatingWorkflowControls from './workspace/floating-workflow-controls';
 import WorkflowPlanEditor, {
   type WorkflowPlan,
@@ -19,10 +20,14 @@ type Props = {
   workflowPlan: WorkflowPlan;
   templatePlans: WorkflowPlan[];
   selectedGrowthTemplateId: string | null;
+  workspaceOpen: boolean;
+  savedWorkflows: WorkflowRecord[];
+  beginNewWorkflow: () => void;
+  selectSavedWorkflow: (id: string | null) => void;
+  closeWorkspace: () => void;
   connectorReady: boolean;
   activeConnector: Connector | null;
   applyGrowthTemplate: (id: string) => Promise<void>;
-  setSelectedGrowthTemplateId: Dispatch<SetStateAction<string | null>>;
   chooseAction: (action: string) => void;
   platform: Platform;
   action: string;
@@ -65,10 +70,14 @@ export default function PipelineWorkspace({
   workflowPlan,
   templatePlans,
   selectedGrowthTemplateId,
+  workspaceOpen,
+  savedWorkflows,
+  beginNewWorkflow,
+  selectSavedWorkflow,
+  closeWorkspace,
   connectorReady,
   activeConnector,
   applyGrowthTemplate,
-  setSelectedGrowthTemplateId,
   chooseAction,
   platform,
   action,
@@ -108,15 +117,28 @@ export default function PipelineWorkspace({
   const reduceMotion = useReducedMotion();
   return (
     <>
-      {pane === 'workspace' && (
-        <>
+      {pane === 'workspace' &&
+        (!workspaceOpen ? (
+          <WorkflowEmptyState
+            platform={platform}
+            templates={templatePlans}
+            savedWorkflows={savedWorkflows}
+            connected={connectorReady}
+            busy={busy}
+            error={runFormError}
+            onNew={beginNewWorkflow}
+            onOpenSaved={selectSavedWorkflow}
+            onApplyTemplate={applyTemplate}
+            onApplyYaml={applyGrowthTemplate}
+          />
+        ) : (
           <WorkflowPlanEditor
             plan={workflowPlan}
             templates={templatePlans}
             growthTemplateId={selectedGrowthTemplateId}
             growthAccountId={connectorReady ? activeConnector?.id : undefined}
             onGrowthTemplateApply={applyGrowthTemplate}
-            onClearGrowth={() => setSelectedGrowthTemplateId(null)}
+            onClearGrowth={closeWorkspace}
             onGrowthActionSelect={chooseAction}
             connected={
               activeConnector?.platform === 'linkedin' &&
@@ -176,11 +198,11 @@ export default function PipelineWorkspace({
               platformLabel={platformLabel}
             />
           </WorkflowPlanEditor>
-        </>
-      )}
+        ))}
       {pane === 'workspace' && (
         <FloatingWorkflowControls
           selectedGrowthTemplateId={selectedGrowthTemplateId}
+          workspaceOpen={workspaceOpen}
           active={active}
           platform={platform}
           action={action}

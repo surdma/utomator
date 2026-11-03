@@ -135,6 +135,12 @@ export default function DashboardShell({
     templatePlans,
     selectedGrowthTemplateId,
     setSelectedGrowthTemplateId,
+    workspaceOpen,
+    setWorkspaceOpen,
+    savedWorkflows,
+    beginNewWorkflow,
+    selectSavedWorkflow,
+    closeWorkspace,
     activeWorkflow,
     setActiveWorkflow,
     loadingWorkflow,
@@ -409,6 +415,8 @@ export default function DashboardShell({
       // Switching identities or platforms intentionally resets any account-specific form.
       invalidateWorkflowSelection();
       setActiveWorkflow(null);
+      setWorkspaceOpen(false);
+      setSelectedGrowthTemplateId(null);
       setAction('audit');
       setForm({});
       setScopeSection('profile');
@@ -420,6 +428,8 @@ export default function DashboardShell({
       invalidateWorkflowSelection,
       setAction,
       setActiveWorkflow,
+      setWorkspaceOpen,
+      setSelectedGrowthTemplateId,
       setForm,
       setHandle,
       setPlatform,
@@ -428,6 +438,8 @@ export default function DashboardShell({
   function choosePlatform(next: Platform) {
     invalidateWorkflowSelection();
     setActiveWorkflow(null);
+    setWorkspaceOpen(false);
+    setSelectedGrowthTemplateId(null);
     setPlatform(next);
     setAction('audit');
     setForm({});
@@ -439,6 +451,7 @@ export default function DashboardShell({
     setSelectedGrowthTemplateId(null);
     invalidateWorkflowSelection();
     setActiveWorkflow(null);
+    setWorkspaceOpen(false);
     setAction(next);
     setForm({});
     setRunFormError('');
@@ -621,10 +634,14 @@ export default function DashboardShell({
             workflowPlan={workflowPlan}
             templatePlans={templatePlans}
             selectedGrowthTemplateId={selectedGrowthTemplateId}
+            workspaceOpen={workspaceOpen}
+            savedWorkflows={savedWorkflows}
+            beginNewWorkflow={beginNewWorkflow}
+            selectSavedWorkflow={selectSavedWorkflow}
+            closeWorkspace={closeWorkspace}
             connectorReady={connectorReady}
             activeConnector={activeConnector}
             applyGrowthTemplate={applyGrowthTemplate}
-            setSelectedGrowthTemplateId={setSelectedGrowthTemplateId}
             chooseAction={chooseAction}
             platform={platform}
             action={action}

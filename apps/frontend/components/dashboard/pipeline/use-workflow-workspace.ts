@@ -11,29 +11,7 @@ import {
 import type { WorkflowPlan } from '../workflows/workflow-plan-editor';
 import type { Platform } from './workflow-catalog';
 import { getApi } from './api-client';
-import { defaultWorkflowPlan } from './default-workflow-plan';
-
-let workflowBootstrapRequest: Promise<WorkflowRecord> | null = null;
-
-/** Share concurrent mount attempts without permanently locking failed creation. */
-function createDefaultWorkspace(): Promise<WorkflowRecord> {
-  if (!workflowBootstrapRequest) {
-    workflowBootstrapRequest = fetch(getApi('workflows'), {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ plan: defaultWorkflowPlan() }),
-    })
-      .then(async (response) => {
-        const record = (await response.json()) as WorkflowRecord & { error?: string };
-        if (!response.ok) throw new Error(record.error || 'Could not create the default workflow');
-        return record;
-      })
-      .finally(() => {
-        workflowBootstrapRequest = null;
-      });
-  }
-  return workflowBootstrapRequest;
-}
+import { defaultWorkflowPlan, newWorkflowDraft } from './default-workflow-plan';
 
 function adoptWorkflow(
   record: WorkflowRecord,
@@ -89,10 +67,9 @@ export function useWorkflowWorkspace({
   const [activeWorkflow, setActiveWorkflow] = useState<WorkflowRecord | null>(
     null
   );
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [loadingWorkflow, setLoadingWorkflow] = useState(false);
   const workflowSelectionEpoch = useRef(0);
-  const activeWorkflowRef = useRef(activeWorkflow);
-  useEffect(() => { activeWorkflowRef.current = activeWorkflow; }, [activeWorkflow]);
   const savedListEpoch = useRef(0);
   const [planDirty, setPlanDirty] = useState(false);
   const [planSaving, setPlanSaving] = useState(false);
@@ -107,43 +84,6 @@ export function useWorkflowWorkspace({
         const records = (await response.json()) as WorkflowRecord[];
         if (!live || savedListEpoch.current !== generation) return;
         setSavedWorkflows(records);
-        if (records[0]) {
-          if (!activeWorkflowRef.current) {
-            adoptWorkflow(records[0], {
-              setActiveWorkflow,
-              setPlatform,
-              setAction,
-              setWorkflowPlan,
-              setForm,
-              setPlanDirty,
-              setLoadingWorkflow,
-              setRunFormError,
-            });
-          }
-          return;
-        }
-        try {
-          const record = await createDefaultWorkspace();
-          if (!live || savedListEpoch.current !== generation) return;
-          setSavedWorkflows([record]);
-          if (!activeWorkflowRef.current) {
-            adoptWorkflow(record, {
-              setActiveWorkflow,
-              setPlatform,
-              setAction,
-              setWorkflowPlan,
-              setForm,
-              setPlanDirty,
-              setLoadingWorkflow,
-              setRunFormError,
-            });
-          }
-        } catch (error) {
-          if (!live || savedListEpoch.current !== generation) return;
-          setRunFormError(
-            error instanceof Error ? error.message : 'Could not create the default workflow'
-          );
-        }
       })
       .catch(() => {
         if (live)
@@ -176,44 +116,6 @@ export function useWorkflowWorkspace({
       controller.abort();
     };
   }, [platform]);
-  useEffect(() => {
-    if (activeWorkflow) {
-      setLoadingWorkflow(false);
-      return;
-    }
-    setLoadingWorkflow(true);
-    let live = true;
-    const controller = new AbortController();
-    void fetch(getApi('workflow-plans/' + platform + '/' + action), {
-      cache: 'no-store',
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        if (!response.ok) throw Error('Saved workflow could not be loaded');
-        const plan = (await response.json()) as WorkflowPlan;
-        if (live) {
-          setWorkflowPlan(plan);
-          setForm((current) => ({ ...(plan.parameters ?? {}), ...current }));
-          setPlanDirty(false);
-          setLoadingWorkflow(false);
-        }
-      })
-      .catch((error) => {
-        if (
-          live &&
-          !(error instanceof DOMException && error.name === 'AbortError')
-        ) {
-          setRunFormError(
-            'Saved workflow unavailable. Check the local automation API.'
-          );
-          setLoadingWorkflow(false);
-        }
-      });
-    return () => {
-      live = false;
-      controller.abort();
-    };
-  }, [platform, action, activeWorkflow, setRunFormError]);
   async function saveWorkflowPlan(): Promise<void> {
     if (busy) throw Error('Stop the active workflow before saving');
     if (loadingWorkflow)
@@ -245,6 +147,7 @@ export function useWorkflowWorkspace({
         json,
       ]);
       if (selection === workflowSelectionEpoch.current) {
+        setWorkspaceOpen(true);
         setActiveWorkflow(json);
         setWorkflowPlan(json.plan);
         setPlanDirty(false);
@@ -286,6 +189,7 @@ export function useWorkflowWorkspace({
           'Growth YAML did not compile into a connected pipeline graph'
       );
     setSelectedGrowthTemplateId(id);
+    setWorkspaceOpen(true);
   }
   async function applyTemplate(
     plan: WorkflowPlan,
@@ -321,6 +225,7 @@ export function useWorkflowWorkspace({
         saved,
       ]);
       if (selection === workflowSelectionEpoch.current) {
+        setWorkspaceOpen(true);
         setAction(saved.plan.action);
         setActiveWorkflow(saved);
         setWorkflowPlan(saved.plan);
@@ -332,10 +237,36 @@ export function useWorkflowWorkspace({
       setPlanSaving(false);
     }
   }
+  function beginNewWorkflow() {
+    if (busy || planSaving) return;
+    workflowSelectionEpoch.current++;
+    setSelectedGrowthTemplateId(null);
+    setActiveWorkflow(null);
+    const draft = newWorkflowDraft(platform);
+    setAction(draft.action);
+    setWorkflowPlan(draft);
+    setForm({});
+    setPlanDirty(true);
+    setRunFormError('');
+    setLoadingWorkflow(false);
+    setWorkspaceOpen(true);
+  }
+
+  function closeWorkspace() {
+    if (busy) return;
+    workflowSelectionEpoch.current++;
+    setSelectedGrowthTemplateId(null);
+    setActiveWorkflow(null);
+    setPlanDirty(false);
+    setRunFormError('');
+    setWorkspaceOpen(false);
+  }
+
   function selectSavedWorkflow(id: string | null) {
     setSelectedGrowthTemplateId(null);
     workflowSelectionEpoch.current++;
     if (id === null) {
+      setWorkspaceOpen(false);
       setActiveWorkflow(null);
       setPlanDirty(false);
       setRunFormError('');
@@ -343,6 +274,7 @@ export function useWorkflowWorkspace({
     }
     const selected = savedWorkflows.find((item) => item.id === id);
     if (!selected) return;
+    setWorkspaceOpen(true);
     setLoadingWorkflow(false);
     setActiveWorkflow(selected);
     setPlatform(selected.plan.platform);
@@ -374,6 +306,10 @@ export function useWorkflowWorkspace({
     savedWorkflows,
     activeWorkflow,
     setActiveWorkflow,
+    workspaceOpen,
+    setWorkspaceOpen,
+    beginNewWorkflow,
+    closeWorkspace,
     loadingWorkflow,
     planDirty,
     setPlanDirty,

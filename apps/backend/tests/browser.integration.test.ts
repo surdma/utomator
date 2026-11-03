@@ -39,8 +39,15 @@ async function exercise(mode: 'audit' | 'audit-race' | 'reject') {
     await page.goto('http://127.0.0.1:3100/dashboard/pipeline', {
       waitUntil: 'domcontentloaded',
     });
-    // The toolbar is the current connection entry point; the old header
-    // launcher is deliberately hidden in the workspace.
+    // A fresh Artboard has no default workflow and must not launch the Runner.
+    await page.getByTestId('workflow-artboard').waitFor();
+    await page.getByTestId('workflow-empty-state').waitFor();
+    assert.equal(await page.locator('[data-testid^="workflow-node-"]').count(), 0);
+    assert.equal(await page.getByRole('button', { name: 'Start workflow' }).count(), 0);
+    const create = page.getByRole('button', { name: 'Create new workflow' });
+    await clickUntilVisible(page, create, page.getByTestId('workflow-node-start'));
+    assert.equal(await page.locator('[data-testid^="workflow-node-"]').count(), 4);
+    // The connection entry point remains available after creating the draft.
     const launcher = page.getByTestId('floating-connector-button');
     const wizard = page.getByRole('dialog', {
       name: 'Connect your social accounts',
@@ -81,14 +88,14 @@ async function exercise(mode: 'audit' | 'audit-race' | 'reject') {
     assert.equal(schema.delay.fields[0]?.max, 30000);
 
     const templateRunsBefore = (await app.inject('/runs')).json().length;
-    const templates = page.getByRole('dialog', { name: 'Growth workflow templates' });
+    const templates = page.getByRole('dialog', { name: 'Workflow library' });
     await clickUntilVisible(
       page,
       page.getByRole('button', { name: 'Choose workflow template' }),
       templates,
     );
     await templates.getByTestId('growth-template-count').getByText('21 workflows').waitFor();
-    await templates.getByRole('searchbox', { name: 'Search Growth workflows' }).fill('Profile auditing');
+    await templates.getByRole('searchbox', { name: 'Search workflows' }).fill('Profile auditing');
     await templates.getByTestId('growth-template-option').click();
     const preview = templates.getByTestId('growth-template-pipeline-preview');
     await preview.waitFor();
@@ -101,7 +108,7 @@ async function exercise(mode: 'audit' | 'audit-race' | 'reject') {
       .getByRole('combobox', { name: 'Filter workflow availability' })
       .selectOption('design');
     await templates
-      .getByRole('searchbox', { name: 'Search Growth workflows' })
+      .getByRole('searchbox', { name: 'Search workflows' })
       .fill('Personal brand positioning');
     await preview.getByText('Evidence and preparation').waitFor();
     assert.equal(
@@ -109,7 +116,7 @@ async function exercise(mode: 'audit' | 'audit-race' | 'reject') {
       false,
     );
     assert.equal((await app.inject('/runs')).json().length, templateRunsBefore);
-    await templates.getByRole('button', { name: 'Close Growth workflow templates' }).click();
+    await templates.getByRole('button', { name: 'Close Workflow library' }).click();
     await templates.waitFor({ state: 'hidden' });
 
     if (mode === 'audit') {
@@ -130,7 +137,7 @@ async function exercise(mode: 'audit' | 'audit-race' | 'reject') {
       const form = page.getByRole('dialog', { name: 'Record a journal event' });
       await form.getByLabel('Journal message').fill('Form configured from validated fields');
       await form.getByRole('button', { name: 'Apply node changes' }).click();
-      assert.equal(await page.locator('[data-testid^="workflow-node-"]').count(), 12);
+      assert.equal(await page.locator('[data-testid^="workflow-node-"]').count(), 5);
     }
     if (mode === 'reject') {
       const status = await page.evaluate(async () => {
@@ -337,10 +344,10 @@ test('planning-only Growth YAML opens without triggering Runner', async () => {
       waitUntil: 'domcontentloaded',
     });
     const before = (await app.inject('/runs')).json().length;
-    const modal = page.getByRole('dialog', { name: 'Growth workflow templates' });
-    await clickUntilVisible(page, page.getByRole('button', { name: 'Choose workflow template' }), modal);
+    const modal = page.getByRole('dialog', { name: 'Workflow library' });
+    await clickUntilVisible(page, page.getByRole('button', { name: 'Browse templates' }), modal);
     await modal
-      .getByRole('searchbox', { name: 'Search Growth workflows' })
+      .getByRole('searchbox', { name: 'Search workflows' })
       .fill('Personal brand positioning');
     const preview = modal.getByTestId('growth-template-pipeline-preview');
     await preview.waitFor();
@@ -641,9 +648,9 @@ test('Growth profile YAML uses one Artboard canvas, drill-down, and real control
       waitUntil: 'domcontentloaded',
     });
     const before = (await app.inject('/runs')).json().length;
-    const modal = page.getByRole('dialog', { name: 'Growth workflow templates' });
-    await clickUntilVisible(page, page.getByRole('button', { name: 'Choose workflow template' }), modal);
-    await modal.getByRole('searchbox', { name: 'Search Growth workflows' }).fill('Profile auditing');
+    const modal = page.getByRole('dialog', { name: 'Workflow library' });
+    await clickUntilVisible(page, page.getByRole('button', { name: 'Browse templates' }), modal);
+    await modal.getByRole('searchbox', { name: 'Search workflows' }).fill('Profile auditing');
     await modal.getByTestId('growth-template-option').click();
     const preview = modal.getByTestId('growth-template-pipeline-preview');
     await preview.waitFor();
@@ -655,7 +662,7 @@ test('Growth profile YAML uses one Artboard canvas, drill-down, and real control
     await graph.getByTestId('growth-pipeline-node-identity').waitFor();
     assert.equal(await artboard.locator('.react-flow').count(), 1);
     assert.equal(await page.getByTestId('growth-profile-program').count(), 0);
-    await page.getByRole('button', { name: 'Growth execution and evidence' }).click();
+    await page.getByRole('button', { name: 'Workflow execution and evidence' }).click();
     const details = page.getByTestId('growth-workspace-details');
     await details.waitFor({ state: 'visible' });
     await details.getByRole('link', { name: 'View source YAML' }).waitFor();
@@ -703,10 +710,10 @@ test('planning-only Growth YAML stays read-only and cannot launch Runner', {
       waitUntil: 'domcontentloaded',
     });
     const before = (await app.inject('/runs')).json().length;
-    const modal = page.getByRole('dialog', { name: 'Growth workflow templates' });
-    await clickUntilVisible(page, page.getByRole('button', { name: 'Choose workflow template' }), modal);
+    const modal = page.getByRole('dialog', { name: 'Workflow library' });
+    await clickUntilVisible(page, page.getByRole('button', { name: 'Browse templates' }), modal);
     await modal
-      .getByRole('searchbox', { name: 'Search Growth workflows' })
+      .getByRole('searchbox', { name: 'Search workflows' })
       .fill('Personal brand positioning');
     const preview = modal.getByTestId('growth-template-pipeline-preview');
     await preview.waitFor();
@@ -721,7 +728,7 @@ test('planning-only Growth YAML stays read-only and cannot launch Runner', {
     await graph.getByTestId('growth-task-node-procedure').waitFor();
     assert.equal(await graph.locator('[data-testid^="growth-task-node-"]').count(), 5);
     assert.equal(await page.getByTestId('workflow-artboard').locator('.react-flow').count(), 1);
-    await page.getByRole('button', { name: 'Growth execution and evidence' }).click();
+    await page.getByRole('button', { name: 'Workflow execution and evidence' }).click();
     const details = page.getByTestId('growth-workspace-details');
     await details.waitFor({ state: 'visible' });
     assert.match(await details.innerText(), /Planning-only YAML/);
@@ -778,5 +785,42 @@ test('Local Chrome attachment keeps the external process alive across connector 
       if (original === undefined) delete process.env[key];
       else process.env[key] = original;
     }
+  }
+});
+
+test('blank Artboard opens action templates without creating or running defaults', {
+  timeout: 90000,
+}, async () => {
+  const app = buildApp();
+  const browser = await chromium.launch({ headless: true });
+  try {
+    await app.listen({ host: '127.0.0.1', port: 3101 });
+    const page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
+    const posts: string[] = [];
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && /\/api\/workflows\/?$/.test(request.url()))
+        posts.push(request.url());
+    });
+    await page.goto('http://127.0.0.1:3100/dashboard/workspace', {
+      waitUntil: 'domcontentloaded',
+    });
+    await page.getByTestId('workflow-empty-state').waitFor();
+    assert.equal(await page.getByTestId('workflow-artboard').locator('.react-flow').count(), 0);
+    assert.equal(await page.getByRole('button', { name: 'Start workflow' }).count(), 0);
+    assert.equal(posts.length, 0, 'a fresh workspace must not POST a default plan');
+    const modal = page.getByRole('dialog', { name: 'Workflow library' });
+    await clickUntilVisible(page, page.getByRole('button', { name: 'Browse templates' }), modal);
+    await modal.getByRole('button', { name: 'Action templates' }).click();
+    await modal.getByTestId('action-template-option').first().waitFor();
+    const preview = modal.getByTestId('action-template-preview');
+    assert.match(await preview.innerText(), /validated Runner stages/i);
+    await preview.getByRole('button', { name: 'Use this template' }).click();
+    await page.getByTestId('workflow-node-start').waitFor();
+    assert.equal(await page.getByTestId('workflow-artboard').locator('.react-flow').count(), 1);
+    assert.equal(posts.length, 1, 'only the explicit template action creates a workflow');
+    assert.equal((await app.inject('/runs')).json().length, 0);
+  } finally {
+    await browser.close();
+    await app.close();
   }
 });
