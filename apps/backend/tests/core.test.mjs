@@ -7,7 +7,7 @@ import {
   profileUrlForHandle,
 } from '../src/core/validate.ts';
 import { EventJournal } from '../src/core/events.ts';
-import { ApprovalGate } from '../src/core/approvals.ts';
+import { ApprovalGate } from '../src/runs/approvals.ts';
 
 const linkedIn = 'https://www.linkedin.com/in/surdma/';
 const x = 'https://x.com/surdma';

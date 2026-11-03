@@ -2,26 +2,26 @@ import { readFile } from 'node:fs/promises';
 import { timingSafeEqual } from 'node:crypto';
 import { resolve } from 'node:path';
 import Fastify from 'fastify';
-import { Runner } from './core/runner.js';
-import { ConnectorService } from './core/connectors.js';
+import { Runner } from './runs/runner.js';
+import { ConnectorService } from './connect/connectors.js';
 import { ActivityMemory } from './core/activity-memory.js';
-import { CreatorResearchStore, researchYaml } from './core/linkedin-creator-research.js';
-import { LinkedInEditorialStore, editorialYaml } from './core/linkedin-editorial.js';
-import { LinkedInPublishingProvider, LinkedInProviderError } from './core/linkedin-publisher.js';
+import { CreatorResearchStore, researchYaml } from './linkedin/linkedin-creator-research.js';
+import { LinkedInEditorialStore, editorialYaml } from './linkedin/linkedin-editorial.js';
+import { LinkedInPublishingProvider, LinkedInProviderError } from './linkedin/linkedin-publisher.js';
 import { ProfilePlanner } from './core/profile-planner.js';
-import { WorkflowPlanStore } from './core/workflow-store.js';
+import { WorkflowPlanStore } from './workflows/workflow-store.js';
 import {
   readGrowthProfileWorkflow,
   readGrowthTemplateCatalog,
   readGrowthTemplate,
 } from './engine/growth-profile.js';
 import { ProfileGrowthCoordinator } from './engine/profile-growth-coordinator.js';
-import { WorkflowRegistry } from './core/workflow-registry.js';
-import { StepDefinitionStore } from './core/step-definitions.js';
-import { loadStepForms } from './core/step-forms.js';
+import { WorkflowRegistry } from './workflows/workflow-registry.js';
+import { StepDefinitionStore } from './workflows/step-definitions.js';
+import { loadStepForms } from './workflows/step-forms.js';
 import { createDocumentStore, type DocumentStore } from './db/documents.js';
-import { compileWorkflow } from './core/workflow-yaml.js';
-import type { WorkflowPlan } from './core/workflow-plan.js';
+import { compileWorkflow } from './workflows/workflow-yaml.js';
+import type { WorkflowPlan } from './workflows/workflow-plan.js';
 import type { Action } from './core/types.js';
 import { profileUrlForHandle } from './core/validate.js';
 import { CareerStore } from './profile/career-store.js';
@@ -39,8 +39,8 @@ import {
 import type { Platform } from './core/types.js';
 import type { RunRequest, StreamEvent } from './core/types.js';
 import { CraftLibrary, parseMdx, toMdx, craftArchive, type CraftInput } from './crafts/library.js';
-import { registerMatorRoutes } from './core/mator-routes.js';
-import { workflowRegistryPort } from './core/mator-actions.js';
+import { registerMatorRoutes } from './mator/mator-routes.js';
+import { workflowRegistryPort } from './mator/mator-actions.js';
 
 export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?: typeof fetch } = {}) {
   const app = Fastify({

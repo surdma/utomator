@@ -9,11 +9,11 @@ import {
   MATOR_REVIEW_ID_PATTERN,
   upsertMarkers,
 } from './mator-attachments.js';
-import type { WorkflowPlan, WorkflowStep, StepKind } from './workflow-plan.js';
-import { validatePlan } from './workflow-plan.js';
-import type { WorkflowRecord } from './workflow-registry.js';
+import type { WorkflowPlan, WorkflowStep, StepKind } from '../workflows/workflow-plan.js';
+import { validatePlan } from '../workflows/workflow-plan.js';
+import type { WorkflowRecord } from '../workflows/workflow-registry.js';
 import type { DocumentStore } from '../db/documents.js';
-import type { Action, Platform, RunRequest, RunSummary } from './types.js';
+import type { Action, Platform, RunRequest, RunSummary } from '../core/types.js';
 
 export class MatorActionValidationError extends Error {
   readonly code = 'MATOR_ACTION_VALIDATION' as const;

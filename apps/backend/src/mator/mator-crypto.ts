@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes, hkdfSync } from 'node:crypto';
-import { loadVaultMasterKey } from './session-vault.js';
+import { loadVaultMasterKey } from '../connect/session-vault.js';
 
 const KEY_INFO = 'mator-secrets';
 

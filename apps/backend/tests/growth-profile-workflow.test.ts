@@ -56,11 +56,11 @@ test('Read-only YAML and compiled program endpoints do not create a run', async 
   }
 });
 
-import type { Runner } from '../src/core/runner.js';
+import type { Runner } from '../src/runs/runner.js';
 import type { RunRequest, RunSummary } from '../src/core/types.js';
 import { randomUUID } from 'node:crypto';
 import { validateRun } from '../src/core/validate.js';
-import { compileWorkflow } from '../src/core/workflow-yaml.js';
+import { compileWorkflow } from '../src/workflows/workflow-yaml.js';
 import { ProfileGrowthCoordinator } from '../src/engine/profile-growth-coordinator.js';
 
 test('six dependent pipelines reuse validated Runner WorkflowPlans and record independent missing coverage', async () => {

@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, readdir, rename, unlink, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { validatePlan, templates, type WorkflowPlan } from './workflow-plan.js';
-import type { Action, Platform } from './types.js';
+import type { Action, Platform } from '../core/types.js';
 import type { DocumentStore } from '../db/documents.js';
 
 export interface WorkflowRecord {

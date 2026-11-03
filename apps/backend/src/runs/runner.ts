@@ -4,13 +4,13 @@ import { resolve } from 'node:path';
 import { BrowserSession } from '../browser/session.js';
 import { ApprovalGate } from './approvals.js';
 import { PromptGate } from './prompts.js';
-import { EventJournal } from './events.js';
-import type { RunRequest, RunSummary, StreamEvent } from './types.js';
-import { validateRun } from './validate.js';
+import { EventJournal } from '../core/events.js';
+import type { RunRequest, RunSummary, StreamEvent } from '../core/types.js';
+import { validateRun } from '../core/validate.js';
 import { execute } from '../workflows/execute.js';
-import { compileWorkflow, type CompiledStep, type CompiledWorkflow } from './workflow-yaml.js';
+import { compileWorkflow, type CompiledStep, type CompiledWorkflow } from '../workflows/workflow-yaml.js';
 import { RunArchive } from './run-archive.js';
-import type { AuthoredStepDefinition } from './step-definitions.js';
+import type { AuthoredStepDefinition } from '../workflows/step-definitions.js';
 import {
   evidenceRecord,
   approvalDecision,

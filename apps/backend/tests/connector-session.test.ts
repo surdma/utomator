@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Page } from 'playwright';
 import { AccountStore } from '../src/profile/account-store.js';
-import { ConnectorService } from '../src/core/connectors.js';
+import { ConnectorService } from '../src/connect/connectors.js';
 import { BrowserSession } from '../src/browser/session.js';
 
 async function registerAccounts(store: AccountStore) {

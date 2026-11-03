@@ -30,7 +30,7 @@ import {
   type MatorSettings,
   readEnvGroqApiKey,
 } from './mator-settings.js';
-import type { WorkflowPlan } from './workflow-plan.js';
+import type { WorkflowPlan } from '../workflows/workflow-plan.js';
 import { mayAutoApproveMatorAction, type MatorInteractionMode } from './mator-interaction-mode.js';
 
 export { GROQ_OPENAI_BASE_URL };

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import type { DocumentStore } from '../db/documents.js';
+import { createWriteQueue } from '../db/persistence.js';
 
 export type SocialPlatform = 'linkedin' | 'x' | 'instagram' | 'github' | 'devto';
 export type AccountProfile = {
@@ -96,7 +97,10 @@ export function readStoredProfile(raw: unknown): AccountProfile {
 }
 
 /** Fill only fields the account does not already have. */
-export function mergeEmptyProfile(current: AccountProfile, incoming: Partial<AccountProfile>): AccountProfile {
+export function mergeEmptyProfile(
+  current: AccountProfile,
+  incoming: Partial<AccountProfile>,
+): AccountProfile {
   const next = { ...current };
   for (const key of Object.keys(blankProfile()) as (keyof AccountProfile)[]) {
     if (next[key].trim()) continue;
@@ -195,7 +199,7 @@ function storedProfile(value: unknown): AccountProfile {
 
 export class AccountStore {
   private readonly file: string;
-  private queue: Promise<void> = Promise.resolve();
+  private readonly queue = createWriteQueue();
   private documents?: DocumentStore;
   setDocuments(documents: DocumentStore) {
     this.documents = documents;
@@ -244,7 +248,7 @@ export class AccountStore {
   ): Promise<AccountState> {
     if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0)
       return Promise.reject(Error('Invalid revision'));
-    const operation = this.queue.then(async () => {
+    return this.queue(async () => {
       const current = await this.get();
       if (current.revision !== expectedRevision)
         throw Error('Account data changed. Reload before saving.');
@@ -263,11 +267,6 @@ export class AccountStore {
       }
       return updated;
     });
-    this.queue = operation.then(
-      () => undefined,
-      () => undefined,
-    );
-    return operation;
   }
   updateProfile(revision: number, value: unknown) {
     const submitted = parseAccountProfile(value);

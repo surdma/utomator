@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { Browser, BrowserContext, Page } from 'playwright';
-import type { VaultPayload } from '../core/session-vault.js';
+import type { VaultPayload } from '../connect/session-vault.js';
 import {
   assertLoopbackCdp,
   attachChrome,

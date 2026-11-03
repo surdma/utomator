@@ -1,4 +1,4 @@
-import type { WorkflowPlan } from './workflow-plan.js';
+import type { WorkflowPlan } from '../workflows/workflow-plan.js';
 export type Platform = 'linkedin' | 'x';
 export interface LoginCredentials {
   identifier: string;

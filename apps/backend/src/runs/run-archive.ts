@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync, unlinkSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { RunSummary } from './types.js';
+import type { RunSummary } from '../core/types.js';
 
 export interface ArchivedRun {
   summary: RunSummary;

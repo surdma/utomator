@@ -4,13 +4,13 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AccountStore } from '../src/profile/account-store.js';
-import { defaultPlan, templates, validatePlan } from '../src/core/workflow-plan.js';
-import { WorkflowPlanStore } from '../src/core/workflow-store.js';
-import { WorkflowRegistry } from '../src/core/workflow-registry.js';
-import { RunArchive } from '../src/core/run-archive.js';
-import { compileWorkflow } from '../src/core/workflow-yaml.js';
-import { parseStepDefinition, StepDefinitionStore } from '../src/core/step-definitions.js';
-import { loadStepForms, parseStepForms } from '../src/core/step-forms.js';
+import { defaultPlan, templates, validatePlan } from '../src/workflows/workflow-plan.js';
+import { WorkflowPlanStore } from '../src/workflows/workflow-store.js';
+import { WorkflowRegistry } from '../src/workflows/workflow-registry.js';
+import { RunArchive } from '../src/runs/run-archive.js';
+import { compileWorkflow } from '../src/workflows/workflow-yaml.js';
+import { parseStepDefinition, StepDefinitionStore } from '../src/workflows/step-definitions.js';
+import { loadStepForms, parseStepForms } from '../src/workflows/step-forms.js';
 import { randomUUID } from 'node:crypto';
 // Set test mode before dynamically importing the Fastify entry point.
 // Static ESM imports execute before assignments and would start a stray listener.

@@ -1,4 +1,4 @@
-import { ConnectorService } from '../src/core/connectors.ts';
+import { ConnectorService } from '../src/connect/connectors.ts';
 import { AccountStore } from '../src/profile/account-store.ts';
 
 const accounts = new AccountStore();

@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import type { Runner } from '../core/runner.js';
+import type { Runner } from '../runs/runner.js';
 import { validateProfileUrl } from '../core/validate.js';
 import type { RunSummary } from '../core/types.js';
 import type { DocumentStore } from '../db/documents.js';

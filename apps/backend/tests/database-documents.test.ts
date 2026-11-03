@@ -7,10 +7,10 @@ import { join } from 'node:path';
 import { createClient } from '@libsql/client';
 import { createDocumentStore } from '../src/db/documents.js';
 import { AccountStore } from '../src/profile/account-store.js';
-import { WorkflowPlanStore } from '../src/core/workflow-store.js';
-import { WorkflowRegistry } from '../src/core/workflow-registry.js';
-import { defaultPlan } from '../src/core/workflow-plan.js';
-import { ConnectorService } from '../src/core/connectors.js';
+import { WorkflowPlanStore } from '../src/workflows/workflow-store.js';
+import { WorkflowRegistry } from '../src/workflows/workflow-registry.js';
+import { defaultPlan } from '../src/workflows/workflow-plan.js';
+import { ConnectorService } from '../src/connect/connectors.js';
 import type { Page } from 'playwright';
 
 test('SQLite Drizzle persists connector verification, account identity and revision-pinned workflows', async () => {

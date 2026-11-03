@@ -1,4 +1,4 @@
-import type { Action, Platform } from './types.js';
+import type { Action, Platform } from '../core/types.js';
 
 export type StepKind =
   | 'start'

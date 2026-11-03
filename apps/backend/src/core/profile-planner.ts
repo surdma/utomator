@@ -9,7 +9,7 @@ import {
   approvalDecision,
   isEvidenceRecord,
   isApprovalFor,
-} from './evidence-approval.js';
+} from '../runs/evidence-approval.js';
 
 type State = 'approval-needed' | 'selection-needed' | 'completed' | 'declined';
 type StageState = 'completed' | 'waiting' | 'pending' | 'declined';

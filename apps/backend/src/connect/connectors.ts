@@ -1,14 +1,15 @@
 ﻿import { randomUUID } from 'node:crypto';
-import { chmod, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { chmod, rm } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import type { Page } from 'playwright';
-import { streamSignInUrl } from '../browser/navigation.js';
-import { isConnectionTimeout, navigateWithRetry } from '../browser/navigation.js';
+import { isConnectionTimeout, navigateWithRetry, streamSignInUrl } from '../browser/navigation.js';
 import type { BrowserPort } from '../browser/provider.js';
 import { BrowserSession } from '../browser/session.js';
 import type { BrokerInput } from '../browser/streaming-signin.js';
-import { AccountStore, type SocialAccount, type SocialPlatform } from '../profile/account-store.js';
+import { BackedStore } from '../db/backed-store.js';
 import type { DocumentStore } from '../db/documents.js';
+import { writeAtomicJson } from '../db/persistence.js';
+import { AccountStore, type SocialAccount, type SocialPlatform } from '../profile/account-store.js';
 
 type ConnectionRecord = {
   accountId: string;
@@ -72,10 +73,11 @@ export class ConnectorService {
   private sessions = new Map<string, BrowserPort>();
   private pending = new Map<string, PendingConnection>();
   private checks = new Map<string, Promise<{ status: string; accountId: string }>>();
-  private mutation: Promise<void> = Promise.resolve();
+  private readonly store: BackedStore<Record<string, ConnectionRecord>>;
   private documents?: DocumentStore;
   setDocuments(documents: DocumentStore) {
     this.documents = documents;
+    this.store.setDocuments(documents);
   }
   constructor(
     private readonly accounts = new AccountStore(),
@@ -84,64 +86,23 @@ export class ConnectorService {
   ) {
     this.path = resolve(root, '.runtime', 'connectors.json');
     this.root = root;
+    this.store = new BackedStore<Record<string, ConnectionRecord>>(
+      'connectors',
+      'sessions',
+      this.path,
+      {},
+      { ownerIsolation: true, writeJson: chmodmedJson },
+    );
   }
   private readonly root: string;
 
-  private async records(): Promise<Record<string, ConnectionRecord>> {
-    // Prefer the durable Drizzle document store when available.
-    if (this.documents) {
-      const value = await this.documents.get<Record<string, ConnectionRecord>>('connectors', 'sessions');
-      if (value) return value.value;
-    }
-    // A hosted tenant must never inherit the local operator's connection records.
-    if (this.documents?.ownerId !== 'local-owner' && this.documents) return {};
-    // Fall back to JSON only for the original single-user local workspace.
-    try {
-      const raw = JSON.parse(await readFile(this.path, 'utf8')) as Record<string, ConnectionRecord>;
-      if (!raw || typeof raw !== 'object' || Array.isArray(raw))
-        throw Error('Invalid connector metadata');
-      // Backfill the database from the JSON file so a later restart reads from SQL.
-      if (this.documents) {
-        const existing = await this.documents.get<Record<string, ConnectionRecord>>(
-          'connectors',
-          'sessions',
-        );
-        if (!existing) {
-          await this.documents.put('connectors', 'sessions', raw, 0);
-        }
-      }
-      return raw;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return {};
-      throw error;
-    }
-  }
   private async update(id: string, record: ConnectionRecord | null) {
-    // Serialize read/modify/write so two sync requests cannot lose each other.
-    const operation = this.mutation.then(async () => {
-      const all = await this.records();
+    // The write queue serializes read/modify/write so two sync requests cannot lose each other.
+    return this.store.update((all) => {
       if (record) all[id] = record;
       else delete all[id];
-      // SQL is the source of truth once the engine has initialized a database.
-      // Never write a JSON snapshot that can disagree with a failed SQL update.
-      if (this.documents) {
-        const existing = await this.documents.get<Record<string, ConnectionRecord>>(
-          'connectors',
-          'sessions',
-        );
-        await this.documents.put('connectors', 'sessions', all, existing?.version ?? 0);
-        return;
-      }
-      await mkdir(dirname(this.path), { recursive: true, mode: 0o700 });
-      const temp = `${this.path}.${randomUUID()}.tmp`;
-      await writeFile(temp, `${JSON.stringify(all, null, 2)}\n`, {
-        mode: 0o600,
-      });
-      await rename(temp, this.path);
-      await chmod(this.path, 0o600);
+      return all;
     });
-    this.mutation = operation.catch(() => {});
-    return operation;
   }
   private async account(id: string): Promise<SocialAccount> {
     if (!allowId(id)) throw Error('Invalid connector account');
@@ -164,7 +125,7 @@ export class ConnectorService {
         await entry.browser.close().catch(() => {});
       }
     }
-    const [accounts, records] = await Promise.all([this.accounts.get(), this.records()]);
+    const [accounts, records] = await Promise.all([this.accounts.get(), this.store.get()]);
     const saved: ConnectionStatus[] = accounts.socialAccounts.map((row) => {
       const browser = browserPlatform(row.platform);
       const verified = records[row.id];
@@ -211,7 +172,7 @@ export class ConnectorService {
       (await this.accounts.get()).socialAccounts.filter((item) => item.platform === platform).length > 1
     )
       throw Error('Legacy duplicate accounts must be resolved before running workflows');
-    const records = await this.records();
+    const records = await this.store.get();
     const record = records[id];
     if (row.platform !== platform)
       throw Error('Selected connection does not match the workflow profile');
@@ -318,8 +279,7 @@ export class ConnectorService {
       const link = page.locator(selector).first();
       const href = await link.getAttribute('href', { timeout: 1500 }).catch(() => null);
       if (!href) continue;
-      const imageNode =
-        typeof link.locator === 'function' ? link.locator('img') : null;
+      const imageNode = typeof link.locator === 'function' ? link.locator('img') : null;
       const sources = imageNode
         ? await imageNode
             .evaluateAll((images) =>
@@ -616,7 +576,7 @@ export class ConnectorService {
         .length > 1
     )
       throw Error('Legacy duplicate accounts must be resolved before syncing');
-    const current = await this.records();
+    const current = await this.store.get();
     const session = this.sessions.get(id);
     const matching =
       current[id]?.platform === account.platform &&
@@ -668,12 +628,12 @@ export class ConnectorService {
         (globalThis as { __name?: (target: unknown) => unknown }).__name = (target) => target;
       });
       const captured = await page.evaluate(async (network) => {
-        const clean = (node: Element | null) =>
-          (node?.textContent || '').replace(/\s+/g, ' ').trim();
+        const clean = (node: Element | null) => (node?.textContent || '').replace(/\s+/g, ' ').trim();
         const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
         const main = document.querySelector('main');
         if (main && network === 'linkedin') {
-          for (let attempt = 0; attempt < 8 && !main.querySelector('h1, h2'); attempt += 1) await pause(250);
+          for (let attempt = 0; attempt < 8 && !main.querySelector('h1, h2'); attempt += 1)
+            await pause(250);
           const step = Math.max(main.clientHeight - 80, 400);
           const limit = Math.min(main.scrollHeight, 14000);
           for (let top = 0; top <= limit; top += step) {
@@ -704,7 +664,9 @@ export class ConnectorService {
             displayName: clean(document.querySelector('[data-testid="UserName"]')),
             about: clean(document.querySelector('[data-testid="UserDescription"]')),
             location: clean(document.querySelector('[data-testid="UserLocation"]')),
-            website: (document.querySelector('[data-testid="UserUrl"] a') as HTMLAnchorElement | null)?.href || '',
+            website:
+              (document.querySelector('[data-testid="UserUrl"] a') as HTMLAnchorElement | null)?.href ||
+              '',
             avatarUrl: avatar,
           };
         }
@@ -749,7 +711,8 @@ export class ConnectorService {
             if (line === undefined) continue;
             if (isHeading(line)) break;
             if (label === 'about' && /^top skills$/i.test(line)) break;
-            if (/^(show all|see more|show more|… more|\.\.\. more|\d+\s+experiences?)$/i.test(line)) continue;
+            if (/^(show all|see more|show more|… more|\.\.\. more|\d+\s+experiences?)$/i.test(line))
+              continue;
             if (line.length < 2) continue;
             chunk.push(line);
           }
@@ -768,13 +731,22 @@ export class ConnectorService {
         const noise =
           /^(contact info|portfolio|open to|add section|show details|show all|see more|·|\d[\d,]* followers|\d[\d,]* connections)$/i;
         const headline =
-          following.find((line) => !noise.test(line) && !isHeading(line) && line.length > 2 && line.length < 220) ||
-          clean(document.querySelector('.text-body-medium'));
+          following.find(
+            (line) => !noise.test(line) && !isHeading(line) && line.length > 2 && line.length < 220,
+          ) || clean(document.querySelector('.text-body-medium'));
         const location =
           following.find(
-            (line) => line.includes(',') && line.length < 90 && !/follower|connection/i.test(line) && !isHeading(line),
+            (line) =>
+              line.includes(',') &&
+              line.length < 90 &&
+              !/follower|connection/i.test(line) &&
+              !isHeading(line),
           ) ||
-          clean(document.querySelector('.text-body-small.inline, .pv-text-details__left-panel .text-body-small'));
+          clean(
+            document.querySelector(
+              '.text-body-small.inline, .pv-text-details__left-panel .text-body-small',
+            ),
+          );
         const aboutHead = Array.from((main || document).querySelectorAll('h1, h2')).find(
           (node) => clean(node).toLowerCase() === 'about',
         );
@@ -782,7 +754,10 @@ export class ConnectorService {
         if (main) {
           const links = Array.from(main.querySelectorAll('a[href^="https://"]'));
           const top = aboutHead
-            ? links.filter((link) => (aboutHead.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_PRECEDING) !== 0)
+            ? links.filter(
+                (link) =>
+                  (aboutHead.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_PRECEDING) !== 0,
+              )
             : links;
           website =
             top
@@ -801,7 +776,8 @@ export class ConnectorService {
         let skills = section('skills');
         const topSkillsAt = lines.findIndex((line) => line.toLowerCase() === 'top skills');
         const topSkills = topSkillsAt >= 0 ? lines[topSkillsAt + 1] || '' : '';
-        if (topSkills.includes('•') && topSkills.length > skills.length) skills = topSkills.replace(/ • /g, '\n');
+        if (topSkills.includes('•') && topSkills.length > skills.length)
+          skills = topSkills.replace(/ • /g, '\n');
         if (!website) {
           const mentioned = (about + '\n' + experience).match(/https:\/\/[^\s)]+/);
           if (mentioned && !/linkedin\.com|licdn\.com/i.test(mentioned[0]))
@@ -958,4 +934,10 @@ function platformLabel(platform: string): string {
     default:
       return platform;
   }
+}
+
+/** Atomic JSON write with owner-only final-path permissions (parity with the previous connector write path). */
+async function chmodmedJson(path: string, value: unknown): Promise<void> {
+  await writeAtomicJson(path, value);
+  await chmod(path, 0o600);
 }

@@ -1,9 +1,9 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { parseRestrictedYaml } from '../core/step-definitions.js';
-import { linkedinPipeline } from '../core/workflow-plan.js';
-import { compileWorkflow } from '../core/workflow-yaml.js';
+import { parseRestrictedYaml } from '../workflows/step-definitions.js';
+import { linkedinPipeline } from '../workflows/workflow-plan.js';
+import { compileWorkflow } from '../workflows/workflow-yaml.js';
 import type { Action } from '../core/types.js';
 
 /** YAML program inspection is read-only. Executions retain /runs ownership, approval and verification. */
