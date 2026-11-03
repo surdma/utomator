@@ -13,29 +13,6 @@ import type { Platform } from './workflow-catalog';
 import { getApi } from './api-client';
 import { defaultWorkflowPlan, newWorkflowDraft } from './default-workflow-plan';
 
-function adoptWorkflow(
-  record: WorkflowRecord,
-  setters: {
-    setActiveWorkflow: Dispatch<SetStateAction<WorkflowRecord | null>>;
-    setPlatform: Dispatch<SetStateAction<Platform>>;
-    setAction: Dispatch<SetStateAction<string>>;
-    setWorkflowPlan: Dispatch<SetStateAction<WorkflowPlan>>;
-    setForm: Dispatch<SetStateAction<Record<string, string>>>;
-    setPlanDirty: Dispatch<SetStateAction<boolean>>;
-    setLoadingWorkflow: Dispatch<SetStateAction<boolean>>;
-    setRunFormError: Dispatch<SetStateAction<string>>;
-  }
-) {
-  setters.setLoadingWorkflow(false);
-  setters.setActiveWorkflow(record);
-  setters.setPlatform(record.plan.platform);
-  setters.setAction(record.plan.action);
-  setters.setWorkflowPlan(record.plan);
-  setters.setForm(record.plan.parameters ?? {});
-  setters.setPlanDirty(false);
-  setters.setRunFormError('');
-}
-
 export type WorkflowRecord = {
   id: string;
   ownerId: 'local-owner';
