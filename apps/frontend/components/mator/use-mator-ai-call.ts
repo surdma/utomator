@@ -125,7 +125,7 @@ export function useMatorAiCall({workflowId,conversationId,voiceOnly,voice,sendTu
     setLastTurn(null);setQuestion(null);setLastQuestionAnswer(null);startTimeRef.current=Date.now();setSeconds(0);
     // Mic consent begins synchronously from Start call, not from the mode toggle.
     coordinatorRef.current?.start(scope);
-  },[scope,coordinator]);
+  }, [scope]);
 
   return {
     state,active,seconds,voiceLevel,lastTurn,question,lastQuestionAnswer,

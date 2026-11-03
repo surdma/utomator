@@ -263,7 +263,14 @@ test('asset upload requires explicit send and multi-image names are metadata', (
   assert.match(panel, /mator-image-gallery/);
   assert.match(panel, /assets\.map/);
 });
-test('text dictation stays draft while voice-only stops submit', () => {
+test('text dictation stays in the draft and AI Call requires an explicit start', () => {
   const shell = readFileSync(resolve(root, 'components/dashboard/dashboard-shell.tsx'), 'utf8');
-  assert.match(shell, /source === 'voice' && \(!voiceOnly \|\| pendingAssetsRef\.current\)/);
+  const composer = readFileSync(mator('mator-composer.tsx'), 'utf8');
+  const callPanel = readFileSync(mator('mator-ai-call-panel.tsx'), 'utf8');
+  assert.match(shell, /if \(source === 'voice'\) \{/);
+  assert.match(shell, /\[current\.trim\(\), request\]\.filter\(Boolean\)\.join\(' '\)/);
+  assert.match(shell, /const aiCall = useMatorAiCall\(/);
+  assert.match(composer, /<MatorAiCallPanel call=\{call\}/);
+  assert.match(callPanel, /data-testid="mator-call-start"/);
+  assert.match(callPanel, /onClick=\{call\.start\}/);
 });
