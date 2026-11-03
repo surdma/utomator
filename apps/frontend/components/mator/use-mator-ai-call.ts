@@ -58,7 +58,10 @@ export function useMatorAiCall({workflowId,conversationId,voiceOnly,voice,sendTu
     sendRef.current = sendTurn;
   }, [voice, sendTurn]);
   const scope=matorAiCallScope(workflowId,conversationId);
-  const [coordinator] = useState(() => new MatorCallCoordinator({
+  const active = state.phase !== 'idle' && state.phase !== 'ended';
+  const coordinatorRef = useRef<MatorCallCoordinator | null>(null);
+  useEffect(() => {
+    const coordinator = new MatorCallCoordinator({
       capture:(signal)=>{
         if(!sessionRef.current) sessionRef.current=new MatorDuplexAudio(level=>{
           const now=Date.now();
@@ -85,44 +88,52 @@ export function useMatorAiCall({workflowId,conversationId,voiceOnly,voice,sendTu
       onQuestionAnswer:(value,answer)=>setLastQuestionAnswer({prompt:value.prompt,answer}),
       onTranscript:transcript=>setLastTurn({transcript,reply:''}),
       onTurn:({transcript,result})=>setLastTurn({transcript,reply:result.reply}),
-    }));
-  const end=useCallback(()=>{
-    coordinator.end();
-    sessionRef.current?.close();sessionRef.current=null;
-  },[coordinator]);
+    });
+    coordinatorRef.current = coordinator;
+    return () => {
+      coordinator.end();
+      coordinatorRef.current = null;
+      sessionRef.current?.close();
+      sessionRef.current = null;
+    };
+  }, []);
+  const end = useCallback(() => {
+    coordinatorRef.current?.end();
+    sessionRef.current?.close();
+    sessionRef.current = null;
+  }, []);
 
+  useEffect(() => {
+    if (!voiceOnly || !scope) end();
+    else coordinatorRef.current?.changeScope(scope);
+  }, [voiceOnly, scope, end]);
   useEffect(()=>{
-    if(!voiceOnly||!scope)end();
-    else coordinator.changeScope(scope);
-  },[voiceOnly,scope,end,coordinator]);
-  useEffect(()=>()=>end(),[end]);
-  useEffect(()=>{
-    const handleVisibility=()=>{if(document.hidden&&coordinator.active)coordinator.pause();};
+    const handleVisibility=()=>{if(document.hidden) coordinatorRef.current?.pause();};
     document.addEventListener('visibilitychange',handleVisibility);
     return()=>document.removeEventListener('visibilitychange',handleVisibility);
-  },[coordinator]);
+  }, []);
   useEffect(()=>{
-    if(!coordinator.active)return;
+    if(!active)return;
     const update=()=>setSeconds(Math.floor((Date.now()-startTimeRef.current)/1000));
     const interval=window.setInterval(update,1000);
     update();
     return()=>window.clearInterval(interval);
-  },[coordinator,state.phase]);
+  },[active]);
   const start=useCallback(()=>{
     if(!scope)return;
     voiceRef.current.cancelPendingTranscript();voiceRef.current.stopSpeaking();
     setLastTurn(null);setQuestion(null);setLastQuestionAnswer(null);startTimeRef.current=Date.now();setSeconds(0);
     // Mic consent begins synchronously from Start call, not from the mode toggle.
-    coordinator.start(scope);
+    coordinatorRef.current?.start(scope);
   },[scope,coordinator]);
 
   return {
-    state,active:coordinator.active,seconds,voiceLevel,lastTurn,question,lastQuestionAnswer,
-    start,end,pause:()=>coordinator.pause(),resume:()=>coordinator.resume(),
-    interrupt:()=>coordinator.interrupt(),
-    muteMic:(muted)=>coordinator.setMicMuted(muted),
-    muteSpeaker:(muted)=>coordinator.setSpeakerMuted(muted),
-    answerVisual:(answers,ids)=>coordinator.answerVisual(answers,ids),
-    approvalResolved:(id,decision)=>coordinator.stageDecisionSucceeded(id,decision),
+    state,active,seconds,voiceLevel,lastTurn,question,lastQuestionAnswer,
+    start,end,pause:()=>coordinatorRef.current?.pause(),resume:()=>coordinatorRef.current?.resume(),
+    interrupt:()=>coordinatorRef.current?.interrupt(),
+    muteMic:(muted)=>coordinatorRef.current?.setMicMuted(muted),
+    muteSpeaker:(muted)=>coordinatorRef.current?.setSpeakerMuted(muted),
+    answerVisual:(answers,ids)=>coordinatorRef.current?.answerVisual(answers,ids)??Promise.resolve(),
+    approvalResolved:(id,decision)=>coordinatorRef.current?.stageDecisionSucceeded(id,decision)??Promise.resolve(),
   };
 }
