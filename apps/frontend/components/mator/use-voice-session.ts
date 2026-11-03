@@ -167,7 +167,7 @@ export function useVoiceSession({
       utterance.onstart = () => {
         if (speechEpochRef.current === epoch) setSpeaking(true);
       };
-      utterance.onend = finish;
+      utterance.onend = () => finish();
       utterance.onerror = () => finish(new Error('Browser speech playback failed.'));
       window.speechSynthesis.speak(utterance);
     });

@@ -1774,8 +1774,12 @@ function installFakeCallHardware() {
           },
         };
       }
-      async decodeAudioData(_buffer: ArrayBuffer) {
-        return {length:3840, getChannelData: (_index:number) => new Float32Array(3840)};
+      async decodeAudioData(buffer: ArrayBuffer) {
+        void buffer;
+        return { length: 3840, getChannelData: (index: number) => {
+          void index;
+          return new Float32Array(3840);
+        } };
       }
       resume() { return Promise.resolve(); }
       close() { return Promise.resolve(); }

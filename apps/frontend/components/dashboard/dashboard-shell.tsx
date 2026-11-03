@@ -234,7 +234,9 @@ export default function DashboardShell({
     voice,
     sendTurn: sendCallTurn,
   });
-  callActiveRef.current = aiCall.active;
+  useEffect(() => {
+    callActiveRef.current = aiCall.active;
+  }, [aiCall.active]);
 
   // A reply from a previous workflow/thread must never be delivered in the new scope.
   useEffect(() => {

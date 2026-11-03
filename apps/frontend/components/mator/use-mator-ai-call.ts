@@ -53,12 +53,12 @@ export function useMatorAiCall({workflowId,conversationId,voiceOnly,voice,sendTu
   const sessionRef=useRef<MatorDuplexAudio|null>(null);
   const voiceRef=useRef(voice);
   const sendRef=useRef(sendTurn);
-  voiceRef.current=voice;
-  sendRef.current=sendTurn;
+  useEffect(() => {
+    voiceRef.current = voice;
+    sendRef.current = sendTurn;
+  }, [voice, sendTurn]);
   const scope=matorAiCallScope(workflowId,conversationId);
-  const coordinatorRef=useRef<MatorCallCoordinator|null>(null);
-  if(!coordinatorRef.current){
-    coordinatorRef.current=new MatorCallCoordinator({
+  const [coordinator] = useState(() => new MatorCallCoordinator({
       capture:(signal)=>{
         if(!sessionRef.current) sessionRef.current=new MatorDuplexAudio(level=>{
           const now=Date.now();
@@ -85,9 +85,7 @@ export function useMatorAiCall({workflowId,conversationId,voiceOnly,voice,sendTu
       onQuestionAnswer:(value,answer)=>setLastQuestionAnswer({prompt:value.prompt,answer}),
       onTranscript:transcript=>setLastTurn({transcript,reply:''}),
       onTurn:({transcript,result})=>setLastTurn({transcript,reply:result.reply}),
-    });
-  }
-  const coordinator=coordinatorRef.current;
+    }));
   const end=useCallback(()=>{
     coordinator.end();
     sessionRef.current?.close();sessionRef.current=null;

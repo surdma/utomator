@@ -305,51 +305,47 @@ export default function MatorComposer({
   ) : null;
 
 
-  /* ── Mator AI Call. Switching modes alone never activates the microphone. ── */
+  /* ── AI Call retains the existing compact composer shell and file controls. ── */
   if (voiceOnly) {
     return (
-      <div data-testid="mator-composer" data-mode="voice-only"
-        className="shrink-0 border-t border-slate-200 bg-slate-50/60 px-3 py-3">
-        <div className="mb-2 flex min-w-0 flex-nowrap items-center justify-between gap-1">
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-800">
-            <Phone className="size-4" aria-hidden="true" /> Mator AI Call
+      <div
+        data-testid="mator-composer"
+        data-mode="voice-only"
+        className="shrink-0 border-t border-slate-200 bg-gradient-to-b from-slate-50/60 to-white px-4 pt-3 pb-3"
+      >
+        <div className="flex min-w-0 flex-nowrap items-center justify-between gap-1">
+          <span className="inline-flex min-w-0 shrink-0 items-center gap-1.5 whitespace-nowrap text-xs font-semibold text-teal-800">
+            <Phone className="size-3.5" aria-hidden="true" />
+            Mator AI Call
           </span>
-          <div className="flex shrink-0 flex-nowrap items-center gap-1">
+          <div className="inline-flex min-w-0 shrink-0 flex-nowrap items-center gap-0.5">
+            <button type="button" aria-label="Attach a file during AI call" data-testid="mator-voice-attach" disabled={call.active} onClick={() => inputRef.current?.click()} className={iconButton('default')}>
+              <Paperclip className="size-4" aria-hidden="true" />
+            </button>
+            <input ref={inputRef} type="file" multiple accept={ATTACH_ACCEPT} className="sr-only" aria-hidden="true" tabIndex={-1} onChange={(event) => { attach(event.target.files); event.target.value = ''; }} />
             <MatorChatSettings disabled={busy || call.active} onSettingsSaved={onSettingsSaved} />
-            <span className="inline-flex size-11 items-center justify-center">
-              <Switch checked={voiceOnly} onCheckedChange={(checked) => {
-                if (!checked) call.end();
-                setVoiceOnlyPreference(checked);
-              }} aria-label="Mator AI Call mode" data-testid="mator-voice-switch" />
+            <span className="inline-flex size-11 shrink-0 items-center justify-center" title="Switch to text conversation">
+              <Switch checked={voiceOnly} onCheckedChange={(checked) => { if (!checked) call.end(); setVoiceOnlyPreference(checked); }} aria-label="Mator AI Call mode" data-testid="mator-voice-switch" />
             </span>
           </div>
         </div>
-        <MatorAiCallPanel call={call} ready={callReady && !busy} />
         {gallery}
         {pending.length > 0 && (
           <div className="mt-2 flex items-end gap-2">
-            <input type="text" value={message} onChange={(event) => onMessageChange(event.target.value)}
-              aria-label="Caption for attached assets" placeholder="Add a caption…"
-              className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-200 px-3 text-sm" />
-            <button type="button" data-testid="mator-send" onClick={() => void sendDraft()}
-              disabled={submitting || busy || call.active}
-              className="min-h-11 rounded-xl bg-teal-800 px-3 text-sm font-semibold text-white disabled:opacity-50">Send assets</button>
+            <input type="text" value={message} onChange={(event) => onMessageChange(event.target.value)} aria-label="Caption for assets" placeholder="Add a caption or prompt…" className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-200 px-3 text-sm" />
+            <button type="button" data-testid="mator-send" onClick={() => void sendDraft()} disabled={submitting || busy || call.active} className="min-h-11 rounded-xl bg-teal-800 px-3 text-sm font-semibold text-white disabled:opacity-50">Send assets</button>
           </div>
         )}
-        <button type="button" data-testid="mator-voice-attach"
-          aria-label="Attach a file" disabled={call.active} onClick={() => inputRef.current?.click()}
-          className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-xs text-slate-700 disabled:opacity-50">
-          <Paperclip className="size-4" aria-hidden="true" /> Attach file
-        </button>
-        <input ref={inputRef} type="file" multiple accept={ATTACH_ACCEPT} className="sr-only"
-          aria-hidden="true" tabIndex={-1} onChange={(event) => {
-            attach(event.target.files); event.target.value = '';
-          }} />
-        {draftError && <p role="alert" className="mt-1 text-xs text-rose-700">{draftError}</p>}
+        {draftError && <p role="alert" className="text-xs text-rose-700">{draftError}</p>}
+        <div className="mt-3 pb-1">
+          <MatorAiCallPanel call={call} ready={callReady && !busy} />
+        </div>
         {operatorPendingLabel && onConfirmOperator && (
           <OperatorPendingApproval label={operatorPendingLabel} onConfirm={onConfirmOperator} busy={busy} />
         )}
-        {incomplete && <IncompleteBanner onContinue={onIncompleteContinue} busy={busy} />}
+        {incomplete && (
+          <IncompleteBanner onContinue={onIncompleteContinue} busy={busy} />
+        )}
       </div>
     );
   }
