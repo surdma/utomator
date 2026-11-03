@@ -1,62 +1,25 @@
-import { mkdir, rm } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
+import { rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
+import type { Browser, BrowserContext, Page } from 'playwright';
 import type { VaultPayload } from '../core/session-vault.js';
-import { seedOriginStorage } from './vault-probe.js';
+import {
+  assertLoopbackCdp,
+  attachChrome,
+  type BrowserConnection,
+  discoverRunningChrome,
+  launchPersistent,
+  scratchDirectory,
+  startScreencast,
+} from './provider.js';
 import { mapBrokerInput, type BrokerInput } from './streaming-signin.js';
-
-// Prefer Chrome that is already running with a local debugging endpoint.
-// A normal Chrome window cannot be attached unless remote debugging was enabled.
-const localCdpUrl = 'http://127.0.0.1:9222';
-
-// An attached browser belongs to the desktop user, not to one automation run.
-// Keep ONE CDP transport for the engine lifetime; never issue Browser.close to
-// an external Chrome process. Each run owns and closes only its own tab.
-let attachedBrowser: Browser | undefined;
-let attachedAttempt: Promise<Browser> | undefined;
-async function attachChrome(endpoint: string): Promise<Browser> {
-  if (attachedBrowser?.isConnected()) return attachedBrowser;
-  if (!attachedAttempt) {
-    attachedAttempt = chromium
-      .connectOverCDP(endpoint, { timeout: 6000 })
-      .then((browser) => {
-        attachedBrowser = browser;
-        browser.on('disconnected', () => {
-          if (attachedBrowser === browser) attachedBrowser = undefined;
-          attachedAttempt = undefined;
-        });
-        return browser;
-      })
-      .catch((error) => {
-        attachedAttempt = undefined;
-        throw error;
-      });
-  }
-  return attachedAttempt;
-}
-
-async function discoverRunningChrome(): Promise<string | undefined> {
-  try {
-    const response = await fetch(`${localCdpUrl}/json/version`, {
-      signal: AbortSignal.timeout(800),
-    });
-    if (!response.ok) return undefined;
-    const metadata = (await response.json()) as {
-      webSocketDebuggerUrl?: unknown;
-    };
-    return typeof metadata.webSocketDebuggerUrl === 'string' ? localCdpUrl : undefined;
-  } catch {
-    // Nothing is listening on the debugging port; use our persisted Chrome profile.
-    return undefined;
-  }
-}
+import { seedOriginStorage } from './vault-probe.js';
 
 export class BrowserSession {
   private browser?: Browser;
   private context?: BrowserContext;
   private page?: Page;
-  private connection?: 'existing-chrome' | 'persistent-profile' | 'vault-restored';
+  private connection?: BrowserConnection;
   private scratchDir?: string;
   private cdp?: import('playwright').CDPSession;
   private latestFrame?: string;
@@ -65,7 +28,7 @@ export class BrowserSession {
     return this.page;
   }
 
-  get kind(): 'existing-chrome' | 'persistent-profile' | 'vault-restored' | undefined {
+  get kind(): BrowserConnection {
     return this.connection;
   }
 
@@ -85,12 +48,7 @@ export class BrowserSession {
         ? process.env.CHROME_CDP_URL?.trim() || (await discoverRunningChrome())
         : undefined;
     if (cdpUrl) {
-      const cdp = new URL(cdpUrl);
-      if (
-        !['127.0.0.1', 'localhost', '[::1]'].includes(cdp.hostname) ||
-        !['http:', 'https:'].includes(cdp.protocol)
-      )
-        throw new Error('CDP must use loopback');
+      assertLoopbackCdp(cdpUrl);
       try {
         this.browser = await attachChrome(cdpUrl);
       } catch {
@@ -107,13 +65,7 @@ export class BrowserSession {
       const dir = accountId
         ? resolve('.runtime', 'chrome', 'accounts', accountId)
         : resolve('.runtime', 'chrome', platform);
-      await mkdir(dir, { recursive: true, mode: 0o700 });
-      this.context = await chromium.launchPersistentContext(dir, {
-        // Servers have no display. Playwright Chromium stays headless; do not open a window.
-        headless: true,
-        viewport: { width: 1366, height: 850 },
-        acceptDownloads: false,
-      });
+      this.context = await launchPersistent(dir);
       this.page = this.context.pages()[0] ?? (await this.context.newPage());
       this.connection = 'persistent-profile';
     }
@@ -126,18 +78,8 @@ export class BrowserSession {
   async beginView(): Promise<void> {
     if (!this.page || !this.context || this.cdp) return;
     this.cdp = await this.context.newCDPSession(this.page);
-    this.cdp.on('Page.screencastFrame', (frame: unknown) => {
-      const shot = frame as { data?: unknown; sessionId?: unknown };
-      if (typeof shot.data === 'string') this.latestFrame = shot.data;
-      if (typeof shot.sessionId === 'number')
-        void this.cdp?.send('Page.screencastFrameAck', { sessionId: shot.sessionId }).catch(() => undefined);
-    });
-    await this.cdp.send('Page.startScreencast', {
-      format: 'jpeg',
-      quality: 60,
-      everyNthFrame: 1,
-      maxWidth: 1280,
-      maxHeight: 800,
+    await startScreencast(this.cdp, {}, (frame) => {
+      this.latestFrame = frame.data;
     });
   }
 
@@ -163,11 +105,9 @@ export class BrowserSession {
   async openRestored(payload: VaultPayload): Promise<Page> {
     if (this.page) throw new Error('Browser session is already in use');
     const hints = payload.browserHints;
-    const dir = resolve('.runtime', 'chrome', 'scratch', randomUUID());
-    await mkdir(dir, { recursive: true, mode: 0o700 });
+    const dir = scratchDirectory(randomUUID());
     this.scratchDir = dir;
-    this.context = await chromium.launchPersistentContext(dir, {
-      headless: true,
+    this.context = await launchPersistent(dir, {
       userAgent: hints.userAgent,
       viewport: { width: hints.viewport.width, height: hints.viewport.height },
       ...(hints.locale ? { locale: hints.locale } : {}),
@@ -175,7 +115,6 @@ export class BrowserSession {
       ...(typeof hints.deviceScaleFactor === 'number'
         ? { deviceScaleFactor: hints.deviceScaleFactor }
         : {}),
-      acceptDownloads: false,
     });
     if (payload.cookies.length) await this.context.addCookies(payload.cookies);
     if (payload.originState.length) {

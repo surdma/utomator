@@ -1,9 +1,8 @@
-import { mkdir, rm } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
-import { resolve } from 'node:path';
-import { chromium, type BrowserContext, type CDPSession, type Page } from 'playwright';
-import { classifyProviderAuth } from './vault-probe.js';
+import type { BrowserContext, CDPSession, Page } from 'playwright';
 import { navigateWithRetry, streamSignInUrl } from './navigation.js';
+import { openScratch, type ScreencastFramePayload, startScreencast } from './provider.js';
+import { classifyProviderAuth } from './vault-probe.js';
 
 /**
  * Streamed sign-in broker.
@@ -171,31 +170,17 @@ export const defaultLaunch = async (
   context: BrowserContext;
   dispose: () => Promise<void>;
 }> => {
-  const dir = resolve('.runtime', 'chrome', 'scratch', `${randomUUID()}-${platform}`);
-  await mkdir(dir, { recursive: true, mode: 0o700 });
-  const context = await chromium.launchPersistentContext(dir, {
-    headless: true,
-    viewport: { width: STREAM_VIEWPORT.width, height: STREAM_VIEWPORT.height },
-    acceptDownloads: false,
+  const scratch = await openScratch(`${randomUUID()}-${platform}`, {
+    viewport: { ...STREAM_VIEWPORT },
   });
-  const page = context.pages()[0] ?? (await context.newPage());
-  return {
-    page,
-    context,
-    dispose: () => context.close().then(() => rm(dir, { recursive: true, force: true }).catch(() => {})),
-  };
+  const page = scratch.context.pages()[0] ?? (await scratch.context.newPage());
+  return { page, context: scratch.context, dispose: scratch.dispose };
 };
 
 export type BrokerDeps = {
   /** Testable launch boundary; production uses the scratch persistent context. */
   launch?: typeof defaultLaunch;
   cdpFactory?: (context: BrowserContext, page: Page) => Promise<CDPSession>;
-};
-
-type ScreencastFrame = {
-  data?: unknown;
-  sessionId?: number;
-  metadata?: { deviceWidth?: number; deviceHeight?: number };
 };
 
 export class SignInBroker {
@@ -253,14 +238,15 @@ export class SignInBroker {
       maxAttempts: 2,
       baseDelayMs: 400,
     });
-    this.cdp.on('Page.screencastFrame', (frame: unknown) => this.handleFrame(frame as ScreencastFrame));
-    await this.cdp.send('Page.startScreencast', {
-      format: 'jpeg',
-      quality: 55,
-      everyNthFrame: 1,
-      maxWidth: STREAM_VIEWPORT.width,
-      maxHeight: STREAM_VIEWPORT.height,
-    } as never);
+    await startScreencast(
+      this.cdp,
+      {
+        quality: 55,
+        maxWidth: STREAM_VIEWPORT.width,
+        maxHeight: STREAM_VIEWPORT.height,
+      },
+      (frame) => this.handleFrame(frame),
+    );
     this.state = 'streaming';
     this.timer = setTimeout(() => {
       void this.terminate('ttl-expired');
@@ -270,13 +256,8 @@ export class SignInBroker {
     }, COMPLETION_POLL_MS);
   }
 
-  private handleFrame(frame: ScreencastFrame): void {
-    if (
-      this.state === 'closed' ||
-      typeof frame?.data !== 'string' ||
-      typeof frame?.sessionId !== 'number'
-    )
-      return;
+  private handleFrame(frame: ScreencastFramePayload): void {
+    if (this.state === 'closed') return;
     this.frames += 1;
     const event: FrameEvent = {
       base64: frame.data,
@@ -289,10 +270,6 @@ export class SignInBroker {
         /* a slow frame consumer must not break streaming */
       }
     }
-    // Ack so the browser keeps producing frames; stale frames self-replace.
-    void this.cdp
-      ?.send('Page.screencastFrameAck', { sessionId: frame.sessionId } as never)
-      .catch(() => undefined);
   }
 
   private async checkAuthenticated(): Promise<void> {

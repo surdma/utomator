@@ -2,10 +2,11 @@
 import { chmod, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import type { Page } from 'playwright';
-import { BrowserSession } from '../browser/session.js';
-import type { BrokerInput } from '../browser/streaming-signin.js';
 import { streamSignInUrl } from '../browser/navigation.js';
 import { isConnectionTimeout, navigateWithRetry } from '../browser/navigation.js';
+import type { BrowserPort } from '../browser/provider.js';
+import { BrowserSession } from '../browser/session.js';
+import type { BrokerInput } from '../browser/streaming-signin.js';
 import { AccountStore, type SocialAccount, type SocialPlatform } from '../profile/account-store.js';
 import type { DocumentStore } from '../db/documents.js';
 
@@ -21,9 +22,6 @@ export type ConnectionStatus = SocialAccount & {
   verifiedAt: string | null;
   authentication: 'browser' | 'api-required';
   interactiveSignIn: boolean;
-};
-type BrowserPort = Pick<BrowserSession, 'open' | 'close'> & {
-  readonly currentPage?: Page;
 };
 type PendingConnection = { platform: 'linkedin' | 'x'; browser: BrowserPort };
 const providerHome = {
