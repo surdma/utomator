@@ -19,8 +19,9 @@ test('AI Call is explicitly started and preserves real separate mic/speaker/end 
 
 test('call preference remains independent from an active call', () => {
   const hook = source('use-mator-ai-call.ts');
-  assert.match(hook, /if\(!voiceOnly\|\|!scope\)end\(\)/);
-  assert.match(hook, /coordinator\.changeScope\(scope\)/);
+  assert.match(hook, /if \(!voiceOnly \|\| !scope\) end\(\)/);
+  assert.match(hook, /coordinatorRef\.current\?\.changeScope\(scope\)/);
+  assert.match(hook, /const active = state\.phase !== 'idle' && state\.phase !== 'ended'/);
   assert.match(hook, /transcribeMatorAudio\(audio,signal\)/);
   assert.match(hook, /sessionRef\.current\.speakAndCatch\(text,signal\)/);
 });
