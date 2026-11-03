@@ -93,7 +93,7 @@ export default function GrowthWorkspaceDialogs({
                 ? 'Planning-only YAML. Tasks and procedures are owner-operated; there is no registered Runner operation for this blueprint.'
                 : 'The compiled pipelines use the existing Runner. Evidence stays unverified until supplied; this template cannot edit a provider profile.'}
             </p>
-          )
+          )}
           {!designOnly && !accountId && (
             <p role="status" className="rounded-xl border border-slate-200 p-3 text-sm text-slate-600">
               Connect and verify a LinkedIn account before starting this workflow.
