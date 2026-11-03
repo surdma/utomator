@@ -1,12 +1,7 @@
 'use client';
 
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import {
-  AlertCircle,
-  ArrowUpRight,
-  GitBranch,
-  Settings2,
-} from 'lucide-react';
+import { AlertCircle, ArrowUpRight, GitBranch, Settings2 } from 'lucide-react';
 import { stepIconFor } from '../../workflows/workflow-step-icons';
 import type { GrowthGraphNode } from '../growth-graph-model';
 
@@ -87,11 +82,7 @@ export function GrowthGraphNodeCard({
         </p>
       )}
       <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-3 py-2 text-[10px] font-semibold">
-        <span
-          className={
-            data.designOnly ? 'text-amber-800' : 'text-teal-700'
-          }
-        >
+        <span className={data.designOnly ? 'text-amber-800' : 'text-teal-700'}>
           {data.designOnly
             ? 'PLANNED · NOT EXECUTABLE'
             : isPipeline
@@ -99,9 +90,15 @@ export function GrowthGraphNodeCard({
               : 'INSPECT · READ ONLY'}
         </span>
         {isPipeline ? (
-          <ArrowUpRight className="size-3.5 shrink-0 text-slate-400" aria-hidden="true" />
+          <ArrowUpRight
+            className="size-3.5 shrink-0 text-slate-400"
+            aria-hidden="true"
+          />
         ) : (
-          <Settings2 className="size-3.5 shrink-0 text-slate-400" aria-hidden="true" />
+          <Settings2
+            className="size-3.5 shrink-0 text-slate-400"
+            aria-hidden="true"
+          />
         )}
       </div>
       <Handle

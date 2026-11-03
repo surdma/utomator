@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { defaultWorkflowPlan, newWorkflowDraft } from '../components/dashboard/pipeline/default-workflow-plan.ts';
+import {
+  defaultWorkflowPlan,
+  newWorkflowDraft,
+} from '../components/dashboard/pipeline/default-workflow-plan.ts';
 
 test('default profile audit has its original connected execution sequence', () => {
   const plan = defaultWorkflowPlan();

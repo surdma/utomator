@@ -39,7 +39,9 @@ export default function WorkflowEmptyState({
   onApplyYaml,
 }: Props) {
   const [libraryOpen, setLibraryOpen] = useState(false);
-  const visibleSaved = savedWorkflows.filter((entry) => entry.plan.platform === platform);
+  const visibleSaved = savedWorkflows.filter(
+    (entry) => entry.plan.platform === platform
+  );
 
   return (
     <section
@@ -70,7 +72,10 @@ export default function WorkflowEmptyState({
             <span className="sm:hidden">Templates</span>
           </button>
         </div>
-        <div data-testid="workflow-empty-state" className="relative w-full max-w-xl rounded-3xl border border-white/90 bg-white/95 p-6 text-center shadow-xl shadow-slate-900/5 ring-1 ring-slate-200/60 sm:p-9">
+        <div
+          data-testid="workflow-empty-state"
+          className="relative w-full max-w-xl rounded-3xl border border-white/90 bg-white/95 p-6 text-center shadow-xl ring-1 shadow-slate-900/5 ring-slate-200/60 sm:p-9"
+        >
           <span className="mx-auto grid size-16 place-items-center rounded-2xl bg-slate-950 text-white shadow-lg">
             <Workflow className="size-7" aria-hidden="true" />
           </span>
@@ -106,7 +111,10 @@ export default function WorkflowEmptyState({
             </button>
           </div>
           {error && (
-            <p role="alert" className="mt-4 rounded-xl bg-rose-50 p-3 text-xs text-rose-800">
+            <p
+              role="alert"
+              className="mt-4 rounded-xl bg-rose-50 p-3 text-xs text-rose-800"
+            >
               {error}
             </p>
           )}
@@ -128,7 +136,7 @@ export default function WorkflowEmptyState({
                   type="button"
                   disabled={busy}
                   onClick={() => onOpenSaved(entry.id)}
-                  className="min-h-11 min-w-44 max-w-60 shrink-0 rounded-xl border border-slate-200 px-3 py-2 text-left transition hover:border-teal-500 hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-teal-700 disabled:opacity-50"
+                  className="min-h-11 max-w-60 min-w-44 shrink-0 rounded-xl border border-slate-200 px-3 py-2 text-left transition hover:border-teal-500 hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-teal-700 disabled:opacity-50"
                 >
                   <span className="block truncate text-xs font-semibold text-slate-900">
                     {entry.plan.name}

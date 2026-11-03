@@ -273,7 +273,10 @@ test('the first visit shows a blank Artboard and a genuinely broader workflow li
     'utf8'
   );
   const empty = readFileSync(
-    resolve(root, 'components/dashboard/workflows/editor/workflow-empty-state.tsx'),
+    resolve(
+      root,
+      'components/dashboard/workflows/editor/workflow-empty-state.tsx'
+    ),
     'utf8'
   );
   const library = readFileSync(
@@ -285,7 +288,10 @@ test('the first visit shows a blank Artboard and a genuinely broader workflow li
     'utf8'
   );
   const graph = readFileSync(
-    resolve(root, 'components/dashboard/growth/artboard/growth-graph-node-card.tsx'),
+    resolve(
+      root,
+      'components/dashboard/growth/artboard/growth-graph-node-card.tsx'
+    ),
     'utf8'
   );
   const step = readFileSync(
@@ -305,7 +311,10 @@ test('the first visit shows a blank Artboard and a genuinely broader workflow li
   assert.match(library, /ActionTemplateBrowser/);
   assert.match(library, /Workflow library/);
   assert.doesNotMatch(library, /Growth workflow library/);
-  assert.match(action, /onApply\(selected, selected.platform \+ '-' \+ selected.action\)/);
+  assert.match(
+    action,
+    /onApply\(selected, selected.platform \+ '-' \+ selected.action\)/
+  );
   assert.match(action, /Use this template/);
   assert.match(graph, /stepIconFor/);
   assert.match(step, /stepIconFor/);
