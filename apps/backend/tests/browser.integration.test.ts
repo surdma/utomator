@@ -819,6 +819,21 @@ test('blank Artboard opens action templates without creating or running defaults
     assert.equal(await page.getByTestId('workflow-artboard').locator('.react-flow').count(), 1);
     assert.equal(posts.length, 1, 'only the explicit template action creates a workflow');
     assert.equal((await app.inject('/runs')).json().length, 0);
+    await page.getByRole('button', { name: 'Back to workspace' }).click();
+    await page.getByTestId('workflow-empty-state').waitFor();
+    assert.equal(await page.getByTestId('workflow-node-start').count(), 0);
+    await page.getByRole('button', { name: 'Create new workflow' }).click();
+    await page.getByTestId('workflow-node-start').waitFor();
+    await page.getByRole('button', { name: 'Back to workspace' }).click();
+    const confirmation = page.getByTestId('workflow-leave-confirmation');
+    await confirmation.waitFor({ state: 'visible' });
+    await confirmation.getByRole('button', { name: 'Keep editing' }).click();
+    await confirmation.waitFor({ state: 'hidden' });
+    assert.equal(await page.getByTestId('workflow-node-start').count(), 1);
+    await page.getByRole('button', { name: 'Back to workspace' }).click();
+    await confirmation.getByRole('button', { name: 'Discard draft' }).click();
+    await page.getByTestId('workflow-empty-state').waitFor();
+    assert.equal(posts.length, 1, 'discarding an unsaved draft must not create a workflow');
   } finally {
     await browser.close();
     await app.close();

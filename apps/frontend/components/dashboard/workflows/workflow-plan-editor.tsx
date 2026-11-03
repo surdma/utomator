@@ -43,6 +43,7 @@ import {
 } from '../growth/growth-graph-model';
 import { useGrowthProfileWorkflow } from '../growth/hooks/use-growth-profile-workflow';
 import GrowthWorkspaceDialogs from '../growth/growth-workspace-dialogs';
+import StudioDialog from '../../ui/studio-dialog';
 import { useGrowthRunJournal } from '../../../hooks/use-growth-run-journal';
 
 type Props = {
@@ -155,6 +156,7 @@ function EditorBody(props: Props) {
   const [addOpen, setAddOpen] = useState(false);
   const [stepDraft, setStepDraft] = useState<WorkflowStep | null>(null);
   const [growthDetailsOpen, setGrowthDetailsOpen] = useState(false);
+  const [returnConfirmOpen, setReturnConfirmOpen] = useState(false);
   const [growthPipelineId, setGrowthPipelineId] = useState<string | null>(null);
   const [growthTaskId, setGrowthTaskId] = useState<string | null>(null);
   const growth = useGrowthProfileWorkflow(
@@ -283,6 +285,14 @@ function EditorBody(props: Props) {
     return () => cancelAnimationFrame(frame);
   }, [data.nodes, setNodes]);
   const canEdit = !busy;
+  function requestWorkspaceReturn() {
+    if (busy || saving) return;
+    if (dirty) {
+      setReturnConfirmOpen(true);
+      return;
+    }
+    onClearGrowth?.();
+  }
   function update(next: WorkflowPlan) {
     if (!canEdit) return;
     setEditorError('');
@@ -584,7 +594,7 @@ function EditorBody(props: Props) {
           saving={saving}
           dirty={dirty}
           onOpenTemplates={() => setTemplateOpen(true)}
-          onClearGrowth={onClearGrowth}
+          onReturnToWorkspace={requestWorkspaceReturn}
           onOpenAddStep={() => setAddOpen(true)}
           onSave={onSave}
           onSaveError={setEditorError}
@@ -626,6 +636,33 @@ function EditorBody(props: Props) {
           </>
         )}
       </div>
+      <StudioDialog
+        open={returnConfirmOpen}
+        onDismiss={() => setReturnConfirmOpen(false)}
+        title="Leave unsaved workflow?"
+        description="Your unsaved edits will be lost. Existing saved revisions and recorded runs will not change."
+        testId="workflow-leave-confirmation"
+      >
+        <div className="flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setReturnConfirmOpen(false)}
+            className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 focus-visible:outline-2 focus-visible:outline-teal-700"
+          >
+            Keep editing
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setReturnConfirmOpen(false);
+              onClearGrowth?.();
+            }}
+            className="min-h-11 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-teal-700"
+          >
+            Discard draft
+          </button>
+        </div>
+      </StudioDialog>
       <WorkflowEditorDialogs
         configOpen={configOpen}
         onConfigDismiss={() => setConfigOpen(false)}

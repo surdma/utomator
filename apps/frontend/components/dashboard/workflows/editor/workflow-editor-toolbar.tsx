@@ -22,7 +22,7 @@ type Props = {
   saving: boolean;
   dirty: boolean;
   onOpenTemplates: () => void;
-  onClearGrowth?: () => void;
+  onReturnToWorkspace?: () => void;
   onOpenAddStep: () => void;
   onSave: () => Promise<void>;
   onSaveError: (message: string) => void;
@@ -65,7 +65,7 @@ export function WorkflowEditorToolbar({
   saving,
   dirty,
   onOpenTemplates,
-  onClearGrowth,
+  onReturnToWorkspace,
   onOpenAddStep,
   onSave,
   onSaveError,
@@ -138,13 +138,21 @@ export function WorkflowEditorToolbar({
             </RailButton>
             <RailButton
               label="Back to workspace"
-              onClick={() => onClearGrowth?.()}
+              disabled={busy || saving}
+              onClick={() => onReturnToWorkspace?.()}
             >
               <ArrowLeft className="size-4" />
             </RailButton>
           </>
         ) : (
           <>
+            <RailButton
+              label="Back to workspace"
+              disabled={busy || saving}
+              onClick={() => onReturnToWorkspace?.()}
+            >
+              <ArrowLeft className="size-4" />
+            </RailButton>
             <RailButton
               label="Add workflow step"
               disabled={busy}
