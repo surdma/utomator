@@ -46,7 +46,6 @@ import { useVoiceSession } from '@/components/mator/use-voice-session';
 import { useVoiceOnlyPreference } from '@/components/mator/mator-voice-preference';
 import { useMatorAiCall } from '@/components/mator/use-mator-ai-call';
 import { useWorkflowWorkspace } from './pipeline/use-workflow-workspace';
-import RunTrackingDialog from './pipeline/run-tracking-dialog';
 import CheckpointDialog from './pipeline/checkpoint-dialog';
 import DashboardHeader from './pipeline/dashboard-header';
 import DashboardSidebar from './pipeline/dashboard-sidebar';
@@ -79,7 +78,6 @@ export default function DashboardShell({
   );
   const [connectorRequest, setConnectorRequest] = useState<string | null>(null);
   const [connectorOpenSignal, setConnectorOpenSignal] = useState(0);
-  const [trackingOpen, setTrackingOpen] = useState(false);
   const [chatVisible, setChatVisible] = useState(true);
   const [configRequest, setConfigRequest] = useState(0);
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
@@ -93,8 +91,6 @@ export default function DashboardShell({
   >(() => {});
   const {
     available,
-    playbook,
-    assessment,
     runs,
     active,
     events,
@@ -222,8 +218,12 @@ export default function DashboardShell({
     pending: matorPending,
   } = useMatorChat({
     workflowId: activeWorkflow?.id ?? null,
-    onSpeakHow: (text) => { if (!callActiveRef.current) voice.speak(text); },
-    onSpeakReply: (text) => { if (!callActiveRef.current) voice.speak(text); },
+    onSpeakHow: (text) => {
+      if (!callActiveRef.current) voice.speak(text);
+    },
+    onSpeakReply: (text) => {
+      if (!callActiveRef.current) voice.speak(text);
+    },
     voiceOnly,
   });
 
@@ -270,10 +270,22 @@ export default function DashboardShell({
       currentRunId,
       tracker.seen
     );
-    if (voiceOnly && !aiCall.active && settingsToggles.howTtsEnabled && summaries.length) {
+    if (
+      voiceOnly &&
+      !aiCall.active &&
+      settingsToggles.howTtsEnabled &&
+      summaries.length
+    ) {
       voice.speak(summaries.join(' '));
     }
-  }, [currentRunId, events, voiceOnly, aiCall.active, settingsToggles.howTtsEnabled, voice]);
+  }, [
+    currentRunId,
+    events,
+    voiceOnly,
+    aiCall.active,
+    settingsToggles.howTtsEnabled,
+    voice,
+  ]);
 
   const {
     sendMessage: sendOperatorMessage,
@@ -347,15 +359,17 @@ export default function DashboardShell({
   };
 
   const confirmChat = (eventId?: string) => {
-    if (eventId) void confirmStage(eventId).then((ok) => {
-      if (ok) void aiCall.approvalResolved(eventId, 'confirm');
-    });
+    if (eventId)
+      void confirmStage(eventId).then((ok) => {
+        if (ok) void aiCall.approvalResolved(eventId, 'confirm');
+      });
   };
 
   const rejectChat = (eventId?: string) => {
-    if (eventId) void rejectStage(eventId).then((ok) => {
-      if (ok) void aiCall.approvalResolved(eventId, 'reject');
-    });
+    if (eventId)
+      void rejectStage(eventId).then((ok) => {
+        if (ok) void aiCall.approvalResolved(eventId, 'reject');
+      });
   };
 
   const restoreMatorPipelineUi = async () => {
@@ -562,7 +576,6 @@ export default function DashboardShell({
     annotateChatAsset({ file, note });
   const annotateMatorAttachment = async (attachmentId: string, note?: string) =>
     annotateChatAsset({ attachmentId, note });
-  const latest = events.at(-1);
   const showChat =
     chatVisible &&
     pane !== 'profile' &&
@@ -576,8 +589,9 @@ export default function DashboardShell({
     >
       <DashboardHeader
         available={available}
-        onOpenTracking={() => setTrackingOpen(true)}
         onRefresh={() => void refresh()}
+        onOpenHistory={() => navigatePane('history')}
+        onOpenAccount={() => navigatePane('profile')}
       />
       <div
         className={
@@ -812,14 +826,6 @@ export default function DashboardShell({
         chatOpen={mobileChatOpen}
       />
 
-      <RunTrackingDialog
-        open={trackingOpen}
-        onDismiss={() => setTrackingOpen(false)}
-        active={active}
-        playbook={playbook}
-        assessment={assessment}
-        latest={latest}
-      />
       <CheckpointDialog
         checkpoint={checkpoint}
         checkpointError={checkpointError}

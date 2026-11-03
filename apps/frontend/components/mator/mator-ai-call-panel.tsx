@@ -60,7 +60,7 @@ export default function MatorAiCallPanel({ call, ready }: Props) {
             <Phone className="size-4" aria-hidden="true"/> Start call
           </button>
           {!ready && <p role="status" className="text-xs text-slate-600">Select a workflow conversation first.</p>}
-          <p className="max-w-68 text-xs leading-relaxed text-slate-500">Microphone access is requested only when you start. Turns are transcribed into this conversation.</p>
+
         </div>
       ) : (
         <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
