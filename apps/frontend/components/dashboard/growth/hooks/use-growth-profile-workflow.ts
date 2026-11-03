@@ -2,25 +2,48 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Program, Run } from '../growth-profile-types';
 import { request } from '../../../../lib/growth-profile-client';
 
+type Snapshot = {
+  key: string;
+  program: Program;
+  run: Run | null;
+};
+
 export function useGrowthProfileWorkflow(
   platform: 'linkedin' | 'x',
-  templateId: string,
+  templateId: string | null,
   accountId?: string
 ) {
-  const endpoint = '/api/growth/templates/' + encodeURIComponent(templateId);
-  const [program, setProgram] = useState<Program | null>(null);
-  const [run, setRun] = useState<Run | null>(null);
-  const [error, setError] = useState('');
+  const endpoint = templateId
+    ? '/api/growth/templates/' + encodeURIComponent(templateId)
+    : '';
+  const key = platform + '/' + (templateId ?? '') + '/' + (accountId ?? '');
+  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [errorState, setErrorState] = useState<{
+    key: string;
+    message: string;
+  } | null>(null);
   const [working, setWorking] = useState(false);
+  const program = snapshot?.key === key ? snapshot.program : null;
+  const run = snapshot?.key === key ? snapshot.run : null;
+  const error = errorState?.key === key ? errorState.message : '';
+
+  const setRun = useCallback(
+    (next: Run | null) => {
+      setSnapshot((current) =>
+        current?.key === key ? { ...current, run: next } : current
+      );
+    },
+    [key]
+  );
 
   const refresh = useCallback(
     async (signal?: AbortSignal) => {
-      if (platform !== 'linkedin') return;
+      if (platform !== 'linkedin' || !templateId) return;
       const loaded = await request<Program>(endpoint, 'GET', undefined, signal);
       if (signal?.aborted) return;
-      setProgram(loaded);
       if (!accountId) {
-        setRun(null);
+        setSnapshot({ key, program: loaded, run: null });
+        setErrorState(null);
         return;
       }
       const runs = await request<Run[]>(
@@ -30,30 +53,35 @@ export function useGrowthProfileWorkflow(
         signal
       );
       if (signal?.aborted) return;
-      setRun(runs.find((item) => item.accountId === accountId) ?? null);
+      setSnapshot({
+        key,
+        program: loaded,
+        run: runs.find((item) => item.accountId === accountId) ?? null,
+      });
+      setErrorState(null);
     },
-    [platform, accountId, endpoint]
+    [platform, templateId, accountId, endpoint, key]
   );
 
   useEffect(() => {
-    if (platform !== 'linkedin') return;
+    if (platform !== 'linkedin' || !templateId) return;
     const controller = new AbortController();
     let active = true;
     let inFlight = false;
     const poll = async () => {
-      // An interval tick must not start a second request while one is pending.
       if (!active || inFlight) return;
       inFlight = true;
       try {
         await refresh(controller.signal);
       } catch (reason) {
-        if (active && !controller.signal.aborted) {
-          setError(
-            reason instanceof Error
-              ? reason.message
-              : 'Cannot refresh Growth run'
-          );
-        }
+        if (active && !controller.signal.aborted)
+          setErrorState({
+            key,
+            message:
+              reason instanceof Error
+                ? reason.message
+                : 'Cannot refresh Growth run',
+          });
       } finally {
         inFlight = false;
       }
@@ -65,17 +93,20 @@ export function useGrowthProfileWorkflow(
       clearInterval(interval);
       controller.abort();
     };
-  }, [platform, refresh]);
+  }, [platform, templateId, key, refresh]);
 
   async function mutate(fn: () => Promise<unknown>) {
     if (working) return;
     setWorking(true);
-    setError('');
+    setErrorState(null);
     try {
       await fn();
       await refresh();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Request failed');
+      setErrorState({
+        key,
+        message: reason instanceof Error ? reason.message : 'Request failed',
+      });
     } finally {
       setWorking(false);
     }

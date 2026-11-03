@@ -629,7 +629,7 @@ test('Connector dialog rejects manual profile entry and Profile shows only verif
   }
 });
 
-test('Growth profile YAML opens on the nested artboard without running a browser', {
+test('Growth profile YAML uses one Artboard canvas, drill-down, and real controls', {
   timeout: 90000,
 }, async () => {
   const app = buildApp();
@@ -650,8 +650,18 @@ test('Growth profile YAML opens on the nested artboard without running a browser
     assert.match(await preview.innerText(), /6 connected pipelines/);
     await modal.getByRole('button', { name: 'Open YAML workflow' }).click();
     await modal.waitFor({ state: 'hidden' });
-    const graph = page.getByTestId('workflow-artboard').getByTestId('growth-nested-artboard');
+    const artboard = page.getByTestId('workflow-artboard');
+    const graph = artboard.getByTestId('growth-nested-artboard');
     await graph.getByTestId('growth-pipeline-node-identity').waitFor();
+    assert.equal(await artboard.locator('.react-flow').count(), 1);
+    assert.equal(await page.getByTestId('growth-profile-program').count(), 0);
+    await page.getByRole('button', { name: 'Growth execution and evidence' }).click();
+    const details = page.getByTestId('growth-workspace-details');
+    await details.waitFor({ state: 'visible' });
+    await details.getByRole('link', { name: 'View source YAML' }).waitFor();
+    assert.match(await details.innerText(), /existing Runner/);
+    await page.keyboard.press('Escape');
+    await details.waitFor({ state: 'hidden' });
     assert.equal(await graph.locator('[data-testid^="growth-pipeline-node-"]').count(), 6);
     await graph.locator('.react-flow__edge').first().waitFor({
       state: 'attached',
@@ -665,6 +675,13 @@ test('Growth profile YAML opens on the nested artboard without running a browser
     await graph.getByTestId('growth-task-node-start').waitFor();
     await graph.getByTestId('growth-task-node-session').waitFor();
     assert((await graph.locator('[data-testid^="growth-task-node-"]').count()) >= 4);
+    await graph.getByTestId('growth-task-node-start').click();
+    const taskDetails = page.getByTestId('growth-task-details');
+    await taskDetails.waitFor({ state: 'visible' });
+    assert.match(await taskDetails.innerText(), /Read-only source configuration/);
+    assert.match(await taskDetails.innerText(), /Step kind/);
+    await page.keyboard.press('Escape');
+    await taskDetails.waitFor({ state: 'hidden' });
     await graph.getByRole('button', { name: 'Back to pipelines' }).click();
     await graph.getByTestId('growth-pipeline-node-identity').waitFor();
     assert.equal((await app.inject('/runs')).json().length, before);
@@ -674,7 +691,7 @@ test('Growth profile YAML opens on the nested artboard without running a browser
   }
 });
 
-test('second Growth YAML shows planned tasks, not unregistered Runner actions', {
+test('planning-only Growth YAML stays read-only and cannot launch Runner', {
   timeout: 90000,
 }, async () => {
   const app = buildApp();
@@ -703,6 +720,12 @@ test('second Growth YAML shows planned tasks, not unregistered Runner actions', 
     await graph.getByTestId('growth-task-node-todo').waitFor();
     await graph.getByTestId('growth-task-node-procedure').waitFor();
     assert.equal(await graph.locator('[data-testid^="growth-task-node-"]').count(), 5);
+    assert.equal(await page.getByTestId('workflow-artboard').locator('.react-flow').count(), 1);
+    await page.getByRole('button', { name: 'Growth execution and evidence' }).click();
+    const details = page.getByTestId('growth-workspace-details');
+    await details.waitFor({ state: 'visible' });
+    assert.match(await details.innerText(), /Planning-only YAML/);
+    assert.equal(await details.getByRole('button', { name: 'Start Growth workflow' }).count(), 0);
     assert.equal(await page.getByRole('button', { name: 'Start Growth workflow' }).count(), 0);
     assert.equal((await app.inject('/runs')).json().length, before);
   } finally {

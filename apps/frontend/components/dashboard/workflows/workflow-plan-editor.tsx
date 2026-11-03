@@ -13,7 +13,7 @@ import {
   type Edge,
   type Connection,
 } from '@xyflow/react';
-import { ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronRight } from 'lucide-react';
 import StepCard from './workflow-step-card';
 import { fixed } from './workflow-step-policy';
 import { WorkflowEditorToolbar } from './editor/workflow-editor-toolbar';
@@ -36,7 +36,14 @@ export type {
   WorkflowPlan,
   RunEvent,
 } from './workflow-types';
-import GrowthProfilePipelines from '../growth/growth-profile-pipelines';
+import { GrowthGraphNodeCard } from '../growth/artboard/growth-graph-node-card';
+import {
+  buildGrowthGraph,
+  type GrowthGraphNode,
+} from '../growth/growth-graph-model';
+import { useGrowthProfileWorkflow } from '../growth/hooks/use-growth-profile-workflow';
+import GrowthWorkspaceDialogs from '../growth/growth-workspace-dialogs';
+import { useGrowthRunJournal } from '../../../hooks/use-growth-run-journal';
 
 type Props = {
   plan: WorkflowPlan;
@@ -101,7 +108,8 @@ const choices: Array<{ kind: StepKind; name: string; help: string }> = [
     help: 'Read the real page after earlier steps',
   },
 ];
-const nodeTypes = { step: StepCard };
+const nodeTypes = { step: StepCard, growthNode: GrowthGraphNodeCard };
+type ArtboardNode = FlowNode | GrowthGraphNode;
 function chain(plan: WorkflowPlan, steps: WorkflowStep[]): WorkflowPlan {
   return {
     ...plan,
@@ -146,6 +154,42 @@ function EditorBody(props: Props) {
   const [templateOpen, setTemplateOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [stepDraft, setStepDraft] = useState<WorkflowStep | null>(null);
+  const [growthDetailsOpen, setGrowthDetailsOpen] = useState(false);
+  const [growthPipelineId, setGrowthPipelineId] = useState<string | null>(null);
+  const [growthTaskId, setGrowthTaskId] = useState<string | null>(null);
+  const growth = useGrowthProfileWorkflow(
+    plan.platform,
+    growthTemplateId ?? null,
+    growthAccountId
+  );
+  const growthProgram = growth.program;
+  const growthRun = growth.run;
+  const growthStage =
+    growthProgram?.stages.find((stage) => stage.id === growthPipelineId) ?? null;
+  const liveGrowthPipeline = growthRun?.pipelineRuns.find(
+    (item) => item.id === growthPipelineId
+  );
+  const { journal: growthJournal, logError: growthJournalError } =
+    useGrowthRunJournal(liveGrowthPipeline?.childRunId ?? null);
+  const growthGraph = useMemo(
+    () =>
+      growthProgram
+        ? buildGrowthGraph(
+            growthProgram,
+            growthRun,
+            growthStage,
+            growthJournal,
+            liveGrowthPipeline
+          )
+        : null,
+    [
+      growthProgram,
+      growthRun,
+      growthStage,
+      growthJournal,
+      liveGrowthPipeline,
+    ]
+  );
   const [outputOpen, setOutputOpen] = useState(false);
   const [editorError, setEditorError] = useState('');
   const [stepForms, setStepForms] = useState<
@@ -223,7 +267,8 @@ function EditorBody(props: Props) {
     }),
     [plan, latest, state]
   );
-  const [nodes, setNodes, onNodesChange] = useNodesState(data.nodes);
+  const [nodes, setNodes, onNodesChange] =
+    useNodesState<ArtboardNode>(data.nodes);
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       setNodes((previous) => {
@@ -379,39 +424,64 @@ function EditorBody(props: Props) {
         data-workflow-canvas
         className="relative min-h-[480px] flex-1 bg-[#f3f6f7]"
       >
-        {growthTemplateId ? (
-          <div className="h-full overflow-y-auto pt-16 pr-16 pb-3 pl-3">
-            <GrowthProfilePipelines
-              templateId={growthTemplateId}
-              platform={plan.platform}
-              selectedAction={plan.action}
-              busy={busy}
-              accountId={growthAccountId}
-              onExit={onClearGrowth}
-              onSelectAction={onGrowthActionSelect ?? (() => undefined)}
-            />
-          </div>
-        ) : (
-          <ReactFlow
-            nodes={nodes}
-            edges={data.edges}
+        <div
+          className="absolute inset-0"
+          data-testid={growthTemplateId ? 'growth-nested-artboard' : undefined}
+        >
+          <ReactFlow<ArtboardNode, Edge>
+            key={
+              growthTemplateId
+                ? [
+                    'growth',
+                    growthTemplateId,
+                    growthPipelineId ?? 'overview',
+                    growthProgram ? 'loaded' : 'loading',
+                  ].join('/')
+                : 'workflow'
+            }
+            data-testid={growthTemplateId ? 'growth-workflow-graph' : undefined}
+            nodes={growthTemplateId ? (growthGraph?.nodes ?? []) : nodes}
+            edges={growthTemplateId ? (growthGraph?.edges ?? []) : data.edges}
             nodeTypes={nodeTypes}
-            onNodesChange={onNodesChange}
-            nodesConnectable={canEdit}
+            onNodesChange={growthTemplateId ? undefined : onNodesChange}
+            nodesDraggable={!growthTemplateId && canEdit}
+            nodesConnectable={!growthTemplateId && canEdit}
             edgesReconnectable={false}
             deleteKeyCode={null}
-            onConnect={(link: Connection) => reorder(link.source, link.target)}
+            onConnect={
+              growthTemplateId
+                ? undefined
+                : (link: Connection) => reorder(link.source, link.target)
+            }
             onNodeDragStop={(_, node) => {
-              if (!busy)
+              if (!growthTemplateId && !busy)
                 update({
                   ...plan,
-                  steps: plan.steps.map((s) =>
-                    s.id === node.id ? { ...s, position: node.position } : s
+                  steps: plan.steps.map((step) =>
+                    step.id === node.id
+                      ? { ...step, position: node.position }
+                      : step
                   ),
                 });
             }}
             onNodeClick={(_, node) => {
-              const step = plan.steps.find((s) => s.id === node.id)!;
+              if (growthTemplateId) {
+                if (!growthStage) {
+                  if (
+                    growthProgram?.stages.some((stage) => stage.id === node.id)
+                  ) {
+                    setGrowthPipelineId(node.id);
+                    setGrowthTaskId(null);
+                  }
+                } else if (
+                  growthStage.plan.steps.some((step) => step.id === node.id)
+                ) {
+                  setGrowthTaskId(node.id);
+                }
+                return;
+              }
+              const step = plan.steps.find((item) => item.id === node.id);
+              if (!step) return;
               if (step.kind === 'finish' || step.kind === 'verify') {
                 setOutputOpen(true);
                 return;
@@ -427,6 +497,13 @@ function EditorBody(props: Props) {
             minZoom={0.15}
             maxZoom={1.8}
             proOptions={{ hideAttribution: false }}
+            aria-label={
+              growthTemplateId
+                ? growthStage
+                  ? 'Compiled tasks for ' + growthStage.title
+                  : 'Growth workflow pipeline graph'
+                : 'Editable workflow step graph'
+            }
           >
             <Background
               variant={BackgroundVariant.Dots}
@@ -438,7 +515,61 @@ function EditorBody(props: Props) {
               className="!rounded-xl !bg-white"
             />
           </ReactFlow>
-        )}
+          {growthTemplateId && (
+            <div className="pointer-events-none absolute top-20 left-3 z-10 flex max-w-[calc(100%-6rem)] flex-wrap items-center gap-2">
+              {growthStage ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGrowthPipelineId(null);
+                    setGrowthTaskId(null);
+                  }}
+                  aria-label="Back to pipelines"
+                  className="pointer-events-auto inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-3 text-xs font-semibold text-slate-800 shadow-sm focus-visible:outline-2 focus-visible:outline-teal-700"
+                >
+                  <ArrowLeft className="size-4" />
+                  Back to pipelines
+                </button>
+              ) : (
+                <span
+                  role="status"
+                  className="rounded-xl border border-slate-200 bg-white/95 px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm"
+                >
+                  {growthProgram
+                    ? growthProgram.stages.length + ' connected pipelines'
+                    : plan.platform !== 'linkedin'
+                      ? 'Growth workflows require a LinkedIn account.'
+                      : growth.error || 'Loading workflow pipelines…'}
+                </span>
+              )}
+              {growthStage && (
+                <span className="max-w-[15rem] truncate rounded-xl border border-slate-200 bg-white/95 px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm sm:max-w-xs">
+                  {growthStage.title} · {growthStage.plan.steps.length} tasks
+                </span>
+              )}
+              {growthStage && liveGrowthPipeline?.childRunId && (
+                <a
+                  href={'/api/runs/' + liveGrowthPipeline.childRunId + '/logs'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="pointer-events-auto rounded-xl border border-slate-200 bg-white/95 px-3 py-2 text-xs font-semibold text-teal-800 underline shadow-sm"
+                >
+                  Runner journal
+                </a>
+              )}
+            </div>
+          )}
+          {growthTemplateId && growthStage && (
+            <div className="pointer-events-none absolute bottom-3 left-14 z-10 max-w-[min(100%-8rem,32rem)] rounded-xl bg-white/90 px-3 py-2 text-[11px] text-slate-600 shadow">
+              {growthProgram?.kind === 'GrowthBlueprintWorkflow'
+                ? 'Planning-only tasks, not executable Runner operations.'
+                : 'Select a task to inspect its compiled configuration and recorded evidence.'}
+              {growthJournalError && (
+                <span className="block text-amber-800">{growthJournalError}</span>
+              )}
+            </div>
+          )}
+        </div>
         {!growthTemplateId && (
           <div className="pointer-events-none absolute bottom-3 left-14 z-10 max-w-[min(100%-8rem,28rem)] truncate rounded-lg bg-white/90 px-2.5 py-1.5 text-[11px] text-slate-600 shadow">
             Drag nodes to arrange · Drag a connector to reorder · Click to edit
@@ -447,6 +578,8 @@ function EditorBody(props: Props) {
         <WorkflowEditorToolbar
           plan={plan}
           growthTemplateId={growthTemplateId}
+          growthTitle={growthProgram?.title}
+          onOpenGrowthDetails={() => setGrowthDetailsOpen(true)}
           connected={connected}
           accountLabel={accountLabel}
           busy={busy}
@@ -460,22 +593,39 @@ function EditorBody(props: Props) {
           onOpenConfig={() => setConfigOpen(true)}
         />
       </div>
-      {!growthTemplateId && (
-        <div className="flex flex-wrap justify-between gap-2 border-t border-slate-200 px-4 py-3 text-xs text-slate-600">
-          <span>
-            Live status:{' '}
-            <strong className="capitalize">{state ?? 'idle'}</strong>
-            {runId ? ' · ' + runId.slice(0, 8) : ''}
-          </span>
-          <button
-            type="button"
-            onClick={() => setOutputOpen(true)}
-            className="font-bold text-teal-800"
-          >
-            View recorded output <ChevronRight className="inline size-4" />
-          </button>
-        </div>
-      )}
+      <div className="flex flex-wrap justify-between gap-2 border-t border-slate-200 px-4 py-3 text-xs text-slate-600">
+        {growthTemplateId ? (
+          <>
+            <span>
+              {growthProgram?.kind === 'GrowthBlueprintWorkflow'
+                ? 'Planning-only workflow'
+                : 'Growth execution: ' + (growthRun?.state ?? 'not started')}
+              {growthRun?.id ? ' · ' + growthRun.id.slice(0, 8) : ''}
+            </span>
+            <button
+              type="button"
+              onClick={() => setGrowthDetailsOpen(true)}
+              className="min-h-10 font-bold text-teal-800 focus-visible:outline-2 focus-visible:outline-teal-700"
+            >
+              Run controls and evidence <ChevronRight className="inline size-4" />
+            </button>
+          </>
+        ) : (
+          <>
+            <span>
+              Live status: <strong className="capitalize">{state ?? 'idle'}</strong>
+              {runId ? ' · ' + runId.slice(0, 8) : ''}
+            </span>
+            <button
+              type="button"
+              onClick={() => setOutputOpen(true)}
+              className="font-bold text-teal-800"
+            >
+              View recorded output <ChevronRight className="inline size-4" />
+            </button>
+          </>
+        )}
+      </div>
       <WorkflowEditorDialogs
         configOpen={configOpen}
         onConfigDismiss={() => setConfigOpen(false)}
@@ -505,6 +655,27 @@ function EditorBody(props: Props) {
       >
         {children}
       </WorkflowEditorDialogs>
+      <GrowthWorkspaceDialogs
+        program={growthProgram}
+        run={growthRun}
+        endpoint={growth.endpoint}
+        accountId={growthAccountId}
+        busy={busy}
+        working={growth.working}
+        error={growth.error}
+        journal={growthJournal}
+        journalError={growthJournalError}
+        detailsOpen={Boolean(growthTemplateId && growthDetailsOpen)}
+        onDetailsClose={() => setGrowthDetailsOpen(false)}
+        taskOpen={Boolean(growthTemplateId && growthTaskId)}
+        onTaskClose={() => setGrowthTaskId(null)}
+        stage={growthStage}
+        taskId={growthTaskId}
+        selectedAction={plan.action}
+        onSelectAction={onGrowthActionSelect}
+        setRun={growth.setRun}
+        mutate={growth.mutate}
+      />
       <WorkflowStepInspector
         stepDraft={stepDraft}
         onDismiss={() => setStepDraft(null)}
@@ -526,7 +697,10 @@ function EditorBody(props: Props) {
 export default function WorkflowPlanEditor(props: Props) {
   return (
     <ReactFlowProvider>
-      <EditorBody {...props} />
+      <EditorBody
+        key={props.growthTemplateId ?? 'saved-workflow'}
+        {...props}
+      />
     </ReactFlowProvider>
   );
 }

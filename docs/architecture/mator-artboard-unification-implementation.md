@@ -38,3 +38,75 @@ Retain existing header/toolbar, selection, run forms, evidence links, account ch
 ## Validation reality and blockers
 
 This session can read and write the remote repository through GitHub, but `git ls-remote` from the executable container fails with `Could not resolve host: github.com`. Therefore a local full workspace checkout, dependency install, browser startup and Playwright run are not currently available. Documentation and planned work are not equivalent to production implementation. **Do not move this PR out of draft on the strength of planning alone.**
+
+
+## U1 source integration candidate (2026-11-03)
+
+**Status: SOURCE CANDIDATE, not locally validated, reviewed, or integration-verified.** The implementation change is scoped to frontend surface and regressions, with no new backend endpoints or permissions. The source is prepared to route the existing saved-plan graph and Growth YAML graph through a single React Flow canvas inside the existing editor shell. The separate Growth screen and nested Artboard are intentionally retired.
+
+The compiled task inspector is **read-only**; task titles, kind, messages, typed input bindings, coverage, journal and source YAML may be inspected, but changes to Growth YAML are not persisted because the server does not expose a validated write endpoint. The same existing Growth coordinator handles starting a complete serial program, child approval/resume/cancel, evidence submission and allowed advance. No independent selected-pipeline launch is advertised.
+
+The browser regression tests specifically assert one active graph, six connected profile pipelines, dependency edges, task drill-down and read-only details, a modal entry to real execution/evidence controls, and no Runner launch for design-only Growth YAML.
+
+### Unified editor composition
+
+```mermaid
+flowchart TD
+  Workspace[PipelineWorkspace] --> Shell[WorkflowPlanEditor persistent shell]
+  Shell --> Toolbar[Template selector and action rail]
+  Shell --> Graph[One ReactFlow canvas]
+  Shell --> Footer[Contextual status and evidence entry]
+  Shell --> Dialog[GrowthWorkspaceDialogs]
+  Graph --> Context{Selected Growth template?}
+  Context -->|No| Saved[Saved WorkflowPlan steps]
+  Context -->|Yes| Growth[buildGrowthGraph]
+  Growth --> Overview[Connected pipeline graph]
+  Overview --> TaskGraph[Selected pipeline task graph]
+  TaskGraph --> ReadOnly[Read-only task inspection]
+  Dialog --> Controls[Existing GrowthRunControls]
+  Dialog --> Evidence[Existing GrowthEvidenceForm]
+  Dialog --> Coverage[Existing GrowthCoverageList]
+```
+
+Source: [diagrams/mator-unified-artboard-surface.mmd](diagrams/mator-unified-artboard-surface.mmd).
+
+### Preserved execution and evidence boundary
+
+```mermaid
+sequenceDiagram
+  actor Owner
+  participant Artboard as Unified Artboard
+  participant API as Growth Fastify API
+  participant Coordinator as Growth Coordinator
+  participant Runner as Existing Runner
+  Owner->>Artboard: Select a YAML workflow
+  Artboard->>API: GET /growth/templates/:id
+  API-->>Artboard: Compiled stages and task plans
+  Artboard->>API: GET /growth/templates/:id/runs
+  API-->>Artboard: Owner-scoped run status
+  Owner->>Artboard: Open execution and evidence
+  opt Executable template, verified account
+    Owner->>Artboard: Start Growth workflow
+    Artboard->>API: POST /growth/templates/:id/runs
+    API->>Coordinator: Start serial program
+    Coordinator->>Runner: Start first compiled child
+    Runner-->>API: Child status and journal
+    Artboard->>API: GET /runs/:childId/logs
+    API-->>Artboard: Recorded task events
+    Owner->>Artboard: Submit owner evidence
+    Artboard->>API: POST /growth/templates/:id/runs/:runId/evidence
+    opt canAdvance and Runner idle
+      Owner->>Artboard: Advance to next pipeline
+      Artboard->>API: POST /growth/templates/:id/runs/:runId/advance
+      API->>Coordinator: Verify evidence and release state
+    end
+  end
+```
+
+Source: [diagrams/mator-unified-artboard-execution.mmd](diagrams/mator-unified-artboard-execution.mmd).
+
+### Outstanding before review or merge
+
+- Run TypeScript, Prettier, ESLint, frontend unit tests, backend browser integration tests and Playwright responsive/keyboard checks in a real checked-out workspace. The current sandbox has Node.js but cannot resolve/reach GitHub or acquire the pnpm checkout/dependencies.
+- Independently review the compiled task selection behavior, focus return when a dialog closes, responsive graph viewport at phone/tablet widths, and status/evidence attribution.
+- U2–U5 remain separate work packages; no source-preserving Growth YAML editing, arbitrary pipeline execution API, or provider-level profile updates are implied by U1.

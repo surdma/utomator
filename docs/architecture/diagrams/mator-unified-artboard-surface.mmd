@@ -1,0 +1,15 @@
+flowchart TD
+  Workspace[PipelineWorkspace] --> Shell[WorkflowPlanEditor persistent shell]
+  Shell --> Toolbar[Template selector and action rail]
+  Shell --> Graph[One ReactFlow canvas]
+  Shell --> Footer[Contextual status and evidence entry]
+  Shell --> Dialog[GrowthWorkspaceDialogs]
+  Graph --> Context{Selected Growth template?}
+  Context -->|No| Saved[Saved WorkflowPlan steps]
+  Context -->|Yes| Growth[buildGrowthGraph]
+  Growth --> Overview[Connected pipeline graph]
+  Overview --> TaskGraph[Selected pipeline task graph]
+  TaskGraph --> ReadOnly[Read-only task inspection]
+  Dialog --> Controls[Existing GrowthRunControls]
+  Dialog --> Evidence[Existing GrowthEvidenceForm]
+  Dialog --> Coverage[Existing GrowthCoverageList]

@@ -1,12 +1,14 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { ArrowLeft, LayoutTemplate, Plus, Save, Settings2 } from 'lucide-react';
+import { ArrowLeft, LayoutTemplate, ListChecks, Plus, Save, Settings2 } from 'lucide-react';
 import type { WorkflowPlan } from '../workflow-types';
 
 type Props = {
   plan: WorkflowPlan;
   growthTemplateId?: string | null;
+  growthTitle?: string;
+  onOpenGrowthDetails?: () => void;
   connected: boolean;
   accountLabel?: string;
   busy: boolean;
@@ -48,6 +50,8 @@ function RailButton({
 export function WorkflowEditorToolbar({
   plan,
   growthTemplateId,
+  growthTitle,
+  onOpenGrowthDetails,
   connected,
   accountLabel,
   busy,
@@ -61,7 +65,7 @@ export function WorkflowEditorToolbar({
   onOpenConfig,
 }: Props) {
   const title = growthTemplateId
-    ? 'Growth workflow'
+    ? growthTitle || 'Growth workflow'
     : plan.name || 'Untitled workflow';
   const taskLabel =
     plan.steps.length +
@@ -118,12 +122,20 @@ export function WorkflowEditorToolbar({
           <LayoutTemplate className="size-4" />
         </RailButton>
         {growthTemplateId ? (
-          <RailButton
-            label="Action workflows"
-            onClick={() => onClearGrowth?.()}
-          >
-            <ArrowLeft className="size-4" />
-          </RailButton>
+          <>
+            <RailButton
+              label="Growth execution and evidence"
+              onClick={() => onOpenGrowthDetails?.()}
+            >
+              <ListChecks className="size-4" />
+            </RailButton>
+            <RailButton
+              label="Action workflows"
+              onClick={() => onClearGrowth?.()}
+            >
+              <ArrowLeft className="size-4" />
+            </RailButton>
+          </>
         ) : (
           <>
             <RailButton

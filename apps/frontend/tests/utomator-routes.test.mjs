@@ -191,7 +191,7 @@ test('unified Growth UI retains coverage, pipeline boundaries and the MDX editor
   assert.match(editor, /\.skill/);
 });
 
-test('Growth YAML loads through the existing Templates modal and nested artboard', () => {
+test('Growth YAML uses the persistent Artboard canvas and real Runner controls', () => {
   const modal = readFileSync(
     resolve(root, 'components/dashboard/workflows/template-browser.tsx'),
     'utf8'
@@ -200,14 +200,23 @@ test('Growth YAML loads through the existing Templates modal and nested artboard
     resolve(root, 'components/dashboard/workflows/workflow-plan-editor.tsx'),
     'utf8'
   );
-  const graph = readFileSync(
-    resolve(root, 'components/dashboard/growth/growth-workflow-artboard.tsx'),
+  const details = readFileSync(
+    resolve(root, 'components/dashboard/growth/growth-workspace-dialogs.tsx'),
     'utf8'
   );
-  const proxy = readFileSync(
-    resolve(root, 'app/api/[...path]/route.ts'),
+  const graphNode = readFileSync(
+    resolve(root, 'components/dashboard/growth/artboard/growth-graph-node-card.tsx'),
     'utf8'
   );
+  const graphModel = readFileSync(
+    resolve(root, 'components/dashboard/growth/growth-graph-model.ts'),
+    'utf8'
+  );
+  const toolbar = readFileSync(
+    resolve(root, 'components/dashboard/workflows/editor/workflow-editor-toolbar.tsx'),
+    'utf8'
+  );
+  const proxy = readFileSync(resolve(root, 'app/api/[...path]/route.ts'), 'utf8');
   const optionsModel = readFileSync(
     resolve(root, 'components/dashboard/workflows/template-options.ts'),
     'utf8'
@@ -220,25 +229,23 @@ test('Growth YAML loads through the existing Templates modal and nested artboard
   assert.match(modal, /\/api\/growth\/templates/);
   assert.match(modal, /onGrowthApply/);
   assert.match(editor, /onGrowthTemplateApply/);
-  assert.match(
-    editor,
-    /<GrowthProfilePipelines\s+templateId\s*=\s*\{\s*growthTemplateId\s*\}/
-  );
-  const graphNode = readFileSync(
-    resolve(
-      root,
-      'components/dashboard/growth/artboard/growth-graph-node-card.tsx'
-    ),
-    'utf8'
-  );
+  assert.match(editor, /<ReactFlow<ArtboardNode, Edge>/);
+  assert.equal((editor.match(/<ReactFlow</g) ?? []).length, 1);
+  assert.doesNotMatch(editor, /GrowthProfilePipelines/);
+  assert.match(editor, /buildGrowthGraph/);
+  assert.match(editor, /growth-nested-artboard/);
+  assert.match(editor, /Back to pipelines/);
+  assert.match(editor, /<GrowthWorkspaceDialogs/);
+  assert.match(toolbar, /Growth execution and evidence/);
+  assert.match(details, /<GrowthRunControls/);
+  assert.match(details, /<GrowthEvidenceForm/);
+  assert.match(details, /<GrowthCoverageList/);
+  assert.match(details, /Start Growth workflow/);
+  assert.match(details, /Planning-only YAML/);
+  assert.match(details, /Read-only source configuration/);
   assert.match(graphNode, /growth-pipeline-node-/);
   assert.match(graphNode, /growth-task-node-/);
-  const graphModel = readFileSync(
-    resolve(root, 'components/dashboard/growth/growth-graph-model.ts'),
-    'utf8'
-  );
   assert.match(graphModel, /details\?\.stepId/);
-  assert.match(graph, /failed/);
   assert.match(proxy, /growth\\\/templates/);
   const legacy = readFileSync(
     resolve(root, 'app/growth/default-growth-profile/page.tsx'),

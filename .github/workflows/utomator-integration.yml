@@ -2,7 +2,7 @@ name: Utomator integration
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, work/mator-e2e-tracked-20261101]
     paths:
       - "apps/backend/**"
       - "apps/frontend/**"
@@ -11,7 +11,7 @@ on:
       - "pnpm-workspace.yaml"
       - ".github/workflows/utomator-integration.yml"
   push:
-    branches: [main, feat/yaml-growth-profile-pipeline]
+    branches: [main, feat/yaml-growth-profile-pipeline, work/mator-unified-artboard-pr15-20261103]
   workflow_dispatch:
 
 permissions:
