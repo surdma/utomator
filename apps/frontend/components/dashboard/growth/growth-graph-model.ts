@@ -1,5 +1,6 @@
 import type { Edge, Node } from '@xyflow/react';
 import type { StepKind, WorkflowPlan } from '../workflows/workflow-types';
+import type { GrowthExecutionProjection } from '../../../lib/growth-execution-projection';
 
 export type GrowthGraphStage = {
   id: string;
@@ -83,9 +84,12 @@ export function buildGrowthGraph(
   selected: GrowthGraphStage | null,
   journal: GrowthJournalEvent[],
   live: GrowthPipelineRun | undefined,
+  projection?: GrowthExecutionProjection | null,
 ): { nodes: GrowthGraphNode[]; edges: Edge[] } {
   if (selected) {
     const taskStates = getGrowthTaskStates(journal, live);
+    const projected = projection?.pipelines.find((item) => item.id === selected.id);
+    const taskById = new Map(projected?.tasks.map((task) => [task.id, task]) ?? []);
     const nodes: GrowthGraphNode[] = selected.plan.steps.map((step, index) => ({
       id: step.id,
       type: 'growthNode',
@@ -102,9 +106,8 @@ export function buildGrowthGraph(
         designOnly: program.kind === 'GrowthBlueprintWorkflow',
         label: step.title,
         subtitle: `${step.kind.replaceAll('-', ' ')} step`,
-        state: taskStates.get(step.id) ?? 'waiting',
-        failure:
-          taskStates.get(step.id) === 'failed'
+        state: taskById.get(step.id)?.state ?? taskStates.get(step.id) ?? 'waiting',
+        failure: taskById.get(step.id)?.failure ?? (taskStates.get(step.id) === 'failed'
             ? (journal
                 .filter(
                   (event) =>
@@ -114,7 +117,7 @@ export function buildGrowthGraph(
                 .at(-1)?.details?.reason ??
               live?.error ??
               undefined)
-            : undefined,
+            : undefined),
       },
     }));
     const edges: Edge[] = selected.plan.links.map((link) => ({
@@ -123,7 +126,9 @@ export function buildGrowthGraph(
       target: link.target,
       type: 'smoothstep',
       style: { stroke: '#64748b', strokeWidth: 2 },
-      animated: taskStates.get(link.target) === 'started',
+      animated:
+        taskById.get(link.target)?.state === 'running' ||
+        (!taskById.has(link.target) && taskStates.get(link.target) === 'started'),
     }));
     return { nodes, edges };
   }
@@ -131,6 +136,7 @@ export function buildGrowthGraph(
   const pipelineById = new Map(
     run?.pipelineRuns.map((item) => [item.id, item]) ?? [],
   );
+  const projectedById = new Map(projection?.pipelines.map((item) => [item.id, item]) ?? []);
   const nodes: GrowthGraphNode[] = program.stages.map((stage, index) => {
     const state = pipelineById.get(stage.id);
     return {
@@ -153,7 +159,7 @@ export function buildGrowthGraph(
           ' steps · ' +
           stage.sectionIds.length +
           ' coverage requirements',
-        state: state?.state ?? 'waiting',
+        state: projectedById.get(stage.id)?.state ?? state?.state ?? 'waiting',
         failure: state?.error ?? undefined,
       },
     };

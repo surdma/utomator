@@ -42,6 +42,13 @@ export type Evidence = {
 };
 export type Run = {
   id: string;
+  programId?: string;
+  programVersion?: number;
+  sourceDigest?: string;
+  stages?: Array<Omit<Stage, 'stepCount'> & {
+    childRunId: string | null;
+    pageEvidence?: { url: string; digest: string } | null;
+  }>;
   accountId: string;
   status: string;
   state: string;
