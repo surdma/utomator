@@ -255,7 +255,7 @@ For each M-ID append: date; owner; verified baseline/root cause; exact files and
 - [M3 specification](../superpowers/specs/2026-11-04-mator-m3-execution-journal-design.md)
 - [M3 implementation plan](../superpowers/plans/2026-11-04-mator-m3-pipeline-execution-implementation.md)
 
-**Local test-first artifact, NOT wired into PR:** `/mnt/data/mator-m3-local/apps/frontend/lib/growth-execution-projection.ts` and isolated test file. `node --experimental-strip-types --test tests/growth-execution-projection.test.mjs` **18/18 pass**. `tsc --noEmit --strict --target es2022 --module nodenext --moduleResolution nodenext lib/growth-execution-projection.ts` **passed**. Covers event id dedup, wrong run filtering, immutable pinned plans, cancellation/blocking, approval, design-only, task-correlated screenshot and dependent advancement. The branch uses Vitest; this candidate must be ported and integrated before it can be considered implemented or release-ready. No backend source was modified.
+**Local test-first artifact, NOT wired into PR:** `/mnt/data/mator-m3-local/apps/frontend/lib/growth-execution-projection.ts` and isolated test file. `node --experimental-strip-types --test tests/growth-execution-projection.test.mjs` **19/19 pass**. `tsc --noEmit --strict --target es2022 --module nodenext --moduleResolution nodenext lib/growth-execution-projection.ts` **passed**. Covers event id dedup, wrong run filtering, immutable pinned plans, cancellation/blocking, approval, design-only, task-correlated screenshot and dependent advancement. The branch uses Vitest; this candidate must be ported and integrated before it can be considered implemented or release-ready. No backend source was modified.
 
 **Independent CI blocker (current head before docs):** GitHub Actions runs [code quality 41855468761](https://github.com/surdma/utomator/actions/runs/41855468761) and [integration 41855468727](https://github.com/surdma/utomator/actions/runs/41855468727) on November 4, 2026 failed during `pnpm install --frozen-lockfile` with `ERR_PNPM_OUTDATED_LOCKFILE`: branch `apps/backend/package.json` now has `vitest:^3`, but `pnpm-lock.yaml` still includes old dev dependency specifiers `@vitejs/plugin-react` and `jsdom`. Tests, browser, build and code-quality steps were skipped after install failure. Fix manifest/lockfile consistency in a runnable checkout and verify, not by disabling frozen lock. The current container has Node and TypeScript but no GitHub DNS/private clone, pnpm install or running Next/Fastify; no full-app M3 tests, Playwright, review, dogfood or provider execution were performed.
 
@@ -266,7 +266,7 @@ For each M-ID append: date; owner; verified baseline/root cause; exact files and
 | M3.3 Backend identity + lifecycle | Backend | BLOCKED pending executable workspace and regression tests |
 | M3.4 Durable replay and retry | Backend/DB if required | BLOCKED |
 | M3.5 Secure API/SSE integration | API/Contract + Security | BLOCKED |
-| M3.6 Shared task projection | Frontend | PLANNED; isolated 18-test candidate validated, not integrated |
+| M3.6 Shared task projection | Frontend | PLANNED; isolated 19-test candidate validated, not integrated |
 | M3.7 Compact nested pipeline cards | UI/UX + Frontend | BLOCKED |
 | M3.8 Approvals/evidence | Backend + Frontend | BLOCKED |
 | M3.9 Chat/artboard synchronization | Frontend | BLOCKED |
