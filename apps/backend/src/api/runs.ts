@@ -155,8 +155,7 @@ export function registerRunRoutes(
   app.get<{ Params: { id: string }; Querystring: { since?: string } }>(
     '/runs/:id/logs',
     async (request, reply) => {
-      if (!runner.get(request.params.id))
-        return reply.code(404).send({ error: 'Run not found' });
+      if (!runner.get(request.params.id)) return reply.code(404).send({ error: 'Run not found' });
       const cursor = request.query?.since;
       if (
         cursor !== undefined &&
@@ -164,7 +163,7 @@ export function registerRunRoutes(
       )
         return reply.code(400).send({ error: 'Invalid journal cursor' });
       try {
-        const log = await readFile(runtimePath('runs', request.params.id + '.jsonl'), 'utf8');
+        const log = await readFile(runtimePath('runs', `${request.params.id}.jsonl`), 'utf8');
         const page = parseRunJournal(
           log,
           request.params.id,

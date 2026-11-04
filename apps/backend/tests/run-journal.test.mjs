@@ -12,10 +12,7 @@ const entry = (id, runId = 'r1', kind = 'step') => ({
 const serialize = (events) => events.map((item) => JSON.stringify(item)).join('\n') + '\n';
 
 test('legacy log returns most recent 1000 with explicit truncation signal', () => {
-  const page = parseRunJournal(
-    serialize(Array.from({ length: 1005 }, (_, i) => entry(i + 1))),
-    'r1',
-  );
+  const page = parseRunJournal(serialize(Array.from({ length: 1005 }, (_, i) => entry(i + 1))), 'r1');
   expect(page.events).toHaveLength(1000);
   expect(page.events[0].id).toBe(6);
   expect(page.truncated).toBe(true);

@@ -5,6 +5,8 @@ import {
   AlertCircle,
   ChevronDown,
   CircleCheck,
+  CircleDashed,
+  CircleSlash,
   LoaderCircle,
 } from 'lucide-react';
 import { useId, useState } from 'react';
@@ -13,7 +15,7 @@ import { cn } from '@/lib/utils';
 export type TaskStep = {
   id: string;
   title: string;
-  status?: 'running' | 'done' | 'error';
+  status?: 'running' | 'done' | 'error' | 'blocked' | 'cancelled' | 'unknown';
 };
 
 type Props = {
@@ -24,11 +26,15 @@ type Props = {
 };
 
 function taskTitle(steps: TaskStep[]) {
-  const failing = steps.find((step) => step.status === 'error');
   const running = steps.find((step) => step.status === 'running');
+  const blocked = steps.find((step) => step.status === 'blocked');
+  const failing = steps.find((step) => step.status === 'error');
+  const cancelled = steps.find((step) => step.status === 'cancelled');
   if (running) return running.title;
+  if (blocked) return `Blocked: ${blocked.title}`;
   if (failing) return `Failed: ${failing.title}`;
-  return steps[steps.length - 1]?.title ?? 'Working…';
+  if (cancelled) return `Cancelled: ${cancelled.title}`;
+  return steps[steps.length - 1]?.title ?? 'Recorded tasks';
 }
 
 /**
@@ -42,7 +48,9 @@ export function Task({ running, steps, className }: Props) {
   const triggerId = useId();
   if (steps.length === 0) return null;
 
-  const hasError = steps.some((step) => step.status === 'error');
+  const hasError = steps.some((step) => ['error', 'blocked'].includes(step.status ?? ''));
+  const hasCancelled = steps.some((step) => step.status === 'cancelled');
+  const hasUnknown = steps.some((step) => step.status === 'unknown');
 
   return (
     <div
@@ -72,11 +80,12 @@ export function Task({ running, steps, className }: Props) {
             className="size-3.5 shrink-0 text-rose-600"
             aria-hidden="true"
           />
+        ) : hasCancelled ? (
+          <CircleSlash className="size-3.5 shrink-0 text-slate-600" aria-hidden="true" />
+        ) : hasUnknown ? (
+          <CircleDashed className="size-3.5 shrink-0 text-slate-500" aria-hidden="true" />
         ) : (
-          <CircleCheck
-            className="size-3.5 shrink-0 text-teal-700"
-            aria-hidden="true"
-          />
+          <CircleCheck className="size-3.5 shrink-0 text-teal-700" aria-hidden="true" />
         )}
         <span className="truncate text-xs font-semibold text-slate-700">
           {taskTitle(steps)}
@@ -120,11 +129,14 @@ export function Task({ running, steps, className }: Props) {
                     className="size-3 shrink-0 text-rose-500"
                     aria-hidden="true"
                   />
+                ) : step.status === 'blocked' ? (
+                  <AlertCircle className="size-3 shrink-0 text-rose-500" aria-hidden="true" />
+                ) : step.status === 'cancelled' ? (
+                  <CircleSlash className="size-3 shrink-0 text-slate-500" aria-hidden="true" />
+                ) : step.status === 'unknown' ? (
+                  <CircleDashed className="size-3 shrink-0 text-slate-400" aria-hidden="true" />
                 ) : (
-                  <CircleCheck
-                    className="size-3 shrink-0 text-slate-300"
-                    aria-hidden="true"
-                  />
+                  <CircleCheck className="size-3 shrink-0 text-slate-300" aria-hidden="true" />
                 )}
                 <span className="truncate">{step.title}</span>
               </li>

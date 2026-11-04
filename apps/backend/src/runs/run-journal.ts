@@ -14,16 +14,7 @@ export type RunJournalPage = {
   hasMore: boolean;
 };
 
-const kinds = new Set([
-  'status',
-  'step',
-  'audit',
-  'approval',
-  'input',
-  'screenshot',
-  'error',
-  'result',
-]);
+const kinds = new Set(['status', 'step', 'audit', 'approval', 'input', 'screenshot', 'error', 'result']);
 
 export function parseRunJournal(
   raw: string,
