@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { createConversation } from '../src/core/mator-conversations.js';
+import { createConversation } from '../src/mator/mator-conversations.js';
 import {
   getAttachmentFile,
   getAttachmentMeta,
@@ -12,7 +12,7 @@ import {
   MATOR_ATTACHMENTS_NAMESPACE,
   saveAttachment,
   upsertMarkers,
-} from '../src/core/mator-attachments.js';
+} from '../src/mator/mator-attachments.js';
 import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
 
 type Row = { version: number; value: unknown };

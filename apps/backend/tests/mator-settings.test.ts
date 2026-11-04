@@ -7,7 +7,7 @@ import {
   MatorDecryptError,
   loadMatorMasterKey,
   matorEncryptionConfigured,
-} from '../src/core/mator-crypto.js';
+} from '../src/mator/mator-crypto.js';
 import {
   DEFAULT_MATOR_GROQ_MODEL_ID,
   getMatorSettings,
@@ -15,7 +15,7 @@ import {
   isGroqKeyConfigured,
   MATOR_SETTINGS_NAMESPACE,
   MATOR_SETTINGS_KEY,
-} from '../src/core/mator-settings.js';
+} from '../src/mator/mator-settings.js';
 import type { DocumentStore, DocumentRecord } from '../src/db/documents.js';
 
 const MASTER = Buffer.from(createHash('sha256').update('mator-test-master').digest());

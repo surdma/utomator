@@ -9,7 +9,7 @@ import {
   MATOR_CONVERSATIONS_NAMESPACE,
   MATOR_MESSAGES_NAMESPACE,
   setCurrentConversation,
-} from '../src/core/mator-conversations.js';
+} from '../src/mator/mator-conversations.js';
 import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
 
 type Row = { version: number; value: unknown };

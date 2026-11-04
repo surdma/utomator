@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AccountStore } from '../src/profile/account-store.js';
 import { randomUUID } from 'node:crypto';
-import { LinkedInEditorialStore, editorialYaml } from '../src/core/linkedin-editorial.js';
+import { LinkedInEditorialStore, editorialYaml } from '../src/linkedin/linkedin-editorial.js';
 
 process.env.NODE_ENV = 'test';
 const { buildApp } = await import('../src/main.js');

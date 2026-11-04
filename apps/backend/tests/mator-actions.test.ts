@@ -12,20 +12,20 @@ import {
   stageAction,
   type MatorActionPorts,
   type MatorWorkflowPort,
-} from '../src/core/mator-actions.js';
+} from '../src/mator/mator-actions.js';
 import {
   getAttachmentFile,
   getAttachmentMeta,
   saveAttachment,
-} from '../src/core/mator-attachments.js';
+} from '../src/mator/mator-attachments.js';
 import {
   createConversation,
   listConversations,
   listEvents,
   type MatorConversation,
-} from '../src/core/mator-conversations.js';
-import { defaultPlan, type WorkflowPlan } from '../src/core/workflow-plan.js';
-import type { WorkflowRecord } from '../src/core/workflow-registry.js';
+} from '../src/mator/mator-conversations.js';
+import { defaultPlan, type WorkflowPlan } from '../src/workflows/workflow-plan.js';
+import type { WorkflowRecord } from '../src/workflows/workflow-registry.js';
 import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
 import type { RunRequest, RunSummary } from '../src/core/types.js';
 

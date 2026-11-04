@@ -7,7 +7,7 @@ import {
   CreatorResearchStore,
   executeResearch,
   researchYaml,
-} from '../src/core/linkedin-creator-research.js';
+} from '../src/linkedin/linkedin-creator-research.js';
 
 process.env.NODE_ENV = 'test';
 const { buildApp } = await import('../src/main.js');

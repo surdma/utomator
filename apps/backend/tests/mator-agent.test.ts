@@ -6,12 +6,12 @@ import {
   MAX_MATOR_ACTIONS_PER_TURN,
   MatorConfigError,
   runMatorTurn,
-} from '../src/core/mator-agent.js';
-import { createConversation, listEvents } from '../src/core/mator-conversations.js';
-import { putMatorSettings } from '../src/core/mator-settings.js';
-import type { MatorActionPorts, MatorWorkflowPort } from '../src/core/mator-actions.js';
-import { defaultPlan, type WorkflowPlan } from '../src/core/workflow-plan.js';
-import type { WorkflowRecord } from '../src/core/workflow-registry.js';
+} from '../src/mator/mator-agent.js';
+import { createConversation, listEvents } from '../src/mator/mator-conversations.js';
+import { putMatorSettings } from '../src/mator/mator-settings.js';
+import type { MatorActionPorts, MatorWorkflowPort } from '../src/mator/mator-actions.js';
+import { defaultPlan, type WorkflowPlan } from '../src/workflows/workflow-plan.js';
+import type { WorkflowRecord } from '../src/workflows/workflow-registry.js';
 import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
 import type { RunRequest, RunSummary } from '../src/core/types.js';
 

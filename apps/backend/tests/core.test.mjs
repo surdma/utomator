@@ -95,7 +95,7 @@ test('approval rejects aborts without allowing a save', async () => {
 });
 
 test('human text prompt validates exact checkpoint and text length', async () => {
-  const { PromptGate } = await import('../src/core/prompts.ts');
+  const { PromptGate } = await import('../src/runs/prompts.ts');
   const gate = new PromptGate();
   const controller = new AbortController();
   let checkpoint;

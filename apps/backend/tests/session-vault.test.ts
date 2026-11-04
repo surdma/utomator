@@ -15,10 +15,10 @@ import {
   loadVaultPayload,
   deleteVault,
   hasVault,
-} from '../src/core/session-vault.js';
+} from '../src/connect/session-vault.js';
 import type { DocumentStore, DocumentRecord } from '../src/db/documents.js';
 import type { Cookie } from 'playwright';
-import type { VaultPayload } from '../src/core/session-vault.js';
+import type { VaultPayload } from '../src/connect/session-vault.js';
 
 const MASTER = Buffer.from(createHash('sha256').update('test-master').digest().slice(0, 32)).subarray(
   0,
