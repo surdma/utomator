@@ -242,3 +242,37 @@ For each M-ID append: date; owner; verified baseline/root cause; exact files and
 **Local evidence:** Backend mator scope was 43/43 at `6a89854` (branch-wide growth YAML / EBUSY / handle failures were reproduced on a stash and are not this change). Frontend Node was 125/125 at `f60a689`. After the follow-up, `annotation-link`, `mator-chat-ui`, and `dashboard-component-structure` were 38/38. This is not a browser run and not live LinkedIn, Groq, or microphone proof.
 
 **Status:** IMPLEMENTED → TEST (local Node only) → REVIEW open → DOGFOOD not run. Do not call the restore complete, and do not merge PR #15 on this entry.
+
+## M3 execution checkpoint — 2026-11-04
+
+**Target:** M3 pipeline/task journaling, reliable replay, Mator chat and Growth artboard alignment. **Status: INVESTIGATED / PLANNED. Production M3 logic is NOT IMPLEMENTED and tests have NOT been run in the actual workspace.** Draft PR #15 is not merge-ready.
+
+**Verified branch at investigation:** `work/mator-e2e-tracked-20261101` HEAD `73d799219d32cf25697738d138a54a53138d130f`, `main` `c7b5d42c5b0d34488d81bada181035327ee7cb20`. PR #15 already includes extensive M1/M2, new Growth artboard, source reorganizations, and tests; do not apply historical chat patches or assume older paths.
+
+**Current execution chain:** `engine/growth-profile.ts` compiles YAML with `stage.id`, `dependsOn`, `stage.plan.steps[].id`; `profile-growth-coordinator.ts` snapshots `sourceDigest`, `programVersion`, stage plans and child-run UUIDs to `growth-runs`; `runs/runner.ts` executes through existing `plan-executor.ts`, writes run JSONL + immutable per-step outputs and emits SSE; `api/runs.ts` exposes archived JSONL readback and live in-memory SSE; `components/dashboard/growth/growth-graph-model.ts` derives some step statuses. **Gap:** `components/mator/chat/mator-task-block.tsx` labels every non-error event `done`, even when the Runner is still running or waiting. Run monitor clears events on selection without reloading the saved JSONL. Existing logs are bounded to 1000 per GET, SSE cannot resume across process restart, and screenshot authorization is currently per run rather than per task. Do not pretend these contracts already satisfy M3.
+
+**Specification and plan committed (documentation only):**
+- [M3 specification](../superpowers/specs/2026-11-04-mator-m3-execution-journal-design.md)
+- [M3 implementation plan](../superpowers/plans/2026-11-04-mator-m3-pipeline-execution-implementation.md)
+
+**Local test-first artifact, NOT wired into PR:** `/mnt/data/mator-m3-local/apps/frontend/lib/growth-execution-projection.ts` and isolated test file. `node --experimental-strip-types --test tests/growth-execution-projection.test.mjs` **18/18 pass**. `tsc --noEmit --strict --target es2022 --module nodenext --moduleResolution nodenext lib/growth-execution-projection.ts` **passed**. Covers event id dedup, wrong run filtering, immutable pinned plans, cancellation/blocking, approval, design-only, task-correlated screenshot and dependent advancement. The branch uses Vitest; this candidate must be ported and integrated before it can be considered implemented or release-ready. No backend source was modified.
+
+**Independent CI blocker (current head before docs):** GitHub Actions runs [code quality 41855468761](https://github.com/surdma/utomator/actions/runs/41855468761) and [integration 41855468727](https://github.com/surdma/utomator/actions/runs/41855468727) on November 4, 2026 failed during `pnpm install --frozen-lockfile` with `ERR_PNPM_OUTDATED_LOCKFILE`: branch `apps/backend/package.json` now has `vitest:^3`, but `pnpm-lock.yaml` still includes old dev dependency specifiers `@vitejs/plugin-react` and `jsdom`. Tests, browser, build and code-quality steps were skipped after install failure. Fix manifest/lockfile consistency in a runnable checkout and verify, not by disabling frozen lock. The current container has Node and TypeScript but no GitHub DNS/private clone, pnpm install or running Next/Fastify; no full-app M3 tests, Playwright, review, dogfood or provider execution were performed.
+
+| M3 item | Owner | Exact status and next gate |
+| --- | --- | --- |
+| M3.1 Runtime investigation | Investigator | INVESTIGATED; source and relevant consumers traced |
+| M3.2 Contract/specification | API/Contract + Security | PLANNED; artifact recorded, not production contract |
+| M3.3 Backend identity + lifecycle | Backend | BLOCKED pending executable workspace and regression tests |
+| M3.4 Durable replay and retry | Backend/DB if required | BLOCKED |
+| M3.5 Secure API/SSE integration | API/Contract + Security | BLOCKED |
+| M3.6 Shared task projection | Frontend | PLANNED; isolated 18-test candidate validated, not integrated |
+| M3.7 Compact nested pipeline cards | UI/UX + Frontend | BLOCKED |
+| M3.8 Approvals/evidence | Backend + Frontend | BLOCKED |
+| M3.9 Chat/artboard synchronization | Frontend | BLOCKED |
+| M3.10 Full tests / browser | Test Engineer | BLOCKED by lockfile and missing runtime |
+| M3.11 Independent review / dogfood | Reviewer + Integration | BLOCKED |
+| M3.12 Git/CI/PR readiness | Git/Release | BLOCKED; documentation-only commits okay, **no M3 production commit** |
+
+**Next specialist handoff:** Repository Investigator + Test Engineer first establish an executable checkout and repair/verify frozen-lockfile consistency. Then API/Contract+Backend implement correctly identified step/checkpoint/evidence events against the existing Runner, and Frontend integrates the tested projection into both Mator and the artboard. Every stage requires real red/green tests and independent review before Git/Release handoff. Preserve separate Growth YAML canonical handoff if coordinator/compiler changes. Keep PR #15 draft.
+
