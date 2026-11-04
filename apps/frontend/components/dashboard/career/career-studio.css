@@ -18,7 +18,7 @@
   color: #192c2b;
   border: 1px solid #d9e3e1;
   box-shadow: 0 18px 50px rgba(15, 23, 42, 0.1);
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: Georgia, "Times New Roman", serif;
   font-size: 11px;
   line-height: 1.6;
   overflow-wrap: anywhere;
@@ -41,7 +41,7 @@
   border-radius: 50%;
   background: #e0efe8;
   font:
-    700 18px/1 Georgia,
+    700 18px / 1 Georgia,
     serif;
   color: #0a6d60;
   letter-spacing: 0.04em;
@@ -91,7 +91,7 @@
   padding: 0 0 7px;
   border-bottom: 1px solid #cbdfd7;
   font:
-    700 11px/1.3 Arial,
+    700 11px / 1.3 Arial,
     sans-serif;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -102,14 +102,14 @@
   white-space: pre-wrap;
 }
 .career-paper-contact {
-  margin: 0 0 10px !important;
+  margin: 0 0 10px;
   font-family: Arial, sans-serif;
   font-size: 10px;
   line-height: 1.5;
 }
 .career-paper-skill-list {
-  list-style: none !important;
-  padding: 0 !important;
+  list-style: none;
+  padding: 0;
 }
 .career-paper-skill-list li {
   position: relative;
@@ -117,7 +117,7 @@
   margin-bottom: 9px;
 }
 .career-paper-skill-list li:before {
-  content: '';
+  content: "";
   width: 3px;
   height: 80%;
   background: #b1d7cc;
@@ -151,7 +151,7 @@
   font-size: 9px;
 }
 .career-paper-company {
-  margin-top: 3px !important;
+  margin-top: 3px;
   font-family: Arial, sans-serif;
   color: #467065;
   font-size: 10px;
@@ -273,51 +273,51 @@
   html,
   body,
   body:has([data-automate]) {
-    width: 210mm !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: visible !important;
-    background: white !important;
+    width: 210mm;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+    background: white;
   }
   body:has([data-career-studio]) * {
-    visibility: hidden !important;
+    visibility: hidden;
   }
   body:has([data-career-studio]) [data-automate],
   body:has([data-career-studio]) [data-automate] > *,
   body:has([data-career-studio]) [data-automation-main-scroll] {
-    position: static !important;
-    display: block !important;
-    overflow: visible !important;
-    max-height: none !important;
-    height: auto !important;
+    position: static;
+    display: block;
+    overflow: visible;
+    max-height: none;
+    height: auto;
   }
   body:has([data-career-studio]) .career-print-area,
   body:has([data-career-studio]) .career-print-area * {
-    visibility: visible !important;
+    visibility: visible;
   }
   .career-print-area {
-    position: absolute !important;
-    inset: 0 auto auto 0 !important;
-    width: 210mm !important;
-    min-height: 297mm !important;
-    box-shadow: none !important;
-    border: 0 !important;
-    font-size: 9px !important;
-    overflow: visible !important;
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 210mm;
+    min-height: 297mm;
+    box-shadow: none;
+    border: 0;
+    font-size: 9px;
+    overflow: visible;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
   .career-paper-header h2 {
-    font-size: 27px !important;
+    font-size: 27px;
   }
   .career-paper-header {
-    padding: 30px !important;
+    padding: 30px;
   }
   .career-paper-side {
-    padding: 23px 20px !important;
+    padding: 23px 20px;
   }
   .career-paper-main {
-    padding: 24px 30px !important;
+    padding: 24px 30px;
   }
   .career-paper section {
     break-inside: avoid-page;

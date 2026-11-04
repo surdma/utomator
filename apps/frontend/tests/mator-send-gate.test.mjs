@@ -1,11 +1,11 @@
-import assert from 'node:assert/strict';
-import { test } from 'node:test';
+
+import { test, expect } from 'vitest';
 import {
   beginMatorSend,
   createMatorSendGate,
   finishMatorSendFailure,
   finishMatorSendSuccess,
-} from '../components/dashboard/pipeline/mator-send-gate.ts';
+} from '../components/mator/mator-send-gate.ts';
 
 /**
  * Asserted double-send policy:
@@ -23,17 +23,13 @@ test('rapid second send while in-flight is a no-op (no second key / POST)', () =
 
   let gate = createMatorSendGate();
   const first = beginMatorSend(gate, newKey);
-  assert.ok(first);
-  assert.equal(first.key, 'key-1');
+  expect(first).toBeTruthy();
+  expect(first.key).toEqual('key-1');
   gate = first.next;
 
   const second = beginMatorSend(gate, newKey);
-  assert.equal(second, null, 'second begin must no-op while inFlight');
-  assert.equal(
-    keyCount,
-    1,
-    'idempotency key must not be re-allocated mid-flight'
-  );
+  expect(second).toEqual(null);
+  expect(keyCount).toEqual(1);
 });
 
 test('failure keeps idempotency key for retry; success clears for next turn', () => {
@@ -45,25 +41,17 @@ test('failure keeps idempotency key for retry; success clears for next turn', ()
 
   let gate = createMatorSendGate();
   const first = beginMatorSend(gate, newKey);
-  assert.ok(first);
+  expect(first).toBeTruthy();
   gate = finishMatorSendFailure(first.next);
 
   const retry = beginMatorSend(gate, newKey);
-  assert.ok(retry);
-  assert.equal(
-    retry.key,
-    'key-1',
-    'retry after failure reuses Idempotency-Key'
-  );
-  assert.equal(keyCount, 1);
+  expect(retry).toBeTruthy();
+  expect(retry.key).toEqual('key-1');
+  expect(keyCount).toEqual(1);
 
   gate = finishMatorSendSuccess(retry.next);
   const nextTurn = beginMatorSend(gate, newKey);
-  assert.ok(nextTurn);
-  assert.equal(
-    nextTurn.key,
-    'key-2',
-    'successful send clears key for next turn'
-  );
-  assert.equal(keyCount, 2);
+  expect(nextTurn).toBeTruthy();
+  expect(nextTurn.key).toEqual('key-2');
+  expect(keyCount).toEqual(2);
 });

@@ -1,13 +1,13 @@
 'use client';
 
+import { X } from 'lucide-react';
 import {
+  type MouseEvent,
+  type ReactNode,
   useEffect,
   useId,
   useRef,
-  type ReactNode,
-  type MouseEvent,
 } from 'react';
-import { X } from 'lucide-react';
 
 type Props = {
   open: boolean;
@@ -56,8 +56,8 @@ export default function StudioDialog({
       if (event.key !== 'Tab' || !dialog.open) return;
       const candidates = Array.from(
         dialog.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
-        )
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])',
+        ),
       ).filter((element) => element.getClientRects().length > 0);
       const first = candidates[0];
       const last = candidates[candidates.length - 1];
@@ -118,11 +118,9 @@ export default function StudioDialog({
         <div className="min-w-0">
           <h2
             id={titleId}
-            className={
-              (titleSize === 'prominent'
-                ? 'text-xl leading-7 '
-                : 'text-base ') + 'font-bold tracking-tight text-slate-950'
-            }
+            className={`${
+              titleSize === 'prominent' ? 'text-xl leading-7 ' : 'text-base '
+            }font-bold tracking-tight text-slate-950`}
           >
             {title}
           </h2>
@@ -143,7 +141,7 @@ export default function StudioDialog({
           <button
             type="button"
             onClick={onDismiss}
-            aria-label={'Close ' + title}
+            aria-label={`Close ${title}`}
             className="flex size-11 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-teal-600"
           >
             <X className="size-5" />

@@ -1,7 +1,15 @@
 export type TemplatePlatform =
-  'linkedin' | 'x' | 'instagram' | 'github' | 'devto';
+  | 'linkedin'
+  | 'x'
+  | 'instagram'
+  | 'github'
+  | 'devto';
 export type TemplateCategory =
-  'Profile' | 'Showcase' | 'Publishing' | 'Engagement' | 'Planning';
+  | 'Profile'
+  | 'Showcase'
+  | 'Publishing'
+  | 'Engagement'
+  | 'Planning';
 export type CatalogTemplate = {
   id: string;
   platform: TemplatePlatform;

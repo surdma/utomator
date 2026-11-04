@@ -1,5 +1,5 @@
-import type { Platform } from './workflow-catalog';
 import type { Region, VisualAnnotation } from '../reviews/visual-review-panel';
+import type { Platform } from './workflow-catalog';
 
 export type State =
   | 'running'

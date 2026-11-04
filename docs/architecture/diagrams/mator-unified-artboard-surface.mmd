@@ -1,0 +1,30 @@
+flowchart TD
+  Workspace[PipelineWorkspace] --> Choice{Workflow opened?}
+  Choice -->|No| Empty[Blank Artboard - no automatic workflow]
+  Empty --> New[Create new workflow]
+  Empty --> Library[Workflow library]
+  Empty --> Resume[Resume saved workflow]
+  New --> Draft[Unsaved valid four-step Runner draft]
+  Library --> Sources{Template source}
+  Sources --> ActionTemplates[Action templates from platform catalogue]
+  Sources --> YamlTemplates[YAML programmes from restricted catalogue]
+  ActionTemplates --> SaveCopy[Save own workflow revision]
+  Draft --> Shell[WorkflowPlanEditor persistent shell]
+  Resume --> Shell
+  SaveCopy --> Shell
+  YamlTemplates --> Shell
+  Choice -->|Yes| Shell
+  Shell --> Toolbar[Template selector and action rail]
+  Shell --> Graph[One ReactFlow canvas]
+  Shell --> Footer[Contextual status and evidence entry]
+  Shell --> Dialog[GrowthWorkspaceDialogs]
+  Toolbar --> Leave[Return to blank workspace with unsaved confirmation]
+  Graph --> Context{YAML programme selected?}
+  Context -->|No| Saved[Editable WorkflowPlan step cards]
+  Context -->|Yes| Growth[buildGrowthGraph]
+  Growth --> Overview[Connected pipeline cards]
+  Overview --> TaskGraph[Selected pipeline task cards]
+  TaskGraph --> ReadOnly[Read-only compiled configuration and journal]
+  Dialog --> Controls[Existing GrowthRunControls]
+  Dialog --> Evidence[Existing GrowthEvidenceForm]
+  Dialog --> Coverage[Existing GrowthCoverageList]

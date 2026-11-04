@@ -1,16 +1,16 @@
-import assert from 'node:assert/strict';
-import { test } from 'node:test';
+
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, writeFile, readFile, mkdir } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { test, expect } from 'vitest';
 import { createClient } from '@libsql/client';
-import { createDocumentStore } from '../src/db/documents.js';
-import { CraftLibrary, parseMdx, toMdx, craftArchive, type Craft } from '../src/crafts/library.js';
 import {
   growthCapabilities,
   profileSections,
 } from '../../frontend/components/dashboard/growth/linkedin-growth-capabilities.js';
+import { type Craft, CraftLibrary, craftArchive, parseMdx, toMdx } from '../src/crafts/library.js';
+import { createDocumentStore } from '../src/db/documents.js';
 
 const root = await mkdtemp(join(tmpdir(), 'utomator-crafts-'));
 const databaseFile = `file:${join(root, 'crafts.db')}`;
@@ -73,7 +73,7 @@ const entries = (archive: Buffer) => {
     files.set(name, archive.subarray(start, start + size).toString('utf8'));
     i = start + size;
   }
-  assert.equal(archive.readUInt32LE(i), 0x02014b50);
+  expect(archive.readUInt32LE(i)).toEqual(0x02014b50);
   return files;
 };
 
@@ -82,32 +82,32 @@ test('predefined crafts are database-backed and immutable; clones and MDX edits 
   try {
     await app.ready();
     const initial = await app.inject('/crafts');
-    assert.equal(initial.statusCode, 200, initial.body);
+    expect(initial.statusCode).toEqual(200);
     const catalog = initial.json() as Craft[];
     const defaults = catalog.filter((c) => c.scope === 'default');
-    assert.equal(defaults.length, 21);
+    expect(defaults.length).toEqual(21);
     const expectedIds = new Set(
       growthCapabilities.map((capability) => `default-growth-${capability.id}`),
     );
-    assert.equal(expectedIds.size, 15);
+    expect(expectedIds.size).toEqual(15);
     for (const capability of growthCapabilities) {
       const flow = defaults.find((candidate) => candidate.id === `default-growth-${capability.id}`);
-      assert.ok(flow, `Missing growth flow for ${capability.id}`);
-      assert.equal(flow.steps.length, 5, capability.id);
-      assert.equal(flow.links.length, 4, capability.id);
+      expect(flow).toBeTruthy();
+      expect(flow.steps.length).toEqual(5);
+      expect(flow.links.length).toEqual(4);
       const source = toMdx(flow);
       for (const action of capability.actions)
-        assert.ok(source.includes(action), `Action omitted: ${capability.id} / ${action}`);
-      assert.ok(source.includes(capability.availableNow), `Availability omitted: ${capability.id}`);
-      assert.ok(source.includes(capability.requires), `Prerequisites omitted: ${capability.id}`);
-      assert.deepEqual(parseMdx(source, flow).steps, flow.steps);
-      assert.deepEqual(parseMdx(source, flow).links, flow.links);
+        expect(source.includes(action)).toBeTruthy();
+      expect(source.includes(capability.availableNow)).toBeTruthy();
+      expect(source.includes(capability.requires)).toBeTruthy();
+      expect(parseMdx(source, flow).steps).toEqual(flow.steps);
+      expect(parseMdx(source, flow).links).toEqual(flow.links);
       const response = await app.inject(`/crafts/${flow.id}/mdx`);
-      assert.equal(response.statusCode, 200, capability.id);
-      assert.equal(response.body, source, capability.id);
+      expect(response.statusCode).toEqual(200);
+      expect(response.body).toEqual(source);
       if (capability.id === 'profile')
         for (const section of profileSections)
-          assert.ok(source.includes(section), `Profile section missing: ${section}`);
+          expect(source.includes(section)).toBeTruthy();
     }
     const originalDefaults = [
       'personal-brand-positioning',
@@ -119,15 +119,15 @@ test('predefined crafts are database-backed and immutable; clones and MDX edits 
     ];
     for (const slug of originalDefaults) {
       const flow = defaults.find((candidate) => candidate.id === `default-${slug}`);
-      assert.ok(flow, `Original toolkit lost: ${slug}`);
-      assert.equal(flow.steps.length, 5, slug);
-      assert.deepEqual(parseMdx(toMdx(flow), flow).links, flow.links);
+      expect(flow).toBeTruthy();
+      expect(flow.steps.length).toEqual(5);
+      expect(parseMdx(toMdx(flow), flow).links).toEqual(flow.links);
     }
     const predefined = defaults.find((c) => c.slug === 'content-series-planning')!;
-    assert.equal(predefined.id, 'default-content-series-planning');
+    expect(predefined.id).toEqual('default-content-series-planning');
     const originalMdx = toMdx(predefined);
-    assert.match(originalMdx, /<CraftNode/);
-    assert.deepEqual(parseMdx(originalMdx, predefined).links, predefined.links);
+    expect(originalMdx).toMatch(/<CraftNode/);
+    expect(parseMdx(originalMdx, predefined).links).toEqual(predefined.links);
     const protectedUpdate = await app.inject({
       method: 'PUT',
       url: `/crafts/${predefined.id}`,
@@ -136,22 +136,22 @@ test('predefined crafts are database-backed and immutable; clones and MDX edits 
         craft: { ...request, slug: predefined.slug },
       },
     });
-    assert.equal(protectedUpdate.statusCode, 403);
+    expect(protectedUpdate.statusCode).toEqual(403);
     const protectedDelete = await app.inject({
       method: 'DELETE',
       url: `/crafts/${predefined.id}`,
       payload: { expectedVersion: predefined.version },
     });
-    assert.equal(protectedDelete.statusCode, 403);
+    expect(protectedDelete.statusCode).toEqual(403);
     const cloned = await app.inject({
       method: 'POST',
       url: `/crafts/${predefined.id}/clone`,
     });
-    assert.equal(cloned.statusCode, 201, cloned.body);
+    expect(cloned.statusCode).toEqual(201);
     const personal = cloned.json() as Craft;
-    assert.equal(personal.scope, 'personal');
-    assert.equal(personal.sourceCraftId, predefined.id);
-    assert.notEqual(personal.id, predefined.id);
+    expect(personal.scope).toEqual('personal');
+    expect(personal.sourceCraftId).toEqual(predefined.id);
+    expect(personal.id).not.toEqual(predefined.id);
     const revised = {
       ...personal,
       description: `${personal.description} Revised privately.`,
@@ -161,13 +161,13 @@ test('predefined crafts are database-backed and immutable; clones and MDX edits 
       url: `/crafts/${personal.id}`,
       payload: { expectedVersion: personal.version, craft: revised },
     });
-    assert.equal(updated.statusCode, 200, updated.body);
+    expect(updated.statusCode).toEqual(200);
     const now = updated.json() as Craft;
-    assert.equal(now.version, 2);
-    assert.equal((await app.inject(`/crafts/${predefined.id}/mdx`)).body, originalMdx);
+    expect(now.version).toEqual(2);
+    expect((await app.inject(`/crafts/${predefined.id}/mdx`)).body).toEqual(originalMdx);
     const source = await app.inject(`/crafts/${now.id}/mdx`);
-    assert.equal(source.statusCode, 200);
-    assert.match(source.body, /Revised privately/);
+    expect(source.statusCode).toEqual(200);
+    expect(source.body).toMatch(/Revised privately/);
     const fromSource = await app.inject({
       method: 'PUT',
       url: `/crafts/${now.id}`,
@@ -176,38 +176,35 @@ test('predefined crafts are database-backed and immutable; clones and MDX edits 
         mdx: source.body.replace('**Next:** [evidence](#step-evidence)', '**Next:** End'),
       },
     });
-    assert.equal(fromSource.statusCode, 200, fromSource.body);
+    expect(fromSource.statusCode).toEqual(200);
     const stale = await app.inject({
       method: 'PUT',
       url: `/crafts/${now.id}`,
       payload: { expectedVersion: 1, craft: revised },
     });
-    assert.equal(stale.statusCode, 409);
+    expect(stale.statusCode).toEqual(409);
     const zip = entries(craftArchive(personal));
-    assert(zip.has(`${personal.slug}/SKILL.md`));
-    assert(zip.has(`${personal.slug}/SKILL.mdx`));
-    assert(zip.get(`${personal.slug}/SKILL.mdx`)?.includes('<CraftNode'));
+    expect(zip.has(`${personal.slug}/SKILL.md`)).toBeTruthy();
+    expect(zip.has(`${personal.slug}/SKILL.mdx`)).toBeTruthy();
+    expect(zip.get(`${personal.slug}/SKILL.mdx`)?.includes('<CraftNode')).toBeTruthy();
     const second = buildApp();
     try {
       await second.ready();
       const stored = await second.inject(`/crafts/${personal.id}`);
-      assert.equal(stored.statusCode, 200, stored.body);
-      assert.equal(stored.json().version, 3);
+      expect(stored.statusCode).toEqual(200);
+      expect(stored.json().version).toEqual(3);
     } finally {
       await second.close();
     }
-    assert.equal((await app.inject('/skills')).statusCode, 404);
-    assert.equal(
-      (
+    expect((await app.inject('/skills')).statusCode).toEqual(404);
+    expect((
         await app.inject({
           method: 'DELETE',
           url: `/crafts/${now.id}`,
           payload: { expectedVersion: 3 },
         })
-      ).statusCode,
-      200,
-    );
-    assert.equal((await app.inject(`/crafts/${now.id}`)).statusCode, 404);
+      ).statusCode).toEqual(200);
+    expect((await app.inject(`/crafts/${now.id}`)).statusCode).toEqual(404);
   } finally {
     await app.close();
   }
@@ -215,28 +212,19 @@ test('predefined crafts are database-backed and immutable; clones and MDX edits 
 
 test('MDX graph conversion rejects malformed input and preserves portable archive', () => {
   const mdx = toMdx({ ...request, id: 'example', version: 1, updatedAt: '' });
-  assert.equal(parseMdx(mdx).steps.length, 3);
+  expect(parseMdx(mdx).steps.length).toEqual(3);
   const old = mdx.replaceAll('<CraftNode', '<SkillNode');
-  assert.deepEqual(parseMdx(old).links, parseMdx(mdx).links);
-  assert.throws(
-    () => parseMdx(mdx.replace(`name: ${request.slug}`, 'name: ../../escape')),
-    /frontmatter/,
-  );
-  assert.throws(
-    () => parseMdx(mdx.replace('Review source facts.', '## Step: fake | Fake')),
-    /Invalid MDX/,
-  );
-  assert.throws(
-    () =>
+  expect(parseMdx(old).links).toEqual(parseMdx(mdx).links);
+  expect(() => parseMdx(mdx.replace(`name: ${request.slug}`, 'name: ../../escape'))).toThrow(/frontmatter/);
+  expect(() => parseMdx(mdx.replace('Review source facts.', '## Step: fake | Fake'))).toThrow(/Invalid MDX/);
+  expect(() =>
       toMdx({
         ...request,
         links: [
           { id: 'research-to-draft', source: 'research', target: 'draft' },
           { id: 'draft-to-research', source: 'draft', target: 'research' },
         ],
-      }),
-    /cycle/,
-  );
+      })).toThrow(/cycle/);
 });
 
 test('tenant identities isolate personal crafts but expose the same read-only defaults', async () => {
@@ -250,22 +238,19 @@ test('tenant identities isolate personal crafts but expose the same read-only de
     await one.initialize();
     await two.initialize();
     const first = await one.create(request);
-    assert.equal((await one.get(first.id))?.name, request.name);
-    assert.equal(await two.get(first.id), undefined);
+    expect((await one.get(first.id))?.name).toEqual(request.name);
+    expect(await two.get(first.id)).toEqual(undefined);
     const copies = await two.list();
-    assert.equal(copies.filter((c) => c.scope === 'default').length, 21);
-    assert.equal(copies.filter((c) => c.scope === 'personal').length, 0);
+    expect(copies.filter((c) => c.scope === 'default').length).toEqual(21);
+    expect(copies.filter((c) => c.scope === 'personal').length).toEqual(0);
     const baseA = await one.get('default-personal-brand-positioning');
     const baseB = await two.get('default-personal-brand-positioning');
-    assert.equal(toMdx(baseA!), toMdx(baseB!));
+    expect(toMdx(baseA!)).toEqual(toMdx(baseB!));
     const clone = await one.clone('default-personal-brand-positioning');
-    assert.equal(clone.scope, 'personal');
-    assert.equal(await two.get(clone.id), undefined);
-    await assert.rejects(() => two.update(first.id, request, 1), /not found/);
-    await assert.rejects(
-      () => one.remove('default-personal-brand-positioning', baseA!.version),
-      /read-only/,
-    );
+    expect(clone.scope).toEqual('personal');
+    expect(await two.get(clone.id)).toEqual(undefined);
+    await expect(() => two.update(first.id, request, 1)).rejects.toThrow(/not found/);
+    await expect(() => one.remove('default-personal-brand-positioning', baseA!.version)).rejects.toThrow(/read-only/);
   } finally {
     await a.close();
     await b.close();
@@ -293,16 +278,13 @@ test('legacy JSON migrates once as private crafts without replacing predefined c
   try {
     await library.initialize();
     const initial = await library.list();
-    assert(initial.some((c) => c.slug === baseline.slug && c.scope === 'personal'));
-    assert(initial.some((c) => c.slug === 'content-series-planning-imported' && c.scope === 'personal'));
-    assert(initial.some((c) => c.slug === 'content-series-planning' && c.scope === 'default'));
+    expect(initial.some((c) => c.slug === baseline.slug && c.scope === 'personal')).toBeTruthy();
+    expect(initial.some((c) => c.slug === 'content-series-planning-imported' && c.scope === 'personal')).toBeTruthy();
+    expect(initial.some((c) => c.slug === 'content-series-planning' && c.scope === 'default')).toBeTruthy();
     const count = initial.length;
     await library.initialize();
-    assert.equal((await library.list()).length, count);
-    assert.equal(
-      (await store.get<{ result: string }>('craft-migrations', 'legacy-json-v1'))?.value?.result,
-      'imported',
-    );
+    expect((await library.list()).length).toEqual(count);
+    expect((await store.get<{ result: string }>('craft-migrations', 'legacy-json-v1'))?.value?.result).toEqual('imported');
   } finally {
     await store.close();
   }
@@ -337,17 +319,13 @@ test('releasing a new default MDX revision does not alter personal clones', asyn
       'Use when designing a source-backed series of professional LinkedIn posts',
       'Use when planning a source-backed series of professional LinkedIn posts',
     );
-    assert.notEqual(
-      updatedDefault,
-      existingDefault,
-      'Revision fixture must actually change default MDX',
-    );
+    expect(updatedDefault).not.toEqual(existingDefault);
     await writeFile(join(dir, 'content-series-planning.mdx'), updatedDefault);
     await library.initialize();
     const after = await library.get(before!.id);
-    assert.equal(after!.version, before!.version + 1);
-    assert.notEqual(toMdx(after!), toMdx(before!));
-    assert.equal(toMdx((await library.get(clone.id))!), userVersion);
+    expect(after!.version).toEqual(before!.version + 1);
+    expect(toMdx(after!)).not.toEqual(toMdx(before!));
+    expect(toMdx((await library.get(clone.id))!)).toEqual(userVersion);
   } finally {
     await store.close();
   }

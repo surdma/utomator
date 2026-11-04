@@ -2,7 +2,7 @@
   display: none;
 }
 .career-paper--modern {
-  font-family: 'Trebuchet MS', sans-serif;
+  font-family: "Trebuchet MS", sans-serif;
 }
 .career-paper--modern .career-paper-header {
   background: #112d32;
@@ -62,11 +62,11 @@
   background: #d9e6e0;
 }
 .career-template-tile span:first-child {
-  grid-column: 1/-1;
+  grid-column: 1 / -1;
   background: #287e70;
 }
 .career-template-tile span:nth-child(2) {
-  grid-row: 2/5;
+  grid-row: 2 / 5;
   background: #eaf2ef;
 }
 .career-template-tile--classic,
@@ -87,6 +87,6 @@
 }
 @media print {
   .career-print-standby {
-    display: block !important;
+    display: block;
   }
 }

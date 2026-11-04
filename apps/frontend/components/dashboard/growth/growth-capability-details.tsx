@@ -15,14 +15,14 @@ import {
 } from './linkedin-growth-capabilities';
 
 export function capabilityForSlug(slug: string) {
-  return growthCapabilities.find((item) => slug === 'growth-' + item.id);
+  return growthCapabilities.find((item) => slug === `growth-${item.id}`);
 }
 
 export default function GrowthCapabilityDetails({ slug }: { slug: string }) {
   const capability = capabilityForSlug(slug);
   if (!capability) return null;
   const journeys = growthJourneys.filter((journey) =>
-    (journey.sequence as readonly string[]).includes(capability.id)
+    (journey.sequence as readonly string[]).includes(capability.id),
   );
   return (
     <section
@@ -77,7 +77,7 @@ export default function GrowthCapabilityDetails({ slug }: { slug: string }) {
           )}
           {capability.id === 'profile' && (
             <a
-              href="/dashboard/pipeline"
+              href="/dashboard/workspace"
               className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-teal-800 underline underline-offset-4"
             >
               Open profile Growth pipelines <ArrowUpRight className="size-4" />

@@ -9,7 +9,7 @@ const ACTION_PATTERNS: Array<{ action: string; pattern: RegExp }> = [
 
 export function matchAnnotationAction(
   utterance: string,
-  allowed: readonly string[]
+  allowed: readonly string[],
 ) {
   const found = ACTION_PATTERNS.find((item) => item.pattern.test(utterance));
   if (!found || !allowed.includes(found.action)) return null;

@@ -2,7 +2,7 @@ name: Utomator integration
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, work/mator-e2e-tracked-20261101]
     paths:
       - "apps/backend/**"
       - "apps/frontend/**"
@@ -11,7 +11,7 @@ on:
       - "pnpm-workspace.yaml"
       - ".github/workflows/utomator-integration.yml"
   push:
-    branches: [main, feat/yaml-growth-profile-pipeline]
+    branches: [main, feat/yaml-growth-profile-pipeline, work/mator-unified-artboard-pr15-20261103]
   workflow_dispatch:
 
 permissions:
@@ -85,6 +85,84 @@ jobs:
           path: apps/backend/.runtime/evidence/
           retention-days: 3
           if-no-files-found: ignore
+
+  artboard-typecheck:
+    name: Unified Artboard typecheck and focused unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: pnpm install --frozen-lockfile
+      - name: Type-check frontend without legacy test dependencies
+        run: pnpm --filter @utomator/frontend typecheck
+      - name: Check Growth graph and Runner journal behavior
+        run: >-
+          pnpm --filter @utomator/frontend exec node --experimental-strip-types --test
+          tests/growth-graph-model.test.mjs tests/growth-run-journal.test.mjs
+          tests/default-workflow-plan.test.mjs
+      - name: Check unified Artboard route contract
+        run: >-
+          pnpm --filter @utomator/frontend exec node --experimental-strip-types --test
+          --test-name-pattern="Growth YAML uses the persistent Artboard canvas|the first visit shows a blank Artboard"
+          tests/utomator-routes.test.mjs
+
+      - name: Capture formatting for staged-action bridge (diagnostic only)
+        if: always()
+        run: |
+          pnpm exec prettier --write \
+            apps/frontend/components/dashboard/dashboard-shell.tsx \
+            apps/frontend/components/dashboard/pipeline/use-operator-commands.ts \
+            apps/frontend/components/dashboard/pipeline/use-workflow-workspace.ts \
+            apps/frontend/tests/utomator-routes.test.mjs
+          echo 'ACTION_BRIDGE_FORMAT_BEGIN'
+          git diff -- \
+            apps/frontend/components/dashboard/dashboard-shell.tsx \
+            apps/frontend/components/dashboard/pipeline/use-operator-commands.ts \
+            apps/frontend/components/dashboard/pipeline/use-workflow-workspace.ts \
+            apps/frontend/tests/utomator-routes.test.mjs
+          echo 'ACTION_BRIDGE_FORMAT_END'
+
+  artboard-browser:
+    name: Unified Artboard real-browser integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: pnpm install --frozen-lockfile
+      - name: Build frontend
+        run: pnpm --filter @utomator/frontend build
+      - name: Install Chromium
+        run: pnpm --filter @utomator/backend exec playwright install --with-deps chromium
+      - name: Initialize local SQLite schema
+        run: pnpm --filter @utomator/backend db:push
+      - name: Start local frontend for Artboard scenarios
+        run: |
+          pnpm --filter @utomator/frontend exec next start -p 3100 > /tmp/artboard-frontend.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:3100/ > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/artboard-frontend.log
+          exit 1
+      - name: Exercise executable and design-only Growth YAML in the original Artboard
+        run: >-
+          pnpm --filter @utomator/backend exec node --import tsx --test
+          --test-name-pattern="Growth profile YAML uses one Artboard|planning-only Growth YAML stays read-only|blank Artboard opens action templates"
+          tests/browser.integration.test.ts
+        env:
+          NODE_ENV: test
+          HEADLESS: "true"
+      - name: Print frontend logs if the Artboard validation fails
+        if: failure()
+        run: cat /tmp/artboard-frontend.log || true
 
   frontend-ui-quality:
     name: Frontend responsive and accessibility quality gate

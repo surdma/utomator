@@ -1,11 +1,11 @@
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
+
+import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { test, expect } from 'vitest';
+import { editorialYaml, LinkedInEditorialStore } from '../src/linkedin/linkedin-editorial.js';
 import { AccountStore } from '../src/profile/account-store.js';
-import { randomUUID } from 'node:crypto';
-import { LinkedInEditorialStore, editorialYaml } from '../src/core/linkedin-editorial.js';
 
 process.env.NODE_ENV = 'test';
 const { buildApp } = await import('../src/main.js');
@@ -47,33 +47,30 @@ test('Private LinkedIn editorial lifecycle persists and resets approval after re
   try {
     const store = new LinkedInEditorialStore(account, research, path);
     const created = await store.create(id, draft);
-    assert.equal(created.status, 'draft');
-    assert.equal(created.history.length, 1);
-    assert.equal(
-      (await new LinkedInEditorialStore(account, research, path).get(created.id))?.version,
-      1,
-    );
-    assert.equal((await store.list(id)).length, 1);
-    await assert.rejects(store.update(created.id, 2, draft), /version conflict/);
+    expect(created.status).toEqual('draft');
+    expect(created.history.length).toEqual(1);
+    expect((await new LinkedInEditorialStore(account, research, path).get(created.id))?.version).toEqual(1);
+    expect((await store.list(id)).length).toEqual(1);
+    await expect((store.update(created.id, 2, draft))).rejects.toThrow(/version conflict/);
     const approved = await store.transition(created.id, 1, 'approve');
-    assert.equal(approved.status, 'approved');
+    expect(approved.status).toEqual('approved');
     const revised = await store.update(created.id, 2, {
       ...draft,
       body: draft.body + ' Additional evidence.',
     });
-    assert.equal(revised.status, 'draft');
-    assert.equal(revised.reviewedAt, null);
+    expect(revised.status).toEqual('draft');
+    expect(revised.reviewedAt).toEqual(null);
     const archived = await store.transition(created.id, 3, 'archive');
-    assert.equal(archived.status, 'archived');
-    await assert.rejects(store.update(created.id, 4, draft), /Restore/);
+    expect(archived.status).toEqual('archived');
+    await expect((store.update(created.id, 4, draft))).rejects.toThrow(/Restore/);
     const restored = await store.transition(created.id, 4, 'restore');
-    assert.equal(restored.status, 'draft');
-    await assert.rejects(store.transition(created.id, 5, 'delete'), /confirmation/);
+    expect(restored.status).toEqual('draft');
+    await expect((store.transition(created.id, 5, 'delete'))).rejects.toThrow(/confirmation/);
     const deleted = await store.transition(created.id, 5, 'delete', true);
-    assert.equal(deleted.status, 'deleted');
-    assert.equal((await store.list(id)).length, 0);
-    assert.match(editorialYaml(deleted), /externalPublishing: "not-performed"/);
-    assert.match(editorialYaml(deleted), /contentSha256/);
+    expect(deleted.status).toEqual('deleted');
+    expect((await store.list(id)).length).toEqual(0);
+    expect(editorialYaml(deleted)).toMatch(/externalPublishing: "not-performed"/);
+    expect(editorialYaml(deleted)).toMatch(/contentSha256/);
   } finally {
     await rm(path, { recursive: true, force: true });
   }
@@ -83,21 +80,15 @@ test('Editorial input rejects unowned accounts, unrelated evidence, duplicate so
   const path = await mkdtemp(join(tmpdir(), 'utomator-editorial-'));
   try {
     const store = new LinkedInEditorialStore(account, research, path);
-    await assert.rejects(store.create(randomUUID(), draft), /not saved/);
-    await assert.rejects(store.create(id, { ...draft, body: 'short' }), /Draft body/);
-    await assert.rejects(
-      store.create(id, { ...draft, sourceUrls: [reference, reference] }),
-      /Duplicate/,
-    );
-    await assert.rejects(
-      store.create(id, {
+    await expect((store.create(randomUUID(), draft))).rejects.toThrow(/not saved/);
+    await expect((store.create(id, { ...draft, body: 'short' }))).rejects.toThrow(/Draft body/);
+    await expect((store.create(id, { ...draft, sourceUrls: [reference, reference] }))).rejects.toThrow(/Duplicate/);
+    await expect((store.create(id, {
         ...draft,
         sourceUrls: ['https://other.example/report'],
-      }),
-      /match/,
-    );
-    await assert.rejects(store.create(id, { ...draft, unexpected: true }), /Unknown/);
-    assert.equal((await store.list()).length, 0);
+      }))).rejects.toThrow(/match/);
+    await expect((store.create(id, { ...draft, unexpected: true }))).rejects.toThrow(/Unknown/);
+    expect((await store.list()).length).toEqual(0);
   } finally {
     await rm(path, { recursive: true, force: true });
   }
@@ -124,7 +115,7 @@ test('Fastify editorial API verifies saved account and supports versioned CRUD w
         content: { ...draft, researchRunId: null, sourceUrls: [] },
       },
     });
-    assert.equal(bad.statusCode, 400);
+    expect(bad.statusCode).toEqual(400);
     const created = await app.inject({
       method: 'POST',
       url: '/linkedin/drafts',
@@ -137,18 +128,18 @@ test('Fastify editorial API verifies saved account and supports versioned CRUD w
         },
       },
     });
-    assert.equal(created.statusCode, 201, created.body);
+    expect(created.statusCode).toEqual(201);
     const saved = created.json() as {
       id: string;
       version: number;
       status: string;
     };
-    assert.equal(saved.version, 1);
-    assert.equal((await app.inject('/linkedin/drafts/' + saved.id)).statusCode, 200);
+    expect(saved.version).toEqual(1);
+    expect((await app.inject('/linkedin/drafts/' + saved.id)).statusCode).toEqual(200);
     const list = (await app.inject('/linkedin/drafts?accountId=' + accountId)).json() as Array<{
       id: string;
     }>;
-    assert.ok(list.some((row) => row.id === saved.id));
+    expect(list.some((row) => row.id === saved.id)).toBeTruthy();
     const revision = await app.inject({
       method: 'PUT',
       url: '/linkedin/drafts/' + saved.id,
@@ -162,7 +153,7 @@ test('Fastify editorial API verifies saved account and supports versioned CRUD w
         },
       },
     });
-    assert.equal(revision.statusCode, 200, revision.body);
+    expect(revision.statusCode).toEqual(200);
     const stale = await app.inject({
       method: 'PUT',
       url: '/linkedin/drafts/' + saved.id,
@@ -171,7 +162,7 @@ test('Fastify editorial API verifies saved account and supports versioned CRUD w
         content: { ...draft, researchRunId: null, sourceUrls: [] },
       },
     });
-    assert.equal(stale.statusCode, 409);
+    expect(stale.statusCode).toEqual(409);
     const review = await app.inject({
       method: 'POST',
       url: '/linkedin/drafts/' + saved.id + '/transition',
@@ -180,12 +171,12 @@ test('Fastify editorial API verifies saved account and supports versioned CRUD w
         action: 'approve',
       },
     });
-    assert.equal(review.statusCode, 200, review.body);
-    assert.equal(review.json().status, 'approved');
+    expect(review.statusCode).toEqual(200);
+    expect(review.json().status).toEqual('approved');
     const yaml = await app.inject('/linkedin/drafts/' + saved.id + '/yaml');
-    assert.equal(yaml.statusCode, 200);
-    assert.match(yaml.body, /approved/);
-    assert.match(yaml.body, /externalPublishing: "not-performed"/);
+    expect(yaml.statusCode).toEqual(200);
+    expect(yaml.body).toMatch(/approved/);
+    expect(yaml.body).toMatch(/externalPublishing: "not-performed"/);
     const noConfirm = await app.inject({
       method: 'POST',
       url: '/linkedin/drafts/' + saved.id + '/transition',
@@ -194,7 +185,7 @@ test('Fastify editorial API verifies saved account and supports versioned CRUD w
         action: 'delete',
       },
     });
-    assert.equal(noConfirm.statusCode, 400);
+    expect(noConfirm.statusCode).toEqual(400);
     const remove = await app.inject({
       method: 'POST',
       url: '/linkedin/drafts/' + saved.id + '/transition',
@@ -204,11 +195,11 @@ test('Fastify editorial API verifies saved account and supports versioned CRUD w
         confirm: true,
       },
     });
-    assert.equal(remove.statusCode, 200);
+    expect(remove.statusCode).toEqual(200);
     const remaining = (await app.inject('/linkedin/drafts?accountId=' + accountId)).json() as Array<{
       id: string;
     }>;
-    assert.ok(!remaining.some((row) => row.id === saved.id));
+    expect(!remaining.some((row) => row.id === saved.id)).toBeTruthy();
   } finally {
     await app.close();
     await rm(root, { recursive: true, force: true });

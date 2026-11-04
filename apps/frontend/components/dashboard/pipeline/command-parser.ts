@@ -17,7 +17,7 @@ function spokenValue(value: string) {
   const cleaned = value
     .trim()
     .replace(/^to\s+/i, '')
-    .replace(/^[:\-]\s*/, '')
+    .replace(/^[:-]\s*/, '')
     .trim();
   if (!cleaned || /^(?:called|named)$/i.test(cleaned)) return null;
   return cleaned;
@@ -28,7 +28,7 @@ function matchLegacy(text: string): ParsedCommand | null {
     return { action: 'audit', fields: {}, note: AUDIT_NOTE };
   }
   const headline = text.match(
-    /^(?:set|update|draft)\s+(?:my\s+)?headline\s*:\s*([\s\S]+)$/i
+    /^(?:set|update|draft)\s+(?:my\s+)?headline\s*:\s*([\s\S]+)$/i,
   );
   if (headline) {
     return {
@@ -46,7 +46,7 @@ function matchLegacy(text: string): ParsedCommand | null {
     };
   }
   const post = text.match(
-    /^(?:draft|compose)\s+(?:a\s+)?post\s*:\s*([\s\S]+)$/i
+    /^(?:draft|compose)\s+(?:a\s+)?post\s*:\s*([\s\S]+)$/i,
   );
   if (post) {
     return {
@@ -66,7 +66,7 @@ function matchNatural(text: string): ParsedCommand | null {
     return { action: 'audit', fields: {}, note: AUDIT_NOTE };
   }
   const headline = text.match(
-    /^(?:change|set|update)\s+(?:my\s+)?headline\s+to\s+([\s\S]+)$/i
+    /^(?:change|set|update)\s+(?:my\s+)?headline\s+to\s+([\s\S]+)$/i,
   );
   const madeHeadline = headline
     ? null
@@ -81,7 +81,7 @@ function matchNatural(text: string): ParsedCommand | null {
   }
   if (headline || madeHeadline) return null;
   const skill = text.match(
-    /^(?:add)\s+(?:(?:a|the)\s+)?skill(?:\s+(?:called|named))?\s+([\s\S]+)$/i
+    /^(?:add)\s+(?:(?:a|the)\s+)?skill(?:\s+(?:called|named))?\s+([\s\S]+)$/i,
   );
   if (skill) {
     const value = spokenValue(skill[1]);
@@ -93,7 +93,7 @@ function matchNatural(text: string): ParsedCommand | null {
     };
   }
   const post = text.match(
-    /^(?:draft|write|compose)\s+(?:a\s+)?post\s+(?:about|saying)\s+([\s\S]+)$/i
+    /^(?:draft|write|compose)\s+(?:a\s+)?post\s+(?:about|saying)\s+([\s\S]+)$/i,
   );
   if (post) {
     const value = spokenValue(post[1]);

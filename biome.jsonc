@@ -1,0 +1,105 @@
+{
+  // Points to the schema for autocomplete and inline docs inside your editor
+  "$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
+
+  // 1. FILE SYSTEM & VERSION CONTROL OPERATIONS
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true,
+    "defaultBranch": "main"
+  },
+  "files": {
+    "maxSize": 1048576,
+    "ignoreUnknown": false,
+    "ignore": [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/build/**",
+      "**/.next/**",
+      "**/coverage/**",
+      "**/pnpm-lock.yaml"
+    ]
+  },
+
+  // 2. THE FORMATTER ENGINE (Replaces Prettier)
+  "formatter": {
+    "enabled": true,
+    "formatWithErrors": false,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "lineEnding": "lf",
+    "attributePosition": "auto"
+  },
+
+  // 3. THE LINTER ENGINE (Replaces ESLint)
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "complexity": {
+        "noStaticOnlyClass": "error"
+      },
+      "correctness": {
+        "noUnusedVariables": "warn",
+        "noVoidElementsWithChildren": "error"
+      },
+      "style": {
+        "useBlockStatements": "off",
+        "useFragmentSyntax": "warn"
+      },
+      "suspicious": {
+        "noConsoleLog": "warn",
+        "noExplicitAny": "off"
+      }
+    }
+  },
+
+  // 4. THE ASSIST ENGINE (Handles Import Sorting and Code Actions)
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+
+  // 5. LANGUAGE OVERRIDES
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all",
+      "bracketSpacing": true,
+      "arrowParentheses": "always"
+    },
+    "globals": ["React", "describe", "it", "expect", "jest"]
+  },
+
+  "json": {
+    "parser": {
+      "allowComments": true,
+      "allowTrailingCommas": true
+    },
+    "formatter": {
+      "trailingCommas": "none"
+    }
+  },
+
+  // 6. SCOPED WORKFLOW FILE OVERRIDES
+  "overrides": [
+    {
+      "include": ["**/*.test.ts", "**/*.spec.ts", "jest.config.js", "vitest.config.ts", "playwright.config.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
+        }
+      }
+    }
+  ]
+}

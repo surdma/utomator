@@ -2,7 +2,7 @@ export async function request<T>(
   url: string,
   method = 'GET',
   body?: unknown,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<T> {
   const response = await fetch(url, {
     method,

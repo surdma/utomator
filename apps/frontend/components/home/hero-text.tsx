@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
 const roles = [
@@ -11,13 +11,15 @@ const roles = [
 ];
 
 export default function HeroText() {
+  const reduce = useReducedMotion();
   const [roleIndex, setRoleIndex] = useState(0);
   const [displayText, setDisplayText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
+    if (reduce) return;
     const currentRole = roles[roleIndex];
-    let timeout: NodeJS.Timeout;
+    let timeout: ReturnType<typeof setTimeout>;
 
     if (!isDeleting && displayText === currentRole) {
       timeout = setTimeout(() => setIsDeleting(true), 2000);
@@ -32,53 +34,54 @@ export default function HeroText() {
           setDisplayText(
             isDeleting
               ? currentRole.substring(0, displayText.length - 1)
-              : currentRole.substring(0, displayText.length + 1)
+              : currentRole.substring(0, displayText.length + 1),
           );
         },
-        isDeleting ? 30 : 60
+        isDeleting ? 30 : 60,
       );
     }
 
     return () => clearTimeout(timeout);
-  }, [displayText, isDeleting, roleIndex]);
+  }, [displayText, isDeleting, roleIndex, reduce]);
+
+  const typed = reduce ? roles[0] : displayText;
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
       <motion.p
-        initial={{ opacity: 0, y: 20 }}
+        initial={reduce ? false : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="font-mono text-sm tracking-wider uppercase md:text-base"
-        style={{ color: '#06b6d4' }}
+        className="font-mono text-sm tracking-wider text-teal-700 uppercase md:text-base"
       >
         Introducing
       </motion.p>
 
       <motion.h1
-        initial={{ opacity: 0, y: 20 }}
+        initial={reduce ? false : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="text-3xl leading-tight font-bold md:text-6xl lg:text-7xl"
+        className="text-3xl leading-tight font-bold text-slate-900 md:text-6xl lg:text-7xl"
       >
-        <span style={{ color: 'var(--text-primary)' }}>Utomator</span>
+        Utomator
         <br />
         <span className="text-gradient text-nowrap">
-          {displayText}
-          <motion.span
-            animate={{ opacity: [1, 0] }}
-            transition={{ duration: 0.5, repeat: Infinity }}
-            className="ml-1 inline-block h-[1em] w-0.5 align-middle"
-            style={{ background: '#06b6d4' }}
-          />
+          {typed}
+          {reduce ? null : (
+            <motion.span
+              animate={{ opacity: [1, 0] }}
+              transition={{ duration: 0.5, repeat: Infinity }}
+              className="ml-1 inline-block h-[1em] w-0.5 bg-cyan-500 align-middle"
+            />
+          )}
         </span>
       </motion.h1>
 
       <motion.p
-        initial={{ opacity: 0, y: 20 }}
+        initial={reduce ? false : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="max-w-xl text-base leading-relaxed md:text-lg"
-        style={{ color: 'var(--text-secondary)' }}
+        className="max-w-xl text-base leading-relaxed text-slate-600 md:text-lg"
       >
         Plan and review browser workflows for your LinkedIn and X accounts.
         Inspect first, approve changes explicitly, and keep evidence of what

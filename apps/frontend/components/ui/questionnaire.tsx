@@ -1,7 +1,7 @@
 'use client';
 
-import { cn } from '@/lib/utils';
 import { Questionnaire as Headless } from '@shadcn/react/questionnaire';
+import { cn } from '@/lib/utils';
 
 /**
  * Styled composition over the @shadcn/react questionnaire engine.
@@ -14,12 +14,12 @@ function navClasses(variant: 'default' | 'ghost') {
     'inline-flex min-h-9 cursor-pointer items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none',
     variant === 'ghost'
       ? 'text-slate-600 hover:bg-slate-100'
-      : 'bg-slate-900 text-white hover:bg-slate-700'
+      : 'bg-slate-900 text-white hover:bg-slate-700',
   );
 }
 
 export function Questionnaire(
-  props: React.ComponentProps<typeof Headless.Root>
+  props: React.ComponentProps<typeof Headless.Root>,
 ) {
   return (
     <Headless.Root
@@ -43,7 +43,7 @@ export function QuestionnaireProgress({
             data-testid="questionnaire-progress"
             className={cn(
               'text-[11px] font-semibold tracking-wider text-slate-500 uppercase',
-              className
+              className,
             )}
           >
             Question {progress.current + 1} of {progress.total}
@@ -75,7 +75,7 @@ export function QuestionnaireTitle({
     <Headless.Title
       className={cn(
         'block w-full max-w-full px-0 pb-0.5 text-sm font-bold text-slate-900',
-        className
+        className,
       )}
       {...props}
     />
@@ -115,7 +115,7 @@ export function QuestionnaireChoice({
     <Headless.Choice
       className={cn(
         'grid w-full cursor-pointer grid-cols-[auto_1fr] items-baseline gap-x-2.5 gap-y-0.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-teal-700 hover:border-teal-500/60 hover:bg-slate-50 data-[invalid=true]:border-rose-300 motion-reduce:transition-none',
-        className
+        className,
       )}
       {...props}
     >
@@ -135,7 +135,7 @@ export function QuestionnaireInput({
     <Headless.Input
       className={cn(
         'min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-50',
-        className
+        className,
       )}
       {...props}
     />
@@ -170,26 +170,43 @@ export function QuestionnairePrevious({
   className,
   ...props
 }: React.ComponentProps<typeof Headless.Previous>) {
-  return <Headless.Previous className={cn(navClasses('ghost'), className)} {...props} />;
+  return (
+    <Headless.Previous
+      className={cn(navClasses('ghost'), className)}
+      {...props}
+    />
+  );
 }
 
 export function QuestionnaireSkip({
   className,
   ...props
 }: React.ComponentProps<typeof Headless.Skip>) {
-  return <Headless.Skip className={cn(navClasses('ghost'), className)} {...props} />;
+  return (
+    <Headless.Skip className={cn(navClasses('ghost'), className)} {...props} />
+  );
 }
 
 export function QuestionnaireNext({
   className,
   ...props
 }: React.ComponentProps<typeof Headless.Next>) {
-  return <Headless.Next className={cn(navClasses('default'), className)} {...props} />;
+  return (
+    <Headless.Next
+      className={cn(navClasses('default'), className)}
+      {...props}
+    />
+  );
 }
 
 export function QuestionnaireSubmit({
   className,
   ...props
 }: React.ComponentProps<typeof Headless.Submit>) {
-  return <Headless.Submit className={cn(navClasses('default'), className)} {...props} />;
+  return (
+    <Headless.Submit
+      className={cn(navClasses('default'), className)}
+      {...props}
+    />
+  );
 }

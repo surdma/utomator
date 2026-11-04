@@ -1,5 +1,5 @@
 export type DashboardPane =
-  | 'pipeline'
+  | 'workspace'
   | 'history'
   | 'crafts'
   | 'profile'
@@ -49,6 +49,10 @@ export function getDashboardRoute(pathname: string): {
   else if (pathname === '/dashboard/editorial') pane = 'editorial';
   else if (pathname === '/dashboard/growth') pane = 'growth';
   else if (pathname === '/dashboard/settings') pane = 'settings';
-  else if (pathname === '/dashboard/pipeline') pane = 'pipeline';
+  else if (
+    pathname === '/dashboard/workspace' ||
+    pathname === '/dashboard/pipeline'
+  )
+    pane = 'workspace';
   return { pane, craftId, libraryView };
 }

@@ -6,7 +6,12 @@ export type Category =
   | 'content'
   | 'engagement';
 export type Kind =
-  'brief' | 'research' | 'draft' | 'review' | 'publish' | 'measure';
+  | 'brief'
+  | 'research'
+  | 'draft'
+  | 'review'
+  | 'publish'
+  | 'measure';
 export type Step = {
   id: string;
   kind: Kind;

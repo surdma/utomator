@@ -8,10 +8,16 @@ export default function WorkflowAnnotationDialog({
   open,
   onDismiss,
   taggedReviews,
+  onAnnotateFurther,
 }: {
   open: boolean;
   onDismiss: () => void;
   taggedReviews: TaggedAnnotationReview[];
+  /**
+   * Clone-mode entry: opens the saved review in the annotation studio as a
+   * new version; the approved original is never edited in place.
+   */
+  onAnnotateFurther?: (review: TaggedAnnotationReview) => void;
 }) {
   return (
     <StudioDialog
@@ -43,9 +49,19 @@ export default function WorkflowAnnotationDialog({
               {review.annotations.map((a, i) => (
                 <p key={a.id} className="text-xs text-slate-700">
                   {i + 1}. {a.action.replaceAll('-', ' ')}
-                  {a.comment ? ' · ' + a.comment : ''}
+                  {a.comment ? ` · ${a.comment}` : ''}
                 </p>
               ))}
+              {onAnnotateFurther && (
+                <button
+                  type="button"
+                  data-testid="workflow-annotation-annotate-further"
+                  onClick={() => onAnnotateFurther(review)}
+                  className="inline-flex text-xs font-bold text-teal-700 underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                >
+                  Annotate further
+                </button>
+              )}
               <a
                 href={review.yamlUrl}
                 target="_blank"

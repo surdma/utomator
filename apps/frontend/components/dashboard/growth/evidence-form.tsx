@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import type { Program, Run } from './growth-profile-types';
 import { request } from '../../../lib/growth-profile-client';
+import type { Program, Run } from './growth-profile-types';
 
 type Props = {
   run: Run;
@@ -24,10 +24,10 @@ export default function GrowthEvidenceForm({
   const active = run.currentStage;
   const selectedSections =
     program?.coverage.filter((section) =>
-      active?.sectionIds.includes(section.id)
+      active?.sectionIds.includes(section.id),
     ) ?? [];
   const currentEvidence = run.coverage.find(
-    (item) => item.id === evidenceSection
+    (item) => item.id === evidenceSection,
   );
   return (
     <form
@@ -36,7 +36,7 @@ export default function GrowthEvidenceForm({
         event.preventDefault();
         if (!evidenceSection) return;
         void mutate(async () => {
-          await request(endpoint + '/runs/' + run.id + '/evidence', 'POST', {
+          await request(`${endpoint}/runs/${run.id}/evidence`, 'POST', {
             sectionId: evidenceSection,
             text: evidenceText,
           });

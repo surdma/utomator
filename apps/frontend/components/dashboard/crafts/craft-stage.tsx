@@ -1,6 +1,6 @@
 'use client';
 
-import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
+import { Handle, type Node, type NodeProps, Position } from '@xyflow/react';
 import { Link2 } from 'lucide-react';
 import type { Kind } from './craft-types';
 
@@ -19,7 +19,7 @@ export default function Stage({
 }: NodeProps<Node<{ title: string; kind: Kind; details: string }, 'craft'>>) {
   return (
     <div
-      data-testid={'craft-node-' + data.details}
+      data-testid={`craft-node-${data.details}`}
       className={
         'group w-[220px] overflow-hidden rounded-2xl border bg-white shadow-[0_10px_32px_-20px_rgba(15,23,42,.5)] transition ' +
         (selected

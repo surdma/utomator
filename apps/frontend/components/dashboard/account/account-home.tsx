@@ -1,45 +1,29 @@
 'use client';
 
-import Image from 'next/image';
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { AccountSection } from '@/components/dashboard/account/account-format';
+import { accountSection } from '@/components/dashboard/account/account-format';
+import { Notice } from '@/components/dashboard/account/account-notice';
+import { DisconnectNetworkDialog } from '@/components/dashboard/account/dialogs/disconnect-network-dialog';
 import {
-  AudioLines,
-  Briefcase,
-  Building2,
-  ChevronRight,
-  Eye,
-  EyeOff,
-  Image as ImageIcon,
-  Info,
-  KeyRound,
-  LogOut,
-  MessagesSquare,
-  MessageSquareText,
-  Pencil,
-  SlidersHorizontal,
-  Sparkles,
-  UserRound,
-  Users,
-  Waypoints,
-} from 'lucide-react';
-import StudioDialog from '@/components/ui/studio-dialog';
-import {
-  primaryOperation,
-  providerMeta,
-} from '@/components/dashboard/connections/provider-meta';
-import {
-  growthCapabilities,
-  growthJourneys,
-  profileSections,
-} from '@/components/dashboard/growth/linkedin-growth-capabilities';
+  type ProfileDraft,
+  ProfileEditorDialog,
+} from '@/components/dashboard/account/dialogs/profile-editor-dialog';
+import { ProfilePlanDialog } from '@/components/dashboard/account/dialogs/profile-plan-dialog';
+import { RemoveAccountDialog } from '@/components/dashboard/account/dialogs/remove-account-dialog';
+import { AccountSectionNav } from '@/components/dashboard/account/sections/account-section-nav';
+import { MatorAccountSection } from '@/components/dashboard/account/sections/mator-account-section';
+import { NetworksSection } from '@/components/dashboard/account/sections/networks-section';
+import { PreferencesSection } from '@/components/dashboard/account/sections/preferences-section';
+import { ProfileSection } from '@/components/dashboard/account/sections/profile-section';
 import {
   fetchMatorModels,
   fetchMatorSettings,
-  saveMatorSettings,
   type MatorModelOption,
   type MatorSettingsMasked,
   type MatorSettingsSavePatch,
-} from '@/components/dashboard/pipeline/mator-api';
+  saveMatorSettings,
+} from '@/components/mator/mator-api';
 
 export type SocialAccount = {
   id: string;
@@ -50,18 +34,7 @@ export type SocialAccount = {
   avatarUrl?: string;
 };
 
-type Profile = {
-  displayName: string;
-  email: string;
-  location: string;
-  about: string;
-  headline?: string;
-  website?: string;
-  skills?: string;
-  experience?: string;
-  education?: string;
-  avatarUrl?: string;
-};
+type Profile = ProfileDraft;
 type AccountState = {
   revision: number;
   profile: Profile;
@@ -75,210 +48,8 @@ type Connection = {
   verifiedAt: string | null;
   avatarUrl?: string;
 };
-type Section = 'you' | 'connections' | 'mator' | 'preferences';
 
 const endpoint = '/api/account';
-const platforms = ['linkedin', 'x', 'instagram', 'github', 'devto'] as const;
-
-const senseCopy: Record<
-  MatorModelOption['role'],
-  { title: string; hint: string }
-> = {
-  chat: {
-    title: 'Writing',
-    hint: 'How Mator writes when you talk with it.',
-  },
-  vision: {
-    title: 'Pictures',
-    hint: 'How Mator understands images you attach.',
-  },
-  'speech-to-text': {
-    title: 'Listening',
-    hint: 'How Mator hears you when you speak.',
-  },
-  'text-to-speech': {
-    title: 'Speaking',
-    hint: 'The voice Mator uses when it talks back.',
-  },
-  moderation: {
-    title: 'Review',
-    hint: 'How Mator checks a message before preparing a step.',
-  },
-};
-
-function accountSection(pathname: string, pane: string): Section {
-  if (pane === 'settings' || pathname === '/dashboard/settings') return 'mator';
-  if (pathname.endsWith('/connections')) return 'connections';
-  return 'you';
-}
-
-const journeyIcon = {
-  profile: UserRound,
-  audience: Users,
-  job: Briefcase,
-  company: Building2,
-  relationships: MessagesSquare,
-} as const;
-
-function workFor(ids: readonly string[]) {
-  return ids
-    .map((id) => growthCapabilities.find((item) => item.id === id)?.title)
-    .filter((title): title is string => Boolean(title));
-}
-
-function choiceLabel(model: MatorModelOption) {
-  const tier = model.tier === 'free' ? 'Free' : 'Paid';
-  const friendly: Record<string, string> = {
-    'openai/gpt-oss-20b': 'Everyday writing',
-    'openai/gpt-oss-120b': 'Deeper writing',
-    'qwen/qwen3.8-27b': 'Picture understanding',
-    'whisper-large-v3-turbo': 'Quick listening',
-    'whisper-large-v3': 'Careful listening',
-    'canopylabs/orpheus-v1-english': 'Spoken replies',
-  };
-  return `${friendly[model.id] ?? model.label} — ${tier}`;
-}
-
-function portraitSrc(value?: string) {
-  if (!value) return undefined;
-  const lower = value.toLowerCase();
-  if (lower.includes('displaybackground') || lower.includes('backgroundimage'))
-    return undefined;
-  return value;
-}
-
-function statusLine(status: Connection['status'] | undefined) {
-  if (status === 'connected') return 'Connected';
-  if (status === 'sign-in-open') return 'Finishing sign-in';
-  if (status === 'api-required') return 'Waiting on official access';
-  return 'Not connected';
-}
-
-function Hint({ label, children }: { label: string; children: string }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const panelId = useId();
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: MouseEvent) => {
-      if (!ref.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={panelId}
-        aria-label={label}
-        onClick={() => setOpen((value) => !value)}
-        className="inline-flex size-11 cursor-pointer items-center justify-center rounded-full text-current/80 transition duration-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300 motion-reduce:transition-none"
-      >
-        <Info className="size-4" aria-hidden="true" />
-      </button>
-      {open ? (
-        <p
-          id={panelId}
-          role="note"
-          className="absolute top-12 right-0 z-20 w-[min(18rem,calc(100vw-3rem))] rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-700 shadow-xl"
-        >
-          {children}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-function Notice({
-  tone,
-  children,
-  onDismiss,
-}: {
-  tone: 'ok' | 'warn';
-  children: string;
-  onDismiss: () => void;
-}) {
-  return (
-    <div
-      role={tone === 'warn' ? 'alert' : 'status'}
-      className={
-        'flex items-start justify-between gap-4 rounded-2xl px-5 py-4 text-sm leading-6 ' +
-        (tone === 'warn'
-          ? 'border border-rose-200 bg-rose-50 text-rose-900'
-          : 'border border-teal-200 bg-teal-50 text-teal-950')
-      }
-    >
-      <p>{children}</p>
-      <button
-        type="button"
-        onClick={onDismiss}
-        className="min-h-11 shrink-0 cursor-pointer rounded-lg px-3 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-      >
-        Dismiss
-      </button>
-    </div>
-  );
-}
-
-function SwitchRow({
-  checked,
-  disabled,
-  label,
-  hint,
-  testId,
-  onChange,
-}: {
-  checked: boolean;
-  disabled: boolean;
-  label: string;
-  hint: string;
-  testId?: string;
-  onChange: (next: boolean) => void;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-6 border-b border-slate-200 py-6 last:border-b-0">
-      <div className="min-w-0">
-        <p className="text-base font-semibold text-[#111a25]">{label}</p>
-        <p className="mt-1 max-w-md text-sm leading-6 text-slate-600">{hint}</p>
-      </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        aria-label={label}
-        data-testid={testId}
-        disabled={disabled}
-        onClick={() => onChange(!checked)}
-        className="inline-flex min-h-11 min-w-16 cursor-pointer items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        <span
-          className={
-            'inline-flex h-8 w-14 items-center rounded-full p-1 transition duration-200 motion-reduce:transition-none ' +
-            (checked ? 'bg-teal-700' : 'bg-slate-300')
-          }
-        >
-          <span
-            className={
-              'size-6 rounded-full bg-white shadow transition duration-200 motion-reduce:transition-none ' +
-              (checked ? 'translate-x-6' : 'translate-x-0')
-            }
-          />
-        </span>
-      </button>
-    </div>
-  );
-}
 
 export default function AccountHome({
   pathname,
@@ -305,7 +76,7 @@ export default function AccountHome({
   linkedAccountId?: string | null;
 }) {
   const routed = accountSection(pathname, pane);
-  const [section, setSection] = useState<Section>(routed);
+  const [section, setSection] = useState<AccountSection>(routed);
   const [planOpen, setPlanOpen] = useState(false);
   const [data, setData] = useState<AccountState | null>(null);
   const [draft, setDraft] = useState<Profile | null>(null);
@@ -339,7 +110,7 @@ export default function AccountHome({
   useEffect(() => {
     if (pane === 'settings' || pathname === '/dashboard/settings') {
       setSection((current) =>
-        current === 'preferences' || current === 'mator' ? current : 'mator'
+        current === 'preferences' || current === 'mator' ? current : 'mator',
       );
       return;
     }
@@ -381,7 +152,7 @@ export default function AccountHome({
 
   useEffect(() => {
     void loadAccount();
-  }, [loadAccount, linkedAccountId]);
+  }, [loadAccount]);
 
   const refreshConnections = useCallback(async () => {
     const response = await fetch('/api/connectors', { cache: 'no-store' });
@@ -421,12 +192,12 @@ export default function AccountHome({
           if (!alive) return;
           try {
             const response = await fetch(
-              '/api/connectors/' + encodeURIComponent(id) + '/sync',
+              `/api/connectors/${encodeURIComponent(id)}/sync`,
               {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: '{}',
-              }
+              },
             );
             const result = (await response.json()) as { status?: string };
             if (!alive || !response.ok || result.status !== 'connected')
@@ -461,7 +232,7 @@ export default function AccountHome({
       return false;
     }
     setNotice(
-      'Sign in in the new tab. Phone and computer use the same page. Come back and click Sync when you are done.'
+      'Sign in in the new tab. Phone and computer use the same page. Come back and click Sync when you are done.',
     );
     return true;
   }
@@ -471,7 +242,7 @@ export default function AccountHome({
       (item) =>
         item.platform === platform &&
         item.status === 'sign-in-open' &&
-        !item.handle
+        !item.handle,
     );
     const known = accountId || pendingSync[platform] || openSignIn?.id;
     const busyKey = known || platform;
@@ -506,12 +277,12 @@ export default function AccountHome({
       // Connect is only for a profile that was saved and later signed out.
       if (live?.status === 'disconnected') {
         const response = await fetch(
-          '/api/connectors/' + encodeURIComponent(known) + '/connect',
+          `/api/connectors/${encodeURIComponent(known)}/connect`,
           {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: '{}',
-          }
+          },
         );
         const result = (await response.json()) as {
           error?: string;
@@ -522,12 +293,12 @@ export default function AccountHome({
         return;
       }
       const response = await fetch(
-        '/api/connectors/' + encodeURIComponent(known) + '/sync',
+        `/api/connectors/${encodeURIComponent(known)}/sync`,
         {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: '{}',
-        }
+        },
       );
       const result = (await response.json()) as {
         error?: string;
@@ -542,11 +313,11 @@ export default function AccountHome({
       setNotice(
         result.status === 'connected'
           ? 'Network synced.'
-          : 'Sign-in is still open. Finish it, then click Sync again.'
+          : 'Sign-in is still open. Finish it, then click Sync again.',
       );
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : 'Could not sync this network'
+        cause instanceof Error ? cause.message : 'Could not sync this network',
       );
     } finally {
       setLinkBusy(null);
@@ -559,12 +330,12 @@ export default function AccountHome({
     setNotice('');
     try {
       const response = await fetch(
-        '/api/connectors/' + encodeURIComponent(id) + '/' + operation,
+        `/api/connectors/${encodeURIComponent(id)}/${operation}`,
         {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: '{}',
-        }
+        },
       );
       const result = (await response.json()) as { error?: string };
       if (!response.ok)
@@ -572,11 +343,13 @@ export default function AccountHome({
       await refreshConnections();
       setDisconnectId(null);
       setNotice(
-        operation === 'sync' ? 'Network synced.' : 'Network disconnected.'
+        operation === 'sync' ? 'Network synced.' : 'Network disconnected.',
       );
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : 'Could not update this network'
+        cause instanceof Error
+          ? cause.message
+          : 'Could not update this network',
       );
     } finally {
       setLinkBusy(null);
@@ -596,7 +369,7 @@ export default function AccountHome({
       setVoices(catalog.voices);
     } catch (cause) {
       setMatorError(
-        cause instanceof Error ? cause.message : 'Unable to load Mator'
+        cause instanceof Error ? cause.message : 'Unable to load Mator',
       );
     } finally {
       setMatorLoading(false);
@@ -607,14 +380,10 @@ export default function AccountHome({
     void loadMator();
   }, [loadMator]);
 
-  useEffect(() => {
-    if (editingKey) keyInputRef.current?.focus();
-  }, [editingKey]);
-
   async function saveAccount(
     path: string,
     method: 'PUT' | 'DELETE',
-    document?: unknown
+    document?: unknown,
   ) {
     if (!data) return;
     setSaving(true);
@@ -646,7 +415,7 @@ export default function AccountHome({
 
   async function patchMator(
     patch: MatorSettingsSavePatch,
-    options?: { clearDraft?: boolean; saved?: string }
+    options?: { clearDraft?: boolean; saved?: string },
   ) {
     setMatorBusy(true);
     setMatorError('');
@@ -667,14 +436,14 @@ export default function AccountHome({
     }
   }
 
-  function openSection(next: Section) {
+  function openSection(next: AccountSection) {
     setSection(next);
     onNavigate(
       next === 'connections'
         ? '/dashboard/profile/connections'
         : next === 'you'
           ? '/dashboard/profile'
-          : '/dashboard/settings'
+          : '/dashboard/settings',
     );
   }
 
@@ -688,33 +457,15 @@ export default function AccountHome({
       return;
     }
     window.location.assign(
-      id === 'audience' ? '/dashboard/editorial' : '/dashboard/growth'
+      id === 'audience' ? '/dashboard/editorial' : '/dashboard/growth',
     );
   }
 
   const profile = data?.profile;
   const initial = (profile?.displayName || 'U').trim().charAt(0).toUpperCase();
   const linkedCount = connections.filter(
-    (item) => item.status === 'connected'
+    (item) => item.status === 'connected',
   ).length;
-  const menu = [
-    { id: 'you' as const, label: 'Profile', icon: UserRound },
-    { id: 'connections' as const, label: 'Networks', icon: Waypoints },
-    { id: 'mator' as const, label: 'Mator', icon: Sparkles },
-    {
-      id: 'preferences' as const,
-      label: 'Preferences',
-      icon: SlidersHorizontal,
-    },
-  ];
-  const keyReady = Boolean(mator?.groqKeyConfigured);
-  const showKeyEditor = editingKey || !keyReady;
-  const keyStatus =
-    mator?.keySource === 'environment'
-      ? 'Environment key'
-      : keyReady
-        ? 'Saved key'
-        : 'Not configured';
   const removeAccount =
     data?.socialAccounts.find((row) => row.id === removeId) ?? null;
   const disconnectAccount =
@@ -726,67 +477,14 @@ export default function AccountHome({
         data-testid="automation-settings-page"
         className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start lg:gap-10"
       >
-        <aside className="rounded-3xl bg-white p-4 shadow-[0_20px_50px_-36px_rgba(17,26,37,0.45)] lg:sticky lg:top-0">
-          <div className="flex items-center gap-3 px-2 py-1">
-            <div className="flex size-12 items-center justify-center overflow-hidden rounded-2xl bg-[#111a25] font-serif text-xl text-white">
-              {portraitSrc(profile?.avatarUrl) ||
-              portraitSrc(
-                data?.socialAccounts.find((row) => portraitSrc(row.avatarUrl))
-                  ?.avatarUrl
-              ) ? (
-                <Image
-                  unoptimized
-                  src={
-                    (portraitSrc(profile?.avatarUrl) ||
-                      portraitSrc(
-                        data?.socialAccounts.find((row) =>
-                          portraitSrc(row.avatarUrl)
-                        )?.avatarUrl
-                      )) ?? ''
-                  }
-                  alt=""
-                  width={48}
-                  height={48}
-                  className="size-12 rounded-2xl object-cover"
-                />
-              ) : (
-                initial
-              )}
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-[#111a25]">
-                {profile?.displayName || 'Account'}
-              </p>
-              <p className="text-xs text-slate-500">{linkedCount} linked</p>
-            </div>
-          </div>
-          <nav
-            aria-label="Account"
-            className="mt-3 grid grid-cols-2 gap-1 lg:grid-cols-1"
-          >
-            {menu.map((item) => {
-              const active = section === item.id;
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  aria-current={active ? 'page' : undefined}
-                  onClick={() => openSection(item.id)}
-                  className={
-                    'flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-3 text-left text-sm font-semibold transition duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 motion-reduce:transition-none ' +
-                    (active
-                      ? 'bg-[#111a25] text-white'
-                      : 'text-slate-700 hover:bg-slate-50')
-                  }
-                >
-                  <Icon className="size-4 shrink-0" aria-hidden="true" />
-                  {item.label}
-                </button>
-              );
-            })}
-          </nav>
-        </aside>
+        <AccountSectionNav
+          section={section}
+          profile={profile}
+          socialAccounts={data?.socialAccounts ?? []}
+          linkedCount={linkedCount}
+          initial={initial}
+          onOpenSection={openSection}
+        />
         <div className="flex max-w-3xl min-w-0 flex-col gap-4">
           {notice ? (
             <Notice tone="ok" onDismiss={() => setNotice('')}>
@@ -799,883 +497,105 @@ export default function AccountHome({
             </Notice>
           ) : null}
 
-          {section === 'you' && (
-            <section
-              aria-labelledby="account-you-heading"
-              className="flex flex-col gap-4"
-            >
-              <h1
-                id="account-you-heading"
-                className="font-serif text-3xl tracking-tight text-[#111a25]"
-              >
-                Profile
-              </h1>
-              <div className="overflow-hidden rounded-3xl bg-white shadow-[0_20px_50px_-36px_rgba(17,26,37,0.45)]">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
-                  {!data || !profile ? (
-                    <div className="h-10 flex-1 animate-pulse rounded-lg bg-slate-100 motion-reduce:animate-none" />
-                  ) : (
-                    <>
-                      <div className="min-w-0">
-                        <p className="truncate text-base font-semibold text-[#111a25]">
-                          {profile.displayName || 'Name not added'}
-                        </p>
-                        <p className="mt-0.5 truncate text-sm text-slate-500">
-                          {[profile.headline, profile.email, profile.location]
-                            .filter(Boolean)
-                            .join(' · ') || 'Add email and location'}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDraft({ ...profile });
-                          setEditingProfile(true);
-                        }}
-                        className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-                      >
-                        <Pencil className="size-4" aria-hidden="true" />
-                        Edit
-                      </button>
-                    </>
-                  )}
-                </div>
-                {profile &&
-                [
-                  profile.about,
-                  profile.website,
-                  profile.skills,
-                  profile.experience,
-                  profile.education,
-                ].some(Boolean) ? (
-                  <dl className="grid gap-4 border-b border-slate-100 px-5 py-4 sm:grid-cols-2">
-                    {(
-                      [
-                        ['About', profile.about],
-                        ['Website', profile.website],
-                        ['Skills', profile.skills],
-                        ['Experience', profile.experience],
-                        ['Education', profile.education],
-                      ] as const
-                    )
-                      .filter(([, value]) => Boolean(value))
-                      .map(([label, value]) => (
-                        <div
-                          key={label}
-                          className={
-                            label === 'About' || label === 'Experience'
-                              ? 'sm:col-span-2'
-                              : ''
-                          }
-                        >
-                          <dt className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                            {label}
-                          </dt>
-                          <dd className="mt-1 line-clamp-4 text-sm leading-6 text-[#111a25]">
-                            {value}
-                          </dd>
-                        </div>
-                      ))}
-                  </dl>
-                ) : null}
-                <ul>
-                  {growthJourneys.map((journey) => {
-                    const Icon = journeyIcon[journey.id];
-                    const action =
-                      journey.id === 'profile'
-                        ? 'Review'
-                        : journey.id === 'job'
-                          ? 'Open career'
-                          : 'Open';
-                    return (
-                      <li
-                        key={journey.id}
-                        className="flex items-center gap-3 border-t border-slate-100 px-5 py-3"
-                      >
-                        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-800">
-                          <Icon className="size-4" aria-hidden="true" />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-[#111a25]">
-                            {journey.title}
-                          </p>
-                          <p className="truncate text-sm text-slate-500">
-                            {journey.outcome}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => runAim(journey.id)}
-                          className="inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1 rounded-xl px-3 text-sm font-semibold text-teal-800 hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-                        >
-                          {action}
-                          <ChevronRight className="size-4" aria-hidden="true" />
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            </section>
-          )}
+          {section === 'you' ? (
+            <ProfileSection
+              dataLoaded={Boolean(data)}
+              profile={profile}
+              onEdit={() => {
+                if (profile) {
+                  setDraft({ ...profile });
+                  setEditingProfile(true);
+                }
+              }}
+              onRunAim={runAim}
+            />
+          ) : null}
 
-          {section === 'connections' && (
-            <section
-              aria-labelledby="account-networks-heading"
-              className="flex flex-col gap-4"
-            >
-              <header className="flex flex-wrap items-center justify-between gap-3">
-                <h1
-                  id="account-networks-heading"
-                  className="font-serif text-3xl tracking-tight text-[#111a25]"
-                >
-                  Networks
-                </h1>
-                <button
-                  type="button"
-                  onClick={onConnect}
-                  className="inline-flex min-h-11 cursor-pointer items-center rounded-xl bg-teal-700 px-4 text-sm font-semibold text-white transition duration-200 hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 motion-reduce:transition-none"
-                >
-                  Manage connections
-                </button>
-              </header>
-              {available === 'offline' ? (
-                <p
-                  role="status"
-                  className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-950"
-                >
-                  Utomator is not running on this computer, so live connection
-                  status may be out of date. Saved accounts are still listed.
-                </p>
-              ) : null}
-              <ul className="divide-y divide-slate-200 overflow-hidden rounded-3xl bg-white shadow-[0_20px_50px_-36px_rgba(17,26,37,0.45)]">
-                {platforms.map((platformKey) => {
-                  const meta = providerMeta[platformKey];
-                  const Icon = meta.icon;
-                  const rows =
-                    data?.socialAccounts.filter(
-                      (row) => row.platform === platformKey
-                    ) ?? [];
-                  return (
-                    <li key={platformKey} className="px-5 py-4">
-                      {rows.length === 0 ? (
-                        <div className="flex items-center gap-4">
-                          <span
-                            className={
-                              'flex size-11 shrink-0 items-center justify-center rounded-xl ' +
-                              meta.tile
-                            }
-                          >
-                            <Icon className="size-5!" />
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <h2 className="text-base font-semibold text-[#111a25]">
-                              {meta.name}
-                            </h2>
-                            <p className="text-sm text-slate-500">
-                              No verified account linked.
-                            </p>
-                          </div>
-                          {platformKey === 'linkedin' || platformKey === 'x' ? (
-                            <button
-                              type="button"
-                              disabled={
-                                linkBusy === platformKey ||
-                                linkBusy === pendingSync[platformKey]
-                              }
-                              onClick={() => {
-                                openProviderTab(platformKey);
-                                void beginSync(platformKey);
-                              }}
-                              className="inline-flex min-h-11 shrink-0 cursor-pointer items-center rounded-xl bg-[#111a25] px-4 text-sm font-semibold text-white hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              {linkBusy === platformKey ||
-                              linkBusy === pendingSync[platformKey]
-                                ? 'Working…'
-                                : 'Sync'}
-                            </button>
-                          ) : null}
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-3">
-                          {rows.map((row) => {
-                            const live = connections.find(
-                              (item) => item.id === row.id
-                            );
-                            const inUse =
-                              linkedAccountId === row.id ||
-                              (selectedAccount?.platform === row.platform &&
-                                selectedAccount.handle === row.handle);
-                            const disconnecting =
-                              primaryOperation(
-                                live?.status ?? 'disconnected',
-                                live?.verifiedAt ?? null
-                              ) === 'disconnect';
-                            const portrait = portraitSrc(row.avatarUrl);
-                            return (
-                              <div
-                                key={row.id}
-                                className="flex items-center gap-4"
-                              >
-                                <span
-                                  className={
-                                    'flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full ' +
-                                    (portrait ? '' : meta.tile)
-                                  }
-                                >
-                                  {portrait ? (
-                                    <Image
-                                      unoptimized
-                                      src={portrait}
-                                      alt=""
-                                      width={44}
-                                      height={44}
-                                      className="size-11 rounded-full object-cover"
-                                    />
-                                  ) : (
-                                    <Icon className="size-5!" />
-                                  )}
-                                </span>
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex min-w-0 items-center gap-2">
-                                    <h2 className="truncate text-base font-semibold text-[#111a25]">
-                                      {meta.name}
-                                    </h2>
-                                    <span className="shrink-0 rounded-full bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-900">
-                                      {statusLine(live?.status)}
-                                    </span>
-                                  </div>
-                                  <p className="truncate text-sm text-slate-500">
-                                    @{row.handle}
-                                    {inUse ? ' · In use' : ''}
-                                  </p>
-                                </div>
-                                {row.platform === 'linkedin' ||
-                                row.platform === 'x' ? (
-                                  disconnecting ? (
-                                    <button
-                                      type="button"
-                                      disabled={linkBusy === row.id}
-                                      onClick={() => setDisconnectId(row.id)}
-                                      className="inline-flex min-h-11 shrink-0 cursor-pointer items-center rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
-                                    >
-                                      {linkBusy === row.id
-                                        ? 'Working…'
-                                        : 'Disconnect'}
-                                    </button>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      disabled={linkBusy === row.id}
-                                      onClick={() => {
-                                        openProviderTab(
-                                          row.platform as 'linkedin' | 'x'
-                                        );
-                                        void beginSync(
-                                          row.platform as 'linkedin' | 'x',
-                                          row.id
-                                        );
-                                      }}
-                                      className="inline-flex min-h-11 shrink-0 cursor-pointer items-center rounded-xl bg-[#111a25] px-4 text-sm font-semibold text-white hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
-                                    >
-                                      {linkBusy === row.id
-                                        ? 'Working…'
-                                        : 'Sync'}
-                                    </button>
-                                  )
-                                ) : null}
-                              </div>
-                            );
-                          })}
-                          {rows.length > 1 ? (
-                            <p
-                              role="alert"
-                              className="text-sm leading-6 text-amber-900"
-                            >
-                              More than one account is saved here. Remove the
-                              extra one before connecting another.
-                            </p>
-                          ) : null}
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          )}
+          {section === 'connections' ? (
+            <NetworksSection
+              available={available}
+              socialAccounts={data?.socialAccounts}
+              connections={connections}
+              linkBusy={linkBusy}
+              pendingSync={pendingSync}
+              linkedAccountId={linkedAccountId}
+              selectedAccount={selectedAccount}
+              onConnect={onConnect}
+              onOpenProviderTab={openProviderTab}
+              onBeginSync={beginSync}
+              onRequestDisconnect={setDisconnectId}
+            />
+          ) : null}
 
-          {section === 'mator' && (
-            <section
-              aria-labelledby="account-mator-heading"
-              data-testid="mator-settings-card"
-              className="flex flex-col gap-8"
-            >
-              <header>
-                <h1
-                  id="account-mator-heading"
-                  className="font-serif text-3xl tracking-tight text-[#111a25]"
-                >
-                  Mator
-                </h1>
-                <p className="mt-3 max-w-xl text-base leading-7 text-slate-600">
-                  Your key lets Mator write, listen, and look at pictures with
-                  you. It stays private after you save it.
-                </p>
-              </header>
+          {section === 'mator' ? (
+            <MatorAccountSection
+              matorLoading={matorLoading}
+              mator={mator}
+              models={models}
+              voices={voices}
+              matorError={matorError}
+              matorBusy={matorBusy}
+              keyDraft={keyDraft}
+              keyVisible={keyVisible}
+              editingKey={editingKey}
+              confirmClearKey={confirmClearKey}
+              keyInputRef={keyInputRef}
+              onDismissMatorError={() => setMatorError('')}
+              onKeyDraftChange={setKeyDraft}
+              onSetKeyVisible={setKeyVisible}
+              onEditingKeyChange={setEditingKey}
+              onConfirmClearKeyChange={setConfirmClearKey}
+              onPatchMator={patchMator}
+            />
+          ) : null}
 
-              {matorLoading ? (
-                <div className="h-48 animate-pulse rounded-3xl bg-[#111a25]/10 motion-reduce:animate-none" />
-              ) : (
-                <div className="rounded-3xl bg-[#111a25] px-6 py-7 text-white sm:px-8">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <KeyRound
-                        className="size-5 text-teal-200"
-                        aria-hidden="true"
-                      />
-                      <h2 className="text-lg font-semibold">API key</h2>
-                    </div>
-                    <Hint label="About your API key">
-                      After you save a key, Utomator keeps it private and will
-                      not show it again. Edit replaces it. Remove deletes it
-                      from this account.
-                    </Hint>
-                  </div>
-                  <p
-                    data-testid="mator-key-status"
-                    className="mt-4 inline-flex min-h-8 items-center rounded-full bg-white/10 px-3 text-xs font-semibold tracking-wide text-teal-100"
-                  >
-                    {keyStatus}
-                  </p>
-                  <p className="mt-3 max-w-lg text-sm leading-6 text-slate-300">
-                    {mator?.keySource === 'environment'
-                      ? 'This computer already has a key. Save your own if you want Mator to use a different one.'
-                      : keyReady
-                        ? 'A key is saved. Edit it whenever you want to replace it.'
-                        : 'Paste a key to turn Mator on for this account.'}
-                  </p>
-
-                  {showKeyEditor ? (
-                    <div className="mt-6">
-                      <label
-                        htmlFor="mator-api-key"
-                        className="text-sm font-semibold text-white"
-                      >
-                        API key
-                      </label>
-                      <div className="mt-2 flex items-center gap-2 rounded-2xl bg-white p-1.5">
-                        <input
-                          id="mator-api-key"
-                          ref={keyInputRef}
-                          type={keyVisible ? 'text' : 'password'}
-                          autoComplete="off"
-                          spellCheck={false}
-                          value={keyDraft}
-                          disabled={matorBusy}
-                          placeholder={
-                            keyReady ? 'Type a new key' : 'Paste your API key'
-                          }
-                          onChange={(event) => setKeyDraft(event.target.value)}
-                          className="min-h-11 min-w-0 flex-1 bg-transparent px-3 text-base text-slate-900 outline-none placeholder:text-slate-400"
-                        />
-                        <button
-                          type="button"
-                          aria-label={
-                            keyVisible ? 'Hide API key' : 'Show API key'
-                          }
-                          onClick={() => setKeyVisible((value) => !value)}
-                          className="inline-flex size-11 cursor-pointer items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-teal-700"
-                        >
-                          {keyVisible ? (
-                            <EyeOff className="size-4" />
-                          ) : (
-                            <Eye className="size-4" />
-                          )}
-                        </button>
-                      </div>
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          disabled={matorBusy || !keyDraft.trim()}
-                          onClick={() =>
-                            void patchMator(
-                              { groqApiKey: keyDraft.trim() },
-                              { clearDraft: true, saved: 'API key saved.' }
-                            )
-                          }
-                          className="inline-flex min-h-11 cursor-pointer items-center rounded-xl bg-teal-500 px-4 text-sm font-semibold text-[#111a25] transition duration-200 hover:bg-teal-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none"
-                        >
-                          {matorBusy ? 'Saving…' : 'Save key'}
-                        </button>
-                        {keyReady ? (
-                          <button
-                            type="button"
-                            disabled={matorBusy}
-                            onClick={() => {
-                              setEditingKey(false);
-                              setKeyDraft('');
-                              setKeyVisible(false);
-                            }}
-                            className="inline-flex min-h-11 cursor-pointer items-center rounded-xl px-4 text-sm font-semibold text-white hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-                          >
-                            Cancel
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
-                      <p
-                        className="font-mono text-lg tracking-[0.35em] text-slate-200"
-                        aria-hidden="true"
-                      >
-                        •••• •••• ••••
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setEditingKey(true)}
-                          className="inline-flex min-h-11 cursor-pointer items-center rounded-xl bg-white px-4 text-sm font-semibold text-[#111a25] hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-                        >
-                          Edit key
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmClearKey(true)}
-                          className="inline-flex min-h-11 cursor-pointer items-center rounded-xl border border-rose-300/60 px-4 text-sm font-semibold text-rose-100 hover:bg-rose-500/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-                        >
-                          Remove key
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {matorError ? (
-                <Notice tone="warn" onDismiss={() => setMatorError('')}>
-                  {matorError}
-                </Notice>
-              ) : null}
-
-              {mator ? (
-                <div className="flex flex-col gap-8">
-                  <div>
-                    <h2 className="font-serif text-2xl text-[#111a25]">
-                      How Mator shows up
-                    </h2>
-                    <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
-                      Pick the style of help you want. You can change these any
-                      time.
-                    </p>
-                  </div>
-                  {(
-                    [
-                      ['chat', MessageSquareText, mator.modelId, 'modelId'],
-                      [
-                        'vision',
-                        ImageIcon,
-                        mator.visionModelId,
-                        'visionModelId',
-                      ],
-                      [
-                        'speech-to-text',
-                        AudioLines,
-                        mator.sttModelId,
-                        'sttModelId',
-                      ],
-                      [
-                        'text-to-speech',
-                        Sparkles,
-                        mator.ttsModelId,
-                        'ttsModelId',
-                      ],
-                    ] as const
-                  ).map(([role, Icon, value, field]) => {
-                    const copy = senseCopy[role];
-                    const options = models.filter(
-                      (model) => model.role === role
-                    );
-                    return (
-                      <label
-                        key={role}
-                        className="block border-t border-slate-200 pt-6"
-                      >
-                        <span className="flex items-center gap-2 text-base font-semibold text-[#111a25]">
-                          <Icon
-                            className="size-4 text-teal-800"
-                            aria-hidden="true"
-                          />
-                          {copy.title}
-                        </span>
-                        <span className="mt-1 block text-sm leading-6 text-slate-600">
-                          {copy.hint}
-                        </span>
-                        <select
-                          data-testid={`mator-model-${role}`}
-                          value={value}
-                          disabled={matorBusy || options.length === 0}
-                          onChange={(event) =>
-                            void patchMator({ [field]: event.target.value })
-                          }
-                          className="mt-3 min-h-11 w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {options.map((model) => (
-                            <option key={model.id} value={model.id}>
-                              {choiceLabel(model)}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    );
-                  })}
-                  <label className="block border-t border-slate-200 pt-6">
-                    <span className="text-base font-semibold text-[#111a25]">
-                      Care
-                    </span>
-                    <span className="mt-1 block text-sm leading-6 text-slate-600">
-                      Quick is faster. Thorough takes a little longer and thinks
-                      further.
-                    </span>
-                    <select
-                      data-testid="mator-reasoning-effort"
-                      value={mator.reasoningEffort}
-                      disabled={matorBusy}
-                      onChange={(event) =>
-                        void patchMator({
-                          reasoningEffort: event.target
-                            .value as MatorSettingsSavePatch['reasoningEffort'],
-                        })
-                      }
-                      className="mt-3 min-h-11 w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-                    >
-                      <option value="low">Quick</option>
-                      <option value="medium">Balanced</option>
-                      <option value="high">Thorough</option>
-                    </select>
-                  </label>
-                  <label className="block border-t border-slate-200 pt-6">
-                    <span className="text-base font-semibold text-[#111a25]">
-                      Speaking voice
-                    </span>
-                    <span className="mt-1 block text-sm leading-6 text-slate-600">
-                      The voice you hear when Mator reads a note aloud.
-                    </span>
-                    <select
-                      data-testid="mator-tts-voice"
-                      value={mator.ttsVoice}
-                      disabled={matorBusy}
-                      onChange={(event) =>
-                        void patchMator({ ttsVoice: event.target.value })
-                      }
-                      className="mt-3 min-h-11 w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-                    >
-                      {(voices.length
-                        ? voices
-                        : [
-                            {
-                              id: 'hannah',
-                              label: 'Hannah',
-                              language: 'English',
-                            },
-                            { id: 'troy', label: 'Troy', language: 'English' },
-                            {
-                              id: 'austin',
-                              label: 'Austin',
-                              language: 'English',
-                            },
-                          ]
-                      ).map((voice) => (
-                        <option key={voice.id} value={voice.id}>
-                          {voice.label} — {voice.language}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-              ) : null}
-            </section>
-          )}
-
-          {section === 'preferences' && (
-            <section
-              aria-labelledby="account-preferences-heading"
-              className="flex flex-col gap-4"
-            >
-              <header>
-                <h1
-                  id="account-preferences-heading"
-                  className="font-serif text-3xl tracking-tight text-[#111a25]"
-                >
-                  Preferences
-                </h1>
-                <p className="mt-3 max-w-xl text-base leading-7 text-slate-600">
-                  Choose how much Mator does on its own, and how it talks with
-                  you.
-                </p>
-              </header>
-              <div className="rounded-3xl bg-white px-6 shadow-[0_20px_50px_-36px_rgba(17,26,37,0.45)] sm:px-8">
-                <SwitchRow
-                  label="Ask before changes"
-                  hint="Mator shows a change and waits. Turn this off to let those changes apply right away."
-                  checked={!(mator?.autoApprove ?? false)}
-                  disabled={matorBusy || !mator}
-                  onChange={(ask) => void patchMator({ autoApprove: !ask })}
-                />
-                <SwitchRow
-                  label="Keep older chats short"
-                  hint="Mator sets aside earlier messages so a long conversation stays easy to follow."
-                  checked={mator?.squashPipelineHistory ?? false}
-                  disabled={matorBusy || !mator}
-                  onChange={(value) =>
-                    void patchMator({ squashPipelineHistory: value })
-                  }
-                />
-                <SwitchRow
-                  label="Read notes aloud"
-                  hint="Mator speaks short explanations while you work together."
-                  checked={mator?.howTtsEnabled ?? true}
-                  disabled={matorBusy || !mator}
-                  onChange={(value) =>
-                    void patchMator({ howTtsEnabled: value })
-                  }
-                />
-                <SwitchRow
-                  label="Check messages first"
-                  hint="Mator reviews what you send before it prepares the next step."
-                  testId="mator-moderation-toggle"
-                  checked={mator?.moderationEnabled ?? false}
-                  disabled={matorBusy || !mator}
-                  onChange={(value) =>
-                    void patchMator({ moderationEnabled: value })
-                  }
-                />
-              </div>
-              {hosted ? (
-                <form
-                  method="post"
-                  action="/auth/logout"
-                  className="border-t border-slate-200 pt-8"
-                >
-                  <h2 className="text-base font-semibold text-[#111a25]">
-                    Sign out
-                  </h2>
-                  <p className="mt-1 max-w-md text-sm leading-6 text-slate-600">
-                    This signs you out of Utomator. Your linked networks stay as
-                    they are.
-                  </p>
-                  <button
-                    type="submit"
-                    className="mt-4 inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-slate-300 px-4 text-sm font-semibold text-slate-800 hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-                  >
-                    <LogOut className="size-4" aria-hidden="true" />
-                    Sign out
-                  </button>
-                </form>
-              ) : null}
-            </section>
-          )}
+          {section === 'preferences' ? (
+            <PreferencesSection
+              mator={mator}
+              matorBusy={matorBusy}
+              hosted={hosted}
+              onPatchMator={patchMator}
+            />
+          ) : null}
         </div>
       </div>
 
-      <StudioDialog
-        open={planOpen}
-        title="Improve my profile"
-        description="A prioritized, evidence-backed section revision plan and a measured follow-up."
-        onDismiss={() => setPlanOpen(false)}
-      >
-        <ul className="grid gap-2 sm:grid-cols-2">
-          {workFor(growthJourneys[0].sequence).map((step) => (
-            <li key={step} className="text-sm font-medium text-[#111a25]">
-              {step}
-            </li>
-          ))}
-        </ul>
-        <ul className="mt-4 grid gap-x-6 gap-y-1 border-t border-slate-100 pt-4 sm:grid-cols-2">
-          {profileSections.map((section) => (
-            <li key={section} className="text-sm leading-7 text-slate-600">
-              {section}
-            </li>
-          ))}
-        </ul>
-      </StudioDialog>
+      <ProfilePlanDialog open={planOpen} onDismiss={() => setPlanOpen(false)} />
 
-      <StudioDialog
+      <ProfileEditorDialog
         open={editingProfile}
-        title="Edit personal details"
-        description="This is how you appear inside Utomator."
-        onDismiss={() => !saving && setEditingProfile(false)}
-        testId="account-profile-dialog"
-      >
-        {draft ? (
-          <form
-            className="flex flex-col gap-5"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void saveAccount('/profile', 'PUT', draft);
-            }}
-          >
-            {(
-              [
-                ['displayName', 'Display name', 'text', 150],
-                ['email', 'Email', 'email', 180],
-                ['location', 'Location', 'text', 180],
-              ] as const
-            ).map(([key, label, type, max]) => (
-              <label
-                key={key}
-                className="block text-sm font-semibold text-slate-800"
-              >
-                {label}
-                <input
-                  required={key === 'displayName'}
-                  type={type}
-                  autoComplete={key === 'email' ? 'email' : 'off'}
-                  maxLength={max}
-                  value={draft[key]}
-                  onChange={(event) =>
-                    setDraft(
-                      (current) =>
-                        current && { ...current, [key]: event.target.value }
-                    )
-                  }
-                  className="mt-2 block min-h-11 w-full rounded-xl border border-slate-200 px-3 text-base font-normal text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-                />
-              </label>
-            ))}
-            <label className="block text-sm font-semibold text-slate-800">
-              About
-              <textarea
-                rows={4}
-                maxLength={1200}
-                value={draft.about}
-                onChange={(event) =>
-                  setDraft(
-                    (current) =>
-                      current && { ...current, about: event.target.value }
-                  )
-                }
-                className="mt-2 block w-full resize-y rounded-xl border border-slate-200 px-3 py-3 text-base leading-7 font-normal text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-              />
-            </label>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => setEditingProfile(false)}
-                className="inline-flex min-h-11 cursor-pointer items-center rounded-xl px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="inline-flex min-h-11 cursor-pointer items-center rounded-xl bg-teal-700 px-4 text-sm font-semibold text-white hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:opacity-50"
-              >
-                {saving ? 'Saving…' : 'Save details'}
-              </button>
-            </div>
-          </form>
-        ) : null}
-      </StudioDialog>
-
-      <StudioDialog
-        open={Boolean(removeAccount)}
-        title="Remove this account?"
-        description={
-          removeAccount
-            ? `${removeAccount.label} will be forgotten here. You can connect it again later.`
-            : undefined
+        draft={draft}
+        saving={saving}
+        onDismiss={() => setEditingProfile(false)}
+        onDraftChange={(updater) =>
+          setDraft((current) => (current ? updater(current) : current))
         }
-        onDismiss={() => !saving && setRemoveId(null)}
-      >
-        <div className="flex flex-wrap justify-end gap-2">
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => setRemoveId(null)}
-            className="inline-flex min-h-11 cursor-pointer items-center rounded-xl px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-          >
-            Keep account
-          </button>
-          <button
-            type="button"
-            disabled={saving || !removeAccount}
-            onClick={() =>
-              removeAccount &&
-              void saveAccount('/social/' + removeAccount.id, 'DELETE')
-            }
-            className="inline-flex min-h-11 cursor-pointer items-center rounded-xl bg-rose-700 px-4 text-sm font-semibold text-white hover:bg-rose-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700 disabled:opacity-50"
-          >
-            {saving ? 'Removing…' : 'Remove account'}
-          </button>
-        </div>
-      </StudioDialog>
+        onSubmit={() => {
+          if (draft) void saveAccount('/profile', 'PUT', draft);
+        }}
+      />
 
-      <StudioDialog
-        open={Boolean(disconnectAccount)}
-        title="Disconnect this network?"
-        description={
-          disconnectAccount
-            ? `${disconnectAccount.label} will be signed out here. You can connect it again later.`
-            : undefined
-        }
-        onDismiss={() => !linkBusy && setDisconnectId(null)}
-      >
-        <div className="flex flex-wrap justify-end gap-2">
-          <button
-            type="button"
-            disabled={Boolean(linkBusy)}
-            onClick={() => setDisconnectId(null)}
-            className="inline-flex min-h-11 cursor-pointer items-center rounded-xl px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-          >
-            Stay connected
-          </button>
-          <button
-            type="button"
-            disabled={Boolean(linkBusy) || !disconnectAccount}
-            onClick={() =>
-              disconnectAccount &&
-              void runLink(disconnectAccount.id, 'disconnect')
-            }
-            className="inline-flex min-h-11 cursor-pointer items-center rounded-xl bg-rose-700 px-4 text-sm font-semibold text-white hover:bg-rose-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700 disabled:opacity-50"
-          >
-            {linkBusy ? 'Disconnecting…' : 'Disconnect'}
-          </button>
-        </div>
-      </StudioDialog>
+      <RemoveAccountDialog
+        account={removeAccount}
+        saving={saving}
+        onDismiss={() => setRemoveId(null)}
+        onConfirm={() => {
+          if (removeAccount) {
+            void saveAccount(`/social/${removeAccount.id}`, 'DELETE');
+          }
+        }}
+      />
 
-      <StudioDialog
-        open={confirmClearKey}
-        title="Remove API key?"
-        description="Mator will not be able to reply until you save a key again."
-        onDismiss={() => !matorBusy && setConfirmClearKey(false)}
-      >
-        <div className="flex flex-wrap justify-end gap-2">
-          <button
-            type="button"
-            disabled={matorBusy}
-            onClick={() => setConfirmClearKey(false)}
-            className="inline-flex min-h-11 cursor-pointer items-center rounded-xl px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-          >
-            Keep key
-          </button>
-          <button
-            type="button"
-            disabled={matorBusy}
-            onClick={() =>
-              void patchMator(
-                { groqApiKey: null },
-                { clearDraft: true, saved: 'API key removed.' }
-              )
-            }
-            className="inline-flex min-h-11 cursor-pointer items-center rounded-xl bg-rose-700 px-4 text-sm font-semibold text-white hover:bg-rose-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700 disabled:opacity-50"
-          >
-            {matorBusy ? 'Removing…' : 'Remove key'}
-          </button>
-        </div>
-      </StudioDialog>
+      <DisconnectNetworkDialog
+        account={disconnectAccount}
+        linkBusy={linkBusy}
+        onDismiss={() => setDisconnectId(null)}
+        onConfirm={() => {
+          if (disconnectAccount) {
+            void runLink(disconnectAccount.id, 'disconnect');
+          }
+        }}
+      />
     </div>
   );
 }

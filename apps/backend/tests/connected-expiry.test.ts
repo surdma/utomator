@@ -1,5 +1,5 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
+
+import { test, expect } from 'vitest';
 import type { Page } from 'playwright';
 import { execute, type WorkflowContext } from '../src/workflows/execute.js';
 
@@ -31,10 +31,7 @@ test('expired connected sessions fail fast and never request an in-run password 
       throw Error('Connected runs should not ask for credentials');
     },
   };
-  await assert.rejects(
-    execute(context),
-    /Not authenticated: connected account session expired\. Reconnect and sync/,
-  );
-  assert.equal(navigationCount, 1, 'expired session is not repeatedly navigated');
-  assert.equal(approvalCount, 0, 'connected workflow must not fall back to manual login');
+  await expect((execute(context))).rejects.toThrow(/Not authenticated: connected account session expired\. Reconnect and sync/);
+  expect(navigationCount).toEqual(1);
+  expect(approvalCount).toEqual(0);
 });

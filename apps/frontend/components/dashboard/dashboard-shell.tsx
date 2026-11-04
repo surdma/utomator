@@ -1,54 +1,61 @@
 'use client';
 
+import { MessageSquare } from 'lucide-react';
 import {
+  type FormEvent,
   useCallback,
   useEffect,
   useRef,
   useState,
-  type FormEvent,
 } from 'react';
-import type { ChatMessage } from './pipeline/run-models';
-import { MessageSquare } from 'lucide-react';
-import CraftsLibrary from '@/components/dashboard/crafts/crafts-library';
-import VisualReviewPanel from '@/components/dashboard/reviews/visual-review-panel';
-import CareerStudio from '@/components/dashboard/career/career-studio';
 import AccountHome, {
   type SocialAccount,
 } from '@/components/dashboard/account/account-home';
-import ActivityIntelligence from '@/components/dashboard/intelligence/activity-intelligence';
-import LinkedInResearchStudio from '@/components/dashboard/research/linkedin-research-studio';
-import LinkedInEditorialStudio from '@/components/dashboard/editorial/linkedin-editorial-studio';
-
+import CareerStudio from '@/components/dashboard/career/career-studio';
+import ActivityIntelligence from '@/components/dashboard/career/intelligence/activity-intelligence';
 import ConnectorOnboarding, {
   type Connector,
 } from '@/components/dashboard/connections/connector-onboarding';
+import CraftsLibrary from '@/components/dashboard/crafts/crafts-library';
+import LinkedInEditorialStudio from '@/components/dashboard/editorial/linkedin-editorial-studio';
+import LinkedInResearchStudio from '@/components/dashboard/research/linkedin-research-studio';
+import VisualReviewPanel from '@/components/dashboard/reviews/visual-review-panel';
+import { matorAttachmentFileUrl } from '@/components/mator/mator-api';
+import { collectRunSpeechUpdates } from '@/components/mator/mator-run-speech';
+import { useVoiceOnlyPreference } from '@/components/mator/mator-voice-preference';
+import OperatorChatPanel from '@/components/mator/operator-chat-panel';
+import { useMatorAiCall } from '@/components/mator/use-mator-ai-call';
+import { useMatorChat } from '@/components/mator/use-mator-chat';
+import {
+  imageDataUrlFromBlob,
+  useVisualReviews,
+} from '@/components/mator/use-visual-reviews';
+import { useVoiceSession } from '@/components/mator/use-voice-session';
 import { LinkedInIcon, TwitterIcon } from '@/components/svgs';
-import { workflows, type Platform } from './pipeline/workflow-catalog';
-import PipelineWorkspace from './pipeline/pipeline-workspace';
 import { buildRunPayload } from './pipeline/build-run-payload';
+import CheckpointDialog from './pipeline/checkpoint-dialog';
+import DashboardBottomNav from './pipeline/dashboard-bottom-nav';
+import DashboardHeader from './pipeline/dashboard-header';
+import DashboardSidebar from './pipeline/dashboard-sidebar';
+import PipelineWorkspace from './pipeline/pipeline-workspace';
 import RunHistory from './pipeline/run-history';
-import OperatorChatPanel from './pipeline/operator-chat-panel';
+import type { ChatMessage } from './pipeline/run-models';
+import {
+  type DashboardPane,
+  useDashboardNavigation,
+} from './pipeline/use-dashboard-navigation';
+import { useOperatorCommands } from './pipeline/use-operator-commands';
 import { useRunMonitor } from './pipeline/use-run-monitor';
-import { useVisualReviews } from './pipeline/use-visual-reviews';
+import { useWorkflowWorkspace } from './pipeline/use-workflow-workspace';
 import {
   appendVisualReviewStep,
   reviewSection,
+  validateReviewImage,
 } from './pipeline/visual-review-model';
-import { useMatorChat } from './pipeline/use-mator-chat';
-import { useOperatorCommands } from './pipeline/use-operator-commands';
-import { useVoiceSession } from './pipeline/use-voice-session';
-import { useWorkflowWorkspace } from './pipeline/use-workflow-workspace';
-import RunTrackingDialog from './pipeline/run-tracking-dialog';
-import CheckpointDialog from './pipeline/checkpoint-dialog';
-import DashboardHeader from './pipeline/dashboard-header';
-import DashboardSidebar from './pipeline/dashboard-sidebar';
-import {
-  useDashboardNavigation,
-  type DashboardPane,
-} from './pipeline/use-dashboard-navigation';
+import { type Platform, workflows } from './pipeline/workflow-catalog';
 
 export default function DashboardShell({
-  initialPane = 'pipeline',
+  initialPane = 'workspace',
 }: {
   initialPane?: DashboardPane;
 }) {
@@ -56,8 +63,6 @@ export default function DashboardShell({
     pathname,
     pane,
     setPane,
-    mobileMenu,
-    setMobileMenu,
     selectedCraftId,
     selectedCraftSlug,
     libraryView,
@@ -68,11 +73,10 @@ export default function DashboardShell({
     navigateCraftView,
   } = useDashboardNavigation(initialPane);
   const [activeConnector, setActiveConnector] = useState<Connector | null>(
-    null
+    null,
   );
   const [connectorRequest, setConnectorRequest] = useState<string | null>(null);
   const [connectorOpenSignal, setConnectorOpenSignal] = useState(0);
-  const [trackingOpen, setTrackingOpen] = useState(false);
   const [chatVisible, setChatVisible] = useState(true);
   const [configRequest, setConfigRequest] = useState(0);
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
@@ -86,8 +90,6 @@ export default function DashboardShell({
   >(() => {});
   const {
     available,
-    playbook,
-    assessment,
     runs,
     active,
     events,
@@ -110,13 +112,13 @@ export default function DashboardShell({
         ...previous,
         { id: Date.now(), sender: 'assistant', text },
       ]),
-    (text) => setRunFormError(text)
+    (text) => setRunFormError(text),
   );
   const busy = Boolean(
     active &&
-    ['running', 'paused', 'input-needed', 'approval-needed'].includes(
-      active.state
-    )
+      ['running', 'paused', 'input-needed', 'approval-needed'].includes(
+        active.state,
+      ),
   );
   const {
     platform,
@@ -132,7 +134,13 @@ export default function DashboardShell({
     templatePlans,
     selectedGrowthTemplateId,
     setSelectedGrowthTemplateId,
+    workspaceOpen,
+    setWorkspaceOpen,
     savedWorkflows,
+    beginNewWorkflow,
+    openActionWorkflow,
+    selectSavedWorkflow,
+    closeWorkspace,
     activeWorkflow,
     setActiveWorkflow,
     loadingWorkflow,
@@ -143,13 +151,11 @@ export default function DashboardShell({
     saveWorkflowPlan,
     applyGrowthTemplate,
     applyTemplate,
-    selectSavedWorkflow,
     invalidateWorkflowSelection,
   } = useWorkflowWorkspace({ busy, setRunFormError });
   function selectSocialAccount(account: SocialAccount) {
     setConnectorRequest(account.id);
     setConnectorOpenSignal((value) => value + 1);
-    setMobileMenu(false);
   }
   const selected =
     workflows[platform].find((workflow) => workflow.id === action) ||
@@ -162,7 +168,7 @@ export default function DashboardShell({
       : '';
   const selectedPage =
     profilePage && platform === 'linkedin' && scopeSection !== 'profile'
-      ? profilePage.replace(/\/$/, '') + '/details/' + scopeSection + '/'
+      ? `${profilePage.replace(/\/$/, '')}/details/${scopeSection}/`
       : profilePage;
   const pageOptions =
     platform === 'linkedin'
@@ -175,10 +181,18 @@ export default function DashboardShell({
   const PlatformIcon = platform === 'linkedin' ? LinkedInIcon : TwitterIcon;
   const platformLabel = platform === 'linkedin' ? 'LinkedIn' : 'X';
   const submitRef = useRef<(text: string, source: 'voice' | 'text') => void>(
-    () => {}
+    () => {},
   );
+  const pendingAssetsRef = useRef(false);
   const voice = useVoiceSession({
     onFinal: (text) => submitRef.current(text, 'voice'),
+  });
+  const voiceOnly = useVoiceOnlyPreference();
+  const callActiveRef = useRef(false);
+  const voiceScopeRef = useRef<string | null>(null);
+  const spokenRunRef = useRef<{ runId: string | null; seen: Set<number> }>({
+    runId: null,
+    seen: new Set(),
   });
   const {
     message,
@@ -187,30 +201,98 @@ export default function DashboardShell({
     setConversation,
     chatNotice,
     send,
+    sendCallTurn,
     sendMessage: sendMatorMessage,
     confirmStage,
     rejectStage,
     newConversation,
     switchConversation,
     restorePipeline,
-    attachFile,
+    uploadForClarify,
     saveMarkers,
     attachmentPreviews,
     loading: matorLoading,
     settingsToggles,
     patchSettings,
+    syncSettingsFromComposer,
     conversations: matorConversations,
     conversationMeta,
     events: matorEvents,
     incomplete,
     incompleteContinue,
     error: matorError,
-    pendingLabel: matorPendingLabel,
     pending: matorPending,
   } = useMatorChat({
     workflowId: activeWorkflow?.id ?? null,
-    onSpeakHow: (text) => voice.speak(text),
+    onSpeakHow: (text) => {
+      if (!callActiveRef.current) voice.speak(text);
+    },
+    onSpeakReply: (text) => {
+      if (!callActiveRef.current) voice.speak(text);
+    },
+    voiceOnly,
   });
+
+  const aiCall = useMatorAiCall({
+    workflowId: activeWorkflow?.id ?? null,
+    conversationId: conversationMeta?.id ?? null,
+    voiceOnly,
+    voice,
+    sendTurn: sendCallTurn,
+  });
+  useEffect(() => {
+    callActiveRef.current = aiCall.active;
+  }, [aiCall.active]);
+
+  // A reply from a previous workflow/thread must never be delivered in the new scope.
+  useEffect(() => {
+    const scope = `${activeWorkflow?.id ?? ''}:${conversationMeta?.id ?? ''}`;
+    if (voiceScopeRef.current !== null && voiceScopeRef.current !== scope) {
+      voice.cancelPendingTranscript();
+    }
+    voiceScopeRef.current = scope;
+  }, [activeWorkflow?.id, conversationMeta?.id, voice]);
+
+  // Runner SSE events, not the YAML plan, are the authority for spoken status.
+  // Changes of run identity seed the history so navigating to an old run is silent.
+  useEffect(() => {
+    const tracker = spokenRunRef.current;
+    if (!currentRunId) {
+      tracker.runId = null;
+      tracker.seen.clear();
+      return;
+    }
+    if (tracker.runId !== currentRunId) {
+      tracker.runId = currentRunId;
+      tracker.seen = new Set(
+        events
+          .filter((item) => item.runId === currentRunId)
+          .map((item) => item.id),
+      );
+      return;
+    }
+    const summaries = collectRunSpeechUpdates(
+      events,
+      currentRunId,
+      tracker.seen,
+    );
+    if (
+      voiceOnly &&
+      !aiCall.active &&
+      settingsToggles.howTtsEnabled &&
+      summaries.length
+    ) {
+      voice.speak(summaries.join(' '));
+    }
+  }, [
+    currentRunId,
+    events,
+    voiceOnly,
+    aiCall.active,
+    settingsToggles.howTtsEnabled,
+    voice,
+  ]);
+
   const {
     sendMessage: sendOperatorMessage,
     submitUtterance,
@@ -231,11 +313,8 @@ export default function DashboardShell({
     navigatePane,
     navigateCraft,
     setCraftsRevision,
-    invalidateWorkflowSelection,
-    setActiveWorkflow,
-    setAction,
-    setForm,
     setSelectedNode,
+    onStageWorkflow: openActionWorkflow,
   });
   useEffect(() => {
     setConversationRef.current = setConversation;
@@ -245,6 +324,13 @@ export default function DashboardShell({
     (text: string, source: 'voice' | 'text') => {
       const request = text.trim();
       if (!request) return;
+      // The text-mode mic only dictates. AI Call owns its separate turn loop.
+      if (source === 'voice') {
+        setMessage((current) =>
+          [current.trim(), request].filter(Boolean).join(' '),
+        );
+        return;
+      }
       // Never TTS the user transcript (voice or typed).
       if (
         request.startsWith('/craft') ||
@@ -255,36 +341,38 @@ export default function DashboardShell({
         submitUtterance(request, source);
         return;
       }
-      if (activeWorkflow?.id) {
-        if (source === 'text') setMessage('');
-        void send(request);
-        return;
-      }
-      submitUtterance(request, source);
+      // The call's microphone does not come through this text-input route.
+      void send(request);
     },
-    [activeWorkflow?.id, send, setMessage, submitUtterance]
+    [send, setMessage, submitUtterance],
   );
 
   const sendMessage = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (matorPending) return;
-    if (activeWorkflow?.id && !message.trim().startsWith('/craft')) {
-      sendMatorMessage(event);
+    if (
+      message.trim().startsWith('/craft') ||
+      ['crafts', 'memory'].includes(message.trim()) ||
+      message.trim().startsWith('inspect')
+    ) {
+      sendOperatorMessage(event);
       return;
     }
-    sendOperatorMessage(event);
+    sendMatorMessage(event);
   };
 
-  const confirmChat = () => {
-    if (matorPendingLabel) {
-      void confirmStage();
-      return;
-    }
-    confirmPending();
+  const confirmChat = (eventId?: string) => {
+    if (eventId)
+      void confirmStage(eventId).then((ok) => {
+        if (ok) void aiCall.approvalResolved(eventId, 'confirm');
+      });
   };
 
-  const rejectChat = () => {
-    if (matorPendingLabel) void rejectStage();
+  const rejectChat = (eventId?: string) => {
+    if (eventId)
+      void rejectStage(eventId).then((ok) => {
+        if (ok) void aiCall.approvalResolved(eventId, 'reject');
+      });
   };
 
   const restoreMatorPipelineUi = async () => {
@@ -296,7 +384,7 @@ export default function DashboardShell({
         const ok =
           typeof window !== 'undefined' &&
           window.confirm(
-            'Live pipeline has unsaved changes. Restore this conversation’s pipeline anyway?'
+            'Live pipeline has unsaved changes. Restore this conversation’s pipeline anyway?',
           );
         if (ok) await restorePipeline(true);
         return;
@@ -304,8 +392,6 @@ export default function DashboardShell({
       throw err;
     }
   };
-
-  const pendingLabel = matorPendingLabel ?? operatorPendingLabel;
 
   useEffect(() => {
     submitRef.current = routeUtterance;
@@ -316,7 +402,7 @@ export default function DashboardShell({
       // Connecting or resyncing the same account must not discard a template
       // that the user already loaded and configured offline.
       const switchingAccount = Boolean(
-        activeConnector?.id && activeConnector.id !== account.id
+        activeConnector?.id && activeConnector.id !== account.id,
       );
       const switchingPlatform = platform !== account.platform;
       setActiveConnector(account);
@@ -326,6 +412,8 @@ export default function DashboardShell({
       // Switching identities or platforms intentionally resets any account-specific form.
       invalidateWorkflowSelection();
       setActiveWorkflow(null);
+      setWorkspaceOpen(false);
+      setSelectedGrowthTemplateId(null);
       setAction('audit');
       setForm({});
       setScopeSection('profile');
@@ -337,14 +425,18 @@ export default function DashboardShell({
       invalidateWorkflowSelection,
       setAction,
       setActiveWorkflow,
+      setWorkspaceOpen,
+      setSelectedGrowthTemplateId,
       setForm,
       setHandle,
       setPlatform,
-    ]
+    ],
   );
   function choosePlatform(next: Platform) {
     invalidateWorkflowSelection();
     setActiveWorkflow(null);
+    setWorkspaceOpen(false);
+    setSelectedGrowthTemplateId(null);
     setPlatform(next);
     setAction('audit');
     setForm({});
@@ -353,16 +445,20 @@ export default function DashboardShell({
     setHandle('');
   }
   function chooseAction(next: string) {
-    setSelectedGrowthTemplateId(null);
-    invalidateWorkflowSelection();
-    setActiveWorkflow(null);
-    setAction(next);
-    setForm({});
-    setRunFormError('');
-    navigatePane('pipeline');
-    setMobileMenu(false);
+    void openActionWorkflow(next).catch((reason) => {
+      const message =
+        reason instanceof Error
+          ? reason.message
+          : 'Unable to load action workflow';
+      setRunFormError(message);
+      chatNotice(message);
+    });
+    navigatePane('workspace');
   }
   async function startRun() {
+    if (!workspaceOpen || selectedGrowthTemplateId) {
+      throw Error('Choose an executable workflow before starting a run');
+    }
     const payload = buildRunPayload({
       loadingWorkflow,
       activeWorkflow,
@@ -389,24 +485,70 @@ export default function DashboardShell({
       chatNotice(detail);
     }
   }
+  /** Reads chat image bytes and guards the pipeline page scope for the review studio. */
+  async function buildChatAnnotationSource(
+    request: import('@/components/mator/use-visual-reviews').ChatAnnotationRequest,
+  ): Promise<{ imageDataUrl: string } | null> {
+    if (!normalizedHandle.trim() || !selectedPage.trim()) {
+      throw new Error(
+        'Open a pipeline account page before annotating chat images as YAML reviews',
+      );
+    }
+    if (request.file) {
+      const invalid = validateReviewImage(request.file);
+      if (invalid) throw new Error(invalid);
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            resolve({ imageDataUrl: reader.result });
+            return;
+          }
+          reject(new Error('Could not read the chosen image'));
+        };
+        reader.onerror = () =>
+          reject(new Error('Could not read the chosen image'));
+        reader.readAsDataURL(request.file!);
+      });
+    }
+    if (request.attachmentId) {
+      const response = await fetch(
+        matorAttachmentFileUrl(request.attachmentId),
+      );
+      if (!response.ok) {
+        throw new Error('Attachment bytes are unavailable for annotation');
+      }
+      const blob = await response.blob();
+      const invalid = validateReviewImage({
+        size: blob.size,
+        type: blob.type || '',
+      });
+      if (invalid) throw new Error(invalid);
+      return {
+        imageDataUrl: await imageDataUrlFromBlob(blob, blob.type),
+      };
+    }
+    throw new Error('Choose an image to annotate');
+  }
   const {
     imageDraft,
-    setImageDraft,
+    closeImageDraft,
     imageError,
-    attachImage,
     annotateCapture,
+    annotateChatAsset,
     saveVisualReview,
     inspectReview,
     tagExistingReview,
     reviewImage,
   } = useVisualReviews({
     platform,
+    annotateChatImage: buildChatAnnotationSource,
     onCaptureSection: setScopeSection,
     onSelectedNode: setSelectedNode,
     onReviewSaved: (id, annotationCount) => {
       setPlanDirty(true);
       setWorkflowPlan((previous) =>
-        appendVisualReviewStep(previous, id, annotationCount)
+        appendVisualReviewStep(previous, id, annotationCount),
       );
       setChatVisible(true);
       setConversation((previous) => [
@@ -432,7 +574,7 @@ export default function DashboardShell({
       setAction('audit-page');
       setSelectedNode('inspect');
       setConfigRequest((value) => value + 1);
-      navigatePane('pipeline');
+      navigatePane('workspace');
     },
     onSelectReviewAccount: (review) => {
       choosePlatform(review.platform);
@@ -441,7 +583,13 @@ export default function DashboardShell({
     },
     refresh,
   });
-  const latest = events.at(-1);
+  // Full YAML-driven annotation entry points for chat images. The studio
+  // resolves with the created review id; linking to the chat asset happens
+  // through the standard markers PATCH (evidence is the saved review).
+  const annotateMatorDraft = async (file: File, note?: string) =>
+    annotateChatAsset({ file, note });
+  const annotateMatorAttachment = async (attachmentId: string, note?: string) =>
+    annotateChatAsset({ attachmentId, note });
   const showChat =
     chatVisible &&
     pane !== 'profile' &&
@@ -455,42 +603,19 @@ export default function DashboardShell({
     >
       <DashboardHeader
         available={available}
-        mobileMenu={mobileMenu}
-        onToggleNavigation={() => {
-          setMobileMenu(!mobileMenu);
-          setMobileChatOpen(false);
-        }}
-        onOpenTracking={() => setTrackingOpen(true)}
         onRefresh={() => void refresh()}
+        onOpenHistory={() => navigatePane('history')}
+        onOpenAccount={() => navigatePane('profile')}
       />
-      {(mobileMenu || mobileChatOpen) && (
-        <button
-          type="button"
-          aria-label="Close side panel"
-          onClick={() => {
-            setMobileMenu(false);
-            setMobileChatOpen(false);
-          }}
-          className="fixed inset-0 z-40 bg-slate-950/40 lg:hidden"
-        />
-      )}
       <div
         className={
-          'mx-auto grid w-full max-w-[1920px] grid-cols-1 gap-5 px-4 py-5 md:px-6 lg:min-h-0 lg:flex-1 lg:overflow-hidden ' +
+          'mx-auto grid w-full max-w-[1920px] grid-cols-1 gap-5 px-4 pt-5 pb-28 md:px-6 lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:pb-5 ' +
           (showChat
-            ? 'lg:grid-cols-[220px_minmax(0,1fr)_minmax(360px,420px)] xl:grid-cols-[232px_minmax(0,1fr)_440px]'
+            ? 'lg:grid-cols-[220px_minmax(0,1.7fr)_minmax(16rem,1fr)] xl:grid-cols-[232px_minmax(0,1.7fr)_minmax(16rem,1fr)]'
             : 'lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[232px_minmax(0,1fr)]')
         }
       >
-        <DashboardSidebar
-          pane={pane}
-          mobileMenu={mobileMenu}
-          onClose={() => setMobileMenu(false)}
-          onNavigate={(next) => {
-            navigatePane(next);
-            setMobileMenu(false);
-          }}
-        />
+        <DashboardSidebar pane={pane} onNavigate={navigatePane} />
         <main
           data-testid="automation-main-scroll"
           className="min-w-0 space-y-5 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pr-2"
@@ -510,10 +635,14 @@ export default function DashboardShell({
             workflowPlan={workflowPlan}
             templatePlans={templatePlans}
             selectedGrowthTemplateId={selectedGrowthTemplateId}
+            workspaceOpen={workspaceOpen}
+            savedWorkflows={savedWorkflows}
+            beginNewWorkflow={beginNewWorkflow}
+            selectSavedWorkflow={selectSavedWorkflow}
+            closeWorkspace={closeWorkspace}
             connectorReady={connectorReady}
             activeConnector={activeConnector}
             applyGrowthTemplate={applyGrowthTemplate}
-            setSelectedGrowthTemplateId={setSelectedGrowthTemplateId}
             chooseAction={chooseAction}
             platform={platform}
             action={action}
@@ -523,9 +652,7 @@ export default function DashboardShell({
             planDirty={planDirty}
             formDirty={formDirty}
             planSaving={planSaving}
-            savedWorkflows={savedWorkflows}
             activeWorkflow={activeWorkflow}
-            selectSavedWorkflow={selectSavedWorkflow}
             configRequest={configRequest}
             setWorkflowPlan={setWorkflowPlan}
             setPlanDirty={setPlanDirty}
@@ -557,7 +684,7 @@ export default function DashboardShell({
               runs={runs}
               onSelect={(run) => {
                 selectRun(run);
-                navigatePane('pipeline');
+                navigatePane('workspace');
               }}
             />
           )}
@@ -617,7 +744,7 @@ export default function DashboardShell({
               onNavigate={(path) => {
                 navigate(path);
                 setPane(
-                  path.endsWith('/dashboard/observer') ? 'observer' : 'memory'
+                  path.endsWith('/dashboard/observer') ? 'observer' : 'memory',
                 );
               }}
             />
@@ -631,6 +758,8 @@ export default function DashboardShell({
           mobileChatOpen={mobileChatOpen}
           showChat={showChat}
           onClose={() => {
+            aiCall.end();
+            voice.cancelPendingTranscript();
             setChatVisible(false);
             setMobileChatOpen(false);
           }}
@@ -642,19 +771,31 @@ export default function DashboardShell({
           loading={matorLoading}
           modelId={settingsToggles.modelId ?? null}
           onModelChange={(modelId) => patchSettings({ modelId })}
-          onSwitchConversation={(id) => void switchConversation(id)}
-          onNewConversation={() => void newConversation()}
-          onRestorePipeline={() => void restoreMatorPipelineUi()}
-          onSendText={(text) => {
-            void send(text);
+          onSettingsSaved={syncSettingsFromComposer}
+          onSwitchConversation={(id) => {
+            aiCall.end();
+            voice.cancelPendingTranscript();
+            void switchConversation(id);
           }}
+          onNewConversation={() => {
+            aiCall.end();
+            voice.cancelPendingTranscript();
+            void newConversation();
+          }}
+          onRestorePipeline={() => void restoreMatorPipelineUi()}
+          onSendText={(text, attachmentIds) => send(text, attachmentIds)}
+          onUploadClarifyFile={uploadForClarify}
           attachmentPreviews={attachmentPreviews}
-          onSaveMarkers={(attachmentId, markers) =>
-            void saveMarkers(attachmentId, markers)
-          }
+          onSaveMarkers={(attachmentId, markers, reviewId) => {
+            return saveMarkers(attachmentId, markers, reviewId);
+          }}
           reviews={reviews}
           platform={platform}
           normalizedHandle={normalizedHandle}
+          selectedPage={selectedPage}
+          annotateChatImageAvailable={Boolean(selectedPage && normalizedHandle)}
+          onAnnotateDraft={annotateMatorDraft}
+          onAnnotateAttachment={annotateMatorAttachment}
           currentRunId={currentRunId}
           onAnnotateCapture={annotateCapture}
           onEditReview={tagExistingReview}
@@ -664,14 +805,15 @@ export default function DashboardShell({
           message={message}
           onMessageChange={setMessage}
           onSendMessage={sendMessage}
-          onAttachFile={(file) => {
-            if (!file) return;
-            if (activeWorkflow?.id) return attachFile(file);
-            return attachImage(file);
+          onPendingAssetsChange={(count) => {
+            pendingAssetsRef.current = count > 0;
           }}
           checkpoint={checkpoint}
           voice={voice}
-          pendingLabel={pendingLabel}
+          call={aiCall}
+          callReady={Boolean(activeWorkflow?.id && conversationMeta?.id)}
+          operatorPendingLabel={operatorPendingLabel}
+          onConfirmOperator={confirmPending}
           onConfirm={confirmChat}
           onReject={rejectChat}
           busy={matorPending}
@@ -680,15 +822,28 @@ export default function DashboardShell({
           chatError={matorError}
         />
       </div>
-
-      <RunTrackingDialog
-        open={trackingOpen}
-        onDismiss={() => setTrackingOpen(false)}
+      <DashboardBottomNav
+        pane={pane}
+        onNavigate={navigatePane}
+        showRun={pane === 'workspace' && !selectedGrowthTemplateId}
         active={active}
-        playbook={playbook}
-        assessment={assessment}
-        latest={latest}
+        platform={platform}
+        action={action}
+        busy={busy}
+        available={available}
+        connectorReady={connectorReady}
+        loadingWorkflow={loadingWorkflow}
+        workflowPlan={workflowPlan}
+        activeWorkflow={activeWorkflow}
+        planDirty={planDirty}
+        formDirty={formDirty}
+        resumeRun={resumeRun}
+        pauseRun={pauseRun}
+        launchRun={launchRun}
+        cancelRun={cancelRun}
+        chatOpen={mobileChatOpen}
       />
+
       <CheckpointDialog
         checkpoint={checkpoint}
         checkpointError={checkpointError}
@@ -706,9 +861,10 @@ export default function DashboardShell({
             setMobileChatOpen(true);
           }}
           className={
-            'fixed right-5 bottom-24 z-30 inline-flex min-h-12 items-center gap-2 rounded-full bg-slate-950 px-5 text-sm font-bold text-white shadow-2xl ring-2 ring-white/80 hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-teal-600 lg:bottom-5 ' +
-            (showChat ? 'lg:hidden' : '') +
-            (mobileChatOpen ? ' hidden' : '')
+            mobileChatOpen
+              ? 'hidden'
+              : 'fixed right-4 bottom-32 z-30 inline-flex min-h-12 items-center gap-2 rounded-full bg-slate-950 px-5 text-sm font-bold text-white shadow-2xl ring-2 ring-white/80 hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-teal-600 lg:bottom-5 ' +
+                (showChat ? 'lg:hidden' : '')
           }
         >
           <MessageSquare className="size-5" aria-hidden="true" />
@@ -722,7 +878,7 @@ export default function DashboardShell({
           handle={normalizedHandle}
           pageUrl={selectedPage}
           nodeId="annotation"
-          onClose={() => setImageDraft(null)}
+          onClose={closeImageDraft}
           onSave={saveVisualReview}
         />
       )}

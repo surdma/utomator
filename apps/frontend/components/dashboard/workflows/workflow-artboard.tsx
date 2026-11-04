@@ -1,54 +1,50 @@
 'use client';
 
 import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-  type MouseEvent,
-} from 'react';
-import {
-  ReactFlow,
-  ReactFlowProvider,
   Background,
   BackgroundVariant,
   Controls,
-  useNodesState,
+  ReactFlow,
+  ReactFlowProvider,
   useEdgesState,
+  useNodesState,
   useReactFlow,
 } from '@xyflow/react';
-import StudioDialog from '@/components/ui/studio-dialog';
-import StageNode from './workflow-artboard-node';
-import WorkflowOutputDialog from './workflow-artboard-output-dialog';
-import WorkflowAnnotationDialog from './workflow-artboard-annotation-dialog';
 import {
   Activity,
-  Check,
-  ChevronDown,
   CircleDot,
   Eye,
   GitBranch,
   LockKeyhole,
-  MousePointer2,
   Play,
-  Waypoints,
-  Zap,
 } from 'lucide-react';
-
+import {
+  type MouseEvent,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import StudioDialog from '@/components/ui/studio-dialog';
+import { WorkflowArtboardToolbar } from './artboard/workflow-artboard-toolbar';
+import WorkflowAnnotationDialog from './workflow-artboard-annotation-dialog';
 import {
   buildGraph,
   type CanvasEvent,
-  type TaggedAnnotationReview,
   type CanvasWorkflow,
   type Phase,
-  type StudioNode,
   type StudioEdge,
+  type StudioNode,
+  type TaggedAnnotationReview,
 } from './workflow-artboard-graph';
+import StageNode from './workflow-artboard-node';
+import WorkflowOutputDialog from './workflow-artboard-output-dialog';
+
 export type {
   CanvasEvent,
-  TaggedAnnotationReview,
   CanvasWorkflow,
+  TaggedAnnotationReview,
 } from './workflow-artboard-graph';
 
 type Popup = { kind: 'node' | 'edge'; id: string; x: number; y: number } | null;
@@ -81,6 +77,8 @@ interface Props {
   reviewCount?: number;
   inspectorRequest?: number;
   taggedReviews?: TaggedAnnotationReview[];
+  /** Clone-mode annotation entry, backed by the shell's `tagExistingReview`. */
+  onAnnotateFurther?: (review: TaggedAnnotationReview) => void;
   evidenceRoot?: string;
   onEvidenceOpen?: (runId: string, fileName: string) => void;
   children: ReactNode;
@@ -99,6 +97,7 @@ function CanvasInner({
   reviewCount = 0,
   inspectorRequest = 0,
   taggedReviews = [],
+  onAnnotateFurther,
   evidenceRoot,
   onEvidenceOpen,
   children,
@@ -106,14 +105,14 @@ function CanvasInner({
   const graph = useMemo(
     () =>
       buildGraph(action, actionLabel, state, events, taggedReviews.length > 0),
-    [action, actionLabel, state, events, taggedReviews.length]
+    [action, actionLabel, state, events, taggedReviews.length],
   );
   const { fitView } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState<StudioNode>(
-    graph.nodes
+    graph.nodes,
   );
   const [edges, setEdges, onEdgesChange] = useEdgesState<StudioEdge>(
-    graph.edges
+    graph.edges,
   );
   const [focused, setFocused] = useState<string | null>('inspect');
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
@@ -134,7 +133,7 @@ function CanvasInner({
     return () => cancelAnimationFrame(frame);
   }, [runId]);
   const [notice, setNotice] = useState(
-    'Select nodes or right-click a connection to inspect it.'
+    'Select nodes or right-click a connection to inspect it.',
   );
   useEffect(() => {
     // Apply graph telemetry after paint so interaction state is not updated during effect setup.
@@ -171,7 +170,7 @@ function CanvasInner({
       if (node.id !== 'finish' && node.id !== 'verify') onNodeFocus?.(node.id);
       setSelectedEdge(null);
       const container = (event.currentTarget as HTMLElement).closest(
-        '[data-workflow-canvas]'
+        '[data-workflow-canvas]',
       );
       const rect = container?.getBoundingClientRect();
       setPopup({
@@ -179,22 +178,22 @@ function CanvasInner({
         id: node.id,
         x: Math.min(
           Math.max(8, event.clientX - (rect?.left ?? 0)),
-          Math.max(8, (rect?.width ?? 300) - 215)
+          Math.max(8, (rect?.width ?? 300) - 215),
         ),
         y: Math.min(
           Math.max(8, event.clientY - (rect?.top ?? 0)),
-          Math.max(8, (rect?.height ?? 450) - 200)
+          Math.max(8, (rect?.height ?? 450) - 200),
         ),
       });
     },
-    [onNodeFocus]
+    [onNodeFocus],
   );
   const showEdgeMenu = useCallback((event: MouseEvent, edge: StudioEdge) => {
     event.preventDefault();
     setSelectedEdge(edge.id);
     setFocused(null);
     const container = (event.currentTarget as HTMLElement).closest(
-      '[data-workflow-canvas]'
+      '[data-workflow-canvas]',
     );
     const rect = container?.getBoundingClientRect();
     setPopup({
@@ -202,11 +201,11 @@ function CanvasInner({
       id: edge.id,
       x: Math.min(
         Math.max(8, event.clientX - (rect?.left ?? 0)),
-        Math.max(8, (rect?.width ?? 300) - 215)
+        Math.max(8, (rect?.width ?? 300) - 215),
       ),
       y: Math.min(
         Math.max(8, event.clientY - (rect?.top ?? 0)),
-        Math.max(8, (rect?.height ?? 450) - 200)
+        Math.max(8, (rect?.height ?? 450) - 200),
       ),
     });
   }, []);
@@ -216,74 +215,22 @@ function CanvasInner({
       data-testid="workflow-artboard"
       className="flex min-w-0 flex-col overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-sm lg:min-h-[calc(100dvh-7rem)]"
     >
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 md:px-5">
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
-            <Waypoints className="size-5" />
-          </div>
-          <div>
-            <h2 className="text-sm font-extrabold tracking-tight text-slate-900">
-              Workflow artboard
-            </h2>
-            <p className="text-[11px] text-slate-500">
-              {platform === 'linkedin' ? 'LinkedIn' : 'X'} · Connected execution
-              trace · {nodes.length} nodes
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
-            <button
-              type="button"
-              aria-label="Choose runnable action"
-              aria-expanded={showActions}
-              onClick={() => setShowActions(!showActions)}
-              className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-bold hover:bg-slate-50"
-            >
-              <Zap className="size-4 text-teal-700" />
-              {actionLabel}
-              <ChevronDown className="size-3.5 text-slate-400" />
-            </button>
-            {showActions && (
-              <div
-                role="menu"
-                aria-label="Runnable actions"
-                className="absolute top-full right-0 z-40 mt-2 max-h-72 w-64 overflow-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl"
-              >
-                {actions.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={item.id === action}
-                    onClick={() => {
-                      if (item.id !== action) onActionChange(item.id);
-                      setFocused(item.id === 'audit' ? 'inspect' : 'action');
-                      setShowActions(false);
-                    }}
-                    className="flex min-h-10 w-full items-center justify-between rounded-lg px-3 text-left text-xs font-semibold hover:bg-slate-50"
-                  >
-                    {item.title}
-                    {item.id === action && (
-                      <Check className="size-4 text-teal-700" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={() => setInspector(true)}
-            aria-haspopup="dialog"
-            aria-expanded={inspector}
-            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-semibold hover:bg-slate-50"
-          >
-            <MousePointer2 className="size-4" />
-            Configure workflow
-          </button>
-        </div>
-      </div>
+      <WorkflowArtboardToolbar
+        platform={platform}
+        action={action}
+        actionLabel={actionLabel}
+        actions={actions}
+        nodeCount={nodes.length}
+        showActions={showActions}
+        onToggleActions={() => setShowActions(!showActions)}
+        onActionPick={(itemId) => {
+          if (itemId !== action) onActionChange(itemId);
+          setFocused(itemId === 'audit' ? 'inspect' : 'action');
+          setShowActions(false);
+        }}
+        onOpenInspector={() => setInspector(true)}
+        inspectorOpen={inspector}
+      />
       <div className="min-w-0 flex-1">
         <div
           data-workflow-canvas
@@ -384,13 +331,13 @@ function CanvasInner({
                           ? 'annotation'
                           : popup.id === 'action'
                             ? null
-                            : 'stage'
+                            : 'stage',
                     );
-                    setNotice('Inspecting ' + popup.id + ' stage');
+                    setNotice(`Inspecting ${popup.id} stage`);
                   } else {
                     setSelectedEdge(popup.id);
                     setInspector(true);
-                    setNotice('Active trace: ' + popup.id);
+                    setNotice(`Active trace: ${popup.id}`);
                   }
                   setPopup(null);
                 }}
@@ -406,7 +353,7 @@ function CanvasInner({
                     setFocused('action');
                     setInspector(true);
                     setPopup(null);
-                    setNotice('Action selected for review: ' + actionLabel);
+                    setNotice(`Action selected for review: ${actionLabel}`);
                   }}
                   className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-xs font-semibold hover:bg-teal-50 hover:text-teal-800"
                 >
@@ -434,6 +381,7 @@ function CanvasInner({
           open={detail === 'annotation'}
           onDismiss={() => setDetail(null)}
           taggedReviews={taggedReviews}
+          onAnnotateFurther={onAnnotateFurther}
         />
         <StudioDialog
           open={detail === 'stage'}

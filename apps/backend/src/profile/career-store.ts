@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import type { DocumentStore } from '../db/documents.js';
+import { createWriteQueue } from '../db/persistence.js';
 
 export type CareerRole = {
   company: string;
@@ -148,7 +149,7 @@ const emptyCareerDocument = (): CareerDocument => ({
 
 export class CareerStore {
   private readonly file: string;
-  private queue: Promise<void> = Promise.resolve();
+  private readonly queue = createWriteQueue();
   private documents?: DocumentStore;
   setDocuments(documents: DocumentStore) {
     this.documents = documents;
@@ -196,7 +197,7 @@ export class CareerStore {
   ): Promise<CareerState> {
     if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0)
       throw new Error('Invalid expected revision');
-    const operation = this.queue.then(async () => {
+    return this.queue(async () => {
       const current = await this.get();
       if (current.revision !== expectedRevision)
         throw new Error('Career workspace has changed. Reload before saving.');
@@ -215,11 +216,6 @@ export class CareerStore {
       }
       return next;
     });
-    this.queue = operation.then(
-      () => undefined,
-      () => undefined,
-    );
-    return operation;
   }
   updateProfile(expectedRevision: number, raw: unknown) {
     const profile = parseCareerDocument(raw);

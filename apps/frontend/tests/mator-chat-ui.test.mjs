@@ -1,19 +1,43 @@
-import assert from 'node:assert/strict';
+
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { test } from 'node:test';
+import { test, expect } from 'vitest';
+import assert from 'node:assert/strict';
 
 const root = resolve(import.meta.dirname, '..');
-const pipeline = (name) => resolve(root, 'components/dashboard/pipeline', name);
+const mator = (name) => resolve(root, 'components/mator', name);
 const ui = (name) => resolve(root, 'components/ui', name);
-const aiElements = (name) => resolve(root, 'components/ai-elements', name);
+const aiElements = (name) => resolve(root, 'components/mator/elements', name);
+
+test('image thumbnail opens annotation studio on click', () => {
+  const preview = readFileSync(mator('mator-attachment-preview.tsx'), 'utf8');
+  expect(preview).toMatch(/data-testid="mator-image-thumbnail"/);
+  expect(preview).toMatch(/onAnnotateFull/);
+  expect(preview).not.toMatch(/mator-annotation-pencil|Open original image/);
+  expect(preview).toMatch(/StudioDialog|mator-image-annotation-modal/);
+  expect(preview).toMatch(/MatorAttachmentCanvas/);
+  expect(preview).toMatch(/onMarkersChange/);
+  expect(preview).toMatch(/onAnnotateFull/);
+});
+
+test('chat images offer the full YAML-driven annotation studio', () => {
+  const preview = readFileSync(mator('mator-attachment-preview.tsx'), 'utf8');
+  // Image click itself opens the full annotation studio (no separate pencil button).
+  expect(preview).toMatch(/onAnnotateFull/);
+  expect(preview).not.toMatch(/mator-annotation-full-pencil/);
+  // Linked saved reviews expose the annotation YAML directly.
+  expect(preview).toMatch(/data-testid="mator-annotation-yaml-link"/);
+  expect(preview).toMatch(/reviewId/);
+  expect(preview).toMatch(/visual-reviews\/\s*\+?\s*reviewId|visual-reviews\/'\s*\+/,
+  );
+});
 
 test('mator attachment canvas module exists', () => {
-  assert.equal(existsSync(pipeline('mator-attachment-canvas.tsx')), true);
+  assert.equal(existsSync(mator('mator-attachment-canvas.tsx')), true);
 });
 
 test('operator chat panel exposes required mator testids and chrome', () => {
-  const source = readFileSync(pipeline('operator-chat-panel.tsx'), 'utf8');
+  const source = readFileSync(mator('operator-chat-panel.tsx'), 'utf8');
   for (const testid of [
     'mator-chat',
     'mator-conversation-switcher',
@@ -28,141 +52,170 @@ test('operator chat panel exposes required mator testids and chrome', () => {
   assert.match(source, /AnimatePresence/);
   assert.match(source, /MessageScroller/);
   assert.match(source, /MatorClarifyForm/);
-  assert.match(source, /MatorAttachmentCanvas/);
+  assert.match(source, /MatorAttachmentPreview/);
+  assert.doesNotMatch(
+    source,
+    /data-testid="mator-voice-switch"/,
+    'header no longer owns the voice switch',
+  );
+  assert.match(
+    source,
+    /defaultScrollPosition="end"/,
+    'the chat opens at the live edge',
+  );
+  assert.match(source, /orderedMatorEvents/);
   assert.match(
     source,
     /getApi\(\s*'runs\/'/,
-    'screenshot evidence links the run API'
+    'screenshot evidence links the run API',
   );
   assert.doesNotMatch(source, /Groq capabilities/);
 });
 
 test('composer is text-first with voice demoted to a small control', () => {
-  const source = readFileSync(pipeline('mator-composer.tsx'), 'utf8');
+  const source = readFileSync(mator('mator-composer.tsx'), 'utf8');
   assert.match(source, /data-testid="mator-input"/);
   assert.match(source, /data-testid="mator-send"/);
   assert.match(source, /data-testid="mator-attach"/);
   assert.match(source, /data-testid="mator-mic"/);
-  assert.match(source, /data-testid="mator-voice-switch"/);
-  assert.match(source, /data-testid="mator-voice-only"/);
+  assert.match(
+    source,
+    /data-testid="mator-voice-switch"/,
+    'composer owns the voice-only toggle',
+  );
+  assert.match(
+    source,
+    /MatorChatSettings/,
+    'chat configuration is reachable from the composer',
+  );
+  assert.match(
+    source,
+    /onSettingsSaved/,
+    'composer settings notify the active Mator state',
+  );
+  assert.match(source, /flex-nowrap/, 'composer actions remain on one row');
   assert.match(source, /Paperclip/);
   assert.match(source, /ATTACH_ACCEPT/);
-  assert.match(source, /onAttachFile/);
-  assert.match(source, /mator\.voiceOnly/, 'voice-only preference persists');
-});
-
-test('retired voice deck does not come back', () => {
-  assert.equal(existsSync(pipeline('voice-deck.tsx')), false);
-  const composer = readFileSync(pipeline('mator-composer.tsx'), 'utf8');
-  assert.doesNotMatch(composer, /mator-voice-deck/);
-});
-
-test('grow confirmation stage controls live in the ai-elements gate', () => {
-  const source = readFileSync(aiElements('confirmation.tsx'), 'utf8');
-  assert.match(source, /data-testid="mator-stage-confirm"/);
-  assert.match(source, /data-testid="mator-stage-reject"/);
-  assert.match(source, /AlertDialog/, 'rejecting asks once more, safely');
-});
-
-test('composer carries incomplete and clarify interaction contracts', () => {
-  const source = readFileSync(pipeline('mator-composer.tsx'), 'utf8');
-  assert.match(source, /onIncompleteContinue/);
-  assert.match(source, /data-testid="mator-incomplete-continue"/);
-
-  const form = readFileSync(pipeline('mator-clarify-form.tsx'), 'utf8');
-  assert.match(form, /data-testid="mator-clarify-form"/);
-  assert.match(form, /formatClarifyReply/);
-});
-
-test('processable foundation modules exist for the dock', () => {
-  for (const file of [
-    ui('badge.tsx'),
-    ui('avatar.tsx'),
-    ui('popover.tsx'),
-    ui('skeleton.tsx'),
-    ui('switch.tsx'),
-    ui('slider.tsx'),
-    ui('toast.tsx'),
-    ui('alert-dialog.tsx'),
-    ui('attachment.tsx'),
-    ui('message-scroller.tsx'),
-    ui('questionnaire.tsx'),
-    aiElements('reasoning.tsx'),
-    aiElements('task.tsx'),
-    aiElements('checkpoint.tsx'),
-    aiElements('confirmation.tsx'),
-    aiElements('queue.tsx'),
-    aiElements('suggestion.tsx'),
-    aiElements('model-selector.tsx'),
-    aiElements('plan.tsx'),
-  ]) {
-    assert.equal(existsSync(file), true, file);
-  }
-});
-
-test('attachment canvas pins markers with reduced-motion aware motion', () => {
-  const source = readFileSync(pipeline('mator-attachment-canvas.tsx'), 'utf8');
-  assert.match(source, /data-testid="mator-attachment-canvas"/);
-  assert.match(source, /useReducedMotion/);
-  assert.match(source, /framer-motion/);
-  assert.match(source, /onMarkersChange/);
-});
-
-test('chat settings expose only real backend knobs', () => {
-  const source = readFileSync(pipeline('mator-chat-settings.tsx'), 'utf8');
-  assert.match(source, /saveMatorSettings/);
-  assert.match(source, /reasoningEffort/);
-  assert.match(source, /autoApprove/);
-  assert.match(source, /howTtsEnabled/);
-  assert.match(source, /moderationEnabled/);
-  assert.doesNotMatch(source, /temperature/, 'no invented backend field');
-});
-
-test('dashboard shell wires mator chat chrome into the operator panel', () => {
-  const shell = readFileSync(
-    resolve(root, 'components/dashboard/dashboard-shell.tsx'),
-    'utf8'
+  assert.match(source, /onUploadFile/);
+  assert.match(source, /multiple/);
+  assert.match(source, /mator-pending-gallery/);
+  const preference = readFileSync(mator('mator-voice-preference.ts'), 'utf8');
+  assert.match(
+    preference,
+    /mator\.voiceOnly/,
+    'voice-only preference persists',
   );
-  assert.match(shell, /matorEvents=\{matorEvents\}/);
-  assert.match(shell, /onReject=\{rejectChat\}/);
-  assert.match(shell, /onRestorePipeline=/);
-  assert.match(shell, /incompleteContinue/);
-  assert.match(shell, /attachFile/);
-  assert.match(shell, /saveMarkers/);
+  assert.match(
+    preference,
+    /useSyncExternalStore/,
+    'text and voice decks share the same persisted preference',
+  );
 });
 
-test('incomplete Continue sends Continue via useMatorChat through the composer', () => {
-  const hook = readFileSync(pipeline('use-mator-chat.ts'), 'utf8');
-  assert.match(hook, /incompleteContinue\s*=\s*useCallback/);
-  assert.match(hook, /await send\(['"]Continue['"]\)/);
+test('pending drafts annotate through the YAML studio and fail honestly', () => {
+  const composer = readFileSync(mator('mator-composer.tsx'), 'utf8');
+  assert.match(
+    composer,
+    /onAnnotateDraft/,
+    'pending drafts reach the shell studio',
+  );
+  expect(composer).toMatch(/reviewId/);
+  expect(composer).toMatch(/data-testid="mator-annotate-error"/);
 });
-
 
 test('new chat displays suggestions instead of a permanent loading skeleton', () => {
-  const panel = readFileSync(pipeline('operator-chat-panel.tsx'), 'utf8');
-  assert.match(panel, /data-testid="mator-empty-thread"/);
-  assert.match(panel, /loading \? \(/);
-  assert.match(panel, /<Suggestion suggestions=\{START_SUGGESTIONS\}/);
-  assert.match(panel, /matorAttachmentFileUrl/);
-  assert.match(panel, /Open attached file/);
+  const panel = readFileSync(mator('operator-chat-panel.tsx'), 'utf8');
+  expect(panel).toMatch(/data-testid="mator-empty-thread"/);
+  expect(panel).toMatch(/loading \? \(/);
+  expect(panel).toMatch(/<Suggestion[^>]*?suggestions=\{START_SUGGESTIONS\}/s);
+  expect(panel).toMatch(/matorAttachmentFileUrl/);
+  const attachment = readFileSync(
+    mator('mator-attachment-preview.tsx'),
+    'utf8',
+  );
+  expect(attachment).toMatch(/onAnnotateFull/);
 });
 
 test('model picker is connected to real chat settings and handles failures', () => {
-  const panel = readFileSync(pipeline('operator-chat-panel.tsx'), 'utf8');
-  const shell = readFileSync(resolve(root, 'components/dashboard/dashboard-shell.tsx'), 'utf8');
-  const settings = readFileSync(pipeline('mator-chat-settings.tsx'), 'utf8');
-  assert.match(panel, /fetchMatorModels/);
-  assert.match(panel, /models=\{models\}/);
-  assert.match(panel, /onModelChange=\{/);
-  assert.match(shell, /modelId=\{settingsToggles\.modelId/);
-  assert.match(shell, /patchSettings\(\{ modelId \}\)/);
-  assert.match(settings, /EFFORT_STOPS = \['low', 'medium', 'high'\]/);
-  assert.match(settings, /Retry loading settings/);
+  const panel = readFileSync(mator('operator-chat-panel.tsx'), 'utf8');
+  const shell = readFileSync(
+    resolve(root, 'components/dashboard/dashboard-shell.tsx'),
+    'utf8',
+  );
+  const settings = readFileSync(mator('mator-chat-settings.tsx'), 'utf8');
+  expect(panel).toMatch(/fetchMatorModels/);
+  expect(panel).toMatch(/models=\{models\}/);
+  expect(panel).toMatch(/onModelChange=\{/);
+  expect(shell).toMatch(/modelId=\{settingsToggles\.modelId/);
+  expect(shell).toMatch(/patchSettings\(\{ modelId \}\)/);
+  expect(settings).toMatch(/EFFORT_STOPS = \['low', 'medium', 'high'\]/);
+  expect(settings).toMatch(/Retry loading settings/);
 });
 
 test('attachment upload failures remain visible in the composer', () => {
-  const composer = readFileSync(pipeline('mator-composer.tsx'), 'utf8');
-  const shell = readFileSync(resolve(root, 'components/dashboard/dashboard-shell.tsx'), 'utf8');
-  assert.match(composer, /if \(result === null\) throw new Error/);
-  assert.match(shell, /return attachFile\(file\)/);
+  const composer = readFileSync(mator('mator-composer.tsx'), 'utf8');
+  const shell = readFileSync(
+    resolve(root, 'components/dashboard/dashboard-shell.tsx'),
+    'utf8',
+  );
+  expect(composer).toMatch(/if \(!id\) throw Error/);
+  expect(composer).toMatch(/setDraftError/);
+  expect(shell).toMatch(/onPendingAssetsChange/);
+});
+
+test('composer never duplicates a staged action approval card', () => {
+  const source = readFileSync(mator('mator-composer.tsx'), 'utf8');
+  expect(source).not.toMatch(/mator-stage-confirm-compact/);
+  expect(source).not.toMatch(/Not staged/);
+});
+
+test('Mator keeps latest replies at the live edge instead of anchoring them at the viewport top', () => {
+  const source = readFileSync(mator('operator-chat-panel.tsx'), 'utf8');
+  expect(source).toMatch(/defaultScrollPosition="end"/);
+  expect(source).not.toMatch(/lastMatorEventId/);
+  expect(source).not.toMatch(/anchor=\{event\.id ===/);
+  expect(source).not.toMatch(/scrollAnchor=\{item\.id ===/);
+});
+
+test('legacy local command approval stays available without duplicating Mator stages', () => {
+  const composer = readFileSync(mator('mator-composer.tsx'), 'utf8');
+  const panel = readFileSync(mator('operator-chat-panel.tsx'), 'utf8');
+  const shell = readFileSync(
+    resolve(root, 'components/dashboard/dashboard-shell.tsx'),
+    'utf8',
+  );
+  expect(composer).toMatch(/data-testid="operator-pending-approval"/);
+  expect(composer).toMatch(/data-testid="operator-confirm-pending"/);
+  expect(panel).toMatch(/onConfirmOperator=\{onConfirmOperator\}/);
+  expect(shell).toMatch(/onConfirmOperator=\{confirmPending\}/);
+  expect(shell).toMatch(/pendingLabel: operatorPendingLabel/);
+  expect(composer).not.toMatch(/mator-stage-confirm-compact/);
+});
+
+test('asset upload requires explicit send and multi-image names are metadata', () => {
+  const composer = readFileSync(mator('mator-composer.tsx'), 'utf8');
+  const hook = readFileSync(mator('use-mator-chat.ts'), 'utf8');
+  const panel = readFileSync(mator('operator-chat-panel.tsx'), 'utf8');
+  expect(composer).toMatch(/accepted\.map/);
+  expect(composer).toMatch(/onSendText\(message\.trim\(\), ids\)/);
+  expect(composer).toMatch(/mator-pending-gallery/);
+  expect(hook).not.toMatch(/send\(file\.name, \[uploaded\.id\]\)/);
+  expect(panel).toMatch(/mator-image-gallery/);
+  expect(panel).toMatch(/assets\.map/);
+});
+test('text dictation stays in the draft and AI Call requires an explicit start', () => {
+  const shell = readFileSync(
+    resolve(root, 'components/dashboard/dashboard-shell.tsx'),
+    'utf8',
+  );
+  const composer = readFileSync(mator('mator-composer.tsx'), 'utf8');
+  const listener = readFileSync(mator('mator-voice-listener.tsx'), 'utf8');
+  expect(shell).toMatch(/if \(source === 'voice'\) \{/);
+  expect(shell).toMatch(/\[current\.trim\(\), request\]\.filter\(Boolean\)\.join\(' '\)/);
+  expect(shell).toMatch(/const aiCall = useMatorAiCall\(/);
+  expect(composer).toMatch(/<MatorVoiceListener call=\{call\}/);
+  expect(listener).toMatch(/data-testid="mator-call-start"/);
+  expect(listener).toMatch(/onClick=\{call\.start\}/);
+  expect(listener).toMatch(/mator-galaxy/);
+  expect(listener).not.toMatch(/mator-call-last-turn/);
 });

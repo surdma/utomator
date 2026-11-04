@@ -1,8 +1,8 @@
-import assert from 'node:assert/strict';
+
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import test from 'node:test';
+import { test, expect } from 'vitest';
 import { chromium } from 'playwright';
 import { BrowserSession } from '../src/browser/session.js';
 
@@ -36,7 +36,7 @@ test('CDP reuse shares login cookies without closing existing Chrome tabs', {
       }
       await new Promise((resolve) => setTimeout(resolve, 150));
     }
-    assert(Number.isInteger(port) && port > 0, 'Chrome must expose its debugging port');
+    expect(Number.isInteger(port) && port > 0).toBeTruthy();
 
     const originalTab = chrome.pages()[0] ?? (await chrome.newPage());
     await originalTab.goto('about:blank');
@@ -52,20 +52,16 @@ test('CDP reuse shares login cookies without closing existing Chrome tabs', {
       const session = new BrowserSession();
       try {
         const newTab = await session.open('linkedin');
-        assert.equal(session.kind, 'existing-chrome');
-        assert.notEqual(newTab, originalTab);
+        expect(session.kind).toEqual('existing-chrome');
+        expect(newTab).not.toEqual(originalTab);
         const cookies = await newTab.context().cookies('https://www.linkedin.com');
-        assert.equal(cookies.find((item) => item.name === 'utomator_fixture')?.value, 'signed_in');
-        assert.equal(originalTab.isClosed(), false);
+        expect(cookies.find((item) => item.name === 'utomator_fixture')?.value).toEqual('signed_in');
+        expect(originalTab.isClosed()).toEqual(false);
       } finally {
         await session.close();
       }
-      assert.equal(originalTab.isClosed(), false, 'ending an Utomator run must preserve existing tabs');
-      assert.equal(
-        await originalTab.evaluate(() => 2 + 2),
-        4,
-        'the original browser must still be controllable after disconnect',
-      );
+      expect(originalTab.isClosed()).toEqual(false);
+      expect(await originalTab.evaluate(() => 2 + 2)).toEqual(4);
     }
   } finally {
     if (previous === undefined) delete process.env.CHROME_CDP_URL;
@@ -92,7 +88,7 @@ test('CDP attachment rejects non-loopback endpoints before connecting', async ()
   process.env.CHROME_CDP_URL = 'http://192.0.2.1:9222';
   const session = new BrowserSession();
   try {
-    await assert.rejects(() => session.open('x'), /CDP must use loopback/);
+    await expect(() => session.open('x')).rejects.toThrow(/CDP must use loopback/);
   } finally {
     if (previous === undefined) delete process.env.CHROME_CDP_URL;
     else process.env.CHROME_CDP_URL = previous;
