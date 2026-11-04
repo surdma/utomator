@@ -1,9 +1,14 @@
 import type { GrowthJournalEvent } from '../components/dashboard/growth/growth-graph-model';
 
-export async function fetchGrowthRunJournal(
+export type GrowthJournalPage = {
+  entries: GrowthJournalEvent[];
+  truncated: boolean;
+};
+
+export async function fetchGrowthRunJournalPage(
   childRunId: string,
   signal: AbortSignal,
-): Promise<GrowthJournalEvent[]> {
+): Promise<GrowthJournalPage> {
   const response = await fetch(
     `/api/runs/${encodeURIComponent(childRunId)}/logs`,
     { cache: 'no-store', signal },
@@ -13,5 +18,15 @@ export async function fetchGrowthRunJournal(
   }
   const entries: unknown = await response.json();
   if (!Array.isArray(entries)) throw Error('Invalid Runner journal');
-  return entries as GrowthJournalEvent[];
+  return {
+    entries: entries as GrowthJournalEvent[],
+    truncated: response.headers?.get('x-run-journal-truncated') === 'true',
+  };
+}
+
+export async function fetchGrowthRunJournal(
+  childRunId: string,
+  signal: AbortSignal,
+): Promise<GrowthJournalEvent[]> {
+  return (await fetchGrowthRunJournalPage(childRunId, signal)).entries;
 }

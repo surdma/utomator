@@ -347,6 +347,12 @@ async function forward(req: NextRequest, params: Promise<{ path: string[] }>) {
     if (target.startsWith('events/')) {
       headers.set('x-accel-buffering', 'no');
     }
+    if (/^runs\/[0-9a-fA-F-]{36}\/logs$/.test(target)) {
+      for (const name of ['x-run-journal-truncated', 'x-run-journal-has-more']) {
+        const value = upstream.headers.get(name);
+        if (value !== null) headers.set(name, value);
+      }
+    }
     return new Response(upstream.body, { status: upstream.status, headers });
   } catch {
     return Response.json(

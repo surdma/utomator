@@ -6,6 +6,7 @@ import type { RunRequest, StreamEvent } from '../core/types.js';
 import { profileUrlForHandle } from '../core/validate.js';
 import { assessAudit } from '../runs/assessment.js';
 import type { Runner } from '../runs/runner.js';
+import { parseRunJournal } from '../runs/run-journal.js';
 import type { StepDefinitionStore } from '../workflows/step-definitions.js';
 import type { WorkflowRegistry } from '../workflows/workflow-registry.js';
 
@@ -151,23 +152,39 @@ export function registerRunRoutes(
         : reply.code(404).send({ error: 'Step output not found or not yet completed' });
     },
   );
-  app.get<{ Params: { id: string } }>('/runs/:id/logs', async (request, reply) => {
-    if (!runner.get(request.params.id)) return reply.code(404).send({ error: 'Run not found' });
-    try {
-      const log = await readFile(runtimePath('runs', request.params.id + '.jsonl'), 'utf8');
-      return reply.header('Cache-Control', 'private, no-store').send(
-        log
-          .split('\n')
-          .filter(Boolean)
-          .slice(-1000)
-          .map((row) => JSON.parse(row) as StreamEvent),
-      );
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT')
-        return reply.code(404).send({ error: 'Journal unavailable' });
-      throw error;
-    }
-  });
+  app.get<{ Params: { id: string }; Querystring: { since?: string } }>(
+    '/runs/:id/logs',
+    async (request, reply) => {
+      if (!runner.get(request.params.id))
+        return reply.code(404).send({ error: 'Run not found' });
+      const cursor = request.query?.since;
+      if (
+        cursor !== undefined &&
+        (!/^(0|[1-9][0-9]*)$/.test(cursor) || !Number.isSafeInteger(Number(cursor)))
+      )
+        return reply.code(400).send({ error: 'Invalid journal cursor' });
+      try {
+        const log = await readFile(runtimePath('runs', request.params.id + '.jsonl'), 'utf8');
+        const page = parseRunJournal(
+          log,
+          request.params.id,
+          cursor === undefined ? {} : { since: Number(cursor) },
+        );
+        return reply
+          .header('Cache-Control', 'private, no-store')
+          .header('X-Run-Journal-Truncated', String(page.truncated))
+          .header('X-Run-Journal-Has-More', String(page.hasMore))
+          .send(page.events);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT')
+          return reply.code(404).send({ error: 'Journal unavailable' });
+        if (error instanceof Error && error.message === 'Corrupt run journal')
+          return reply.code(409).send({ error: 'Corrupt run journal' });
+        throw error;
+      }
+    },
+  );
+
   app.post<{ Body: RunRequest & { handle?: string } }>(
     '/runs',
     { schema: { body: runBodySchema } },

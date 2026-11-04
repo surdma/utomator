@@ -186,7 +186,11 @@ export class Runner {
               summary.id,
               (checkpointId) => {
                 summary.checkpoint = { id: checkpointId, message };
-                emit('input', message, checkpointEventDetails(checkpointId, summary.currentStepId, compiledStepIds));
+                emit(
+                  'input',
+                  message,
+                  checkpointEventDetails(checkpointId, summary.currentStepId, compiledStepIds),
+                );
               },
               controller.signal,
             );
@@ -202,7 +206,11 @@ export class Runner {
               summary.id,
               (checkpointId) => {
                 summary.checkpoint = { id: checkpointId, message };
-                emit('approval', message, checkpointEventDetails(checkpointId, summary.currentStepId, compiledStepIds));
+                emit(
+                  'approval',
+                  message,
+                  checkpointEventDetails(checkpointId, summary.currentStepId, compiledStepIds),
+                );
               },
               controller.signal,
             );

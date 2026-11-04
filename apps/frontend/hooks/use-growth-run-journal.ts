@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { GrowthJournalEvent } from '../components/dashboard/growth/growth-graph-model';
-import { fetchGrowthRunJournal } from '../lib/growth-run-journal';
+import { fetchGrowthRunJournalPage } from '../lib/growth-run-journal';
 
 type JournalResult = {
   runId: string;
@@ -27,11 +27,18 @@ export function useGrowthRunJournal(childRunId: string | null): {
       if (!active || inFlight) return;
       inFlight = true;
       try {
-        const entries = await fetchGrowthRunJournal(
+        const page = await fetchGrowthRunJournalPage(
           childRunId,
           controller.signal,
         );
-        if (active) setResult({ runId: childRunId, entries, error: '' });
+        if (active)
+          setResult({
+            runId: childRunId,
+            entries: page.entries,
+            error: page.truncated
+              ? 'Earlier Runner events were omitted. Task history is incomplete.'
+              : '',
+          });
       } catch (error) {
         if (active && !controller.signal.aborted) {
           setResult({
