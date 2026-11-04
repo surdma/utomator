@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { createClient } from '@libsql/client';
 import { checkedOwnerId, createDocumentStore, LOCAL_OWNER_ID } from '../src/db/documents.js';
 import { AccountStore } from '../src/profile/account-store.js';
-import { ConnectorService } from '../src/connect/connectors.js';
+import { ConnectorService } from '../src/connect/service.js';
 import { CareerStore } from '../src/profile/career-store.js';
 import { WorkflowPlanStore } from '../src/workflows/workflow-store.js';
 import { WorkflowRegistry } from '../src/workflows/workflow-registry.js';

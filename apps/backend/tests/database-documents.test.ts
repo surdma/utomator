@@ -10,7 +10,7 @@ import { AccountStore } from '../src/profile/account-store.js';
 import { WorkflowPlanStore } from '../src/workflows/workflow-store.js';
 import { WorkflowRegistry } from '../src/workflows/workflow-registry.js';
 import { defaultPlan } from '../src/workflows/workflow-plan.js';
-import { ConnectorService } from '../src/connect/connectors.js';
+import { ConnectorService } from '../src/connect/service.js';
 import type { Page } from 'playwright';
 
 test('SQLite Drizzle persists connector verification, account identity and revision-pinned workflows', async () => {

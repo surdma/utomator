@@ -3,7 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { resolve } from 'node:path';
 import Fastify from 'fastify';
 import { Runner } from './runs/runner.js';
-import { ConnectorService } from './connect/connectors.js';
+import { ConnectorService } from './connect/service.js';
 import { ActivityMemory } from './mator/activity-memory.js';
 import { CreatorResearchStore, researchYaml } from './linkedin/linkedin-creator-research.js';
 import { LinkedInEditorialStore, editorialYaml } from './linkedin/linkedin-editorial.js';

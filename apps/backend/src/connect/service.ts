@@ -1,23 +1,14 @@
 ﻿import { randomUUID } from 'node:crypto';
-import { chmod, rm } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { rm } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import type { Page } from 'playwright';
 import { isConnectionTimeout, navigateWithRetry, streamSignInUrl } from '../browser/navigation.js';
 import type { BrowserPort } from '../browser/provider.js';
 import { BrowserSession } from '../browser/session.js';
 import type { BrokerInput } from '../browser/streaming-signin.js';
-import { BackedStore } from '../db/backed-store.js';
 import type { DocumentStore } from '../db/documents.js';
-import { writeAtomicJson } from '../db/persistence.js';
 import { AccountStore, type SocialAccount, type SocialPlatform } from '../profile/account-store.js';
-
-type ConnectionRecord = {
-  accountId: string;
-  verifiedAt: string;
-  platform: string;
-  handle: string;
-  profileUrl: string;
-};
+import { ConnectorRecordStore, type ConnectionRecord } from './store.js';
 export type ConnectionStatus = SocialAccount & {
   status: 'connected' | 'disconnected' | 'sign-in-open' | 'api-required';
   verifiedAt: string | null;
@@ -69,11 +60,10 @@ type AuditAction =
   | 'disconnected';
 
 export class ConnectorService {
-  private readonly path: string;
   private sessions = new Map<string, BrowserPort>();
   private pending = new Map<string, PendingConnection>();
   private checks = new Map<string, Promise<{ status: string; accountId: string }>>();
-  private readonly store: BackedStore<Record<string, ConnectionRecord>>;
+  private readonly store: ConnectorRecordStore;
   private documents?: DocumentStore;
   setDocuments(documents: DocumentStore) {
     this.documents = documents;
@@ -84,25 +74,13 @@ export class ConnectorService {
     private readonly makeBrowser: () => BrowserPort = () => new BrowserSession(),
     root = process.cwd(),
   ) {
-    this.path = resolve(root, '.runtime', 'connectors.json');
     this.root = root;
-    this.store = new BackedStore<Record<string, ConnectionRecord>>(
-      'connectors',
-      'sessions',
-      this.path,
-      {},
-      { ownerIsolation: true, writeJson: chmodmedJson },
-    );
+    this.store = new ConnectorRecordStore(root);
   }
   private readonly root: string;
 
   private async update(id: string, record: ConnectionRecord | null) {
-    // The write queue serializes read/modify/write so two sync requests cannot lose each other.
-    return this.store.update((all) => {
-      if (record) all[id] = record;
-      else delete all[id];
-      return all;
-    });
+    return this.store.update(id, record);
   }
   private async account(id: string): Promise<SocialAccount> {
     if (!allowId(id)) throw Error('Invalid connector account');
@@ -934,10 +912,4 @@ function platformLabel(platform: string): string {
     default:
       return platform;
   }
-}
-
-/** Atomic JSON write with owner-only final-path permissions (parity with the previous connector write path). */
-async function chmodmedJson(path: string, value: unknown): Promise<void> {
-  await writeAtomicJson(path, value);
-  await chmod(path, 0o600);
 }
