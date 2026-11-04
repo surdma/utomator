@@ -1,5 +1,5 @@
-import assert from 'node:assert/strict';
-import { test } from 'node:test';
+
+import { test, expect } from 'vitest';
 import {
   buildGrowthGraph,
   getGrowthTaskStates,
@@ -50,16 +50,10 @@ test('pipeline graph preserves dependencies and real run state', () => {
     ],
   };
   const graph = buildGrowthGraph(program, run, null, [], undefined);
-  assert.deepEqual(
-    graph.nodes.map((node) => node.id),
-    ['audit', 'review'],
-  );
-  assert.deepEqual(
-    graph.edges.map((edge) => [edge.source, edge.target, edge.animated]),
-    [['audit', 'review', true]],
-  );
-  assert.equal(graph.nodes[0].data.state, 'completed');
-  assert.equal(graph.nodes[1].data.state, 'running');
+  expect(graph.nodes.map((node) => node.id)).toEqual(['audit', 'review']);
+  expect(graph.edges.map((edge) => [edge.source, edge.target, edge.animated])).toEqual([['audit', 'review', true]]);
+  expect(graph.nodes[0].data.state).toEqual('completed');
+  expect(graph.nodes[1].data.state).toEqual('running');
 });
 
 test('failed task comes from persisted journal and active Runner checkpoint', () => {
@@ -86,7 +80,7 @@ test('failed task comes from persisted journal and active Runner checkpoint', ()
       },
     },
   ];
-  assert.equal(getGrowthTaskStates(journal, live).get('inspect'), 'failed');
+  expect(getGrowthTaskStates(journal, live).get('inspect')).toEqual('failed');
   const graph = buildGrowthGraph(
     program,
     { id: 'r1', pipelineRuns: [live] },
@@ -94,32 +88,29 @@ test('failed task comes from persisted journal and active Runner checkpoint', ()
     journal,
     live,
   );
-  assert.equal(graph.nodes[1].data.state, 'failed');
-  assert.equal(graph.nodes[1].data.failure, 'Could not inspect');
-  assert.deepEqual(
-    graph.edges.map((edge) => [edge.source, edge.target, edge.animated]),
-    [['start', 'inspect', false]],
-  );
+  expect(graph.nodes[1].data.state).toEqual('failed');
+  expect(graph.nodes[1].data.failure).toEqual('Could not inspect');
+  expect(graph.edges.map((edge) => [edge.source, edge.target, edge.animated])).toEqual([['start', 'inspect', false]]);
 });
 
 test('missing run evidence stays waiting and cannot imply completion', () => {
   const graph = buildGrowthGraph(program, null, null, [], undefined);
-  assert.equal(graph.nodes[0].data.state, 'waiting');
-  assert.equal(graph.nodes[1].data.state, 'waiting');
-  assert.equal(graph.edges[0].animated, false);
+  expect(graph.nodes[0].data.state).toEqual('waiting');
+  expect(graph.nodes[1].data.state).toEqual('waiting');
+  expect(graph.edges[0].animated).toEqual(false);
 });
 
 test('pipeline and task cards receive numbered step metadata and real step kinds', () => {
   const overview = buildGrowthGraph(program, null, null, [], undefined);
-  assert.equal(overview.nodes[0].data.kind, 'pipeline');
-  assert.equal(overview.nodes[0].data.index, 1);
-  assert.equal(overview.nodes[0].data.stepCount, 2);
+  expect(overview.nodes[0].data.kind).toEqual('pipeline');
+  expect(overview.nodes[0].data.index).toEqual(1);
+  expect(overview.nodes[0].data.stepCount).toEqual(2);
   const tasks = buildGrowthGraph(program, null, stage, [], undefined);
-  assert.equal(tasks.nodes[0].data.kind, 'task');
-  assert.equal(tasks.nodes[0].data.index, 1);
-  assert.equal(tasks.nodes[0].data.stepKind, 'start');
-  assert.equal(tasks.nodes[1].data.stepKind, 'inspect');
-  assert.equal(tasks.nodes[1].data.designOnly, false);
+  expect(tasks.nodes[0].data.kind).toEqual('task');
+  expect(tasks.nodes[0].data.index).toEqual(1);
+  expect(tasks.nodes[0].data.stepKind).toEqual('start');
+  expect(tasks.nodes[1].data.stepKind).toEqual('inspect');
+  expect(tasks.nodes[1].data.designOnly).toEqual(false);
   const designOnly = buildGrowthGraph(
     { ...program, kind: 'GrowthBlueprintWorkflow' },
     null,
@@ -127,5 +118,5 @@ test('pipeline and task cards receive numbered step metadata and real step kinds
     [],
     undefined,
   );
-  assert.equal(designOnly.nodes[1].data.designOnly, true);
+  expect(designOnly.nodes[1].data.designOnly).toEqual(true);
 });

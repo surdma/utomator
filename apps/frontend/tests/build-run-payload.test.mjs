@@ -1,5 +1,5 @@
-import assert from 'node:assert/strict';
-import { test } from 'node:test';
+
+import { test, expect } from 'vitest';
 import { buildRunPayload } from '../components/dashboard/pipeline/build-run-payload.ts';
 
 const base = () => ({
@@ -29,43 +29,28 @@ const base = () => ({
 });
 
 test('run payload requires a verified matching account', () => {
-  assert.throws(
-    () => buildRunPayload({ ...base(), activeConnector: null }),
-    /Select and verify/,
-  );
-  assert.throws(
-    () =>
+  expect(() => buildRunPayload({ ...base(), activeConnector: null })).toThrow(/Select and verify/);
+  expect(() =>
       buildRunPayload({
         ...base(),
         activeConnector: { ...base().activeConnector, platform: 'x' },
-      }),
-    /Select and verify/,
-  );
+      })).toThrow(/Select and verify/);
 });
 
 test('run payload blocks stale workflow revisions', () => {
-  assert.throws(
-    () => buildRunPayload({ ...base(), loadingWorkflow: true }),
-    /not finished loading/,
-  );
-  assert.throws(
-    () =>
+  expect(() => buildRunPayload({ ...base(), loadingWorkflow: true })).toThrow(/not finished loading/);
+  expect(() =>
       buildRunPayload({
         ...base(),
         activeWorkflow: { id: 'saved', revision: 4 },
         planDirty: true,
-      }),
-    /Save workflow changes/,
-  );
-  assert.throws(
-    () =>
+      })).toThrow(/Save workflow changes/);
+  expect(() =>
       buildRunPayload({
         ...base(),
         activeWorkflow: { id: 'saved', revision: 4 },
         formDirty: true,
-      }),
-    /Save workflow changes/,
-  );
+      })).toThrow(/Save workflow changes/);
 });
 
 test('run payload retains field validation and page scope', () => {
@@ -74,14 +59,14 @@ test('run payload retains field validation and page scope', () => {
     action: 'audit-page',
     fields: [{ key: 'websiteIndex', label: 'Website index', required: true }],
   };
-  assert.throws(() => buildRunPayload(extra), /Website index is required/);
+  expect(() => buildRunPayload(extra)).toThrow(/Website index is required/);
   const payload = buildRunPayload({
     ...extra,
     form: { websiteIndex: ' 3 ' },
   });
-  assert.equal(payload.websiteIndex, 3);
-  assert.equal(payload.pageUrl, extra.selectedPage);
-  assert.equal(payload.accountId, 'account-1');
+  expect(payload.websiteIndex).toEqual(3);
+  expect(payload.pageUrl).toEqual(extra.selectedPage);
+  expect(payload.accountId).toEqual('account-1');
 });
 
 test('run payload pins saved revisions and preserves new parameters', () => {
@@ -89,13 +74,13 @@ test('run payload pins saved revisions and preserves new parameters', () => {
     ...base(),
     activeWorkflow: { id: 'saved', revision: 4 },
   });
-  assert.equal(saved.workflowId, 'saved');
-  assert.equal(saved.workflowRevision, 4);
-  assert.equal('workflow' in saved, false);
+  expect(saved.workflowId).toEqual('saved');
+  expect(saved.workflowRevision).toEqual(4);
+  expect('workflow' in saved).toEqual(false);
   const newRun = buildRunPayload({
     ...base(),
     form: { headline: 'New title' },
   });
-  assert.deepEqual(newRun.workflow.parameters, { headline: 'New title' });
-  assert.equal('workflowRevision' in newRun, false);
+  expect(newRun.workflow.parameters).toEqual({ headline: 'New title' });
+  expect('workflowRevision' in newRun).toEqual(false);
 });

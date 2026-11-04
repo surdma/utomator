@@ -1,7 +1,8 @@
-import assert from 'node:assert/strict';
+
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import test from 'node:test';
+import { test, expect } from 'vitest';
+import assert from 'node:assert/strict';
 
 const root = resolve(import.meta.dirname, '..');
 const app = resolve(root, 'app');
@@ -21,22 +22,20 @@ const routes = [
 ];
 
 test('operator pages live under dashboard, not at the app root', () => {
-  assert.ok(existsSync(resolve(app, 'page.tsx')));
+  expect(existsSync(resolve(app, 'page.tsx'))).toBeTruthy();
   for (const route of routes)
-    assert.ok(existsSync(resolve(app, 'dashboard', route, 'page.tsx')), route);
-  assert.ok(existsSync(resolve(app, 'api', '[...path]', 'route.ts')));
-  assert.ok(!existsSync(resolve(app, '%5Fautomate')));
+    expect(existsSync(resolve(app, 'dashboard', route, 'page.tsx'))).toBeTruthy();
+  expect(existsSync(resolve(app, 'api', '[...path]', 'route.ts'))).toBeTruthy();
+  expect(!existsSync(resolve(app, '%5Fautomate'))).toBeTruthy();
   for (const route of routes.filter((item) => item !== 'growth'))
-    assert.ok(!existsSync(resolve(app, route)));
-  assert.ok(
-    existsSync(resolve(app, 'growth', 'default-growth-profile', 'page.tsx')),
-  );
-  assert.ok(!existsSync(resolve(app, '_automate')));
+    expect(!existsSync(resolve(app, route))).toBeTruthy();
+  expect(existsSync(resolve(app, 'growth', 'default-growth-profile', 'page.tsx'))).toBeTruthy();
+  expect(!existsSync(resolve(app, '_automate'))).toBeTruthy();
 });
 
 test('public portfolio routes are absent', () => {
   for (const route of ['about', 'articles', 'projects', 'resume']) {
-    assert.ok(!existsSync(resolve(app, route)), route);
+    expect(!existsSync(resolve(app, route))).toBeTruthy();
   }
 });
 
@@ -45,19 +44,16 @@ test('the proxy still rejects unsupported endpoints and non-local access', () =>
     resolve(app, 'api', '[...path]', 'route.ts'),
     'utf8',
   );
-  assert.match(proxy, /function allowedHost/);
-  assert.match(proxy, /function permitted/);
-  assert.match(proxy, /Local automation only/);
-  assert.match(proxy, /Unsupported endpoint/);
-  assert.ok(
-    proxy.includes(
+  expect(proxy).toMatch(/function allowedHost/);
+  expect(proxy).toMatch(/function permitted/);
+  expect(proxy).toMatch(/Local automation only/);
+  expect(proxy).toMatch(/Unsupported endpoint/);
+  expect(proxy.includes(
       "...(body?.length ? { 'content-type': 'application/json' } : {})",
-    ),
-    'bodyless clone POST does not advertise JSON',
-  );
-  assert.match(proxy, /idempotency-key/);
-  assert.match(proxy, /same-origin|Same-origin/);
-  assert.ok(proxy.includes('growth\\/workflows\\/profile'));
+    )).toBeTruthy();
+  expect(proxy).toMatch(/idempotency-key/);
+  expect(proxy).toMatch(/same-origin|Same-origin/);
+  expect(proxy.includes('growth\\/workflows\\/profile')).toBeTruthy();
 });
 
 test('landing page and pipeline identity are Utomator, not the portfolio', () => {
@@ -66,9 +62,9 @@ test('landing page and pipeline identity are Utomator, not the portfolio', () =>
     resolve(root, 'components', 'home', 'hero-text.tsx'),
     'utf8',
   );
-  assert.ok(!home.includes('ProfileAvatar'));
-  assert.match(hero, /Utomator/);
-  assert.match(home, /automation workflow preview/);
+  expect(!home.includes('ProfileAvatar')).toBeTruthy();
+  expect(hero).toMatch(/Utomator/);
+  expect(home).toMatch(/automation workflow preview/);
 });
 
 test('unified Growth editor reads the ID from nested Growth and legacy Craft URLs', () => {
@@ -84,9 +80,7 @@ test('unified Growth editor reads the ID from nested Growth and legacy Craft URL
     resolve(root, 'components/dashboard/pipeline/use-dashboard-navigation.ts'),
     'utf8',
   );
-  assert.match(
-    navigation,
-    /const\s+id\s*=\s*pathname\.split\(['"]\/['"]\)\[3\]/,
+  expect(navigation).toMatch(/const\s+id\s*=\s*pathname\.split\(['"]\/['"]\)\[3\]/,
   );
   assert.doesNotMatch(
     navigation,
@@ -94,11 +88,8 @@ test('unified Growth editor reads the ID from nested Growth and legacy Craft URL
   );
   assert.match(
     navigation,
-    /pathname.startsWith\(['"]\/dashboard\/growth\/['"]\)/,
-  );
-  assert.match(
-    pipeline,
-    /pane\s*===\s*['"]growth['"]\s*&&\s*\(?\s*<CraftsLibrary/,
+    /pathname.startsWith\(['"]\/dashboard\/growth\/['"]\)/);
+  expect(pipeline).toMatch(/pane\s*===\s*['"]growth['"]\s*&&\s*\(?\s*<CraftsLibrary/,
   );
   const pipelineWorkspace = readFileSync(
     resolve(root, 'components/dashboard/pipeline/pipeline-workspace.tsx'),
@@ -149,12 +140,10 @@ test('dashboard navigation is distinct from account and career API paths', () =>
   );
   assert.match(
     career,
-    /request\(\s*sourceView\s*\?\s*['"]\/profile['"]\s*:\s*['"]\/resumes\/['"]/,
+    /request\(\s*sourceView\s*\?\s*['"]\/profile['")\s*:\s*['"]\/resumes\/['"]/,
     'career editor uses /api/career/profile or /api/career/resumes',
   );
-  assert.match(
-    career,
-    /request\(\s*['"]\/resumes['"]\s*,\s*['"]POST['"]/,
+  expect(career).toMatch(/request\(\s*['"]\/resumes['"]\s*,\s*['"]POST['"]/,
     'creating a résumé uses the backend API',
   );
   assert.ok(
@@ -298,16 +287,16 @@ test('the first visit shows a blank Artboard and a genuinely broader workflow li
     resolve(root, 'components/dashboard/workflows/workflow-step-card.tsx'),
     'utf8',
   );
-  assert.match(hook, /useState\(false\)/);
-  assert.doesNotMatch(hook, /createDefaultWorkspace/);
-  assert.match(hook, /beginNewWorkflow/);
-  assert.match(hook, /selectSavedWorkflow/);
-  assert.match(workspace, /!workspaceOpen\s*\?\s*\(/);
-  assert.match(workspace, /<WorkflowEmptyState/);
-  assert.match(empty, /workflow-empty-state/);
-  assert.match(empty, /Browse templates/);
-  assert.match(empty, /Create new workflow/);
-  assert.match(empty, /Continue a saved workflow/);
+  expect(hook).toMatch(/useState\(false\)/);
+  expect(hook).not.toMatch(/createDefaultWorkspace/);
+  expect(hook).toMatch(/beginNewWorkflow/);
+  expect(hook).toMatch(/selectSavedWorkflow/);
+  expect(workspace).toMatch(/!workspaceOpen\s*\?\s*\(/);
+  expect(workspace).toMatch(/<WorkflowEmptyState/);
+  expect(empty).toMatch(/workflow-empty-state/);
+  expect(empty).toMatch(/Browse templates/);
+  expect(empty).toMatch(/Create new workflow/);
+  expect(empty).toMatch(/Continue a saved workflow/);
   const editorToolbar = readFileSync(
     resolve(
       root,
@@ -319,9 +308,9 @@ test('the first visit shows a blank Artboard and a genuinely broader workflow li
     resolve(root, 'components/dashboard/workflows/workflow-plan-editor.tsx'),
     'utf8',
   );
-  assert.match(editorToolbar, /onReturnToWorkspace/);
-  assert.match(workspaceEditor, /workflow-leave-confirmation/);
-  assert.match(workspaceEditor, /Discard draft/);
+  expect(editorToolbar).toMatch(/onReturnToWorkspace/);
+  expect(workspaceEditor).toMatch(/workflow-leave-confirmation/);
+  expect(workspaceEditor).toMatch(/Discard draft/);
   const commandBridge = readFileSync(
     resolve(root, 'components/dashboard/pipeline/use-operator-commands.ts'),
     'utf8',
@@ -330,26 +319,17 @@ test('the first visit shows a blank Artboard and a genuinely broader workflow li
     resolve(root, 'components/dashboard/dashboard-shell.tsx'),
     'utf8',
   );
-  assert.match(hook, /async function openActionWorkflow/);
-  assert.match(hook, /getApi\('workflow-plans\/'/);
-  assert.match(
-    commandBridge,
-    /onStageWorkflow\(command.action, command.fields\)/,
-  );
-  assert.match(
-    dashboard,
-    /if \(!workspaceOpen \|\| selectedGrowthTemplateId\)/,
-  );
-  assert.match(library, /ActionTemplateBrowser/);
-  assert.match(library, /Workflow library/);
-  assert.doesNotMatch(library, /Growth workflow library/);
-  assert.match(
-    action,
-    /onApply\(selected, selected.platform \+ '-' \+ selected.action\)/,
-  );
-  assert.match(action, /Use this template/);
-  assert.match(graph, /stepIconFor/);
-  assert.match(step, /stepIconFor/);
-  assert.match(graph, /STEP /);
-  assert.match(graph, /INSPECT · READ ONLY/);
+  expect(hook).toMatch(/async function openActionWorkflow/);
+  expect(hook).toMatch(/getApi\('workflow-plans\/'/);
+  expect(commandBridge).toMatch(/onStageWorkflow\(command.action, command.fields\)/);
+  expect(dashboard).toMatch(/if \(!workspaceOpen \|\| selectedGrowthTemplateId\)/);
+  expect(library).toMatch(/ActionTemplateBrowser/);
+  expect(library).toMatch(/Workflow library/);
+  expect(library).not.toMatch(/Growth workflow library/);
+  expect(action).toMatch(/onApply\(selected, selected.platform \+ '-' \+ selected.action\)/);
+  expect(action).toMatch(/Use this template/);
+  expect(graph).toMatch(/stepIconFor/);
+  expect(step).toMatch(/stepIconFor/);
+  expect(graph).toMatch(/STEP /);
+  expect(graph).toMatch(/INSPECT · READ ONLY/);
 });

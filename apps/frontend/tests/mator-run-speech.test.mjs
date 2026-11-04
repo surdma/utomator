@@ -1,5 +1,5 @@
-import assert from 'node:assert/strict';
-import { test } from 'node:test';
+
+import { test, expect } from 'vitest';
 import {
   collectRunSpeechUpdates,
   summarizeRunEventForSpeech,
@@ -25,18 +25,15 @@ test('speaks actual Runner start, step progress and completion', () => {
     'run-1',
     seen,
   );
-  assert.equal(updates.length, 4);
-  assert.match(updates[0], /starting/);
-  assert.match(updates[1], /Inspect profile evidence/);
-  assert.match(updates[3], /verified/);
-  assert.deepEqual(
-    collectRunSpeechUpdates(
+  expect(updates.length).toEqual(4);
+  expect(updates[0]).toMatch(/starting/);
+  expect(updates[1]).toMatch(/Inspect profile evidence/);
+  expect(updates[3]).toMatch(/verified/);
+  expect(collectRunSpeechUpdates(
       [runEvent(4, 'status', 'Run finished with verified steps')],
       'run-1',
       seen,
-    ),
-    [],
-  );
+    )).toEqual([]);
 });
 test('never speaks raw error diagnostics', () => {
   for (const item of [
@@ -45,14 +42,13 @@ test('never speaks raw error diagnostics', () => {
     runEvent(4, 'status', 'Run ended: failed'),
   ]) {
     const spoken = summarizeRunEventForSpeech(item);
-    assert.ok(spoken);
-    assert.doesNotMatch(spoken, /supersecret|private user|@example|localhost/);
+    expect(spoken).toBeTruthy();
+    expect(spoken).not.toMatch(/supersecret|private user|@example|localhost/);
   }
 });
 test('unrelated runs and noisy events are silent', () => {
   const seen = new Set();
-  assert.deepEqual(
-    collectRunSpeechUpdates(
+  expect(collectRunSpeechUpdates(
       [
         runEvent(1, 'step', 'Started: Other run step', 'run-2'),
         runEvent(2, 'screenshot', 'Captured screenshot'),
@@ -60,23 +56,12 @@ test('unrelated runs and noisy events are silent', () => {
       ],
       'run-1',
       seen,
-    ),
-    [],
-  );
+    )).toEqual([]);
 });
 test('approvals and input needs are short and accurate', () => {
-  assert.match(
-    summarizeRunEventForSpeech(
+  expect(summarizeRunEventForSpeech(
       runEvent(1, 'approval', 'Private approval reference'),
-    ),
-    /approval/,
-  );
-  assert.match(
-    summarizeRunEventForSpeech(runEvent(2, 'input', 'Private input reference')),
-    /more information/,
-  );
-  assert.match(
-    summarizeRunEventForSpeech(runEvent(3, 'status', 'Run ended: cancelled')),
-    /cancelled/,
-  );
+    )).toMatch(/approval/);
+  expect(summarizeRunEventForSpeech(runEvent(2, 'input', 'Private input reference'))).toMatch(/more information/);
+  expect(summarizeRunEventForSpeech(runEvent(3, 'status', 'Run ended: cancelled'))).toMatch(/cancelled/);
 });

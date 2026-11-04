@@ -1,5 +1,5 @@
-import assert from 'node:assert/strict';
-import { test } from 'node:test';
+
+import { test, expect } from 'vitest';
 import { fetchGrowthRunJournal } from '../lib/growth-run-journal.ts';
 
 test('journal request uses the child run identifier and forwards cancellation', async () => {
@@ -8,15 +8,12 @@ test('journal request uses the child run identifier and forwards cancellation', 
     const controller = new AbortController();
     const entries = [{ kind: 'step', message: 'Started' }];
     globalThis.fetch = async (path, options) => {
-      assert.equal(path, '/api/runs/run%2Fone/logs');
-      assert.equal(options.cache, 'no-store');
-      assert.equal(options.signal, controller.signal);
+      expect(path).toEqual('/api/runs/run%2Fone/logs');
+      expect(options.cache).toEqual('no-store');
+      expect(options.signal).toEqual(controller.signal);
       return { ok: true, json: async () => entries };
     };
-    assert.deepEqual(
-      await fetchGrowthRunJournal('run/one', controller.signal),
-      entries,
-    );
+    expect(await fetchGrowthRunJournal('run/one', controller.signal)).toEqual(entries);
   } finally {
     globalThis.fetch = previous;
   }
@@ -26,18 +23,12 @@ test('journal request reports server errors without claiming tasks completed', a
   const previous = globalThis.fetch;
   try {
     globalThis.fetch = async () => ({ ok: false, status: 503 });
-    await assert.rejects(
-      fetchGrowthRunJournal('run-one', new AbortController().signal),
-      /Runner event journal unavailable \(HTTP 503\)/,
-    );
+    await expect((fetchGrowthRunJournal('run-one', new AbortController().signal))).rejects.toThrow(/Runner event journal unavailable \(HTTP 503\)/);
     globalThis.fetch = async () => ({
       ok: true,
       json: async () => ({ task: 'fake' }),
     });
-    await assert.rejects(
-      fetchGrowthRunJournal('run-one', new AbortController().signal),
-      /Invalid Runner journal/,
-    );
+    await expect((fetchGrowthRunJournal('run-one', new AbortController().signal))).rejects.toThrow(/Invalid Runner journal/);
   } finally {
     globalThis.fetch = previous;
   }

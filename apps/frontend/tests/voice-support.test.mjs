@@ -1,5 +1,5 @@
-import assert from 'node:assert/strict';
-import { test } from 'node:test';
+
+import { test, expect } from 'vitest';
 import {
   acquireCurrentVoiceStream,
   createVoiceDeliveryGate,
@@ -7,22 +7,13 @@ import {
 } from '../components/mator/voice-support.ts';
 
 test('voice support stays unavailable when speech recognition is missing', () => {
-  assert.equal(readVoiceSupport(undefined), 'unsupported');
-  assert.equal(readVoiceSupport({}), 'unsupported');
-  assert.equal(
-    readVoiceSupport({ SpeechRecognition: function SpeechRecognition() {} }),
-    'ready',
-  );
-  assert.equal(
-    readVoiceSupport({
+  expect(readVoiceSupport(undefined)).toEqual('unsupported');
+  expect(readVoiceSupport({})).toEqual('unsupported');
+  expect(readVoiceSupport({ SpeechRecognition: function SpeechRecognition() {} })).toEqual('ready');
+  expect(readVoiceSupport({
       webkitSpeechRecognition: function webkitSpeechRecognition() {},
-    }),
-    'ready',
-  );
-  assert.equal(
-    readVoiceSupport({ SpeechRecognition: 'present' }),
-    'unsupported',
-  );
+    })).toEqual('ready');
+  expect(readVoiceSupport({ SpeechRecognition: 'present' })).toEqual('unsupported');
 });
 
 test('late microphone permission releases its tracks after cancellation', async () => {
@@ -46,8 +37,8 @@ test('late microphone permission releases its tracks after cancellation', async 
       },
     ],
   });
-  assert.equal(await acquisition, null);
-  assert.equal(stops, 1);
+  expect(await acquisition).toEqual(null);
+  expect(stops).toEqual(1);
 });
 
 test('current microphone permission keeps its stream for recording', async () => {
@@ -65,8 +56,8 @@ test('current microphone permission keeps its stream for recording', async () =>
     async () => stream,
     () => true,
   );
-  assert.equal(acquired, stream);
-  assert.equal(stops, 0);
+  expect(acquired).toEqual(stream);
+  expect(stops).toEqual(0);
 });
 
 test('completed transcription cannot reach a different conversation after invalidation', async () => {
@@ -83,15 +74,15 @@ test('completed transcription cannot reach a different conversation after invali
   gate.invalidate(); // Thread switch occurred while transcription was pending.
   fulfill('Message intended for the previous thread');
   await completion;
-  assert.deepEqual(delivered, []);
+  expect(delivered).toEqual([]);
 });
 
 test('a newer recording supersedes an older pending transcript', () => {
   const gate = createVoiceDeliveryGate();
   const first = gate.start();
   const second = gate.start();
-  assert.equal(gate.isCurrent(first), false);
-  assert.equal(gate.isCurrent(second), true);
+  expect(gate.isCurrent(first)).toEqual(false);
+  expect(gate.isCurrent(second)).toEqual(true);
   gate.invalidate();
-  assert.equal(gate.isCurrent(second), false);
+  expect(gate.isCurrent(second)).toEqual(false);
 });

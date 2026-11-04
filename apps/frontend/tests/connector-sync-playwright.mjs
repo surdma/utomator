@@ -10,7 +10,7 @@ async function main() {
   let passed = 0;
   let failed = 0;
 
-  function assert(condition, name) {
+  function expect(condition).toBeTruthy() {
     if (condition) {
       console.log(`  PASS: ${name}`);
       passed++;
@@ -28,7 +28,7 @@ async function main() {
     await page.waitForTimeout(3000);
 
     const floatBtn = page.locator("[data-testid='floating-connector-button']");
-    assert(await floatBtn.isVisible(), 'Floating connector button visible');
+    expect(await floatBtn.isVisible()).toBeTruthy();
 
     await floatBtn.click();
     await page.waitForTimeout(2000);
@@ -40,24 +40,24 @@ async function main() {
       await page.waitForTimeout(2000);
     }
     await dialog.waitFor({ state: 'visible', timeout: 5000 });
-    assert(await dialog.isVisible(), 'Dialog is visible');
+    expect(await dialog.isVisible()).toBeTruthy();
 
     const accountBtns = dialog.locator("button:has-text('@surdma')");
     const count = await accountBtns.count();
-    assert(count > 0, 'LinkedIn account @surdma visible in dialog');
+    expect(count > 0).toBeTruthy();
 
     if (count > 0) {
       await accountBtns.first().click();
 
       const syncBtn = dialog.locator("button:has-text('Sync')");
-      assert((await syncBtn.count()) > 0, 'Sync button visible');
+      expect((await syncBtn.count()) > 0).toBeTruthy();
 
       const disconnectBtn = dialog.locator("button:has-text('Disconnect')");
-      assert((await disconnectBtn.count()) > 0, 'Disconnect button visible');
+      expect((await disconnectBtn.count()) > 0).toBeTruthy();
     }
 
     await page.keyboard.press('Escape');
-    assert(!(await dialog.isVisible()), 'Dialog closes on Escape');
+    expect(!(await dialog.isVisible())).toBeTruthy();
 
     console.log('\nTest 2: Sync button calls API');
     const syncUrls = [];
@@ -80,10 +80,7 @@ async function main() {
       if ((await syncBtn.count()) > 0) {
         await syncBtn.click();
         await page.waitForTimeout(3000);
-        assert(
-          syncUrls.length > 0,
-          `Sync API was called (${syncUrls.length} requests)`,
-        );
+        expect(syncUrls.length > 0).toBeTruthy();
       }
     }
 
@@ -96,21 +93,15 @@ async function main() {
     await page.waitForTimeout(2000);
 
     const heading = page.locator('text=Social profile directory');
-    assert(await heading.isVisible(), 'Connections page loads');
+    expect(await heading.isVisible()).toBeTruthy();
 
     const linkedinText = page.locator('text=LinkedIn');
-    assert(
-      await linkedinText.isVisible(),
-      'LinkedIn accounts visible from server',
-    );
+    expect(await linkedinText.isVisible()).toBeTruthy();
 
     await page.reload();
     await page.waitForTimeout(2000);
-    assert(await heading.isVisible(), 'Connections page survives reload');
-    assert(
-      await linkedinText.isVisible(),
-      'LinkedIn accounts still visible after reload',
-    );
+    expect(await heading.isVisible()).toBeTruthy();
+    expect(await linkedinText.isVisible()).toBeTruthy();
   } catch (error) {
     console.log(`  ERROR: ${error.message}`);
     failed++;

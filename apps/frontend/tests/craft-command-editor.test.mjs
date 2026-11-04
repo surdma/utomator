@@ -1,5 +1,5 @@
-import assert from 'node:assert/strict';
-import { test } from 'node:test';
+
+import { test, expect } from 'vitest';
 import { editCraftFromCommand } from '../components/dashboard/pipeline/craft-command-editor.ts';
 
 const craft = () => ({
@@ -32,14 +32,8 @@ const craft = () => ({
 });
 
 test('craft editor refuses shared defaults and unknown commands', () => {
-  assert.throws(
-    () => editCraftFromCommand({ ...craft(), scope: 'default' }, 'enable'),
-    /read-only/,
-  );
-  assert.throws(
-    () => editCraftFromCommand(craft(), 'publish all'),
-    /Unknown command/,
-  );
+  expect(() => editCraftFromCommand({ ...craft(), scope: 'default' }, 'enable')).toThrow(/read-only/);
+  expect(() => editCraftFromCommand(craft(), 'publish all')).toThrow(/Unknown command/);
 });
 
 test('craft editor adds unique step IDs without mutating the original', () => {
@@ -48,49 +42,31 @@ test('craft editor adds unique step IDs without mutating the original', () => {
     original,
     'add Research | New instructions',
   );
-  assert.equal(result.expectedVersion, 7);
-  assert.equal(result.craft.steps.at(-1)?.id, 'research-2');
-  assert.equal(result.craft.steps.at(-1)?.body, 'New instructions');
-  assert.equal(original.steps.length, 2);
+  expect(result.expectedVersion).toEqual(7);
+  expect(result.craft.steps.at(-1)?.id).toEqual('research-2');
+  expect(result.craft.steps.at(-1)?.body).toEqual('New instructions');
+  expect(original.steps.length).toEqual(2);
 });
 
 test('craft editor rejects missing endpoints and duplicate links', () => {
-  assert.throws(
-    () => editCraftFromCommand(craft(), 'link research -> absent'),
-    /Both step IDs/,
-  );
+  expect(() => editCraftFromCommand(craft(), 'link research -> absent')).toThrow(/Both step IDs/);
   const linked = editCraftFromCommand(craft(), 'link research -> draft');
-  assert.deepEqual(
-    linked.craft.links.map((link) => link.id),
-    ['research-to-draft'],
-  );
-  assert.throws(
-    () =>
+  expect(linked.craft.links.map((link) => link.id)).toEqual(['research-to-draft']);
+  expect(() =>
       editCraftFromCommand(
         { ...craft(), links: linked.craft.links },
         'link research -> draft',
-      ),
-    /already connected/,
-  );
-  assert.deepEqual(
-    editCraftFromCommand(
+      )).toThrow(/already connected/);
+  expect(editCraftFromCommand(
       { ...craft(), links: linked.craft.links },
       'unlink research -> draft',
-    ).craft.links,
-    [],
-  );
+    ).craft.links).toEqual([]);
 });
 
 test('craft editor preserves version and metadata edits', () => {
-  assert.equal(
-    editCraftFromCommand(craft(), 'rename My new name').craft.name,
-    'My new name',
-  );
-  assert.equal(
-    editCraftFromCommand(craft(), 'description New description').craft
-      .description,
-    'New description',
-  );
-  assert.equal(editCraftFromCommand(craft(), 'enable').craft.enabled, true);
-  assert.equal(editCraftFromCommand(craft(), 'disable').craft.enabled, false);
+  expect(editCraftFromCommand(craft(), 'rename My new name').craft.name).toEqual('My new name');
+  expect(editCraftFromCommand(craft(), 'description New description').craft
+      .description).toEqual('New description');
+  expect(editCraftFromCommand(craft(), 'enable').craft.enabled).toEqual(true);
+  expect(editCraftFromCommand(craft(), 'disable').craft.enabled).toEqual(false);
 });

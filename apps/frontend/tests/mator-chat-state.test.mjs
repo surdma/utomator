@@ -1,5 +1,5 @@
-import assert from 'node:assert/strict';
-import { test } from 'node:test';
+
+import { test, expect } from 'vitest';
 import {
   eventsToConversation,
   findIncompleteEvent,
@@ -50,15 +50,12 @@ test('mergeMatorEvents dedupes by id and sorts by createdAt', () => {
       },
     ],
   );
-  assert.deepEqual(
-    merged.map((event) => event.id),
-    ['b', 'a'],
-  );
-  assert.equal(merged[1].text, 'hi updated');
+  expect(merged.map((event) => event.id)).toEqual(['b', 'a']);
+  expect(merged[1].text).toEqual('hi updated');
 });
 
 test('eventsToConversation maps user/how/message and keeps seed when empty', () => {
-  assert.equal(eventsToConversation([])[0].id, 'seed');
+  expect(eventsToConversation([])[0].id).toEqual('seed');
   const bubbles = eventsToConversation([
     {
       ...base,
@@ -83,11 +80,8 @@ test('eventsToConversation maps user/how/message and keeps seed when empty', () 
       action: { type: 'edit_step' },
     },
   ]);
-  assert.deepEqual(
-    bubbles.map((item) => item.sender),
-    ['user', 'assistant'],
-  );
-  assert.equal(bubbles.length, 2);
+  expect(bubbles.map((item) => item.sender)).toEqual(['user', 'assistant']);
+  expect(bubbles.length).toEqual(2);
 });
 
 test('findPendingStage returns latest unresolved staged', () => {
@@ -125,9 +119,9 @@ test('findPendingStage returns latest unresolved staged', () => {
       text: 'cut off',
     },
   ];
-  assert.equal(findPendingStage(events)?.id, '3');
-  assert.equal(findIncompleteEvent(events)?.id, '4');
-  assert.equal(pendingStageLabel(findPendingStage(events)), 'add step');
+  expect(findPendingStage(events)?.id).toEqual('3');
+  expect(findIncompleteEvent(events)?.id).toEqual('4');
+  expect(pendingStageLabel(findPendingStage(events))).toEqual('add step');
 });
 
 test('findPendingStage clears after applied or rejected', () => {
@@ -139,9 +133,8 @@ test('findPendingStage clears after applied or rejected', () => {
     status: 'staged',
     action: { type: 'edit_step' },
   };
-  assert.equal(findPendingStage([staged])?.id, 's1');
-  assert.equal(
-    findPendingStage([
+  expect(findPendingStage([staged])?.id).toEqual('s1');
+  expect(findPendingStage([
       staged,
       {
         ...base,
@@ -151,11 +144,8 @@ test('findPendingStage clears after applied or rejected', () => {
         status: 'applied',
         action: { type: 'edit_step' },
       },
-    ]),
-    null,
-  );
-  assert.equal(
-    findPendingStage([
+    ])).toEqual(null);
+  expect(findPendingStage([
       staged,
       {
         ...base,
@@ -165,9 +155,7 @@ test('findPendingStage clears after applied or rejected', () => {
         status: 'rejected',
         action: { type: 'edit_step' },
       },
-    ]),
-    null,
-  );
+    ])).toEqual(null);
 });
 
 test('findIncompleteEvent clears after later assistant success', () => {
@@ -179,9 +167,8 @@ test('findIncompleteEvent clears after later assistant success', () => {
     status: 'incomplete',
     text: 'cut off',
   };
-  assert.equal(findIncompleteEvent([incomplete])?.id, 'i1');
-  assert.equal(
-    findIncompleteEvent([
+  expect(findIncompleteEvent([incomplete])?.id).toEqual('i1');
+  expect(findIncompleteEvent([
       incomplete,
       {
         ...base,
@@ -197,11 +184,8 @@ test('findIncompleteEvent clears after later assistant success', () => {
         kind: 'how',
         text: 'Resumed and finished.',
       },
-    ]),
-    null,
-  );
-  assert.equal(
-    findIncompleteEvent([
+    ])).toEqual(null);
+  expect(findIncompleteEvent([
       incomplete,
       {
         ...base,
@@ -210,14 +194,11 @@ test('findIncompleteEvent clears after later assistant success', () => {
         kind: 'message',
         text: 'All done.',
       },
-    ]),
-    null,
-  );
+    ])).toEqual(null);
 });
 
 test('shouldSpeakHow only for assistant how when enabled; never user', () => {
-  assert.equal(
-    shouldSpeakHow(
+  expect(shouldSpeakHow(
       {
         ...base,
         id: 'h',
@@ -226,11 +207,8 @@ test('shouldSpeakHow only for assistant how when enabled; never user', () => {
         text: 'Guidance',
       },
       true,
-    ),
-    true,
-  );
-  assert.equal(
-    shouldSpeakHow(
+    )).toEqual(true);
+  expect(shouldSpeakHow(
       {
         ...base,
         id: 'h',
@@ -239,11 +217,8 @@ test('shouldSpeakHow only for assistant how when enabled; never user', () => {
         text: 'Guidance',
       },
       false,
-    ),
-    false,
-  );
-  assert.equal(
-    shouldSpeakHow(
+    )).toEqual(false);
+  expect(shouldSpeakHow(
       {
         ...base,
         id: 'u',
@@ -252,9 +227,7 @@ test('shouldSpeakHow only for assistant how when enabled; never user', () => {
         text: 'hello',
       },
       true,
-    ),
-    false,
-  );
+    )).toEqual(false);
 });
 
 test('open clarify stays until the user answers', () => {
@@ -278,10 +251,9 @@ test('open clarify stays until the user answers', () => {
       ],
     },
   };
-  assert.equal(findOpenClarify([clarify])?.id, 'q');
-  assert.equal(readClarifyQuestions(clarify.action)?.[0]?.name, 'tone');
-  assert.equal(
-    findOpenClarify([
+  expect(findOpenClarify([clarify])?.id).toEqual('q');
+  expect(readClarifyQuestions(clarify.action)?.[0]?.name).toEqual('tone');
+  expect(findOpenClarify([
       clarify,
       {
         ...base,
@@ -291,15 +263,10 @@ test('open clarify stays until the user answers', () => {
         text: 'Which tone? Direct',
         createdAt: '2026-10-30T10:00:01.000Z',
       },
-    ]),
-    null,
-  );
+    ])).toEqual(null);
   const form = new FormData();
   form.append('tone', 'Direct');
-  assert.equal(
-    formatClarifyReply(readClarifyQuestions(clarify.action), form),
-    'Which tone? Direct',
-  );
+  expect(formatClarifyReply(readClarifyQuestions(clarify.action), form)).toEqual('Which tone? Direct');
 });
 
 test('typed URL and file clarify questions survive decoding', () => {
@@ -320,17 +287,11 @@ test('typed URL and file clarify questions survive decoding', () => {
       },
     ],
   });
-  assert.deepEqual(
-    questions?.map((item) => item.inputType),
-    ['url', 'file'],
-  );
+  expect(questions?.map((item) => item.inputType)).toEqual(['url', 'file']);
   const form = new FormData();
   form.set('website', 'https://example.com/');
   form.set('attachment', 'capture.png');
-  assert.equal(
-    formatClarifyReply(questions, form),
-    'Which website? https://example.com/\nAttach a screenshot capture.png',
-  );
+  expect(formatClarifyReply(questions, form)).toEqual('Which website? https://example.com/\nAttach a screenshot capture.png');
 });
 
 test('two outstanding staged proposals keep independent approval state', () => {
@@ -364,9 +325,9 @@ test('two outstanding staged proposals keep independent approval state', () => {
       resolvesEventId: 'proposal-one',
     },
   ];
-  assert.equal(stageResolution(events, 'proposal-one'), 'rejected');
-  assert.equal(stageResolution(events, 'proposal-two'), null);
-  assert.equal(findPendingStage(events)?.id, 'proposal-two');
+  expect(stageResolution(events, 'proposal-one')).toEqual('rejected');
+  expect(stageResolution(events, 'proposal-two')).toEqual(null);
+  expect(findPendingStage(events)?.id).toEqual('proposal-two');
   events.push({
     ...base,
     id: 'decision-two',
@@ -376,8 +337,8 @@ test('two outstanding staged proposals keep independent approval state', () => {
     action: { type: 'edit_step' },
     resolvesEventId: 'proposal-two',
   });
-  assert.equal(findPendingStage(events), null);
-  assert.equal(stageResolution(events, 'proposal-two'), 'applied');
+  expect(findPendingStage(events)).toEqual(null);
+  expect(stageResolution(events, 'proposal-two')).toEqual('applied');
 });
 
 test('legacy unlinked stage decisions do not resolve every earlier proposal', () => {
@@ -404,9 +365,9 @@ test('legacy unlinked stage decisions do not resolve every earlier proposal', ()
       status: 'applied',
     },
   ];
-  assert.equal(stageResolution(events, 'old-two'), 'applied');
-  assert.equal(stageResolution(events, 'old-one'), null);
-  assert.equal(findPendingStage(events)?.id, 'old-one');
+  expect(stageResolution(events, 'old-two')).toEqual('applied');
+  expect(stageResolution(events, 'old-one')).toEqual(null);
+  expect(findPendingStage(events)?.id).toEqual('old-one');
 });
 
 test('informational and historic no-op actions never become fake confirmation cards', () => {
@@ -443,20 +404,13 @@ test('informational and historic no-op actions never become fake confirmation ca
     text: 'Here is an explanation.',
   };
   const records = [stage, decision, noop, how];
-  assert.deepEqual(
-    records
+  expect(records
       .filter((event) => shouldRenderMatorEvent(records, event))
-      .map((event) => event.id),
-    ['stage-1', 'how-1'],
-  );
-  assert.equal(stageResolution(records, 'stage-1'), 'applied');
-  assert.equal(findPendingStage(records), null);
+      .map((event) => event.id)).toEqual(['stage-1', 'how-1']);
+  expect(stageResolution(records, 'stage-1')).toEqual('applied');
+  expect(findPendingStage(records)).toEqual(null);
   const orphan = { ...decision, id: 'orphan', resolvesEventId: 'not-found' };
-  assert.equal(
-    shouldRenderMatorEvent([orphan], orphan),
-    true,
-    'unmatched decision evidence stays visible',
-  );
+  expect(shouldRenderMatorEvent([orphan], orphan)).toEqual(true);
 });
 
 test('historic unlinked decision is shown once while unrelated events are retained', () => {
@@ -486,11 +440,8 @@ test('historic unlinked decision is shown once while unrelated events are retain
     text: 'Try reviewing the proposal.',
   };
   const records = [stage, applied, oldExplanation];
-  assert.deepEqual(
-    records
+  expect(records
       .filter((event) => shouldRenderMatorEvent(records, event))
-      .map((event) => event.id),
-    ['stage-old', 'old-how'],
-  );
-  assert.equal(findPendingStage(records), null);
+      .map((event) => event.id)).toEqual(['stage-old', 'old-how']);
+  expect(findPendingStage(records)).toEqual(null);
 });

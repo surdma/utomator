@@ -1,5 +1,5 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
+
+import { test, expect } from 'vitest';
 import { MatorCallCoordinator } from '../components/mator/mator-call-coordinator.ts';
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
@@ -8,7 +8,7 @@ async function until(pred) {
     if (pred()) return;
     await tick();
   }
-  assert.fail('expected phase/result');
+  throw new Error('expected phase/result');
 }
 const question = (name, prompt, extra = {}) => ({
   name,
@@ -71,8 +71,8 @@ test('spoken clarification asks each question separately but persists one final 
   });
   call.start('workflow:thread');
   await until(() => posted.length === 2);
-  assert.deepEqual(posted, ['initial', 'Your name? Ada\nYour role? Engineer']);
-  assert.deepEqual(prompts, ['Your name?', 'Your role?']);
+  expect(posted).toEqual(['initial', 'Your name? Ada\nYour role? Engineer']);
+  expect(prompts).toEqual(['Your name?', 'Your role?']);
   await until(() => spoke.includes('Thanks, Ada'));
   call.end();
 });
@@ -103,10 +103,10 @@ test('visual URL clarification remains paused until submitted then automatically
   });
   call.start('workflow:thread');
   await until(() => call.phase === 'clarifying-form');
-  assert.equal(captureCalls, 1);
+  expect(captureCalls).toEqual(1);
   await call.answerVisual(['https://example.com']);
   await until(() => requests.length === 2);
-  assert.equal(requests[1], 'Enter a URL https://example.com/');
+  expect(requests[1]).toEqual('Enter a URL https://example.com/');
   await until(() => captureCalls === 2);
   call.end();
 });
@@ -128,9 +128,9 @@ test('staged action never continues until matching on-screen decision succeeded'
   });
   call.start('workflow:thread');
   await until(() => call.phase === 'awaiting-approval');
-  assert.equal(captures, 1);
+  expect(captures).toEqual(1);
   await call.stageDecisionSucceeded('wrong-stage', 'confirm');
-  assert.equal(call.phase, 'awaiting-approval');
+  expect(call.phase).toEqual('awaiting-approval');
   await call.stageDecisionSucceeded('stage', 'reject');
   await until(() => captures === 2);
   call.end();
@@ -156,8 +156,8 @@ test('microphone mute prevents automatic resumption after staged decision', asyn
   await until(() => call.phase === 'awaiting-approval');
   call.setMicMuted(true);
   await call.stageDecisionSucceeded('stage', 'confirm');
-  assert.equal(captures, 1);
-  assert.equal(call.phase, 'paused');
+  expect(captures).toEqual(1);
+  expect(call.phase).toEqual('paused');
   call.end();
 });
 
@@ -186,8 +186,8 @@ test('genuine barge audio is transcribed as the next turn with no new microphone
   });
   call.start('workflow:thread');
   await until(() => messages.length === 2);
-  assert.deepEqual(messages, ['first', 'barge-in']);
-  assert.deepEqual(countsAtSend, [1, 1]);
+  expect(messages).toEqual(['first', 'barge-in']);
+  expect(countsAtSend).toEqual([1, 1]);
   call.end();
 });
 
@@ -213,7 +213,7 @@ test('structured answer submitted while microphone muted stays paused without vo
   await until(() => call.phase === 'clarifying-form');
   call.setMicMuted(true);
   await call.answerVisual(['https://example.org']);
-  assert.equal(call.phase, 'paused');
-  assert.equal(captures, 1);
+  expect(call.phase).toEqual('paused');
+  expect(captures).toEqual(1);
   call.end();
 });
