@@ -16,6 +16,7 @@ import {
   compileWorkflow,
 } from '../workflows/workflow-yaml.js';
 import { ApprovalGate } from './approvals.js';
+import { checkpointEventDetails } from './checkpoint-event.js';
 import {
   type ApprovalDecision,
   approvalDecision,
@@ -111,6 +112,7 @@ export class Runner {
       this.compiled.set(summary.id, compiled);
     }
     const archivedSteps = compiled?.steps.map((step) => step.source.id) ?? [];
+    const compiledStepIds = compiled ? new Set(archivedSteps) : undefined;
     this.archive.save(summary, archivedSteps);
     this.active = { summary, controller, pauseRequested: false };
     this.history.set(summary.id, summary);
@@ -184,7 +186,7 @@ export class Runner {
               summary.id,
               (checkpointId) => {
                 summary.checkpoint = { id: checkpointId, message };
-                emit('input', message, { checkpointId });
+                emit('input', message, checkpointEventDetails(checkpointId, summary.currentStepId, compiledStepIds));
               },
               controller.signal,
             );
@@ -200,7 +202,7 @@ export class Runner {
               summary.id,
               (checkpointId) => {
                 summary.checkpoint = { id: checkpointId, message };
-                emit('approval', message, { checkpointId });
+                emit('approval', message, checkpointEventDetails(checkpointId, summary.currentStepId, compiledStepIds));
               },
               controller.signal,
             );
