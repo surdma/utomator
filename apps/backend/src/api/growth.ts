@@ -1,11 +1,11 @@
 import type { FastifyInstance } from 'fastify';
+import type { ConnectorService } from '../connect/service.js';
 import {
   readGrowthProfileWorkflow,
   readGrowthTemplate,
   readGrowthTemplateCatalog,
 } from '../engine/growth-profile.js';
 import type { ProfileGrowthCoordinator } from '../engine/profile-growth-coordinator.js';
-import type { ConnectorService } from '../connect/service.js';
 
 /**
  * Growth routes. Growth = data-driven YAML programs over the one Runner; every
@@ -95,7 +95,9 @@ export function registerGrowthRoutes(
         const definition = await readGrowthTemplate(request.params.id);
         if (!definition) return reply.code(404).send({ error: 'Growth template not found' });
         if (definition.program.kind === 'GrowthBlueprintWorkflow')
-          return reply.code(409).send({ error: 'This YAML is a design-only workflow; provider execution is unavailable' });
+          return reply
+            .code(409)
+            .send({ error: 'This YAML is a design-only workflow; provider execution is unavailable' });
         const account = await connectors.requireConnected(request.body.accountId, 'linkedin');
         return reply
           .code(202)

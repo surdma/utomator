@@ -1,5 +1,5 @@
 import type { Edge, Node } from '@xyflow/react';
-import type { WorkflowPlan, StepKind } from '../workflows/workflow-types';
+import type { StepKind, WorkflowPlan } from '../workflows/workflow-types';
 
 export type GrowthGraphStage = {
   id: string;
@@ -57,7 +57,7 @@ export type GrowthGraphNode = Node<GrowthGraphData, 'growthNode'>;
 
 export function getGrowthTaskStates(
   journal: GrowthJournalEvent[],
-  live: GrowthPipelineRun | undefined
+  live: GrowthPipelineRun | undefined,
 ): Map<string, string> {
   const states = new Map<string, string>();
   for (const entry of journal) {
@@ -82,7 +82,7 @@ export function buildGrowthGraph(
   run: GrowthGraphRun,
   selected: GrowthGraphStage | null,
   journal: GrowthJournalEvent[],
-  live: GrowthPipelineRun | undefined
+  live: GrowthPipelineRun | undefined,
 ): { nodes: GrowthGraphNode[]; edges: Edge[] } {
   if (selected) {
     const taskStates = getGrowthTaskStates(journal, live);
@@ -101,7 +101,7 @@ export function buildGrowthGraph(
         stepKind: step.kind,
         designOnly: program.kind === 'GrowthBlueprintWorkflow',
         label: step.title,
-        subtitle: step.kind.replaceAll('-', ' ') + ' step',
+        subtitle: `${step.kind.replaceAll('-', ' ')} step`,
         state: taskStates.get(step.id) ?? 'waiting',
         failure:
           taskStates.get(step.id) === 'failed'
@@ -109,7 +109,7 @@ export function buildGrowthGraph(
                 .filter(
                   (event) =>
                     event.details?.stepId === step.id &&
-                    event.details?.stage === 'failed'
+                    event.details?.stage === 'failed',
                 )
                 .at(-1)?.details?.reason ??
               live?.error ??
@@ -118,7 +118,7 @@ export function buildGrowthGraph(
       },
     }));
     const edges: Edge[] = selected.plan.links.map((link) => ({
-      id: link.source + '-' + link.target,
+      id: `${link.source}-${link.target}`,
       source: link.source,
       target: link.target,
       type: 'smoothstep',
@@ -129,7 +129,7 @@ export function buildGrowthGraph(
   }
 
   const pipelineById = new Map(
-    run?.pipelineRuns.map((item) => [item.id, item]) ?? []
+    run?.pipelineRuns.map((item) => [item.id, item]) ?? [],
   );
   const nodes: GrowthGraphNode[] = program.stages.map((stage, index) => {
     const state = pipelineById.get(stage.id);
@@ -161,7 +161,7 @@ export function buildGrowthGraph(
   const edges: Edge[] = program.stages
     .filter((stage) => stage.dependsOn !== 'none')
     .map((stage) => ({
-      id: stage.dependsOn + '-' + stage.id,
+      id: `${stage.dependsOn}-${stage.id}`,
       source: stage.dependsOn,
       target: stage.id,
       type: 'smoothstep',

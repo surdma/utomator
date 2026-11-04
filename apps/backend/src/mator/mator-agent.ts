@@ -1,4 +1,5 @@
 import type { DocumentStore } from '../db/documents.js';
+import type { WorkflowPlan } from '../workflows/workflow-plan.js';
 import {
   applyAction,
   assertActionAgainstPlan,
@@ -15,6 +16,8 @@ import {
   MATOR_CONVERSATIONS_NAMESPACE,
   type MatorConversation,
   type MatorEvent,
+  type WorkflowConversationIndex,
+  workflowIndexKey,
 } from './mator-conversations.js';
 import { decryptSecret } from './mator-crypto.js';
 import {
@@ -24,14 +27,14 @@ import {
   MATOR_STATIC_SYSTEM_PROMPT,
   moderateUserText,
 } from './mator-groq.js';
+import { type MatorInteractionMode, mayAutoApproveMatorAction } from './mator-interaction-mode.js';
 import {
   getMatorSettings,
   isGroqKeyConfigured,
   type MatorSettings,
   readEnvGroqApiKey,
 } from './mator-settings.js';
-import type { WorkflowPlan } from '../workflows/workflow-plan.js';
-import { mayAutoApproveMatorAction, type MatorInteractionMode } from './mator-interaction-mode.js';
+import { isPlainObject } from './mator-utils.js';
 
 export { GROQ_OPENAI_BASE_URL };
 export const MAX_MATOR_ACTIONS_PER_TURN = 3;
@@ -65,21 +68,10 @@ export type RunMatorTurnOptions = {
   signal?: AbortSignal;
 };
 
-type WorkflowConversationIndex = {
-  currentId: string | null;
-  items: Array<MatorConversation & { contextSummary?: string | null }>;
-};
-
 type GroqTurnPayload = {
   how?: string;
   actions: unknown[];
 };
-
-const workflowIndexKey = (workflowId: string) => `workflow:${workflowId}`;
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
 
 function estimateChars(text: string): number {
   return text.length;
@@ -323,7 +315,8 @@ export async function runMatorTurn(
   const attachments = [];
   for (const id of attachmentIds) {
     const meta = await getAttachmentMeta(docs, id);
-    if (meta.conversationId !== input.conversationId) throw Error('Attachment belongs to another conversation');
+    if (meta.conversationId !== input.conversationId)
+      throw Error('Attachment belongs to another conversation');
     attachments.push({
       id,
       name: meta.filename,

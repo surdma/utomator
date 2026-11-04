@@ -1,4 +1,5 @@
-import type { HTMLAttributes, ButtonHTMLAttributes } from 'react';
+import type { ButtonHTMLAttributes, HTMLAttributes } from 'react';
+
 type Props = HTMLAttributes<HTMLDivElement>;
 export function Card({ className = '', ...props }: Props) {
   return (

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
+
 const root = new URL('../', import.meta.url);
 const read = (path) => readFile(new URL(path, root), 'utf8');
 const pages = [
@@ -23,8 +24,8 @@ test('the marketing root is separate and every operator page is nested under das
   assert.ok(existsSync(new URL('app/dashboard/page.tsx', root)));
   for (const route of pages)
     assert.ok(
-      existsSync(new URL('app/dashboard/' + route + '/page.tsx', root)),
-      route
+      existsSync(new URL(`app/dashboard/${route}/page.tsx`, root)),
+      route,
     );
   for (const route of [
     'workspace',
@@ -41,33 +42,33 @@ test('the marketing root is separate and every operator page is nested under das
     '_automate',
     '%5Fautomate',
   ])
-    assert.ok(!existsSync(new URL('app/' + route, root)), route);
+    assert.ok(!existsSync(new URL(`app/${route}`, root)), route);
   assert.ok(
-    existsSync(new URL('app/dashboard/crafts/[craftId]/source/page.tsx', root))
+    existsSync(new URL('app/dashboard/crafts/[craftId]/source/page.tsx', root)),
   );
   assert.ok(
-    existsSync(new URL('app/dashboard/growth/[craftId]/page.tsx', root))
+    existsSync(new URL('app/dashboard/growth/[craftId]/page.tsx', root)),
   );
   assert.ok(
-    existsSync(new URL('app/growth/default-growth-profile/page.tsx', root))
+    existsSync(new URL('app/growth/default-growth-profile/page.tsx', root)),
   );
   assert.ok(
-    existsSync(new URL('app/dashboard/growth/[craftId]/source/page.tsx', root))
+    existsSync(new URL('app/dashboard/growth/[craftId]/source/page.tsx', root)),
   );
   assert.ok(
-    existsSync(new URL('app/dashboard/resumes/[resumeId]/page.tsx', root))
+    existsSync(new URL('app/dashboard/resumes/[resumeId]/page.tsx', root)),
   );
   assert.match(
     await read('app/dashboard/page.tsx'),
-    /redirect\(['"]\/dashboard\/workspace['"]\)/
+    /redirect\(['"]\/dashboard\/workspace['"]\)/,
   );
   assert.match(
     await read('components/dashboard/dashboard-shell.tsx'),
-    /DashboardShell/
+    /DashboardShell/,
   );
   assert.match(
     await read('components/home/hero-button.tsx'),
-    /href="\/dashboard\/workspace"/
+    /href="\/dashboard\/workspace"/,
   );
 });
 test('API proxy remains loopback-only and craft endpoints are allowlisted', async () => {

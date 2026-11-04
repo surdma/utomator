@@ -11,7 +11,7 @@ test('default profile audit has its original connected execution sequence', () =
   assert.equal(plan.action, 'audit');
   assert.deepEqual(
     plan.steps.map((step) => step.id),
-    ['start', 'session', 'inspect', 'action', 'verify', 'finish']
+    ['start', 'session', 'inspect', 'action', 'verify', 'finish'],
   );
   assert.deepEqual(
     plan.links.map((link) => [link.source, link.target]),
@@ -21,7 +21,7 @@ test('default profile audit has its original connected execution sequence', () =
       ['inspect', 'action'],
       ['action', 'verify'],
       ['verify', 'finish'],
-    ]
+    ],
   );
 });
 
@@ -41,7 +41,7 @@ test('a new user-created workflow has only the four validated protected steps', 
     assert.equal(draft.name, 'Untitled workflow');
     assert.deepEqual(
       draft.steps.map((step) => step.id),
-      ['start', 'session', 'action', 'finish']
+      ['start', 'session', 'action', 'finish'],
     );
     assert.deepEqual(
       draft.links.map((link) => [link.source, link.target]),
@@ -49,7 +49,7 @@ test('a new user-created workflow has only the four validated protected steps', 
         ['start', 'session'],
         ['session', 'action'],
         ['action', 'finish'],
-      ]
+      ],
     );
     assert.notEqual(draft, newWorkflowDraft(platform));
   }

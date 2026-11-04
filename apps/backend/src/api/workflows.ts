@@ -1,11 +1,11 @@
 import type { FastifyInstance } from 'fastify';
-import { compileWorkflow } from '../workflows/workflow-yaml.js';
-import type { WorkflowPlan } from '../workflows/workflow-plan.js';
+import type { Action, Platform } from '../core/types.js';
 import type { StepDefinitionStore } from '../workflows/step-definitions.js';
 import { loadStepForms } from '../workflows/step-forms.js';
-import type { WorkflowPlanStore } from '../workflows/workflow-store.js';
+import type { WorkflowPlan } from '../workflows/workflow-plan.js';
 import type { WorkflowRegistry } from '../workflows/workflow-registry.js';
-import type { Action, Platform } from '../core/types.js';
+import type { WorkflowPlanStore } from '../workflows/workflow-store.js';
+import { compileWorkflow } from '../workflows/workflow-yaml.js';
 
 /** Workflow authoring routes: templates, plans, step definitions, registry CRUD, YAML previews. */
 export function registerWorkflowRoutes(

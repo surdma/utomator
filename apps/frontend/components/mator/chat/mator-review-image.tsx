@@ -8,7 +8,7 @@ export function ReviewImage({ review, src }: { review: Review; src: string }) {
     <Image
       unoptimized
       src={src}
-      alt={'Annotated ' + review.pageUrl}
+      alt={`Annotated ${review.pageUrl}`}
       width={640}
       height={400}
       className="pointer-events-none max-h-44 w-full object-contain select-none"

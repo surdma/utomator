@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { rm } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import type { Browser, BrowserContext, Page } from 'playwright';
 import type { VaultPayload } from '../connect/session-vault.js';
+import { runtimePath } from '../core/paths.js';
 import {
   assertLoopbackCdp,
   attachChrome,
@@ -12,7 +12,7 @@ import {
   scratchDirectory,
   startScreencast,
 } from './provider.js';
-import { mapBrokerInput, type BrokerInput } from './streaming-signin.js';
+import { type BrokerInput, mapBrokerInput } from './streaming-signin.js';
 import { seedOriginStorage } from './vault-probe.js';
 
 export class BrowserSession {
@@ -63,8 +63,8 @@ export class BrowserSession {
       this.connection = 'existing-chrome';
     } else {
       const dir = accountId
-        ? resolve('.runtime', 'chrome', 'accounts', accountId)
-        : resolve('.runtime', 'chrome', platform);
+        ? runtimePath('chrome', 'accounts', accountId)
+        : runtimePath('chrome', platform);
       this.context = await launchPersistent(dir);
       this.page = this.context.pages()[0] ?? (await this.context.newPage());
       this.connection = 'persistent-profile';

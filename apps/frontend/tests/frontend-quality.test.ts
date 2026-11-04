@@ -1,5 +1,5 @@
+import { expect, type Page, type TestInfo, test } from '@playwright/test';
 import axe from 'axe-core';
-import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import {
   connectorAccount,
   installConnectorApi,
@@ -11,7 +11,7 @@ const mobileBrowser = (page: Page) =>
   page.evaluate(() => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
 
 async function capture(page: Page, info: TestInfo, label: string) {
-  await info.attach(label + '.png', {
+  await info.attach(`${label}.png`, {
     body: await page.screenshot({ animations: 'disabled' }),
     contentType: 'image/png',
   });
@@ -20,7 +20,7 @@ async function capture(page: Page, info: TestInfo, label: string) {
 async function assertLayout(page: Page) {
   const problems = await page.evaluate(() => {
     const dialog = document.querySelector<HTMLDialogElement>(
-      '[data-testid="connector-onboarding-dialog"]'
+      '[data-testid="connector-onboarding-dialog"]',
     );
     if (!dialog) return ['Connection dialog missing'];
     const issues: string[] = [];
@@ -36,9 +36,9 @@ async function assertLayout(page: Page) {
         button.textContent?.trim() ||
         'unlabelled button';
       if (bounds.width < 43.5 || bounds.height < 43.5)
-        issues.push(name + ' has a touch target smaller than 44x44px');
+        issues.push(`${name} has a touch target smaller than 44x44px`);
       if (bounds.left < -1 || bounds.right > window.innerWidth + 1)
-        issues.push(name + ' lies outside the viewport horizontally');
+        issues.push(`${name} lies outside the viewport horizontally`);
     }
     return issues;
   });
@@ -51,7 +51,7 @@ async function assertAxe(page: Page, info: TestInfo, label: string) {
     const audit = (window as Window & { axe?: typeof axe }).axe;
     if (!audit) throw new Error('axe-core did not load in the test browser');
     const dialog = document.querySelector(
-      '[data-testid="connector-onboarding-dialog"]'
+      '[data-testid="connector-onboarding-dialog"]',
     );
     if (!dialog) throw new Error('Missing connector dialog');
     return audit.run(dialog, {
@@ -61,7 +61,7 @@ async function assertAxe(page: Page, info: TestInfo, label: string) {
       },
     });
   });
-  await info.attach('accessibility-' + label + '.json', {
+  await info.attach(`accessibility-${label}.json`, {
     body: Buffer.from(
       JSON.stringify(
         {
@@ -70,8 +70,8 @@ async function assertAxe(page: Page, info: TestInfo, label: string) {
           incomplete: result.incomplete.map((item) => item.id),
         },
         null,
-        2
-      )
+        2,
+      ),
     ),
     contentType: 'application/json',
   });
@@ -81,7 +81,7 @@ async function assertAxe(page: Page, info: TestInfo, label: string) {
       ' (' +
       item.impact +
       '): ' +
-      item.nodes.map((node) => node.target.join(' ')).join(', ')
+      item.nodes.map((node) => node.target.join(' ')).join(', '),
   );
   expect(failures, failures.join('\n')).toEqual([]);
 }
@@ -95,7 +95,7 @@ test('provider icons have one consistent size and no redundant status graphics',
   await expect(choices).toHaveCount(2);
   await dialog.getByRole('button', { name: /Other networks/ }).click();
   await expect(
-    dialog.getByRole('button', { name: /Other networks/ })
+    dialog.getByRole('button', { name: /Other networks/ }),
   ).toHaveAttribute('aria-expanded', 'true');
   const icons = dialog.getByTestId('linkedin-connector').locator('svg');
   await expect(icons).toHaveCount(5);
@@ -103,7 +103,7 @@ test('provider icons have one consistent size and no redundant status graphics',
     elements.map((element) => {
       const rect = element.getBoundingClientRect();
       return { width: rect.width, height: rect.height };
-    })
+    }),
   );
   for (const icon of dimensions) {
     expect(icon.width).toBeGreaterThanOrEqual(19);
@@ -112,20 +112,20 @@ test('provider icons have one consistent size and no redundant status graphics',
     expect(icon.height).toBeLessThanOrEqual(21);
   }
   await expect(
-    dialog.getByTestId('linkedin-connector').locator('svg')
+    dialog.getByTestId('linkedin-connector').locator('svg'),
   ).toHaveCount(5);
   await expect(
-    dialog.locator('[aria-label="Connection progress"]')
+    dialog.locator('[aria-label="Connection progress"]'),
   ).toHaveCount(0);
   const title = dialog.getByRole('heading', {
     name: 'Connect your social accounts',
   });
   const titleSize = await title.evaluate((element) =>
-    parseFloat(getComputedStyle(element).fontSize)
+    parseFloat(getComputedStyle(element).fontSize),
   );
   expect(titleSize).toBeGreaterThanOrEqual(20);
   const width = await dialog.evaluate(
-    (element) => element.getBoundingClientRect().width
+    (element) => element.getBoundingClientRect().width,
   );
   expect(width).toBeLessThanOrEqual(700);
   await assertLayout(page);
@@ -137,7 +137,7 @@ test('provider choices, connection CTA, and the full dialog fit the active viewp
   await installConnectorApi(page, []);
   const dialog = await openConnectorDialog(page);
   await expect(
-    dialog.getByRole('button', { name: 'LinkedIn', exact: true })
+    dialog.getByRole('button', { name: 'LinkedIn', exact: true }),
   ).toHaveAttribute('aria-pressed', 'true');
   const primaryAction = dialog.getByRole('button', {
     name: 'Connect LinkedIn',
@@ -152,7 +152,7 @@ test('provider choices, connection CTA, and the full dialog fit the active viewp
     });
     expect(
       actionBounds.buttonBottom,
-      'The Connect action should be on screen without scrolling'
+      'The Connect action should be on screen without scrolling',
     ).toBeLessThanOrEqual(actionBounds.modalBottom - 4);
   }
   await assertLayout(page);
@@ -161,10 +161,10 @@ test('provider choices, connection CTA, and the full dialog fit the active viewp
   await dialog.getByRole('button', { name: /Other networks/ }).click();
   await dialog.getByRole('button', { name: 'Instagram' }).click();
   await expect(dialog.getByTestId('connector-status')).toHaveText(
-    'Unavailable'
+    'Unavailable',
   );
   await expect(
-    dialog.getByText(/Official API connector not available yet/)
+    dialog.getByText(/Official API connector not available yet/),
   ).toBeVisible();
   await assertLayout(page);
   await capture(page, info, 'provider-unavailable');
@@ -178,7 +178,7 @@ test('provider choices, connection CTA, and the full dialog fit the active viewp
   if (await mobileBrowser(page)) {
     await expect(connect).toBeDisabled();
     await expect(
-      dialog.getByText(/Mobile Chrome and Safari cannot share/)
+      dialog.getByText(/Mobile Chrome and Safari cannot share/),
     ).toBeVisible();
   } else {
     await expect(connect).toBeEnabled();
@@ -200,38 +200,38 @@ test('connected accounts remain legible, usable and unclipped', async ({
   ]);
   const dialog = await openConnectorDialog(page);
   await expect(dialog.getByTestId('connector-status')).toHaveText(
-    'Session connected'
+    'Session connected',
   );
   const name = dialog.getByText(/long professional profile display name/);
   const handle = dialog.getByText(
-    '@an-unusually-long-professional-profile-handle'
+    '@an-unusually-long-professional-profile-handle',
   );
   await expect(name).toBeVisible();
   await expect(handle).toBeVisible();
   // A hidden CSS ellipsis is not readable on compact screens.
   expect(
     await name.evaluate(
-      (element) => element.scrollWidth <= element.clientWidth + 1
-    )
+      (element) => element.scrollWidth <= element.clientWidth + 1,
+    ),
   ).toBe(true);
   expect(
     await handle.evaluate(
-      (element) => element.scrollWidth <= element.clientWidth + 1
-    )
+      (element) => element.scrollWidth <= element.clientWidth + 1,
+    ),
   ).toBe(true);
   await assertLayout(page);
   await capture(page, info, 'linkedin-connected');
   await expect(
-    dialog.getByRole('button', { name: 'Disconnect', exact: true })
+    dialog.getByRole('button', { name: 'Disconnect', exact: true }),
   ).toBeVisible();
   await dialog.getByRole('button', { name: 'Disconnect', exact: true }).click();
   await expect(
-    dialog.getByRole('button', { name: 'Confirm disconnect' })
+    dialog.getByRole('button', { name: 'Confirm disconnect' }),
   ).toBeVisible();
   await assertLayout(page);
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(dialog.getByTestId('connector-status')).toHaveText(
-    'Session connected'
+    'Session connected',
   );
 });
 
@@ -258,16 +258,16 @@ test('network errors are shown as recoverable feedback', async ({
   page,
 }, info) => {
   await installConnectorApi(page, [], (event) =>
-    event.method === 'GET' ? { status: 503 } : undefined
+    event.method === 'GET' ? { status: 503 } : undefined,
   );
   const dialog = await openConnectorDialog(page);
   await expect(dialog.getByRole('alert')).toContainText(
-    'Social connections unavailable'
+    'Social connections unavailable',
   );
   await assertLayout(page);
   await capture(page, info, 'network-error');
   await expect(
-    dialog.getByRole('button', { name: 'LinkedIn', exact: true })
+    dialog.getByRole('button', { name: 'LinkedIn', exact: true }),
   ).toBeEnabled();
 });
 
@@ -280,10 +280,10 @@ test('native dialog traps keyboard focus and closes on Escape', async ({
   for (let i = 0; i < 12; i++) {
     await page.keyboard.press('Tab');
     const focusInside = await dialog.evaluate((element) =>
-      element.contains(document.activeElement)
+      element.contains(document.activeElement),
     );
     expect(focusInside, 'Tab focus must remain within the open modal').toBe(
-      true
+      true,
     );
   }
   await page.keyboard.press('Escape');
@@ -323,7 +323,7 @@ test('Mator dock has a usable empty state, thread history, model picker, and voi
         ],
         voices: [],
       }),
-    })
+    }),
   );
 
   await page.route('**/api/mator/settings', async (route) =>
@@ -348,7 +348,7 @@ test('Mator dock has a usable empty state, thread history, model picker, and voi
         ttsModelId: '',
         ttsVoice: '',
       }),
-    })
+    }),
   );
 
   await page.goto('/dashboard/pipeline');
@@ -369,26 +369,26 @@ test('Mator dock has a usable empty state, thread history, model picker, and voi
 
   await dock.getByTestId('mator-settings-trigger').click();
   await expect(
-    dock.getByRole('dialog', { name: 'Chat settings' })
+    dock.getByRole('dialog', { name: 'Chat settings' }),
   ).toBeVisible();
   await expect(
-    dock.getByRole('slider', { name: 'Reasoning effort' })
+    dock.getByRole('slider', { name: 'Reasoning effort' }),
   ).toHaveValue('1');
   await page.keyboard.press('Escape');
 
   await dock.getByTestId('mator-voice-switch').click();
   await expect(dock.getByTestId('mator-composer')).toHaveAttribute(
     'data-mode',
-    'voice-only'
+    'voice-only',
   );
   await expect(dock.getByTestId('mator-voice-switch')).toHaveAttribute(
     'aria-checked',
-    'true'
+    'true',
   );
   await dock.getByTestId('mator-voice-switch').click();
   await expect(dock.getByTestId('mator-composer')).toHaveAttribute(
     'data-mode',
-    'text'
+    'text',
   );
   await capture(page, info, 'mator-dock-text-first');
 });
@@ -398,10 +398,9 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
 }, info) => {
   const now = '2026-11-01T09:00:00.000Z';
   const shortText = 'Hi Mator';
-  const longText =
-    'Review this professional credential: ' + 'credential'.repeat(24);
-  const assistantText = 'I can review this evidence: ' + 'evidence'.repeat(26);
-  const confirmationText = 'Review this proposal: ' + 'approval'.repeat(26);
+  const longText = `Review this professional credential: ${'credential'.repeat(24)}`;
+  const assistantText = `I can review this evidence: ${'evidence'.repeat(26)}`;
+  const confirmationText = `Review this proposal: ${'approval'.repeat(26)}`;
   const workflowId = 'mator-layout-workflow';
   const conversationId = 'mator-layout-thread';
   const plan = {
@@ -436,7 +435,7 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
           plan,
         },
       ]),
-    })
+    }),
   );
   await page.route('**/api/mator/workflows/*/conversations', (route) =>
     route.fulfill({
@@ -456,7 +455,7 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
           },
         ],
       }),
-    })
+    }),
   );
   await page.route('**/api/mator/conversations/*/events', (route) =>
     route.fulfill({
@@ -508,7 +507,7 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
           createdAt: '2026-11-01T09:00:03.000Z',
         },
       ]),
-    })
+    }),
   );
 
   await page.goto('/dashboard/pipeline');
@@ -539,17 +538,17 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
     const short = findRow('Hi Mator');
     const long = findRow('credential'.repeat(24));
     const shortBubble = short?.querySelector<HTMLElement>(
-      '[data-slot="bubble"]'
+      '[data-slot="bubble"]',
     );
     const longBubble = long?.querySelector<HTMLElement>('[data-slot="bubble"]');
     const confirmCard = element.querySelector<HTMLElement>(
-      '[data-testid="mator-confirmation"]'
+      '[data-testid="mator-confirmation"]',
     );
     const assistant = findRow('evidence'.repeat(26));
     const assistantText = assistant?.querySelector<HTMLElement>('p');
     const confirmationText = confirmCard?.querySelector<HTMLElement>('p');
     const shortAvatar = short?.querySelector<HTMLElement>(
-      '[data-slot="avatar"]'
+      '[data-slot="avatar"]',
     );
     const longAvatar = long?.querySelector<HTMLElement>('[data-slot="avatar"]');
     if (
@@ -598,57 +597,57 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
   });
   expect(
     metrics,
-    'Rendered chat bubbles and staged card must be present'
+    'Rendered chat bubbles and staged card must be present',
   ).not.toBeNull();
-  expect(metrics!.messageVisible).toBe(true);
-  expect(metrics!.shortWidth).toBeGreaterThan(55);
+  expect(metrics?.messageVisible).toBe(true);
+  expect(metrics?.shortWidth).toBeGreaterThan(55);
   expect(
-    metrics!.userSideIsEnd,
-    'a persisted user turn must align to the right'
+    metrics?.userSideIsEnd,
+    'a persisted user turn must align to the right',
   ).toBe(true);
   expect(
-    metrics!.assistantSideIsStart,
-    'a Mator reply must align to the left'
+    metrics?.assistantSideIsStart,
+    'a Mator reply must align to the left',
   ).toBe(true);
   expect(
-    metrics!.shortUserBubbleLeft - metrics!.assistantReplyLeft,
-    'user text is visually to the right of Mator'
+    metrics?.shortUserBubbleLeft - metrics?.assistantReplyLeft,
+    'user text is visually to the right of Mator',
   ).toBeGreaterThan(36);
   for (const gap of [
-    metrics!.shortBubbleToAvatar,
-    metrics!.longBubbleToAvatar,
+    metrics?.shortBubbleToAvatar,
+    metrics?.longBubbleToAvatar,
   ]) {
     expect(
       gap,
-      'user bubble should sit beside the right-side ME avatar'
+      'user bubble should sit beside the right-side ME avatar',
     ).toBeGreaterThanOrEqual(-1);
     expect(gap).toBeLessThanOrEqual(24);
   }
   for (const gap of [
-    metrics!.shortAvatarToRowRight,
-    metrics!.longAvatarToRowRight,
+    metrics?.shortAvatarToRowRight,
+    metrics?.longAvatarToRowRight,
   ]) {
     expect(
       gap,
-      'ME avatar stays anchored to the right edge'
+      'ME avatar stays anchored to the right edge',
     ).toBeGreaterThanOrEqual(-1);
     expect(gap).toBeLessThanOrEqual(2);
   }
-  expect(metrics!.shortWidth).toBeLessThan(metrics!.dockWidth * 0.72);
-  expect(metrics!.longWidth).toBeLessThanOrEqual(metrics!.dockWidth);
-  expect(metrics!.confirmWidth).toBeLessThanOrEqual(
-    Math.min(metrics!.dockWidth, 485)
+  expect(metrics?.shortWidth).toBeLessThan(metrics?.dockWidth * 0.72);
+  expect(metrics?.longWidth).toBeLessThanOrEqual(metrics?.dockWidth);
+  expect(metrics?.confirmWidth).toBeLessThanOrEqual(
+    Math.min(metrics?.dockWidth, 485),
   );
-  expect(metrics!.longOverflow).toBeLessThanOrEqual(1);
-  expect(metrics!.assistantOverflow).toBeLessThanOrEqual(1);
-  expect(metrics!.confirmationOverflow).toBeLessThanOrEqual(1);
+  expect(metrics?.longOverflow).toBeLessThanOrEqual(1);
+  expect(metrics?.assistantOverflow).toBeLessThanOrEqual(1);
+  expect(metrics?.confirmationOverflow).toBeLessThanOrEqual(1);
   const viewport = dock.getByTestId('mator-thread-viewport');
   await viewport.evaluate((element) => {
     element.scrollTop = element.scrollHeight;
   });
   const tail = await viewport.evaluate((element) => {
     const lastCard = element.querySelector<HTMLElement>(
-      '[data-testid="mator-confirmation"]'
+      '[data-testid="mator-confirmation"]',
     );
     return lastCard
       ? {
@@ -663,10 +662,10 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
   // Fractional browser layout may overlap the viewport edge by less than one device pixel.
   // Keep the strict 48px upper bound so an anchored-message whitespace regression still fails.
   expect(
-    tail!.gap,
-    'last chat row stays near the composer'
-  ).toBeGreaterThanOrEqual(-tail!.pixelTolerance);
-  expect(tail!.gap).toBeLessThanOrEqual(48);
+    tail?.gap,
+    'last chat row stays near the composer',
+  ).toBeGreaterThanOrEqual(-tail?.pixelTolerance);
+  expect(tail?.gap).toBeLessThanOrEqual(48);
   await capture(page, info, 'mator-content-width-regression');
 });
 
@@ -713,7 +712,7 @@ test('Mator sends text, preserves failed drafts, and places the newest reply las
           plan,
         },
       ]),
-    })
+    }),
   );
   await page.route('**/api/mator/workflows/*/conversations', (route) =>
     route.fulfill({
@@ -733,14 +732,14 @@ test('Mator sends text, preserves failed drafts, and places the newest reply las
           },
         ],
       }),
-    })
+    }),
   );
   await page.route('**/api/mator/conversations/*/events', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify(events),
-    })
+    }),
   );
   await page.route('**/api/mator/conversations/*/messages', async (route) => {
     const payload = route.request().postDataJSON() as { text: string };
@@ -757,10 +756,10 @@ test('Mator sends text, preserves failed drafts, and places the newest reply las
       return;
     }
     const timestamp = new Date(
-      Date.parse(now) + events.length * 1000
+      Date.parse(now) + events.length * 1000,
     ).toISOString();
     const user = {
-      id: 'user-' + sent.length,
+      id: `user-${sent.length}`,
       conversationId,
       role: 'user',
       kind: 'message',
@@ -768,11 +767,11 @@ test('Mator sends text, preserves failed drafts, and places the newest reply las
       createdAt: timestamp,
     };
     const assistant = {
-      id: 'assistant-' + sent.length,
+      id: `assistant-${sent.length}`,
       conversationId,
       role: 'assistant',
       kind: 'message',
-      text: 'Reply to: ' + payload.text,
+      text: `Reply to: ${payload.text}`,
       createdAt: new Date(Date.parse(timestamp) + 500).toISOString(),
     };
     events = [...events, user, assistant];
@@ -799,13 +798,13 @@ test('Mator sends text, preserves failed drafts, and places the newest reply las
   await input.fill('Keep my unsent draft');
   await input.press('Enter');
   await expect(dock.getByRole('alert')).toContainText(
-    'Chat provider temporarily unavailable'
+    'Chat provider temporarily unavailable',
   );
   await expect(input).toHaveValue('Keep my unsent draft');
   await dock.getByTestId('mator-send').click();
   await expect(dock.getByText('Reply to: Keep my unsent draft')).toBeVisible();
   await expect(dock.locator('[data-slot="message"]').last()).toContainText(
-    'Reply to: Keep my unsent draft'
+    'Reply to: Keep my unsent draft',
   );
   expect(sent).toEqual([
     'First question',
@@ -819,47 +818,89 @@ test('Mator sends text, preserves failed drafts, and places the newest reply las
     await page.getByRole('button', { name: 'Open Mator' }).click();
   }
   await expect(
-    restored.getByText('Reply to: Keep my unsent draft')
+    restored.getByText('Reply to: Keep my unsent draft'),
   ).toBeVisible();
   await expect(restored.locator('[data-slot="message"]').last()).toContainText(
-    'Reply to: Keep my unsent draft'
+    'Reply to: Keep my unsent draft',
   );
   await capture(page, info, 'mator-message-delivery-and-reload');
 });
 
 // Replacement for the old manually-tapped voice deck tests. Uses the real
 // composer and hooks, but deterministic browser media and mocked API responses.
-async function mockMatorCallWorkspace(page: Page, workflowId: string, conversations: string[]) {
+async function mockMatorCallWorkspace(
+  page: Page,
+  workflowId: string,
+  conversations: string[],
+) {
   const now = '2026-11-02T09:00:00.000Z';
   let current = conversations[0]!;
-  await page.route('**/api/workflows', (route) => route.fulfill({
-    status: 200,
-    contentType: 'application/json',
-    body: JSON.stringify([{ id: workflowId, ownerId: 'local-owner', templateId: null,
-      revision: 1, createdAt: now, updatedAt: now,
-      plan: { version: 1, platform: 'linkedin', action: 'audit', name: 'Profile audit',
-        steps: [ { id: 'start', kind: 'start', title: 'Start run' },
-          { id: 'finish', kind: 'finish', title: 'Final output' } ],
-        links: [{ source: 'start', target: 'finish' }] } }]),
-  }));
-  await page.route('**/api/mator/workflows/*/conversations', (route) => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify({ currentId: current, items: conversations.map((id, index) => ({
-      id, workflowId, title: `Thread ${index === 0 ? 'A' : 'B'}`,
-      createdAt: now, updatedAt: now, lastMessageAt: now, boundRevisionId: null,
-    })) }),
-  }));
+  await page.route('**/api/workflows', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          id: workflowId,
+          ownerId: 'local-owner',
+          templateId: null,
+          revision: 1,
+          createdAt: now,
+          updatedAt: now,
+          plan: {
+            version: 1,
+            platform: 'linkedin',
+            action: 'audit',
+            name: 'Profile audit',
+            steps: [
+              { id: 'start', kind: 'start', title: 'Start run' },
+              { id: 'finish', kind: 'finish', title: 'Final output' },
+            ],
+            links: [{ source: 'start', target: 'finish' }],
+          },
+        },
+      ]),
+    }),
+  );
+  await page.route('**/api/mator/workflows/*/conversations', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        currentId: current,
+        items: conversations.map((id, index) => ({
+          id,
+          workflowId,
+          title: `Thread ${index === 0 ? 'A' : 'B'}`,
+          createdAt: now,
+          updatedAt: now,
+          lastMessageAt: now,
+          boundRevisionId: null,
+        })),
+      }),
+    }),
+  );
   await page.route('**/api/mator/workflows/*/current', (route) => {
-    current = (route.request().postDataJSON() as { conversationId: string }).conversationId;
-    return route.fulfill({ status: 200, contentType: 'application/json',
-      body: JSON.stringify({ currentId: current }) });
+    current = (route.request().postDataJSON() as { conversationId: string })
+      .conversationId;
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ currentId: current }),
+    });
   });
-  await page.route('**/api/mator/conversations/*/events', (route) => route.fulfill({
-    status: 200, contentType: 'application/json', body: '[]',
-  }));
+  await page.route('**/api/mator/conversations/*/events', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '[]',
+    }),
+  );
 }
 
-test('Mator AI Call automatically handles two audio turns and two matched replies', async ({ page }) => {
+test('Mator AI Call automatically handles two audio turns and two matched replies', async ({
+  page,
+}) => {
   const workflowId = '11111111-1111-4111-8111-111111111111';
   const conversationId = '22222222-2222-4222-8222-222222222222';
   await page.addInitScript(installFakeCallHardware);
@@ -869,57 +910,125 @@ test('Mator AI Call automatically handles two audio turns and two matched replie
   const received: string[] = [];
   const spoken: string[] = [];
   await page.route('**/api/mator/audio/transcriptions', (route) => {
-    const body = route.request().postDataJSON() as { mime: string; filename: string };
+    const body = route.request().postDataJSON() as {
+      mime: string;
+      filename: string;
+    };
     expect(body.mime).toBe('audio/wav');
     expect(body.filename).toBe('mator-speech.wav');
     transcripts++;
-    return route.fulfill({ status: 200, contentType: 'application/json',
-      body: JSON.stringify({ text: transcripts === 1 ? 'First spoken question' : 'Second spoken question' }) });
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        text:
+          transcripts === 1
+            ? 'First spoken question'
+            : 'Second spoken question',
+      }),
+    });
   });
   await page.route('**/api/mator/conversations/*/messages', (route) => {
-    const body = route.request().postDataJSON() as { text: string; interactionMode: string };
+    const body = route.request().postDataJSON() as {
+      text: string;
+      interactionMode: string;
+    };
     expect(body.interactionMode).toBe('ai_call');
     const text = body.text;
     received.push(text);
     messageCalls++;
-    return route.fulfill({ status: 200, contentType: 'application/json',
-      body: JSON.stringify({ events: [
-        { id: `call-user-${messageCalls}`, conversationId, role: 'user', kind: 'message',
-          text, createdAt: `2026-11-02T09:00:0${messageCalls}.000Z` },
-        { id: `call-reply-${messageCalls}`, conversationId, role: 'assistant', kind: 'message',
-          text: `Mator answer ${messageCalls}`, createdAt: `2026-11-02T09:00:1${messageCalls}.000Z` },
-      ] }),
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        events: [
+          {
+            id: `call-user-${messageCalls}`,
+            conversationId,
+            role: 'user',
+            kind: 'message',
+            text,
+            createdAt: `2026-11-02T09:00:0${messageCalls}.000Z`,
+          },
+          {
+            id: `call-reply-${messageCalls}`,
+            conversationId,
+            role: 'assistant',
+            kind: 'message',
+            text: `Mator answer ${messageCalls}`,
+            createdAt: `2026-11-02T09:00:1${messageCalls}.000Z`,
+          },
+        ],
+      }),
     });
   });
   await page.route('**/api/mator/audio/speech', (route) => {
     spoken.push((route.request().postDataJSON() as { text: string }).text);
-    return route.fulfill({ status: 200, contentType: 'audio/wav', body: 'fake audio' });
+    return route.fulfill({
+      status: 200,
+      contentType: 'audio/wav',
+      body: 'fake audio',
+    });
   });
   await page.goto('/dashboard/pipeline');
   const dock = page.getByTestId('mator-chat');
-  if (!(await dock.isVisible())) await page.getByRole('button', { name: 'Open Mator' }).click();
+  if (!(await dock.isVisible()))
+    await page.getByRole('button', { name: 'Open Mator' }).click();
   await dock.getByTestId('mator-voice-switch').click();
-  await expect(dock.getByTestId('mator-composer')).toHaveAttribute('data-mode', 'voice-only');
+  await expect(dock.getByTestId('mator-composer')).toHaveAttribute(
+    'data-mode',
+    'voice-only',
+  );
   // Switching the composer mode never opens the microphone.
-  expect(await page.evaluate(() => (window as unknown as { __matorCallQA: { captures: number } }).__matorCallQA.captures)).toBe(0);
+  expect(
+    await page.evaluate(
+      () =>
+        (window as unknown as { __matorCallQA: { captures: number } })
+          .__matorCallQA.captures,
+    ),
+  ).toBe(0);
   await dock.getByTestId('mator-call-start').click();
-  await expect.poll(() => received.length, { timeout: 25000 }).toBeGreaterThanOrEqual(2);
-  await expect.poll(() => spoken.length, { timeout: 25000 }).toBeGreaterThanOrEqual(2);
+  await expect
+    .poll(() => received.length, { timeout: 25000 })
+    .toBeGreaterThanOrEqual(2);
+  await expect
+    .poll(() => spoken.length, { timeout: 25000 })
+    .toBeGreaterThanOrEqual(2);
   await dock.getByTestId('mator-call-end').click();
-  expect(received.slice(0, 2)).toEqual(['First spoken question', 'Second spoken question']);
+  expect(received.slice(0, 2)).toEqual([
+    'First spoken question',
+    'Second spoken question',
+  ]);
   expect(spoken.slice(0, 2)).toEqual(['Mator answer 1', 'Mator answer 2']);
-  const qa = await page.evaluate(() => (window as unknown as { __matorCallQA: {
-    captures: number; plays: number; overlapping: number; openTracks: number;
-  } }).__matorCallQA);
+  const qa = await page.evaluate(
+    () =>
+      (
+        window as unknown as {
+          __matorCallQA: {
+            captures: number;
+            plays: number;
+            overlapping: number;
+            openTracks: number;
+          };
+        }
+      ).__matorCallQA,
+  );
   expect(qa.captures).toBe(1);
   expect(qa.plays).toBeGreaterThanOrEqual(2);
-  expect(qa.overlapping, 'Barge-in monitoring must overlap microphone access with speech output').toBeGreaterThanOrEqual(2);
+  expect(
+    qa.overlapping,
+    'Barge-in monitoring must overlap microphone access with speech output',
+  ).toBeGreaterThanOrEqual(2);
   expect(qa.openTracks, 'hanging up must release microphone tracks').toBe(0);
-  await expect(dock.getByTestId('mator-call-status')).toContainText('Call ended');
+  await expect(dock.getByTestId('mator-call-status')).toContainText(
+    'Call ended',
+  );
   await expect(dock.getByText('Mator answer 2')).toBeVisible();
 });
 
-test('Mator AI Call cannot deliver a late transcript after switching conversation', async ({ page }) => {
+test('Mator AI Call cannot deliver a late transcript after switching conversation', async ({
+  page,
+}) => {
   const workflowId = '11111111-1111-4111-8111-111111111111';
   const a = '22222222-2222-4222-8222-222222222222';
   const b = '33333333-3333-4333-8333-333333333333';
@@ -927,34 +1036,59 @@ test('Mator AI Call cannot deliver a late transcript after switching conversatio
   await mockMatorCallWorkspace(page, workflowId, [a, b]);
   let seenRequest: () => void = () => {};
   let unblock: () => void = () => {};
-  const seen = new Promise<void>((resolve) => { seenRequest = resolve; });
-  const pending = new Promise<void>((resolve) => { unblock = resolve; });
+  const seen = new Promise<void>((resolve) => {
+    seenRequest = resolve;
+  });
+  const pending = new Promise<void>((resolve) => {
+    unblock = resolve;
+  });
   const sent: string[] = [];
   await page.route('**/api/mator/audio/transcriptions', async (route) => {
     seenRequest();
     await pending;
-    try { await route.fulfill({ status: 200, contentType: 'application/json',
-      body: JSON.stringify({ text: 'Only for thread A' }) }); }
-    catch { /* The canceled request may already be aborted by the browser. */ }
+    try {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ text: 'Only for thread A' }),
+      });
+    } catch {
+      /* The canceled request may already be aborted by the browser. */
+    }
   });
   await page.route('**/api/mator/conversations/*/messages', (route) => {
     sent.push(route.request().url());
-    return route.fulfill({ status: 503, contentType: 'application/json',
-      body: '{"error":"Unexpected call message after thread switch"}' });
+    return route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: '{"error":"Unexpected call message after thread switch"}',
+    });
   });
   await page.goto('/dashboard/pipeline');
   const dock = page.getByTestId('mator-chat');
-  if (!(await dock.isVisible())) await page.getByRole('button', { name: 'Open Mator' }).click();
+  if (!(await dock.isVisible()))
+    await page.getByRole('button', { name: 'Open Mator' }).click();
   await dock.getByTestId('mator-voice-switch').click();
   await dock.getByTestId('mator-call-start').click();
   await seen;
   await dock.getByTestId('mator-thread-pill').click();
-  await dock.getByTestId('mator-conversation-switcher').getByRole('button', { name: /Thread B/ }).click();
+  await dock
+    .getByTestId('mator-conversation-switcher')
+    .getByRole('button', { name: /Thread B/ })
+    .click();
   await expect(dock.getByTestId('mator-thread-pill')).toContainText('Thread B');
   unblock();
   await page.waitForTimeout(150);
-  expect(sent, 'no stale call turn should reach the new conversation').toEqual([]);
-  expect(await page.evaluate(() => (window as unknown as { __matorCallQA: { openTracks: number } }).__matorCallQA.openTracks)).toBe(0);
+  expect(sent, 'no stale call turn should reach the new conversation').toEqual(
+    [],
+  );
+  expect(
+    await page.evaluate(
+      () =>
+        (window as unknown as { __matorCallQA: { openTracks: number } })
+          .__matorCallQA.openTracks,
+    ),
+  ).toBe(0);
   await expect(dock.getByTestId('mator-call-start')).toBeVisible();
 });
 
@@ -998,7 +1132,7 @@ test('Mator stages multiple images and captions until explicit send, then restor
           },
         },
       ]),
-    })
+    }),
   );
   await page.route('**/api/mator/workflows/*/conversations', (route) =>
     route.fulfill({
@@ -1018,14 +1152,14 @@ test('Mator stages multiple images and captions until explicit send, then restor
           },
         ],
       }),
-    })
+    }),
   );
   await page.route('**/api/mator/conversations/*/events', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify(events),
-    })
+    }),
   );
   await page.route('**/api/mator/conversations/*/attachments', (route) => {
     uploads += 1;
@@ -1034,7 +1168,7 @@ test('Mator stages multiple images and captions until explicit send, then restor
       mime: string;
     };
     const asset = {
-      id: 'upload-' + uploads,
+      id: `upload-${uploads}`,
       name: body.filename,
       mime: body.mime,
       markers: [],
@@ -1103,11 +1237,11 @@ test('Mator stages multiple images and captions until explicit send, then restor
   // Wait for the persisted conversation to initialize before staging files.
   // The composer is keyed by conversation ID, so initialization remounts it.
   await expect(dock.getByTestId('mator-thread-pill')).toContainText(
-    'Asset draft'
+    'Asset draft',
   );
   const png = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/0V8AAAAASUVORK5CYII=',
-    'base64'
+    'base64',
   );
   await dock.locator('input[type="file"]').setInputFiles([
     { name: 'diagram-one.png', mimeType: 'image/png', buffer: png },
@@ -1116,7 +1250,7 @@ test('Mator stages multiple images and captions until explicit send, then restor
   await expect(
     dock
       .getByTestId('mator-pending-gallery')
-      .getByTestId('mator-image-thumbnail')
+      .getByTestId('mator-image-thumbnail'),
   ).toHaveCount(2);
   expect(uploads, 'selection must not contact the backend').toBe(0);
   expect(sent, 'selection must not create a message').toEqual([]);
@@ -1127,7 +1261,7 @@ test('Mator stages multiple images and captions until explicit send, then restor
     .first()
     .click();
   const modal = page.locator(
-    'dialog[open][data-testid="mator-image-annotation-modal"]'
+    'dialog[open][data-testid="mator-image-annotation-modal"]',
   );
   await expect(modal).toBeVisible();
   await modal.getByLabel('Annotation comment').fill('Keep the legend readable');
@@ -1139,7 +1273,7 @@ test('Mator stages multiple images and captions until explicit send, then restor
   await dock.getByTestId('mator-input').fill('Compare the two diagrams.');
   await dock.getByTestId('mator-send').click();
   await expect(
-    dock.getByText('Both images received for review.')
+    dock.getByText('Both images received for review.'),
   ).toBeVisible();
   expect(uploads).toBe(2);
   expect(sent).toEqual([
@@ -1159,7 +1293,7 @@ test('Mator stages multiple images and captions until explicit send, then restor
     restored
       .getByTestId('mator-image-gallery')
       .first()
-      .getByTestId('mator-image-thumbnail')
+      .getByTestId('mator-image-thumbnail'),
   ).toHaveCount(2);
 });
 
@@ -1219,7 +1353,7 @@ test('Mator approval cards decide the selected proposal, not another staged acti
           },
         },
       ]),
-    })
+    }),
   );
   await page.route('**/api/mator/workflows/*/conversations', (route) =>
     route.fulfill({
@@ -1239,30 +1373,30 @@ test('Mator approval cards decide the selected proposal, not another staged acti
           },
         ],
       }),
-    })
+    }),
   );
   await page.route('**/api/mator/conversations/*/events', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify(actions),
-    })
+    }),
   );
   await page.route('**/api/mator/conversations/*/stage/*/*', (route) => {
     const path = new URL(route.request().url()).pathname;
     const match = path.match(/\/stage\/([^/]+)\/(confirm|reject)$/);
-    if (!match) throw Error('Unexpected approval route: ' + path);
+    if (!match) throw Error(`Unexpected approval route: ${path}`);
     decisions.push({ stageId: match[1], decision: match[2] });
     const event = {
-      id: 'decision-' + decisions.length,
+      id: `decision-${decisions.length}`,
       conversationId,
       role: 'assistant',
       kind: 'action',
-      text: 'Decision for proposal ' + match[1],
+      text: `Decision for proposal ${match[1]}`,
       action: { type: 'edit_step', stepId: 'inspect' },
       status: match[2] === 'confirm' ? 'applied' : 'rejected',
       resolvesEventId: match[1],
-      createdAt: '2026-11-01T09:00:0' + (decisions.length + 1) + '.000Z',
+      createdAt: `2026-11-01T09:00:0${decisions.length + 1}.000Z`,
     };
     actions.push(event);
     return route.fulfill({
@@ -1364,7 +1498,7 @@ test('Mator creates a persisted workflow and accepts the first chat message', as
     });
   });
   await page.route('**/api/mator/conversations/*/events', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
   );
   await page.route('**/api/mator/conversations/*/messages', (route) => {
     message = (route.request().postDataJSON() as { text: string }).text;
@@ -1403,7 +1537,7 @@ test('Mator creates a persisted workflow and accepts the first chat message', as
   await input.fill('I need my first workflow');
   await dock.getByTestId('mator-send').click();
   await expect(
-    dock.getByText('Mator received the first message')
+    dock.getByText('Mator received the first message'),
   ).toBeVisible();
   expect(created).toBe(true);
   expect(conversationCreated).toBe(true);
@@ -1418,7 +1552,7 @@ test('Growth modal uses the YAML catalogue with actionable search and pipeline d
     'linkedin-branding',
     'linkedin-analytics',
     'linkedin-content',
-    ...Array.from({ length: 17 }, (_, index) => 'linkedin-method-' + index),
+    ...Array.from({ length: 17 }, (_, index) => `linkedin-method-${index}`),
   ];
   await page.route('**/api/growth/templates', async (route) => {
     await route.fulfill({
@@ -1433,7 +1567,7 @@ test('Growth modal uses the YAML catalogue with actionable search and pipeline d
           pipelineCount: id === 'linkedin-profile' ? 6 : 2,
           coverageCount: 2,
           executable: id === 'linkedin-profile' || id === 'linkedin-branding',
-        }))
+        })),
       ),
     });
   });
@@ -1472,8 +1606,8 @@ test('Growth modal uses the YAML catalogue with actionable search and pipeline d
                   (id) => ({
                     id,
                     kind: 'note',
-                    title: 'Review ' + id,
-                  })
+                    title: `Review ${id}`,
+                  }),
                 ),
                 links: [],
               },
@@ -1481,7 +1615,7 @@ test('Growth modal uses the YAML catalogue with actionable search and pipeline d
           ],
         }),
       });
-    }
+    },
   );
 
   await page.goto('/dashboard/pipeline');
@@ -1489,7 +1623,7 @@ test('Growth modal uses the YAML catalogue with actionable search and pipeline d
   const dialog = page.getByTestId('workflow-template-dialog');
   await expect(dialog).toBeVisible();
   await expect(dialog.getByTestId('growth-template-count')).toContainText(
-    '21 workflows'
+    '21 workflows',
   );
   await expect(dialog.getByTestId('growth-template-option')).toHaveCount(21);
   await dialog
@@ -1497,12 +1631,12 @@ test('Growth modal uses the YAML catalogue with actionable search and pipeline d
     .fill('analytics');
   await expect(dialog.getByTestId('growth-template-option')).toHaveCount(1);
   await expect(
-    dialog.getByTestId('growth-template-pipeline-preview')
+    dialog.getByTestId('growth-template-pipeline-preview'),
   ).toBeVisible();
   await expect(dialog.getByText('Review procedure')).toBeVisible();
   await expect(dialog.getByText('Design only', { exact: true })).toBeVisible();
   await expect(
-    dialog.getByRole('link', { name: 'View source YAML' })
+    dialog.getByRole('link', { name: 'View source YAML' }),
   ).toHaveAttribute('href', '/api/growth/templates/linkedin-analytics/yaml');
   await dialog
     .getByRole('searchbox', { name: 'Search workflows' })
@@ -1517,7 +1651,7 @@ test('Growth modal uses the YAML catalogue with actionable search and pipeline d
 
 async function installMatorClarificationFixture(
   page: Page,
-  questions: Array<Record<string, unknown>>
+  questions: Array<Record<string, unknown>>,
 ) {
   const workflowId = '11111111-1111-4111-8111-111111111111';
   const conversationId = '22222222-2222-4222-8222-222222222222';
@@ -1561,7 +1695,7 @@ async function installMatorClarificationFixture(
           },
         },
       ]),
-    })
+    }),
   );
   await page.route('**/api/mator/workflows/*/conversations', (route) =>
     route.fulfill({
@@ -1581,14 +1715,14 @@ async function installMatorClarificationFixture(
           },
         ],
       }),
-    })
+    }),
   );
   await page.route('**/api/mator/conversations/*/events', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify(events),
-    })
+    }),
   );
   await page.route('**/api/mator/conversations/*/attachments', (route) => {
     uploads += 1;
@@ -1623,7 +1757,7 @@ async function installMatorClarificationFixture(
       });
     }
     const user = {
-      id: 'answered-' + received.length,
+      id: `answered-${received.length}`,
       conversationId,
       role: 'user',
       kind: 'message',
@@ -1674,10 +1808,10 @@ test('Mator clarification uploads a file only when answers are sent and retries 
   fixture.failOnce();
   await card.getByRole('button', { name: 'Send answers' }).click();
   await expect(card.getByRole('alert')).toContainText(
-    'Mator could not send the answers'
+    'Mator could not send the answers',
   );
   await expect(dock.getByTestId('mator-chat-error')).toContainText(
-    'Provider busy'
+    'Provider busy',
   );
   expect(fixture.uploads()).toBe(1);
   expect(fixture.received).toHaveLength(1);
@@ -1727,9 +1861,18 @@ test('Mator clarification validates URL protocol before sending any message', as
  */
 function installFakeCallHardware() {
   const status = { captures: 0, plays: 0, overlapping: 0, openTracks: 0 };
-  Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: undefined });
-  Object.defineProperty(window, 'webkitSpeechRecognition', { configurable: true, value: undefined });
-  Object.defineProperty(window, '__matorCallQA', { configurable: true, value: status });
+  Object.defineProperty(window, 'SpeechRecognition', {
+    configurable: true,
+    value: undefined,
+  });
+  Object.defineProperty(window, 'webkitSpeechRecognition', {
+    configurable: true,
+    value: undefined,
+  });
+  Object.defineProperty(window, '__matorCallQA', {
+    configurable: true,
+    value: status,
+  });
   Object.defineProperty(window, 'AudioContext', {
     configurable: true,
     value: class {
@@ -1737,8 +1880,12 @@ function installFakeCallHardware() {
       sampleRate = 48000;
       destination = {};
       started = performance.now();
-      get currentTime() { return (performance.now() - this.started) / 1000; }
-      createMediaStreamSource() { return { connect: () => {}, disconnect: () => {} }; }
+      get currentTime() {
+        return (performance.now() - this.started) / 1000;
+      }
+      createMediaStreamSource() {
+        return { connect: () => {}, disconnect: () => {} };
+      }
       createAnalyser() {
         return {
           fftSize: 2048,
@@ -1776,13 +1923,20 @@ function installFakeCallHardware() {
       }
       async decodeAudioData(buffer: ArrayBuffer) {
         void buffer;
-        return { length: 3840, getChannelData: (index: number) => {
-          void index;
-          return new Float32Array(3840);
-        } };
+        return {
+          length: 3840,
+          getChannelData: (index: number) => {
+            void index;
+            return new Float32Array(3840);
+          },
+        };
       }
-      resume() { return Promise.resolve(); }
-      close() { return Promise.resolve(); }
+      resume() {
+        return Promise.resolve();
+      }
+      close() {
+        return Promise.resolve();
+      }
     },
   });
   Object.defineProperty(navigator, 'mediaDevices', {
@@ -1793,8 +1947,15 @@ function installFakeCallHardware() {
         status.openTracks++;
         let closed = false;
         const track = {
-          get readyState() { return closed ? 'ended' : 'live'; },
-          stop: () => { if (!closed) { closed = true; status.openTracks--; } },
+          get readyState() {
+            return closed ? 'ended' : 'live';
+          },
+          stop: () => {
+            if (!closed) {
+              closed = true;
+              status.openTracks--;
+            }
+          },
         };
         return { getTracks: () => [track], getAudioTracks: () => [track] };
       },

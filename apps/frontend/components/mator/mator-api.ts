@@ -64,7 +64,7 @@ function matorPath(path: string) {
 
 async function readJson<T>(
   response: Response,
-  fallbackError: string
+  fallbackError: string,
 ): Promise<T> {
   const body = (await response.json()) as T & { error?: string };
   if (!response.ok) {
@@ -75,7 +75,7 @@ async function readJson<T>(
 
 async function readSettingsResponse(
   response: Response,
-  fallbackError: string
+  fallbackError: string,
 ): Promise<MatorSettingsMasked> {
   return readJson<MatorSettingsMasked>(response, fallbackError);
 }
@@ -94,7 +94,7 @@ export async function fetchMatorSettings(): Promise<MatorSettingsMasked> {
 }
 
 export async function saveMatorSettings(
-  patch: MatorSettingsSavePatch
+  patch: MatorSettingsSavePatch,
 ): Promise<MatorSettingsMasked> {
   const response = await fetch(matorSettingsUrl(), {
     method: 'PUT',
@@ -105,18 +105,18 @@ export async function saveMatorSettings(
 }
 
 export async function listMatorConversations(
-  workflowId: string
+  workflowId: string,
 ): Promise<MatorConversationList> {
   const response = await fetch(
     matorPath(`workflows/${encodeURIComponent(workflowId)}/conversations`),
-    { cache: 'no-store' }
+    { cache: 'no-store' },
   );
   return readJson(response, 'Unable to load conversations');
 }
 
 export async function createMatorConversation(
   workflowId: string,
-  title?: string
+  title?: string,
 ): Promise<MatorConversationSummary> {
   const response = await fetch(
     matorPath(`workflows/${encodeURIComponent(workflowId)}/conversations`),
@@ -124,14 +124,14 @@ export async function createMatorConversation(
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(title ? { title } : {}),
-    }
+    },
   );
   return readJson(response, 'Unable to create conversation');
 }
 
 export async function switchMatorConversation(
   workflowId: string,
-  conversationId: string
+  conversationId: string,
 ): Promise<{ currentId: string }> {
   const response = await fetch(
     matorPath(`workflows/${encodeURIComponent(workflowId)}/current`),
@@ -139,26 +139,30 @@ export async function switchMatorConversation(
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ conversationId }),
-    }
+    },
   );
   return readJson(response, 'Unable to switch conversation');
 }
 
 export async function fetchMatorEvents(
-  conversationId: string
+  conversationId: string,
 ): Promise<MatorChatEvent[]> {
   const response = await fetch(
     matorPath(`conversations/${encodeURIComponent(conversationId)}/events`),
-    { cache: 'no-store' }
+    { cache: 'no-store' },
   );
   return readJson(response, 'Unable to load conversation events');
 }
 
 export async function postMatorMessage(
   conversationId: string,
-  body: { text?: string; attachmentIds?: string[]; interactionMode?: 'text' | 'ai_call' },
+  body: {
+    text?: string;
+    attachmentIds?: string[];
+    interactionMode?: 'text' | 'ai_call';
+  },
   idempotencyKey: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<{ events: MatorChatEvent[] }> {
   const response = await fetch(
     matorPath(`conversations/${encodeURIComponent(conversationId)}/messages`),
@@ -170,50 +174,50 @@ export async function postMatorMessage(
       },
       signal,
       body: JSON.stringify(body),
-    }
+    },
   );
   return readJson(response, 'Unable to send message');
 }
 
 export async function confirmMatorStage(
   conversationId: string,
-  eventId: string
+  eventId: string,
 ): Promise<{ event: MatorChatEvent }> {
   const response = await fetch(
     matorPath(
-      `conversations/${encodeURIComponent(conversationId)}/stage/${encodeURIComponent(eventId)}/confirm`
+      `conversations/${encodeURIComponent(conversationId)}/stage/${encodeURIComponent(eventId)}/confirm`,
     ),
-    { method: 'POST' }
+    { method: 'POST' },
   );
   return readJson(response, 'Unable to confirm staged action');
 }
 
 export async function rejectMatorStage(
   conversationId: string,
-  eventId: string
+  eventId: string,
 ): Promise<{ event: MatorChatEvent }> {
   const response = await fetch(
     matorPath(
-      `conversations/${encodeURIComponent(conversationId)}/stage/${encodeURIComponent(eventId)}/reject`
+      `conversations/${encodeURIComponent(conversationId)}/stage/${encodeURIComponent(eventId)}/reject`,
     ),
-    { method: 'POST' }
+    { method: 'POST' },
   );
   return readJson(response, 'Unable to reject staged action');
 }
 
 export async function restoreMatorPipeline(
   conversationId: string,
-  confirmDirty = false
+  confirmDirty = false,
 ): Promise<{ record: unknown }> {
   const response = await fetch(
     matorPath(
-      `conversations/${encodeURIComponent(conversationId)}/restore-pipeline`
+      `conversations/${encodeURIComponent(conversationId)}/restore-pipeline`,
     ),
     {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ confirmDirty }),
-    }
+    },
   );
   return readJson(response, 'Unable to restore pipeline');
 }
@@ -268,12 +272,12 @@ function fileToBase64(file: Blob): Promise<string> {
 
 export async function uploadMatorAttachment(
   conversationId: string,
-  file: File
+  file: File,
 ): Promise<MatorAttachmentUpload> {
   const data = await fileToBase64(file);
   const response = await fetch(
     matorPath(
-      `conversations/${encodeURIComponent(conversationId)}/attachments`
+      `conversations/${encodeURIComponent(conversationId)}/attachments`,
     ),
     {
       method: 'POST',
@@ -283,12 +287,15 @@ export async function uploadMatorAttachment(
         mime: file.type || 'application/octet-stream',
         data,
       }),
-    }
+    },
   );
   return readJson(response, 'Unable to upload attachment');
 }
 
-export async function transcribeMatorAudio(file: Blob, signal?: AbortSignal): Promise<string> {
+export async function transcribeMatorAudio(
+  file: Blob,
+  signal?: AbortSignal,
+): Promise<string> {
   const data = await fileToBase64(file);
   const mime = file.type || 'audio/webm';
   const extensionByMime: Record<string, string> = {
@@ -312,12 +319,15 @@ export async function transcribeMatorAudio(file: Blob, signal?: AbortSignal): Pr
   });
   const body = await readJson<{ text: string }>(
     response,
-    'Unable to transcribe speech'
+    'Unable to transcribe speech',
   );
   return body.text?.trim() ?? '';
 }
 
-export async function synthesizeMatorSpeech(text: string, signal?: AbortSignal): Promise<Blob> {
+export async function synthesizeMatorSpeech(
+  text: string,
+  signal?: AbortSignal,
+): Promise<Blob> {
   const response = await fetch(matorPath('audio/speech'), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -340,7 +350,7 @@ export async function synthesizeMatorSpeech(text: string, signal?: AbortSignal):
 export async function patchMatorMarkers(
   attachmentId: string,
   markers: MatorImageMarkerDto[],
-  reviewId?: string
+  reviewId?: string,
 ): Promise<MatorAttachmentMetaDto> {
   const response = await fetch(
     matorPath(`attachments/${encodeURIComponent(attachmentId)}/markers`),
@@ -351,7 +361,7 @@ export async function patchMatorMarkers(
         markers,
         ...(reviewId !== undefined ? { reviewId } : {}),
       }),
-    }
+    },
   );
   return readJson(response, 'Unable to save markers');
 }

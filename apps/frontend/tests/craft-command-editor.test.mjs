@@ -34,11 +34,11 @@ const craft = () => ({
 test('craft editor refuses shared defaults and unknown commands', () => {
   assert.throws(
     () => editCraftFromCommand({ ...craft(), scope: 'default' }, 'enable'),
-    /read-only/
+    /read-only/,
   );
   assert.throws(
     () => editCraftFromCommand(craft(), 'publish all'),
-    /Unknown command/
+    /Unknown command/,
   );
 });
 
@@ -46,7 +46,7 @@ test('craft editor adds unique step IDs without mutating the original', () => {
   const original = craft();
   const result = editCraftFromCommand(
     original,
-    'add Research | New instructions'
+    'add Research | New instructions',
   );
   assert.equal(result.expectedVersion, 7);
   assert.equal(result.craft.steps.at(-1)?.id, 'research-2');
@@ -57,39 +57,39 @@ test('craft editor adds unique step IDs without mutating the original', () => {
 test('craft editor rejects missing endpoints and duplicate links', () => {
   assert.throws(
     () => editCraftFromCommand(craft(), 'link research -> absent'),
-    /Both step IDs/
+    /Both step IDs/,
   );
   const linked = editCraftFromCommand(craft(), 'link research -> draft');
   assert.deepEqual(
     linked.craft.links.map((link) => link.id),
-    ['research-to-draft']
+    ['research-to-draft'],
   );
   assert.throws(
     () =>
       editCraftFromCommand(
         { ...craft(), links: linked.craft.links },
-        'link research -> draft'
+        'link research -> draft',
       ),
-    /already connected/
+    /already connected/,
   );
   assert.deepEqual(
     editCraftFromCommand(
       { ...craft(), links: linked.craft.links },
-      'unlink research -> draft'
+      'unlink research -> draft',
     ).craft.links,
-    []
+    [],
   );
 });
 
 test('craft editor preserves version and metadata edits', () => {
   assert.equal(
     editCraftFromCommand(craft(), 'rename My new name').craft.name,
-    'My new name'
+    'My new name',
   );
   assert.equal(
     editCraftFromCommand(craft(), 'description New description').craft
       .description,
-    'New description'
+    'New description',
   );
   assert.equal(editCraftFromCommand(craft(), 'enable').craft.enabled, true);
   assert.equal(editCraftFromCommand(craft(), 'disable').craft.enabled, false);

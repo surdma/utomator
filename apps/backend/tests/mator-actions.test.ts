@@ -1,23 +1,21 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import test from 'node:test';
+import type { RunRequest, RunSummary } from '../src/core/types.js';
+import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
 import {
   applyAction,
+  type MatorActionPorts,
   MatorActionValidationError,
-  parseMatorAction,
+  type MatorWorkflowPort,
   parseGeneratedMatorAction,
+  parseMatorAction,
   restoreConversationPipeline,
   stageAction,
-  type MatorActionPorts,
-  type MatorWorkflowPort,
 } from '../src/mator/mator-actions.js';
-import {
-  getAttachmentFile,
-  getAttachmentMeta,
-  saveAttachment,
-} from '../src/mator/mator-attachments.js';
+import { getAttachmentFile, getAttachmentMeta, saveAttachment } from '../src/mator/mator-attachments.js';
 import {
   createConversation,
   listConversations,
@@ -26,8 +24,6 @@ import {
 } from '../src/mator/mator-conversations.js';
 import { defaultPlan, type WorkflowPlan } from '../src/workflows/workflow-plan.js';
 import type { WorkflowRecord } from '../src/workflows/workflow-registry.js';
-import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
-import type { RunRequest, RunSummary } from '../src/core/types.js';
 
 type Row = { version: number; value: unknown };
 class FakeDocuments implements DocumentStore {
@@ -194,14 +190,21 @@ test('generated clarify recovers oversized choice sets without dropping a questi
     prompt: 'Which setting should change?',
     questions: [
       { name: 'setting', prompt: 'Which setting?', required: true, choices: tooMany },
-      { name: 'tone', prompt: 'Which tone?', required: false, choices: [
-        { value: 'warm', label: 'Warm' }, { value: 'direct', label: 'Direct' },
-      ] },
+      {
+        name: 'tone',
+        prompt: 'Which tone?',
+        required: false,
+        choices: [
+          { value: 'warm', label: 'Warm' },
+          { value: 'direct', label: 'Direct' },
+        ],
+      },
     ],
   };
   assert.throws(
     () => parseMatorAction(raw),
-    (error: unknown) => error instanceof MatorActionValidationError &&
+    (error: unknown) =>
+      error instanceof MatorActionValidationError &&
       error.message === 'Too many choices on questions[0]',
   );
   const recovered = parseGeneratedMatorAction(raw);
@@ -217,25 +220,46 @@ test('generated clarify recovers oversized choice sets without dropping a questi
 });
 
 test('generated clarify recovery cannot bypass invalid action validation', () => {
-  assert.throws(() => parseGeneratedMatorAction({
-    type: 'clarify',
-    questions: [{ name: 'file', prompt: 'Choose a file', inputType: 'file',
-      choices: Array.from({ length: 7 }, (_, index) => ({
-        value: String(index), label: String(index),
-      })),
-    }],
-  }), MatorActionValidationError);
-  assert.throws(() => parseGeneratedMatorAction({
-    type: 'delete_everything',
-  }), MatorActionValidationError);
-  assert.throws(() => parseGeneratedMatorAction({
-    type: 'clarify',
-    questions: Array.from({ length: 5 }, (_, index) => ({
-      name: 'q' + index, prompt: 'Prompt', choices: [
-        { value: 'a', label: 'A' }, { value: 'b', label: 'B' },
-      ],
-    })),
-  }), MatorActionValidationError);
+  assert.throws(
+    () =>
+      parseGeneratedMatorAction({
+        type: 'clarify',
+        questions: [
+          {
+            name: 'file',
+            prompt: 'Choose a file',
+            inputType: 'file',
+            choices: Array.from({ length: 7 }, (_, index) => ({
+              value: String(index),
+              label: String(index),
+            })),
+          },
+        ],
+      }),
+    MatorActionValidationError,
+  );
+  assert.throws(
+    () =>
+      parseGeneratedMatorAction({
+        type: 'delete_everything',
+      }),
+    MatorActionValidationError,
+  );
+  assert.throws(
+    () =>
+      parseGeneratedMatorAction({
+        type: 'clarify',
+        questions: Array.from({ length: 5 }, (_, index) => ({
+          name: 'q' + index,
+          prompt: 'Prompt',
+          choices: [
+            { value: 'a', label: 'A' },
+            { value: 'b', label: 'B' },
+          ],
+        })),
+      }),
+    MatorActionValidationError,
+  );
 });
 
 test('clarify validates URL and file answer types without inventing attachments', () => {
@@ -248,17 +272,36 @@ test('clarify validates URL and file answer types without inventing attachments'
   });
   assert.equal(action.type, 'clarify');
   if (action.type !== 'clarify') return;
-  assert.deepEqual(action.questions.map((q) => q.inputType), ['url', 'file']);
-  assert.throws(() => parseMatorAction({
-    type: 'clarify',
-    questions: [{ name: 'bad', prompt: 'Invalid', inputType: 'html' }],
-  }), MatorActionValidationError);
-  assert.throws(() => parseMatorAction({
-    type: 'clarify',
-    questions: [{ name: 'bad', prompt: 'Invalid', inputType: 'file', choices: [
-      { value: 'a', label: 'A' }, { value: 'b', label: 'B' },
-    ] }],
-  }), MatorActionValidationError);
+  assert.deepEqual(
+    action.questions.map((q) => q.inputType),
+    ['url', 'file'],
+  );
+  assert.throws(
+    () =>
+      parseMatorAction({
+        type: 'clarify',
+        questions: [{ name: 'bad', prompt: 'Invalid', inputType: 'html' }],
+      }),
+    MatorActionValidationError,
+  );
+  assert.throws(
+    () =>
+      parseMatorAction({
+        type: 'clarify',
+        questions: [
+          {
+            name: 'bad',
+            prompt: 'Invalid',
+            inputType: 'file',
+            choices: [
+              { value: 'a', label: 'A' },
+              { value: 'b', label: 'B' },
+            ],
+          },
+        ],
+      }),
+    MatorActionValidationError,
+  );
 });
 
 test('parseMatorAction rejects unknown action type and invalid shape', () => {
@@ -533,9 +576,7 @@ test('apply annotate_image upserts attachment markers', async () => {
 
     assert.equal(result.event.status, 'applied');
     const loaded = await getAttachmentFile(docs, saved.id, { root });
-    assert.deepEqual(loaded.meta.markers, [
-      { id: 'pin-1', x: 0.25, y: 0.75, text: 'look here' },
-    ]);
+    assert.deepEqual(loaded.meta.markers, [{ id: 'pin-1', x: 0.25, y: 0.75, text: 'look here' }]);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -548,22 +589,27 @@ test('annotate_image parses and links optional review references', async () => {
     const workflow = fakeWorkflowPort(makeRecord(defaultPlan('x', 'audit')));
     const ports = portsFor(workflow);
     const conversation = await createConversation(docs, workflow.live.id, 'Review link');
-    const saved = await saveAttachment(docs, {
-      conversationId: conversation.id,
-      filename: 'shot.png',
-      mime: 'image/png',
-      bytes: Buffer.from('png'),
-    }, { root });
+    const saved = await saveAttachment(
+      docs,
+      {
+        conversationId: conversation.id,
+        filename: 'shot.png',
+        mime: 'image/png',
+        bytes: Buffer.from('png'),
+      },
+      { root },
+    );
     const reviewId = '123e4567-e89b-42d3-a456-426614174000';
 
     // A malformed reference never parses into an applicable action.
     assert.throws(
-      () => parseMatorAction({
-        type: 'annotate_image',
-        attachmentId: saved.id,
-        markers: [],
-        reviewId: '“quote”/inject',
-      }),
+      () =>
+        parseMatorAction({
+          type: 'annotate_image',
+          attachmentId: saved.id,
+          markers: [],
+          reviewId: '“quote”/inject',
+        }),
       /Invalid action\.reviewId/,
     );
 
@@ -573,12 +619,17 @@ test('annotate_image parses and links optional review references', async () => {
       markers: [],
       reviewId,
     });
-    const result = await applyAction(docs, ports, {
-      workflowId: workflow.live.id,
-      conversationId: conversation.id,
-      eventId: 'evt-review-link',
-      action,
-    }, { squash: true });
+    const result = await applyAction(
+      docs,
+      ports,
+      {
+        workflowId: workflow.live.id,
+        conversationId: conversation.id,
+        eventId: 'evt-review-link',
+        action,
+      },
+      { squash: true },
+    );
     assert.equal(result.event.status, 'applied');
     const meta = await getAttachmentMeta(docs, saved.id);
     assert.equal(meta.reviewId, reviewId);

@@ -1,17 +1,17 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
+import test from 'node:test';
 import { createClient } from '@libsql/client';
+import type { Page } from 'playwright';
+import { ConnectorService } from '../src/connect/service.js';
 import { createDocumentStore } from '../src/db/documents.js';
 import { AccountStore } from '../src/profile/account-store.js';
-import { WorkflowPlanStore } from '../src/workflows/workflow-store.js';
-import { WorkflowRegistry } from '../src/workflows/workflow-registry.js';
 import { defaultPlan } from '../src/workflows/workflow-plan.js';
-import { ConnectorService } from '../src/connect/service.js';
-import type { Page } from 'playwright';
+import { WorkflowRegistry } from '../src/workflows/workflow-registry.js';
+import { WorkflowPlanStore } from '../src/workflows/workflow-store.js';
 
 test('SQLite Drizzle persists connector verification, account identity and revision-pinned workflows', async () => {
   const root = await mkdtemp(join(tmpdir(), 'utomator-drizzle-'));

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import type { ActivityMemory } from '../mator/activity-memory.js';
 import type { Platform } from '../core/types.js';
+import type { ActivityMemory } from '../mator/mator-activity-memory.js';
 
 /** Intelligence routes: the operator's chat-backed activity memory. */
 export function registerIntelligenceRoutes(app: FastifyInstance, activityMemory: ActivityMemory) {

@@ -1,5 +1,5 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
+import test from 'node:test';
 import { chromium } from 'playwright';
 import { attemptLogin } from '../src/browser/login.js';
 

@@ -1,33 +1,39 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
 import { LoaderCircle, Settings } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { Popover } from '@/components/ui/popover';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/toast';
 import { ModelSelector } from './elements/model-selector';
 import {
   fetchMatorModels,
   fetchMatorSettings,
-  saveMatorSettings,
   type MatorModelOption,
   type MatorSettingsMasked,
+  saveMatorSettings,
 } from './mator-api';
 
 const EFFORT_STOPS = ['low', 'medium', 'high'] as const;
 const EFFORT_LABELS = ['Low', 'Medium', 'High'] as const;
 
-type Props = { disabled?: boolean; onSettingsSaved?: (settings: MatorSettingsMasked) => void };
+type Props = {
+  disabled?: boolean;
+  onSettingsSaved?: (settings: MatorSettingsMasked) => void;
+};
 
 /**
  * Chat-thread settings popover. Exposes only settings the backend
  * actually persists in `MatorSettingsMasked`; the default save flow is
  * unchanged (same patch keys as the settings page).
  */
-export default function MatorChatSettings({ disabled, onSettingsSaved }: Props) {
+export default function MatorChatSettings({
+  disabled,
+  onSettingsSaved,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -48,7 +54,7 @@ export default function MatorChatSettings({ disabled, onSettingsSaved }: Props) 
       setModels(loadedModels.models.filter((model) => model.role === 'chat'));
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : 'Unable to load chat settings'
+        cause instanceof Error ? cause.message : 'Unable to load chat settings',
       );
     } finally {
       setLoading(false);
@@ -68,13 +74,13 @@ export default function MatorChatSettings({ disabled, onSettingsSaved }: Props) 
           cause instanceof Error
             ? cause.message
             : 'Unable to save chat settings',
-          'error'
+          'error',
         );
       } finally {
         setSaving(false);
       }
     },
-    [toast, onSettingsSaved]
+    [toast, onSettingsSaved],
   );
 
   useEffect(() => {

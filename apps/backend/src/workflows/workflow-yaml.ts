@@ -1,14 +1,14 @@
 import { createHash } from 'node:crypto';
-import type { WorkflowPlan, WorkflowStep, StepInputBinding } from './workflow-plan.js';
-import { validatePlan } from './workflow-plan.js';
 import {
+  type AuthoredStepDefinition,
   instantiateStep,
+  type OutputSchema,
   operationFor,
   outputFor,
-  type AuthoredStepDefinition,
   type StepOperation,
-  type OutputSchema,
 } from './step-definitions.js';
+import type { StepInputBinding, WorkflowPlan, WorkflowStep } from './workflow-plan.js';
+import { validatePlan } from './workflow-plan.js';
 
 /**
  * A trusted, schema-validated YAML execution document. The only possible

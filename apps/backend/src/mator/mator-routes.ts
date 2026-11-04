@@ -8,7 +8,6 @@ import {
   restoreConversationPipeline,
 } from './mator-actions.js';
 import { MatorConfigError, requireGroqKey, runMatorTurn } from './mator-agent.js';
-import { parseMatorInteractionMode } from './mator-interaction-mode.js';
 import {
   getAttachmentFile,
   getAttachmentMeta,
@@ -29,6 +28,7 @@ import {
   setCurrentConversation,
 } from './mator-conversations.js';
 import { synthesizeSpeech, transcribeAudio } from './mator-groq.js';
+import { parseMatorInteractionMode } from './mator-interaction-mode.js';
 import { findMatorModel, MATOR_MODEL_CATALOG, MATOR_TTS_VOICES } from './mator-models.js';
 import {
   getMatorSettings,
@@ -42,29 +42,35 @@ import {
 
 /** Reflect saved marker changes after a reload, without rewriting immutable chat events. */
 async function withAttachmentDetails(docs: DocumentStore, events: MatorEvent[]): Promise<MatorEvent[]> {
-  return Promise.all(events.map(async (event) => {
-    const ids = event.attachments?.length
-      ? event.attachments.map((asset) => asset.id)
-      : event.attachmentId ? [event.attachmentId] : [];
-    if (!ids.length) return event;
-    const records = await Promise.all(ids.map(async (id) => {
-      try {
-        const meta = await getAttachmentMeta(docs, id);
-        if (meta.conversationId !== event.conversationId) return null;
-        return {
-          id,
-          name: meta.filename,
-          mime: meta.mime,
-          markers: meta.markers,
-          reviewId: meta.reviewId,
-        };
-      } catch {
-        return null;
-      }
-    }));
-    const assets = records.filter((asset) => asset !== null);
-    return assets.length ? { ...event, attachments: assets } : event;
-  }));
+  return Promise.all(
+    events.map(async (event) => {
+      const ids = event.attachments?.length
+        ? event.attachments.map((asset) => asset.id)
+        : event.attachmentId
+          ? [event.attachmentId]
+          : [];
+      if (!ids.length) return event;
+      const records = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const meta = await getAttachmentMeta(docs, id);
+            if (meta.conversationId !== event.conversationId) return null;
+            return {
+              id,
+              name: meta.filename,
+              mime: meta.mime,
+              markers: meta.markers,
+              reviewId: meta.reviewId,
+            };
+          } catch {
+            return null;
+          }
+        }),
+      );
+      const assets = records.filter((asset) => asset !== null);
+      return assets.length ? { ...event, attachments: assets } : event;
+    }),
+  );
 }
 
 export type MatorRouteDeps = {
@@ -323,8 +329,11 @@ export function registerMatorRoutes(app: FastifyInstance, deps: MatorRouteDeps):
       const located = await findConversation(docs, request.params.id);
       if (!located) return jsonError(reply, 404, 'Conversation not found');
       let interactionMode: 'text' | 'ai_call';
-      try { interactionMode = parseMatorInteractionMode(request.body?.interactionMode); }
-      catch { return jsonError(reply, 400, 'interactionMode must be text or ai_call'); }
+      try {
+        interactionMode = parseMatorInteractionMode(request.body?.interactionMode);
+      } catch {
+        return jsonError(reply, 400, 'interactionMode must be text or ai_call');
+      }
       const result = await runMatorTurn(
         docs,
         deps.ports,
@@ -358,11 +367,13 @@ export function registerMatorRoutes(app: FastifyInstance, deps: MatorRouteDeps):
       if (!staged) return jsonError(reply, 404, 'Event not found');
       if (staged.status !== 'staged') return jsonError(reply, 409, 'Event is not a staged action');
       if (
-        events.some((event) =>
-          (event.status === 'applied' || event.status === 'rejected') &&
-          event.resolvesEventId === staged.id
+        events.some(
+          (event) =>
+            (event.status === 'applied' || event.status === 'rejected') &&
+            event.resolvesEventId === staged.id,
         )
-      ) return jsonError(reply, 409, 'This staged proposal was already decided');
+      )
+        return jsonError(reply, 409, 'This staged proposal was already decided');
       if (decision === 'reject') {
         const event = await appendEvent(docs, request.params.id, {
           role: 'assistant',
@@ -482,7 +493,8 @@ export function registerMatorRoutes(app: FastifyInstance, deps: MatorRouteDeps):
     try {
       const text = request.body?.text?.replace(/\s+/g, ' ').trim() ?? '';
       if (!text) return jsonError(reply, 400, 'text is required');
-      if (text.length > 200) return jsonError(reply, 400, 'Speech segments must be 200 characters or fewer');
+      if (text.length > 200)
+        return jsonError(reply, 400, 'Speech segments must be 200 characters or fewer');
       const settings = await getMatorSettings(docs);
       const apiKey = requireGroqKey(docs, settings);
       const wav = await synthesizeSpeech(apiKey, text, {
@@ -536,38 +548,32 @@ export function registerMatorRoutes(app: FastifyInstance, deps: MatorRouteDeps):
   app.patch<{
     Params: { id: string };
     Body: { markers?: MatorImageMarker[]; reviewId?: string };
-  }>(
-    '/mator/attachments/:id/markers',
-    async (request, reply) => {
-      const docs = await requireDocuments(deps, reply);
-      if (!docs) return;
-      try {
-        if (!Array.isArray(request.body?.markers))
-          return jsonError(reply, 400, 'markers array is required');
-        if (request.body.reviewId !== undefined) {
-          if (
-            typeof request.body.reviewId !== 'string' ||
-            !MATOR_REVIEW_ID_PATTERN.test(request.body.reviewId)
-          )
-            return jsonError(reply, 400, 'Invalid review reference');
-          if (
-            !deps.resolveVisualReview ||
-            !(await deps.resolveVisualReview(request.body.reviewId))
-          )
-            return jsonError(reply, 400, 'Review does not exist');
-        }
-        const meta = await upsertMarkers(
-          docs,
-          request.params.id,
-          request.body.markers,
-          request.body.reviewId
-        );
-        return meta;
-      } catch (error) {
-        return jsonError(reply, httpStatusForError(error), errorMessage(error));
+  }>('/mator/attachments/:id/markers', async (request, reply) => {
+    const docs = await requireDocuments(deps, reply);
+    if (!docs) return;
+    try {
+      if (!Array.isArray(request.body?.markers))
+        return jsonError(reply, 400, 'markers array is required');
+      if (request.body.reviewId !== undefined) {
+        if (
+          typeof request.body.reviewId !== 'string' ||
+          !MATOR_REVIEW_ID_PATTERN.test(request.body.reviewId)
+        )
+          return jsonError(reply, 400, 'Invalid review reference');
+        if (!deps.resolveVisualReview || !(await deps.resolveVisualReview(request.body.reviewId)))
+          return jsonError(reply, 400, 'Review does not exist');
       }
-    },
-  );
+      const meta = await upsertMarkers(
+        docs,
+        request.params.id,
+        request.body.markers,
+        request.body.reviewId,
+      );
+      return meta;
+    } catch (error) {
+      return jsonError(reply, httpStatusForError(error), errorMessage(error));
+    }
+  });
 
   app.get<{ Params: { id: string } }>('/mator/attachments/:id', async (request, reply) => {
     const docs = await requireDocuments(deps, reply);

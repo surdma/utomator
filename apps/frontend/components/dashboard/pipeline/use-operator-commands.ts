@@ -1,24 +1,24 @@
 'use client';
 
 import {
-  useRef,
-  useState,
   type Dispatch,
   type FormEvent,
   type SetStateAction,
+  useRef,
+  useState,
 } from 'react';
 import { apiPost, getApi } from './api-client';
-import { workflows, type Platform } from './workflow-catalog';
+import type { ParsedCommand } from './command-parser';
 import { executeCraftCommand } from './craft-command-service';
 import type { DashboardPane } from './dashboard-route';
 import type { ChatMessage } from './run-models';
-import type { ParsedCommand } from './command-parser';
 import {
   decideUtterance,
   nextCommandState,
   pendingCommandLabel,
   type UtteranceSource,
 } from './utterance';
+import { type Platform, workflows } from './workflow-catalog';
 
 type Options = {
   message: string;
@@ -35,7 +35,7 @@ type Options = {
   setCraftsRevision: Dispatch<SetStateAction<number>>;
   onStageWorkflow: (
     action: string,
-    fields?: Record<string, string>
+    fields?: Record<string, string>,
   ) => Promise<void>;
   setSelectedNode: Dispatch<SetStateAction<string>>;
 };
@@ -80,8 +80,8 @@ export function useOperatorCommands({
     }).catch((error) =>
       reply(
         'This message was not stored in memory: ' +
-          (error instanceof Error ? error.message : 'Storage unavailable')
-      )
+          (error instanceof Error ? error.message : 'Storage unavailable'),
+      ),
     );
   }
 
@@ -125,8 +125,10 @@ export function useOperatorCommands({
         })
         .catch((cause) =>
           reply(
-            cause instanceof Error ? cause.message : 'Unable to stage this workflow'
-          )
+            cause instanceof Error
+              ? cause.message
+              : 'Unable to stage this workflow',
+          ),
         );
     } else if (next.reply) {
       reply(next.reply);
@@ -160,7 +162,7 @@ export function useOperatorCommands({
     const decision = decideUtterance(
       request,
       source,
-      pendingRef.current !== null
+      pendingRef.current !== null,
     );
     if (decision.kind === 'craft') {
       void handleCraftCommand(request === 'crafts' ? '/craft help' : request);
@@ -177,7 +179,7 @@ export function useOperatorCommands({
           const summary = entries
             .filter((item) => item.source === 'chat')
             .slice(0, 5)
-            .map((item) => '• ' + item.text)
+            .map((item) => `• ${item.text}`)
             .join('\n');
           reply(summary || 'No chat-origin memory has been saved yet.');
         })
@@ -192,15 +194,15 @@ export function useOperatorCommands({
           reply(
             'Scoped read-only inspection staged for ' +
               selectedPage +
-              '. Use Start Inspect selected page in the artboard to open the real page.'
+              '. Use Start Inspect selected page in the artboard to open the real page.',
           );
         })
         .catch((cause) =>
           reply(
             cause instanceof Error
               ? cause.message
-              : 'Could not load the inspection workflow'
-          )
+              : 'Could not load the inspection workflow',
+          ),
         );
       return;
     }

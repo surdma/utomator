@@ -8,6 +8,9 @@ export function parseMatorInteractionMode(value: unknown): MatorInteractionMode 
 }
 
 /** Mutating AI Call actions must be staged until a real on-screen decision is made. */
-export function mayAutoApproveMatorAction(globalAutoApprove: boolean, mode: MatorInteractionMode): boolean {
+export function mayAutoApproveMatorAction(
+  globalAutoApprove: boolean,
+  mode: MatorInteractionMode,
+): boolean {
   return mode === 'text' && globalAutoApprove;
 }

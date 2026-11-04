@@ -21,7 +21,7 @@ test('replayed events are ignored without changing the previous array', () => {
   assert.equal(appendRunEvent(current, first), current);
   assert.deepEqual(
     appendRunEvent(current, runEvent('step', 'Verify page', 2)),
-    [first, runEvent('step', 'Verify page', 2)]
+    [first, runEvent('step', 'Verify page', 2)],
   );
 });
 
@@ -37,7 +37,7 @@ test('only the existing status messages request a refresh', () => {
   assert.equal(isPauseOrResume(runEvent('step', 'Run paused')), false);
   assert.equal(
     isTerminalRunStatus(runEvent('status', 'Run ended: completed')),
-    true
+    true,
   );
   assert.equal(isTerminalRunStatus(runEvent('status', 'Run finished')), true);
   assert.equal(isTerminalRunStatus(runEvent('result', 'Run finished')), false);

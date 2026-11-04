@@ -1,9 +1,9 @@
 // The dashboard uses one API path convention for requests and event streams.
-export const getApi = (path: string) => '/api/' + path;
+export const getApi = (path: string) => `/api/${path}`;
 
 export async function apiPost(
   path: string,
-  data: Record<string, unknown> = {}
+  data: Record<string, unknown> = {},
 ) {
   const response = await fetch(getApi(path), {
     method: 'POST',

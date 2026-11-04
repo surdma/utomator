@@ -1,9 +1,9 @@
 'use client';
-import { useEffect, useState, type FormEvent } from 'react';
-import EditorialStudioHeader from './sections/editorial-studio-header';
-import LinkedInPublishingStatus from './sections/linkedin-publishing-status';
+import { type FormEvent, useEffect, useState } from 'react';
 import EditorialDraftForm from './sections/editorial-draft-form';
 import EditorialDraftList from './sections/editorial-draft-list';
+import EditorialStudioHeader from './sections/editorial-studio-header';
+import LinkedInPublishingStatus from './sections/linkedin-publishing-status';
 
 type Account = { id: string; platform: string; label: string; handle: string };
 type Research = {
@@ -80,11 +80,11 @@ export default function LinkedInEditorialStudio() {
         if (responses.some((item) => !item.ok))
           throw Error('Unable to load account, research or editorial records');
         const [account, report, items] = (await Promise.all(
-          responses.map((r) => r.json())
+          responses.map((r) => r.json()),
         )) as [{ socialAccounts: Account[] }, Research[], Draft[]];
         if (!alive) return;
         const linkedIn = account.socialAccounts.filter(
-          (row) => row.platform === 'linkedin'
+          (row) => row.platform === 'linkedin',
         );
         setAccounts(linkedIn);
         setAccountId(linkedIn[0]?.id ?? '');
@@ -94,7 +94,7 @@ export default function LinkedInEditorialStudio() {
       .catch((e) => {
         if (alive)
           setError(
-            e instanceof Error ? e.message : 'Unable to load editorial studio'
+            e instanceof Error ? e.message : 'Unable to load editorial studio',
           );
       })
       .finally(() => {
@@ -106,8 +106,8 @@ export default function LinkedInEditorialStudio() {
   }, []);
   async function checkPublishingStatus(id: string) {
     const response = await fetch(
-      '/api/linkedin/oauth/status?accountId=' + encodeURIComponent(id),
-      { cache: 'no-store' }
+      `/api/linkedin/oauth/status?accountId=${encodeURIComponent(id)}`,
+      { cache: 'no-store' },
     );
     const result = (await response.json()) as {
       connected: boolean;
@@ -126,10 +126,10 @@ export default function LinkedInEditorialStudio() {
     }
     void checkPublishingStatus(accountId).catch((e) =>
       setError(
-        e instanceof Error ? e.message : 'Unable to read publishing status'
-      )
+        e instanceof Error ? e.message : 'Unable to read publishing status',
+      ),
     );
-  }, [accountId]);
+  }, [accountId, checkPublishingStatus]);
   async function connectPublishing() {
     if (!accountId) return;
     setError('');
@@ -151,7 +151,7 @@ export default function LinkedInEditorialStudio() {
       setError(
         e instanceof Error
           ? e.message
-          : 'Could not start LinkedIn authorization'
+          : 'Could not start LinkedIn authorization',
       );
     }
   }
@@ -159,7 +159,7 @@ export default function LinkedInEditorialStudio() {
     if (
       !accountId ||
       !window.confirm(
-        'Disconnect LinkedIn publishing authorization? Saved drafts will remain.'
+        'Disconnect LinkedIn publishing authorization? Saved drafts will remain.',
       )
     )
       return;
@@ -173,7 +173,7 @@ export default function LinkedInEditorialStudio() {
       if (!response.ok)
         throw Error(
           ((await response.json()) as { error: string }).error ||
-            'Disconnect failed'
+            'Disconnect failed',
         );
       await checkPublishingStatus(accountId);
       setFeedback('Publishing authorization disconnected.');
@@ -184,18 +184,12 @@ export default function LinkedInEditorialStudio() {
     }
   }
   async function publish() {
-    if (
-      !selected ||
-      selected.status !== 'approved' ||
-      unsaved ||
-      !oauth?.connected
-    )
-      return;
+    if (selected?.status !== 'approved' || unsaved || !oauth?.connected) return;
     if (
       !window.confirm(
         'Publish this approved text-only draft as LinkedIn member ' +
           (oauth?.subject || 'unknown') +
-          '? This creates a real public post, not a preview.'
+          '? This creates a real public post, not a preview.',
       )
     )
       return;
@@ -204,7 +198,7 @@ export default function LinkedInEditorialStudio() {
     setFeedback('');
     try {
       const response = await fetch(
-        '/api/linkedin/drafts/' + selected.id + '/publish',
+        `/api/linkedin/drafts/${selected.id}/publish`,
         {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
@@ -212,7 +206,7 @@ export default function LinkedInEditorialStudio() {
             expectedVersion: selected.version,
             confirmed: true,
           }),
-        }
+        },
       );
       const result = (await response.json()) as Draft & { error?: string };
       if (!response.ok)
@@ -220,7 +214,7 @@ export default function LinkedInEditorialStudio() {
       choose(result);
       await refresh();
       setFeedback(
-        'LinkedIn accepted this post. The provider ID is stored in your publication receipt.'
+        'LinkedIn accepted this post. The provider ID is stored in your publication receipt.',
       );
     } catch (e) {
       const reason =
@@ -260,7 +254,7 @@ export default function LinkedInEditorialStudio() {
       researchRunId: run.id,
       pillar: gap?.topic ?? old.pillar,
       goal:
-        old.goal || 'Share an evidence-backed insight in ' + run.input.niche,
+        old.goal || `Share an evidence-backed insight in ${run.input.niche}`,
       sourceUrls,
     }));
     setSourcesText(sourceUrls.join('\n'));
@@ -275,12 +269,12 @@ export default function LinkedInEditorialStudio() {
     };
   }
   const unsaved = Boolean(
-    selected && JSON.stringify(payload()) !== JSON.stringify(selected.content)
+    selected && JSON.stringify(payload()) !== JSON.stringify(selected.content),
   );
   async function command(
     url: string,
     method: 'POST' | 'PUT',
-    body: unknown
+    body: unknown,
   ): Promise<Draft> {
     const response = await fetch(url, {
       method,
@@ -299,10 +293,10 @@ export default function LinkedInEditorialStudio() {
     try {
       if (!accountId)
         throw Error(
-          'Save a LinkedIn account in Profile before creating a draft'
+          'Save a LinkedIn account in Profile before creating a draft',
         );
       const result = selected
-        ? await command('/api/linkedin/drafts/' + selected.id, 'PUT', {
+        ? await command(`/api/linkedin/drafts/${selected.id}`, 'PUT', {
             expectedVersion: selected.version,
             content: payload(),
           })
@@ -313,7 +307,7 @@ export default function LinkedInEditorialStudio() {
       choose(result);
       await refresh();
       setFeedback(
-        'Draft saved to your private workspace. No LinkedIn post was published.'
+        'Draft saved to your private workspace. No LinkedIn post was published.',
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save draft');
@@ -322,13 +316,13 @@ export default function LinkedInEditorialStudio() {
     }
   }
   async function transition(
-    action: 'approve' | 'reopen' | 'archive' | 'delete' | 'restore'
+    action: 'approve' | 'reopen' | 'archive' | 'delete' | 'restore',
   ) {
     if (!selected) return;
     if (
       action === 'delete' &&
       !window.confirm(
-        'Remove this internal draft from the list? It will not delete any LinkedIn post.'
+        'Remove this internal draft from the list? It will not delete any LinkedIn post.',
       )
     )
       return;
@@ -337,13 +331,13 @@ export default function LinkedInEditorialStudio() {
     setFeedback('');
     try {
       const updated = await command(
-        '/api/linkedin/drafts/' + selected.id + '/transition',
+        `/api/linkedin/drafts/${selected.id}/transition`,
         'POST',
         {
           expectedVersion: selected.version,
           action,
           confirm: action === 'delete',
-        }
+        },
       );
       if (action === 'delete') {
         choose(null);
@@ -351,7 +345,9 @@ export default function LinkedInEditorialStudio() {
       } else {
         choose(updated);
         setFeedback(
-          'Draft is now ' + updated.status + '. No LinkedIn post was published.'
+          'Draft is now ' +
+            updated.status +
+            '. No LinkedIn post was published.',
         );
       }
       await refresh();

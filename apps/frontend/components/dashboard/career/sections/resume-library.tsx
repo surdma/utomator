@@ -1,8 +1,8 @@
 'use client';
 
 import { ArrowRight, FileText, Plus, Search } from 'lucide-react';
+import { classButton, classInput } from '../styles';
 import type { CareerState, Resume } from '../types';
-import { classInput, classButton } from '../styles';
 
 export default function ResumeLibrary({
   state,
@@ -31,7 +31,7 @@ export default function ResumeLibrary({
           </p>
         </div>
         <button
-          className={classButton + ' bg-teal-700 text-white hover:bg-teal-800'}
+          className={`${classButton} bg-teal-700 text-white hover:bg-teal-800`}
           disabled={
             saving ||
             !state.profile.name.trim() ||
@@ -48,7 +48,7 @@ export default function ResumeLibrary({
         <span className="relative block">
           <Search className="absolute top-3.5 left-4 size-4 text-slate-400" />
           <input
-            className={classInput + ' pl-11'}
+            className={`${classInput} pl-11`}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by role, company or version"
@@ -60,7 +60,7 @@ export default function ResumeLibrary({
           <button
             type="button"
             key={r.id}
-            onClick={() => go('/dashboard/resumes/' + r.id)}
+            onClick={() => go(`/dashboard/resumes/${r.id}`)}
             className="group rounded-3xl border border-slate-200 bg-white p-7 text-left shadow-sm transition hover:border-teal-300 hover:shadow-lg"
           >
             <div className="flex items-start justify-between gap-4">
@@ -72,7 +72,7 @@ export default function ResumeLibrary({
             </h3>
             <p className="mt-2 text-sm text-slate-600">
               {r.targetRole || 'General résumé'}
-              {r.targetCompany ? ' · ' + r.targetCompany : ''}
+              {r.targetCompany ? ` · ${r.targetCompany}` : ''}
             </p>
             <div className="mt-6 flex flex-wrap gap-2 text-xs text-slate-500">
               <span className="rounded-full bg-slate-100 px-3 py-1">

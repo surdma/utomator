@@ -1,15 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { providerMeta, type ProviderKey } from './provider-meta';
-import StudioDialog from '@/components/ui/studio-dialog';
 import { LinkedInIcon } from '@/components/svgs';
+import StudioDialog from '@/components/ui/studio-dialog';
+import { type ProviderKey, providerMeta } from './provider-meta';
 import ConnectorNetworkPicker from './sections/connector-network-picker';
-import ConnectorSavedAccount from './sections/connector-saved-account';
 import ConnectorOtherNetworks from './sections/connector-other-networks';
+import ConnectorSavedAccount from './sections/connector-saved-account';
 
 export type { Connector } from './connector-types';
+
 import type { Connector } from './connector-types';
+
 type Command = 'connect' | 'sync' | 'disconnect';
 type Result = { status?: string; navigationWarning?: string; error?: string };
 type Capabilities = {
@@ -64,7 +66,7 @@ export default function ConnectorOnboarding({
   useEffect(() => {
     setMobileClient(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
     let live = true;
-    void fetch(path + '/capabilities', { cache: 'no-store' })
+    void fetch(`${path}/capabilities`, { cache: 'no-store' })
       .then(async (response) => {
         if (!response.ok) throw Error('Capabilities unavailable');
         return response.json() as Promise<Capabilities>;
@@ -93,7 +95,7 @@ export default function ConnectorOnboarding({
     setAccounts(data);
     const linkedin = data.filter((item) => item.platform === 'linkedin');
     const previous = last.current.accounts.find(
-      (item) => item.id === last.current.activeId
+      (item) => item.id === last.current.activeId,
     );
     const current = data.find((item) => item.id === last.current.activeId);
     if (
@@ -116,7 +118,7 @@ export default function ConnectorOnboarding({
       .catch((e) => {
         if (active)
           setError(
-            e instanceof Error ? e.message : 'Unable to load connections'
+            e instanceof Error ? e.message : 'Unable to load connections',
           );
       })
       .finally(() => {
@@ -126,7 +128,7 @@ export default function ConnectorOnboarding({
     // updates the connection. This component is mounted across all app panes.
     const timer = setInterval(
       () => void refresh().catch(() => undefined),
-      15000
+      15000,
     );
     return () => {
       active = false;
@@ -146,7 +148,7 @@ export default function ConnectorOnboarding({
     const match = last.current.accounts.find((item) => item.id === target);
     if (match) setNetwork(match.platform);
     void refresh().catch((e) =>
-      setError(e instanceof Error ? e.message : 'Unable to load connections')
+      setError(e instanceof Error ? e.message : 'Unable to load connections'),
     );
   }, [openSignal, requestedId, refresh]);
 
@@ -165,12 +167,12 @@ export default function ConnectorOnboarding({
       try {
         for (const id of pendingIds.split(',')) {
           const response = await fetch(
-            path + '/' + encodeURIComponent(id) + '/check',
+            `${path}/${encodeURIComponent(id)}/check`,
             {
               method: 'POST',
               headers: { 'content-type': 'application/json' },
               body: '{}',
-            }
+            },
           );
           if (!response.ok) continue;
           const result = (await response.json()) as Result;
@@ -180,7 +182,7 @@ export default function ConnectorOnboarding({
               setSelected(id);
               setNetwork(updated.platform);
               setMessage(
-                providerMeta[updated.platform].name + ' session verified.'
+                `${providerMeta[updated.platform].name} session verified.`,
               );
               onSelect(updated);
             }
@@ -217,13 +219,13 @@ export default function ConnectorOnboarding({
     const timer = setTimeout(() => controller.abort(), 120000);
     try {
       const response = await fetch(
-        path + '/' + encodeURIComponent(id) + '/' + operation,
+        `${path}/${encodeURIComponent(id)}/${operation}`,
         {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: '{}',
           signal: controller.signal,
-        }
+        },
       );
       const result = (await response.json()) as Result;
       if (!response.ok)
@@ -233,22 +235,23 @@ export default function ConnectorOnboarding({
         if (updated) onSelect(updated);
         setSelected(id);
         setMessage(
-          providerMeta[updated?.platform || network].name + ' session verified.'
+          providerMeta[updated?.platform || network].name +
+            ' session verified.',
         );
       } else if (result.status === 'sign-in-open') {
         setSelected(id);
         setMessage(
           result.navigationWarning ||
-            'Finish signing in to LinkedIn in the secure window, then select Verify connection.'
+            'Finish signing in to LinkedIn in the secure window, then select Verify connection.',
         );
       } else if (result.status === 'reconnect-required') {
         setSelected(id);
         setError(
-          'LinkedIn sign-in is incomplete or expired. Finish sign-in, then verify again.'
+          'LinkedIn sign-in is incomplete or expired. Finish sign-in, then verify again.',
         );
       } else if (result.status === 'temporarily-unavailable') {
         setError(
-          'LinkedIn could not be reached. Your previous connection record was preserved.'
+          'LinkedIn could not be reached. Your previous connection record was preserved.',
         );
       } else if (result.status === 'disconnected') {
         if (updated && activeId === id) onSelect(updated);
@@ -260,7 +263,7 @@ export default function ConnectorOnboarding({
           ? 'Connection check stopped. You can retry.'
           : e instanceof Error
             ? e.message
-            : 'LinkedIn connection failed'
+            : 'LinkedIn connection failed',
       );
     } finally {
       clearTimeout(timer);
@@ -276,7 +279,7 @@ export default function ConnectorOnboarding({
     setMessage('');
     setSaving(true);
     try {
-      const response = await fetch(path + '/start', {
+      const response = await fetch(`${path}/start`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ platform: provider }),
@@ -289,7 +292,7 @@ export default function ConnectorOnboarding({
       await refresh();
       setMessage(
         result.navigationWarning ||
-          'Complete provider sign-in in Chrome, then select Verify connection.'
+          'Complete provider sign-in in Chrome, then select Verify connection.',
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not start connection');
@@ -311,8 +314,8 @@ export default function ConnectorOnboarding({
     }
     let live = true;
     void fetch(
-      '/api/linkedin/oauth/status?accountId=' + encodeURIComponent(chosen.id),
-      { cache: 'no-store' }
+      `/api/linkedin/oauth/status?accountId=${encodeURIComponent(chosen.id)}`,
+      { cache: 'no-store' },
     )
       .then(async (response) => {
         if (!response.ok) throw Error('Publishing status unavailable');
@@ -332,7 +335,7 @@ export default function ConnectorOnboarding({
     return () => {
       live = false;
     };
-  }, [chosen?.id, chosen?.platform, chosen?.status, open]);
+  }, [chosen?.id, chosen?.platform, chosen?.status]);
   async function authorizePublishing(id: string) {
     if (busy) return;
     setError('');
@@ -359,7 +362,7 @@ export default function ConnectorOnboarding({
     status === 'connected' || status === 'sign-in-open' ? 'sync' : 'connect';
   const actionText =
     operation === 'connect'
-      ? 'Connect ' + providerMeta[network].name
+      ? `Connect ${providerMeta[network].name}`
       : status === 'connected'
         ? 'Check connection'
         : 'Verify connection';
@@ -379,14 +382,12 @@ export default function ConnectorOnboarding({
             setOpen(true);
             void refresh().catch((e) =>
               setError(
-                e instanceof Error ? e.message : 'Unable to load connections'
-              )
+                e instanceof Error ? e.message : 'Unable to load connections',
+              ),
             );
           }}
           aria-label="Manage connected social accounts"
-          className={
-            button + ' border border-slate-200 bg-white text-slate-900'
-          }
+          className={`${button} border border-slate-200 bg-white text-slate-900`}
         >
           <LinkedInIcon className="size-5" /> LinkedIn{' '}
           {chosen?.status === 'connected' ? 'connected' : 'connection'}

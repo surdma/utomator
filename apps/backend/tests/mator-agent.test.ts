@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
 import { createHash } from 'node:crypto';
+import test from 'node:test';
+import type { RunRequest, RunSummary } from '../src/core/types.js';
+import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
+import type { MatorActionPorts, MatorWorkflowPort } from '../src/mator/mator-actions.js';
 import {
   GROQ_OPENAI_BASE_URL,
   MAX_MATOR_ACTIONS_PER_TURN,
@@ -9,11 +12,8 @@ import {
 } from '../src/mator/mator-agent.js';
 import { createConversation, listEvents } from '../src/mator/mator-conversations.js';
 import { putMatorSettings } from '../src/mator/mator-settings.js';
-import type { MatorActionPorts, MatorWorkflowPort } from '../src/mator/mator-actions.js';
 import { defaultPlan, type WorkflowPlan } from '../src/workflows/workflow-plan.js';
 import type { WorkflowRecord } from '../src/workflows/workflow-registry.js';
-import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
-import type { RunRequest, RunSummary } from '../src/core/types.js';
 
 const MASTER = Buffer.from(createHash('sha256').update('mator-agent-test-master').digest());
 const hex = (buffer: Buffer) => buffer.toString('hex');
@@ -246,7 +246,9 @@ test('runMatorTurn parses Groq structured actions into staged events', async () 
       stepId: 'inspect',
       patch: { title: 'Inspect carefully' },
     });
-    assert.ok(events.some((e) => e.kind === 'how' || (e.action as { type?: string })?.type === 'explain_how'));
+    assert.ok(
+      events.some((e) => e.kind === 'how' || (e.action as { type?: string })?.type === 'explain_how'),
+    );
     assert.equal(workflow.live.revision, beforeRevision);
   });
 });
@@ -329,7 +331,11 @@ test('runMatorTurn blocks prompt-injection before staging actions', async () => 
 
     assert.equal(actionCalls, 0);
     assert.equal(workflow.live.revision, 1);
-    assert.ok(events.some((event) => event.status === 'error' && /content check|Blocked/i.test(event.text ?? '')));
+    assert.ok(
+      events.some(
+        (event) => event.status === 'error' && /content check|Blocked/i.test(event.text ?? ''),
+      ),
+    );
   });
 });
 
@@ -360,7 +366,9 @@ test('runMatorTurn caps action processing at 3 when model returns 5', async () =
     );
 
     assert.equal(
-      events.filter((event) => event.kind === 'action' && (event.status === 'staged' || event.status === 'applied')).length,
+      events.filter(
+        (event) => event.kind === 'action' && (event.status === 'staged' || event.status === 'applied'),
+      ).length,
       0,
       'noop actions must not masquerade as completed changes',
     );
@@ -398,10 +406,7 @@ test('runMatorTurn marks incomplete when Groq request is aborted', async () => {
     );
 
     assert.ok(events.some((e) => e.status === 'incomplete'));
-    assert.equal(
-      events.filter((e) => e.kind === 'action' && e.status === 'staged').length,
-      0,
-    );
+    assert.equal(events.filter((e) => e.kind === 'action' && e.status === 'staged').length, 0);
   });
 });
 
@@ -483,24 +488,32 @@ test('runMatorTurn degraded mode does not invent actions when Groq is down', asy
   });
 });
 
-
 test('informational answer and noop never create staged or applied events', async () => {
   await withEncryption(async () => {
     const docs = new FakeDocuments('local-owner');
     await seedWithKey(docs);
     const workflow = fakeWorkflowPort(makeRecord(defaultPlan('x', 'audit')));
     const conversation = await createConversation(docs, workflow.live.id, 'Information');
-    const fetchMock: typeof fetch = async () => groqJsonResponse({
-      how: 'I can explain this, but it does not change the workflow.',
-      actions: [{ type: 'noop', reason: 'No action requested' }],
-    });
-    const { events } = await runMatorTurn(docs, portsFor(workflow), {
-      conversationId: conversation.id,
-      userText: 'Explain the weather without changing anything',
-      idempotencyKey: 'info-noop',
-    }, { fetch: fetchMock });
-    assert.ok(events.some(event => event.kind === 'how'));
-    assert.equal(events.filter(event => event.status === 'staged' || event.status === 'applied').length, 0);
+    const fetchMock: typeof fetch = async () =>
+      groqJsonResponse({
+        how: 'I can explain this, but it does not change the workflow.',
+        actions: [{ type: 'noop', reason: 'No action requested' }],
+      });
+    const { events } = await runMatorTurn(
+      docs,
+      portsFor(workflow),
+      {
+        conversationId: conversation.id,
+        userText: 'Explain the weather without changing anything',
+        idempotencyKey: 'info-noop',
+      },
+      { fetch: fetchMock },
+    );
+    assert.ok(events.some((event) => event.kind === 'how'));
+    assert.equal(
+      events.filter((event) => event.status === 'staged' || event.status === 'applied').length,
+      0,
+    );
     assert.equal(workflow.live.revision, 1);
   });
 });
@@ -511,13 +524,20 @@ test('empty Groq action response cannot invent an applied mutation', async () =>
     await seedWithKey(docs);
     const workflow = fakeWorkflowPort(makeRecord(defaultPlan('x', 'audit')));
     const conversation = await createConversation(docs, workflow.live.id, 'Empty reply');
-    const { events } = await runMatorTurn(docs, portsFor(workflow), {
-      conversationId: conversation.id,
-      userText: 'Hello',
-      idempotencyKey: 'no-op-empty',
-    }, { fetch: async () => groqJsonResponse({ actions: [] }) });
-    assert.ok(events.some(event => event.kind === 'message' && /No workflow changes/.test(event.text ?? '')));
-    assert.equal(events.filter(event => event.kind === 'action').length, 0);
+    const { events } = await runMatorTurn(
+      docs,
+      portsFor(workflow),
+      {
+        conversationId: conversation.id,
+        userText: 'Hello',
+        idempotencyKey: 'no-op-empty',
+      },
+      { fetch: async () => groqJsonResponse({ actions: [] }) },
+    );
+    assert.ok(
+      events.some((event) => event.kind === 'message' && /No workflow changes/.test(event.text ?? '')),
+    );
+    assert.equal(events.filter((event) => event.kind === 'action').length, 0);
     assert.equal(workflow.live.revision, 1);
   });
 });

@@ -1,24 +1,24 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import {
-  VAULT_NAMESPACE,
-  MAX_VAULT_PLAINTEXT_BYTES,
-  VaultDecryptError,
-  loadVaultMasterKey,
-  vaultKeyConfigured,
-  deriveOwnerKey,
-  encryptSession,
-  decryptSession,
-  serializeVaultPayload,
-  saveVaultPayload,
-  loadVaultPayload,
-  deleteVault,
-  hasVault,
-} from '../src/connect/session-vault.js';
-import type { DocumentStore, DocumentRecord } from '../src/db/documents.js';
+import test from 'node:test';
 import type { Cookie } from 'playwright';
 import type { VaultPayload } from '../src/connect/session-vault.js';
+import {
+  decryptSession,
+  deleteVault,
+  deriveOwnerKey,
+  encryptSession,
+  hasVault,
+  loadVaultMasterKey,
+  loadVaultPayload,
+  MAX_VAULT_PLAINTEXT_BYTES,
+  saveVaultPayload,
+  serializeVaultPayload,
+  VAULT_NAMESPACE,
+  VaultDecryptError,
+  vaultKeyConfigured,
+} from '../src/connect/session-vault.js';
+import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
 
 const MASTER = Buffer.from(createHash('sha256').update('test-master').digest().slice(0, 32)).subarray(
   0,

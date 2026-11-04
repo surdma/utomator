@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { appendFile, mkdir, readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-import { loadIdentityTimeline } from '../profile/timeline.js';
+import { loadIdentityTimeline } from '../profile/profile-timeline.js';
 
 export type MemoryEntry = {
   id: string;

@@ -1,7 +1,7 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
-import http from 'node:http';
 import { once } from 'node:events';
+import http from 'node:http';
+import test from 'node:test';
 import { createHostedGateway } from '../hosted/server.mjs';
 
 async function server(handler) {

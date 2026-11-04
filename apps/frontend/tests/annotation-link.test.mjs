@@ -34,7 +34,7 @@ test('saving a review link PATCHes markers together with reviewId', async () => 
     assert.equal(
       url,
       '/api/mator/attachments/att-1/markers',
-      'marker links use the same allowlisted proxy path'
+      'marker links use the same allowlisted proxy path',
     );
     assert.equal(options.method, 'PATCH');
     payload = JSON.parse(options.body);
@@ -50,7 +50,7 @@ test('saving a review link PATCHes markers together with reviewId', async () => 
   const saved = await patchMatorMarkers(
     'att-1',
     [{ id: 'm1', x: 0.5, y: 0.5, text: 'here' }],
-    '123e4567-e89b-42d3-a456-426614174000'
+    '123e4567-e89b-42d3-a456-426614174000',
   );
   assert.deepEqual(payload.markers, [
     { id: 'm1', x: 0.5, y: 0.5, text: 'here' },
@@ -58,20 +58,20 @@ test('saving a review link PATCHes markers together with reviewId', async () => 
   assert.equal(
     payload.reviewId,
     '123e4567-e89b-42d3-a456-426614174000',
-    'the saved review reference travels with the markers'
+    'the saved review reference travels with the markers',
   );
   assert.equal(saved.reviewId, '123e4567-e89b-42d3-a456-426614174000');
 });
 
 test('pre-link marker saves stay byte-identical (no reviewId field)', async () => {
   let payload;
-  globalThis.fetch = async (url, options) => {
+  globalThis.fetch = async (_url, options) => {
     payload = JSON.parse(options.body);
     return new Response(
       JSON.stringify(
-        meta({ markers: [{ id: 'm2', x: 0, y: 1, text: 'pin' }] })
+        meta({ markers: [{ id: 'm2', x: 0, y: 1, text: 'pin' }] }),
       ),
-      { status: 200, headers: { 'content-type': 'application/json' } }
+      { status: 200, headers: { 'content-type': 'application/json' } },
     );
   };
   await patchMatorMarkers('att-1', [{ id: 'm2', x: 0, y: 1, text: 'pin' }]);
@@ -86,7 +86,7 @@ test('a failed review link rejects with the backend message (no fake success)', 
     });
   await assert.rejects(
     patchMatorMarkers('att-1', [], '00000000-0000-4000-8000-000000000000'),
-    /Review does not exist/
+    /Review does not exist/,
   );
 });
 
@@ -95,17 +95,17 @@ test('annotate flow resolves honestly: dismissed studio yields null', () => {
   assert.match(
     source,
     /annotateChatAsset[\s\S]*?new Promise/,
-    'annotateChatAsset resolves through a pending promise'
+    'annotateChatAsset resolves through a pending promise',
   );
   assert.match(
     source,
     /closeImageDraft[\s\S]*?resolve\(null\)/,
-    'closing the studio resolves null instead of inventing a review id'
+    'closing the studio resolves null instead of inventing a review id',
   );
   assert.match(
     source,
     /saveVisualReview[\s\S]*?resolve\(\{ reviewId: json\.id \}\)/,
-    'only a real saved POST resolves with a review id'
+    'only a real saved POST resolves with a review id',
   );
 });
 
@@ -114,29 +114,29 @@ test('sent attachments link the saved review through saveMarkers', () => {
   assert.match(
     panel,
     /annotateAsset[\s\S]*?onSaveMarkers\(asset\.id, asset\.markers \?\? \[\], result\.reviewId\)/,
-    'the existing markers are preserved when linking the review'
+    'the existing markers are preserved when linking the review',
   );
   assert.match(
     panel,
     /mator-annotate-attachment-error/,
-    'link failures surface instead of being swallowed'
+    'link failures surface instead of being swallowed',
   );
   assert.match(
     panel,
     /Saved as review \$\{result\.reviewId\} but could not link to the chat message\. Re-open the annotation editor to retry\./,
-    'a saved review whose asset link fails is reported as a failed link'
+    'a saved review whose asset link fails is reported as a failed link',
   );
 });
 
 test('the shell awaits marker links instead of discarding them', () => {
   const shell = readFileSync(
     resolve(root, 'components/dashboard/dashboard-shell.tsx'),
-    'utf8'
+    'utf8',
   );
   assert.doesNotMatch(
     shell,
     /void saveMarkers\(/,
-    'discarding the markers promise would hide a failed review link'
+    'discarding the markers promise would hide a failed review link',
   );
   assert.match(shell, /return saveMarkers\(attachmentId, markers, reviewId\)/);
 });
@@ -144,12 +144,12 @@ test('the shell awaits marker links instead of discarding them', () => {
 test('fetched chat images use the same size and type rules as uploads', () => {
   const shell = readFileSync(
     resolve(root, 'components/dashboard/dashboard-shell.tsx'),
-    'utf8'
+    'utf8',
   );
   assert.match(
     shell,
     /validateReviewImage\(\{\s*size: blob\.size,\s*type: blob\.type/,
-    'an oversized or non-image attachment is an error, not a silent studio open'
+    'an oversized or non-image attachment is an error, not a silent studio open',
   );
 });
 
@@ -157,25 +157,25 @@ test('chat annotation carries the typed draft into the review note', () => {
   const reviews = readFileSync(mator('use-visual-reviews.ts'), 'utf8');
   const panel = readFileSync(
     resolve(root, 'components/dashboard/reviews/visual-review-panel.tsx'),
-    'utf8'
+    'utf8',
   );
   assert.match(reviews, /draftNote: request\.note/);
   assert.match(
     panel,
     /note: source\.kind === 'upload' \? \(source\.draftNote \?\? ''\) : ''/,
-    'the YAML note is the operator draft, and only on chat uploads'
+    'the YAML note is the operator draft, and only on chat uploads',
   );
   assert.match(
     panel,
     /kind: 'upload', imageData: source\.imageData/,
-    'the posted source stays image bytes and does not include the draft note'
+    'the posted source stays image bytes and does not include the draft note',
   );
 });
 
 test('workflow annotation dialog links saved YAML without touching approval', () => {
   const dialog = readFileSync(
     workflows('workflow-artboard-annotation-dialog.tsx'),
-    'utf8'
+    'utf8',
   );
   assert.match(dialog, /View saved annotation YAML/);
   assert.match(dialog, /Annotate further/);

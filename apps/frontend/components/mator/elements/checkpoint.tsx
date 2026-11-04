@@ -18,7 +18,7 @@ export function Checkpoint({ label, runId, time, className }: Props) {
       data-testid="task-checkpoint"
       className={cn(
         'flex items-center gap-3 py-1 text-[11px] text-slate-400 select-none',
-        className
+        className,
       )}
     >
       <span className="h-px flex-1 bg-slate-200" />

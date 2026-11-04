@@ -10,9 +10,9 @@ import {
   ShieldCheck,
   Trash2,
 } from 'lucide-react';
-import type { CareerDocument, CareerState, Resume, SectionKey } from '../types';
-import { classButton } from '../styles';
 import ResumePaper from '../resume-paper';
+import { classButton } from '../styles';
+import type { CareerDocument, CareerState, Resume, SectionKey } from '../types';
 
 export default function ResumeDetail({
   sourceView,
@@ -65,9 +65,7 @@ export default function ResumeDetail({
         </div>
         <div className="flex flex-wrap gap-2">
           <button
-            className={
-              classButton + ' bg-teal-700 text-white hover:bg-teal-800'
-            }
+            className={`${classButton} bg-teal-700 text-white hover:bg-teal-800`}
             disabled={saving || !dirty}
             onClick={() => void save()}
           >
@@ -93,7 +91,7 @@ export default function ResumeDetail({
             <p className="mt-1 text-sm text-slate-800">
               {(draft as Resume).targetRole || 'Not specified'}
               {(draft as Resume).targetCompany
-                ? ' at ' + (draft as Resume).targetCompany
+                ? ` at ${(draft as Resume).targetCompany}`
                 : ''}
             </p>
           </div>
@@ -117,7 +115,7 @@ export default function ResumeDetail({
                 <button
                   type="button"
                   onClick={() => setSection(s.key)}
-                  className={classButton + ' mt-4'}
+                  className={`${classButton} mt-4`}
                 >
                   <Pencil className="size-4" />
                   Edit section
@@ -128,7 +126,7 @@ export default function ResumeDetail({
           <div className="flex flex-wrap gap-3">
             {draft.customSections.length < 12 && (
               <button
-                className={classButton + ' border-dashed border-teal-500'}
+                className={`${classButton} border-dashed border-teal-500`}
                 onClick={() => setShowAdd(true)}
               >
                 <Plus className="size-4" />
@@ -156,7 +154,7 @@ export default function ResumeDetail({
                 Duplicate
               </button>
               <button
-                className={classButton + ' text-rose-700'}
+                className={`${classButton} text-rose-700`}
                 disabled={saving || state.resumes.length <= 1}
                 onClick={() => void remove()}
               >

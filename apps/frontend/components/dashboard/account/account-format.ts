@@ -4,7 +4,10 @@ import type { MatorModelOption } from '@/components/mator/mator-api';
 export type AccountSection = 'you' | 'connections' | 'mator' | 'preferences';
 
 export type ConnectionStatus =
-  'connected' | 'disconnected' | 'sign-in-open' | 'api-required';
+  | 'connected'
+  | 'disconnected'
+  | 'sign-in-open'
+  | 'api-required';
 
 export const senseCopy: Record<
   MatorModelOption['role'],

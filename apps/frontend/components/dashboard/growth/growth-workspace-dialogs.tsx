@@ -1,13 +1,13 @@
 'use client';
 
 import { FileCode2, ShieldCheck } from 'lucide-react';
+import { request } from '../../../lib/growth-profile-client';
 import StudioDialog from '../../ui/studio-dialog';
+import GrowthCoverageList from './coverage-list';
+import GrowthEvidenceForm from './evidence-form';
 import type { GrowthJournalEvent } from './growth-graph-model';
 import type { Program, Run, Stage } from './growth-profile-types';
-import { request } from '../../../lib/growth-profile-client';
 import GrowthRunControls from './run-controls';
-import GrowthEvidenceForm from './evidence-form';
-import GrowthCoverageList from './coverage-list';
 
 type Props = {
   program: Program | null;
@@ -76,7 +76,7 @@ export default function GrowthWorkspaceDialogs({
             </p>
             {program && (
               <a
-                href={endpoint + '/yaml'}
+                href={`${endpoint}/yaml`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex min-h-11 items-center gap-2 text-xs font-semibold text-teal-800 underline"
@@ -109,10 +109,9 @@ export default function GrowthWorkspaceDialogs({
           )}
           {!designOnly &&
             accountId &&
-            (!run ||
-              run.status !== 'active' ||
+            (run?.status !== 'active' ||
               ['failed', 'blocked', 'cancelled', 'unavailable'].includes(
-                run.state
+                run.state,
               )) && (
               <button
                 type="button"
@@ -120,9 +119,9 @@ export default function GrowthWorkspaceDialogs({
                 onClick={() =>
                   void mutate(async () => {
                     setRun(
-                      await request<Run>(endpoint + '/runs', 'POST', {
+                      await request<Run>(`${endpoint}/runs`, 'POST', {
                         accountId,
-                      })
+                      }),
                     );
                   })
                 }
@@ -253,7 +252,7 @@ export default function GrowthWorkspaceDialogs({
                           >
                             {field}: {binding.stepId}.{binding.field}
                           </li>
-                        ) : null
+                        ) : null,
                     )}
                   </ul>
                 </section>
@@ -266,7 +265,7 @@ export default function GrowthWorkspaceDialogs({
                     .map(
                       (id) =>
                         program.coverage.find((item) => item.id === id)
-                          ?.label ?? id
+                          ?.label ?? id,
                     )
                     .join(' · ')}
                 </p>
@@ -292,7 +291,7 @@ export default function GrowthWorkspaceDialogs({
             )}
             {liveStage?.childRunId && (
               <a
-                href={'/api/runs/' + liveStage.childRunId + '/logs'}
+                href={`/api/runs/${liveStage.childRunId}/logs`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block text-xs font-semibold text-teal-800 underline"
@@ -301,7 +300,7 @@ export default function GrowthWorkspaceDialogs({
               </a>
             )}
             <a
-              href={endpoint + '/yaml'}
+              href={`${endpoint}/yaml`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex min-h-11 items-center text-xs font-semibold text-teal-800 underline"

@@ -10,7 +10,7 @@ export default function IdentitySection({
   value: CareerDocument;
   update: <K extends keyof CareerDocument>(
     key: K,
-    next: CareerDocument[K]
+    next: CareerDocument[K],
   ) => void;
 }) {
   return (

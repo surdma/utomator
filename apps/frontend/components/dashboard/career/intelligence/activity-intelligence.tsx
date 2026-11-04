@@ -1,9 +1,9 @@
 'use client';
-import { useEffect, useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
-import IntelligenceStudioHeader from './sections/intelligence-studio-header';
-import IntelligenceSourceTabs from './sections/intelligence-source-tabs';
+import { useEffect, useState } from 'react';
 import IntelligenceActivityFeed from './sections/intelligence-activity-feed';
+import IntelligenceSourceTabs from './sections/intelligence-source-tabs';
+import IntelligenceStudioHeader from './sections/intelligence-studio-header';
 
 type Entry = {
   id: string;
@@ -45,7 +45,7 @@ export default function IntelligenceStudio({
   const selection = entries.filter(
     (e) =>
       e.source === (initialView === 'memory' ? 'chat' : 'browser') &&
-      e.text.toLowerCase().includes(query.toLowerCase())
+      e.text.toLowerCase().includes(query.toLowerCase()),
   );
   return (
     <div

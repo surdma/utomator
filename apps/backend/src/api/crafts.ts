@@ -1,11 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import {
-  craftArchive,
-  parseMdx,
-  toMdx,
-  type CraftInput,
-} from '../crafts/library.js';
 import type { CraftLibrary } from '../crafts/library.js';
+import { type CraftInput, craftArchive, parseMdx, toMdx } from '../crafts/library.js';
 
 /** Craft authoring routes. Reads are public, mutations are owner-only via the auth hook. */
 export function registerCraftRoutes(app: FastifyInstance, craftLibrary: CraftLibrary) {

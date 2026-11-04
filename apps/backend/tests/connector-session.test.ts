@@ -1,12 +1,12 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { test } from 'node:test';
 import type { Page } from 'playwright';
-import { AccountStore } from '../src/profile/account-store.js';
-import { ConnectorService } from '../src/connect/service.js';
 import { BrowserSession } from '../src/browser/session.js';
+import { ConnectorService } from '../src/connect/service.js';
+import { AccountStore } from '../src/profile/account-store.js';
 
 async function registerAccounts(store: AccountStore) {
   const first = await store.addSocial(0, {

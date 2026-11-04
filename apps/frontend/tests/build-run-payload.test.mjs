@@ -31,7 +31,7 @@ const base = () => ({
 test('run payload requires a verified matching account', () => {
   assert.throws(
     () => buildRunPayload({ ...base(), activeConnector: null }),
-    /Select and verify/
+    /Select and verify/,
   );
   assert.throws(
     () =>
@@ -39,14 +39,14 @@ test('run payload requires a verified matching account', () => {
         ...base(),
         activeConnector: { ...base().activeConnector, platform: 'x' },
       }),
-    /Select and verify/
+    /Select and verify/,
   );
 });
 
 test('run payload blocks stale workflow revisions', () => {
   assert.throws(
     () => buildRunPayload({ ...base(), loadingWorkflow: true }),
-    /not finished loading/
+    /not finished loading/,
   );
   assert.throws(
     () =>
@@ -55,7 +55,7 @@ test('run payload blocks stale workflow revisions', () => {
         activeWorkflow: { id: 'saved', revision: 4 },
         planDirty: true,
       }),
-    /Save workflow changes/
+    /Save workflow changes/,
   );
   assert.throws(
     () =>
@@ -64,7 +64,7 @@ test('run payload blocks stale workflow revisions', () => {
         activeWorkflow: { id: 'saved', revision: 4 },
         formDirty: true,
       }),
-    /Save workflow changes/
+    /Save workflow changes/,
   );
 });
 

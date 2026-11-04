@@ -9,7 +9,10 @@ export type GrowthPillar = 'research' | 'execution' | 'measurement';
 export type GrowthPriority = 'P0' | 'P1' | 'P2';
 export type GrowthStatus = 'partial' | 'planned';
 export type GrowthMode =
-  'official-api' | 'assisted' | 'owner-operated' | 'restricted';
+  | 'official-api'
+  | 'assisted'
+  | 'owner-operated'
+  | 'restricted';
 export type GrowthCapability = {
   id: string;
   title: string;

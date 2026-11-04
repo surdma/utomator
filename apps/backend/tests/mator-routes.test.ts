@@ -1,20 +1,20 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import test from 'node:test';
 import Fastify from 'fastify';
-import { registerMatorRoutes } from '../src/mator/mator-routes.js';
+import type { RunRequest, RunSummary } from '../src/core/types.js';
+import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
+import { type MatorActionPorts, stageAction, workflowRegistryPort } from '../src/mator/mator-actions.js';
 import { getAttachmentMeta } from '../src/mator/mator-attachments.js';
 import { createConversation, listEvents } from '../src/mator/mator-conversations.js';
-import { stageAction, workflowRegistryPort, type MatorActionPorts } from '../src/mator/mator-actions.js';
+import { registerMatorRoutes } from '../src/mator/mator-routes.js';
 import { putMatorSettings } from '../src/mator/mator-settings.js';
-import { WorkflowRegistry } from '../src/workflows/workflow-registry.js';
 import { defaultPlan, type WorkflowPlan } from '../src/workflows/workflow-plan.js';
 import type { WorkflowRecord } from '../src/workflows/workflow-registry.js';
-import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
-import type { RunRequest, RunSummary } from '../src/core/types.js';
+import { WorkflowRegistry } from '../src/workflows/workflow-registry.js';
 
 const MASTER = Buffer.from(createHash('sha256').update('mator-routes-test-master').digest());
 const hex = (buffer: Buffer) => buffer.toString('hex');
@@ -63,7 +63,11 @@ class FakeDocuments implements DocumentStore {
 
 type TaggedRecord = WorkflowRecord & { conversationId?: string; eventId?: string };
 
-function makeRecord(plan: WorkflowPlan, revision = 1, id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'): TaggedRecord {
+function makeRecord(
+  plan: WorkflowPlan,
+  revision = 1,
+  id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+): TaggedRecord {
   const now = new Date().toISOString();
   return {
     id,
@@ -157,7 +161,9 @@ test('GET settings masks key; PUT never echoes raw groqApiKey', async () => {
   const workflow = fakeWorkflowPort(makeRecord(defaultPlan('x', 'audit')));
   const ports: MatorActionPorts = {
     workflows: workflow,
-    runner: { start: () => ({ id: 'r', platform: 'x', action: 'audit', state: 'running', createdAt: '' }) },
+    runner: {
+      start: () => ({ id: 'r', platform: 'x', action: 'audit', state: 'running', createdAt: '' }),
+    },
   };
   const app = await buildMatorApp({ docs, ports });
   try {
@@ -199,7 +205,9 @@ test('POST messages requires Idempotency-Key; missing Groq key returns 400 with 
   const workflow = fakeWorkflowPort(makeRecord(defaultPlan('x', 'audit')));
   const ports: MatorActionPorts = {
     workflows: workflow,
-    runner: { start: () => ({ id: 'r', platform: 'x', action: 'audit', state: 'running', createdAt: '' }) },
+    runner: {
+      start: () => ({ id: 'r', platform: 'x', action: 'audit', state: 'running', createdAt: '' }),
+    },
   };
   const conversation = await createConversation(docs, workflow.live.id, 'Msgs');
   const app = await buildMatorApp({ docs, ports });
@@ -232,7 +240,9 @@ test('idempotent message POST returns same events; stage confirm applies plan ed
   const workflow = fakeWorkflowPort(makeRecord(defaultPlan('x', 'audit')));
   const ports: MatorActionPorts = {
     workflows: workflow,
-    runner: { start: () => ({ id: 'r', platform: 'x', action: 'audit', state: 'running', createdAt: '' }) },
+    runner: {
+      start: () => ({ id: 'r', platform: 'x', action: 'audit', state: 'running', createdAt: '' }),
+    },
   };
   await putMatorSettings(docs, { groqApiKey: 'gsk_test_key' }, 0);
   const conversation = await createConversation(docs, workflow.live.id, 'Stage');
@@ -242,9 +252,7 @@ test('idempotent message POST returns same events; stage confirm applies plan ed
     groqCalls += 1;
     return groqJsonResponse({
       how: 'Renaming inspect',
-      actions: [
-        { type: 'edit_step', stepId: 'inspect', patch: { title: 'Inspect via chat' } },
-      ],
+      actions: [{ type: 'edit_step', stepId: 'inspect', patch: { title: 'Inspect via chat' } }],
     });
   };
 
@@ -284,10 +292,7 @@ test('idempotent message POST returns same events; stage confirm applies plan ed
       url: `/mator/conversations/${conversation.id}/stage/${staged.id}/confirm`,
     });
     assert.equal(confirm.statusCode, 200);
-    assert.equal(
-      workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title,
-      'Inspect via chat',
-    );
+    assert.equal(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title, 'Inspect via chat');
     assert.ok((confirm.json().event as { status: string }).status === 'applied');
   } finally {
     await app.close();
@@ -303,7 +308,9 @@ test('POST messages with autoApprove applies action without staged-only outcome'
   const workflow = fakeWorkflowPort(makeRecord(defaultPlan('x', 'audit')));
   const ports: MatorActionPorts = {
     workflows: workflow,
-    runner: { start: () => ({ id: 'r', platform: 'x', action: 'audit', state: 'running', createdAt: '' }) },
+    runner: {
+      start: () => ({ id: 'r', platform: 'x', action: 'audit', state: 'running', createdAt: '' }),
+    },
   };
   await putMatorSettings(docs, { groqApiKey: 'gsk_auto_key', autoApprove: true }, 0);
   const conversation = await createConversation(docs, workflow.live.id, 'Auto');
@@ -311,9 +318,7 @@ test('POST messages with autoApprove applies action without staged-only outcome'
   const fetchImpl: typeof fetch = async () =>
     groqJsonResponse({
       how: 'Auto renaming',
-      actions: [
-        { type: 'edit_step', stepId: 'inspect', patch: { title: 'Inspect auto-applied' } },
-      ],
+      actions: [{ type: 'edit_step', stepId: 'inspect', patch: { title: 'Inspect auto-applied' } }],
     });
 
   const app = await buildMatorApp({ docs, ports, fetch: fetchImpl });
@@ -329,7 +334,10 @@ test('POST messages with autoApprove applies action without staged-only outcome'
     });
     assert.equal(res.statusCode, 200);
     const events = res.json().events as Array<{ status?: string; kind: string }>;
-    assert.ok(events.some((e) => e.status === 'applied'), 'expected applied action event');
+    assert.ok(
+      events.some((e) => e.status === 'applied'),
+      'expected applied action event',
+    );
     assert.ok(
       events.some((e) => e.status === 'staged') && events.some((e) => e.status === 'applied'),
       'autoApprove still records stage then apply audit trail',
@@ -350,7 +358,9 @@ test('switch current conversation does not swap YAML; restore changes plan with 
   const workflow = fakeWorkflowPort(makeRecord(defaultPlan('x', 'audit')));
   const ports: MatorActionPorts = {
     workflows: workflow,
-    runner: { start: () => ({ id: 'r', platform: 'x', action: 'audit', state: 'running', createdAt: '' }) },
+    runner: {
+      start: () => ({ id: 'r', platform: 'x', action: 'audit', state: 'running', createdAt: '' }),
+    },
   };
   const a = await createConversation(docs, workflow.live.id, 'A');
   const staged = await stageAction(docs, ports, {
@@ -432,7 +442,9 @@ test('SSE events stream ends with event: done', async () => {
   const workflow = fakeWorkflowPort(makeRecord(defaultPlan('x', 'audit')));
   const ports: MatorActionPorts = {
     workflows: workflow,
-    runner: { start: () => ({ id: 'r', platform: 'x', action: 'audit', state: 'running', createdAt: '' }) },
+    runner: {
+      start: () => ({ id: 'r', platform: 'x', action: 'audit', state: 'running', createdAt: '' }),
+    },
   };
   const conversation = await createConversation(docs, workflow.live.id, 'SSE');
   await stageAction(docs, ports, {
@@ -511,7 +523,9 @@ test('attachment upload (base64 JSON) and marker patch', async () => {
   const workflow = fakeWorkflowPort(makeRecord(defaultPlan('x', 'audit')));
   const ports: MatorActionPorts = {
     workflows: workflow,
-    runner: { start: () => ({ id: 'r', platform: 'x', action: 'audit', state: 'running', createdAt: '' }) },
+    runner: {
+      start: () => ({ id: 'r', platform: 'x', action: 'audit', state: 'running', createdAt: '' }),
+    },
   };
   const conversation = await createConversation(docs, workflow.live.id, 'Attach');
   const root = await mkdtemp(join(tmpdir(), 'mator-att-'));
@@ -551,7 +565,9 @@ test('marker patch links, validates and rejects review references', async () => 
   const workflow = fakeWorkflowPort(makeRecord(defaultPlan('x', 'audit')));
   const ports: MatorActionPorts = {
     workflows: workflow,
-    runner: { start: () => ({ id: 'r', platform: 'x', action: 'audit', state: 'running', createdAt: '' }) },
+    runner: {
+      start: () => ({ id: 'r', platform: 'x', action: 'audit', state: 'running', createdAt: '' }),
+    },
   };
   const conversation = await createConversation(docs, workflow.live.id, 'Link');
   const root = await mkdtemp(join(tmpdir(), 'mator-link-'));
@@ -625,7 +641,9 @@ test('list events returns persisted conversation events', async () => {
   const workflow = fakeWorkflowPort(makeRecord(defaultPlan('x', 'audit')));
   const ports: MatorActionPorts = {
     workflows: workflow,
-    runner: { start: () => ({ id: 'r', platform: 'x', action: 'audit', state: 'running', createdAt: '' }) },
+    runner: {
+      start: () => ({ id: 'r', platform: 'x', action: 'audit', state: 'running', createdAt: '' }),
+    },
   };
   const conversation = await createConversation(docs, workflow.live.id, 'List');
   await stageAction(docs, ports, {
@@ -652,27 +670,33 @@ test('two staged decisions are bound to their own proposal and cannot be repeate
   const workflow = fakeWorkflowPort(makeRecord(defaultPlan('x', 'audit')));
   const ports: MatorActionPorts = {
     workflows: workflow,
-    runner: { start: () => ({ id: 'r', platform: 'x', action: 'audit', state: 'running', createdAt: '' }) },
+    runner: {
+      start: () => ({ id: 'r', platform: 'x', action: 'audit', state: 'running', createdAt: '' }),
+    },
   };
   const conversation = await createConversation(docs, workflow.live.id, 'Independent stages');
   const first = await stageAction(docs, ports, {
-    workflowId: workflow.live.id, conversationId: conversation.id,
+    workflowId: workflow.live.id,
+    conversationId: conversation.id,
     action: { type: 'edit_step', stepId: 'inspect', patch: { title: 'First proposed edit' } },
   });
   const second = await stageAction(docs, ports, {
-    workflowId: workflow.live.id, conversationId: conversation.id,
+    workflowId: workflow.live.id,
+    conversationId: conversation.id,
     action: { type: 'edit_step', stepId: 'inspect', patch: { title: 'Second proposed edit' } },
   });
   const app = await buildMatorApp({ docs, ports });
   try {
     const rejectFirst = await app.inject({
-      method: 'POST', url: `/mator/conversations/${conversation.id}/stage/${first.id}/reject`,
+      method: 'POST',
+      url: `/mator/conversations/${conversation.id}/stage/${first.id}/reject`,
     });
     assert.equal(rejectFirst.statusCode, 200);
     assert.equal(rejectFirst.json().event.resolvesEventId, first.id);
     assert.equal(rejectFirst.json().event.status, 'rejected');
     const confirmSecond = await app.inject({
-      method: 'POST', url: `/mator/conversations/${conversation.id}/stage/${second.id}/confirm`,
+      method: 'POST',
+      url: `/mator/conversations/${conversation.id}/stage/${second.id}/confirm`,
     });
     assert.equal(confirmSecond.statusCode, 200);
     assert.equal(confirmSecond.json().event.resolvesEventId, second.id);
@@ -682,7 +706,8 @@ test('two staged decisions are bound to their own proposal and cannot be repeate
       'Second proposed edit',
     );
     const repeated = await app.inject({
-      method: 'POST', url: `/mator/conversations/${conversation.id}/stage/${second.id}/confirm`,
+      method: 'POST',
+      url: `/mator/conversations/${conversation.id}/stage/${second.id}/confirm`,
     });
     assert.equal(repeated.statusCode, 409);
     const persisted = await listEvents(docs, conversation.id, {});

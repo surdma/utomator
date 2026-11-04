@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { DocumentStore, DocumentRecord } from '../db/documents.js';
+import type { DocumentRecord, DocumentStore } from '../db/documents.js';
 
 export type CraftCategory =
   | 'presence'

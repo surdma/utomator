@@ -2,7 +2,7 @@ import type { Event as RunEvent } from './run-models';
 
 export function appendRunEvent(
   previous: RunEvent[],
-  item: RunEvent
+  item: RunEvent,
 ): RunEvent[] {
   return previous.some((entry) => entry.id === item.id)
     ? previous

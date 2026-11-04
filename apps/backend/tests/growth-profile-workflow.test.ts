@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+
 // Set the test environment before loading the Fastify app, matching other route tests.
 process.env.NODE_ENV = 'test';
 const { buildApp } = await import('../src/main.js');
+
 import { compileGrowthProfileYaml, readGrowthProfileWorkflow } from '../src/engine/growth-profile.js';
 
 test('Profile YAML retains nine requirements, twenty evidence targets and compiled registered actions', async () => {
@@ -56,12 +58,12 @@ test('Read-only YAML and compiled program endpoints do not create a run', async 
   }
 });
 
-import type { Runner } from '../src/runs/runner.js';
-import type { RunRequest, RunSummary } from '../src/core/types.js';
 import { randomUUID } from 'node:crypto';
+import type { RunRequest, RunSummary } from '../src/core/types.js';
 import { validateRun } from '../src/core/validate.js';
-import { compileWorkflow } from '../src/workflows/workflow-yaml.js';
 import { ProfileGrowthCoordinator } from '../src/engine/profile-growth-coordinator.js';
+import type { Runner } from '../src/runs/runner.js';
+import { compileWorkflow } from '../src/workflows/workflow-yaml.js';
 
 test('six dependent pipelines reuse validated Runner WorkflowPlans and record independent missing coverage', async () => {
   const runs = new Map<string, { summary: RunSummary; input: RunRequest }>();
@@ -202,7 +204,7 @@ test('Growth composite API requires a genuine linked account, not arbitrary prof
   }
 });
 
-import { readGrowthTemplateCatalog, readGrowthTemplate } from '../src/engine/growth-profile.js';
+import { readGrowthTemplate, readGrowthTemplateCatalog } from '../src/engine/growth-profile.js';
 
 test('all YAML Growth templates share the same discoverable manifest contract', async () => {
   const catalog = await readGrowthTemplateCatalog();
@@ -436,7 +438,6 @@ test('single-pipeline Growth reports all owner evidence without false provider v
   assert.equal(runs.size, 1);
 });
 
-
 test('Growth template library exposes exactly 21 YAML workflows with connected tasks', async () => {
   const templates = await readGrowthTemplateCatalog();
   assert.equal(templates.length, 21);
@@ -450,13 +451,18 @@ test('Growth template library exposes exactly 21 YAML workflows with connected t
   assert.equal(blueprints.length, 19);
   for (const { program } of blueprints) {
     assert.equal(program.executable, false);
-    assert.deepEqual(program.stages.map((stage) => stage.id), ['discovery', 'review']);
+    assert.deepEqual(
+      program.stages.map((stage) => stage.id),
+      ['discovery', 'review'],
+    );
     assert(program.stages.every((stage) => stage.action === 'manual'));
-    assert(program.stages.every((stage) =>
-      ['todo', 'procedure', 'action', 'event', 'verify'].every((id) =>
-        stage.plan.steps.some((step) => step.id === id),
+    assert(
+      program.stages.every((stage) =>
+        ['todo', 'procedure', 'action', 'event', 'verify'].every((id) =>
+          stage.plan.steps.some((step) => step.id === id),
+        ),
       ),
-    ));
+    );
   }
 });
 

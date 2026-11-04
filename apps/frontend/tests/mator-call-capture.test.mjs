@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { VoiceActivityGate, sampleRms } from '../components/mator/mator-call-capture.ts';
+import {
+  sampleRms,
+  VoiceActivityGate,
+} from '../components/mator/mator-call-capture.ts';
 
 test('silence is never treated as a voice upload', () => {
   const g = new VoiceActivityGate();

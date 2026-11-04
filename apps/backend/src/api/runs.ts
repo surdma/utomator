@@ -1,13 +1,13 @@
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import type { FastifyInstance } from 'fastify';
+import type { ConnectorService } from '../connect/service.js';
+import { runtimePath } from '../core/paths.js';
+import type { RunRequest, StreamEvent } from '../core/types.js';
+import { profileUrlForHandle } from '../core/validate.js';
 import { assessAudit } from '../runs/assessment.js';
 import type { Runner } from '../runs/runner.js';
-import { profileUrlForHandle } from '../core/validate.js';
-import type { RunRequest, StreamEvent } from '../core/types.js';
-import type { ConnectorService } from '../connect/service.js';
-import type { WorkflowRegistry } from '../workflows/workflow-registry.js';
 import type { StepDefinitionStore } from '../workflows/step-definitions.js';
+import type { WorkflowRegistry } from '../workflows/workflow-registry.js';
 
 /** Run execution schema: platform/action scoped with bounded freeform inputs. */
 const runBodySchema = {
@@ -90,34 +90,10 @@ export function registerRunRoutes(
         return reply.code(404).send({ error: 'Evidence not found' });
       }
       if (!runner.get(id)) return reply.code(404).send({ error: 'Evidence not found' });
-      let captured = runner.events.getSince(0, id).some((event) => {
-        const details = event.details as { fileName?: unknown } | undefined;
-        return event.kind === 'screenshot' && details?.fileName === file;
-      });
-      if (!captured) {
-        // Restored history has no in-memory EventJournal; authorize from the
-        // persisted run-specific journal rather than exposing arbitrary files.
-        try {
-          const rows = (await readFile(resolve('.runtime', 'runs', id + '.jsonl'), 'utf8')).split('\n');
-          captured = rows.some((row) => {
-            if (!row) return false;
-            try {
-              const entry = JSON.parse(row) as {
-                kind?: string;
-                details?: { fileName?: string };
-              };
-              return entry.kind === 'screenshot' && entry.details?.fileName === file;
-            } catch {
-              return false;
-            }
-          });
-        } catch (error) {
-          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-        }
-      }
+      const captured = await runner.isScreenshotAuthorized(id, file);
       if (!captured) return reply.code(404).send({ error: 'Evidence not found' });
       try {
-        const png = await readFile(resolve('.runtime', 'evidence', id, file));
+        const png = await readFile(runtimePath('evidence', id, file));
         return reply
           .header('Cache-Control', 'private, no-store')
           .header('X-Content-Type-Options', 'nosniff')
@@ -178,7 +154,7 @@ export function registerRunRoutes(
   app.get<{ Params: { id: string } }>('/runs/:id/logs', async (request, reply) => {
     if (!runner.get(request.params.id)) return reply.code(404).send({ error: 'Run not found' });
     try {
-      const log = await readFile(resolve('.runtime', 'runs', request.params.id + '.jsonl'), 'utf8');
+      const log = await readFile(runtimePath('runs', request.params.id + '.jsonl'), 'utf8');
       return reply.header('Cache-Control', 'private, no-store').send(
         log
           .split('\n')

@@ -1,7 +1,7 @@
 'use client';
 
-import type { CareerDocument } from '../types';
 import { classInput } from '../styles';
+import type { CareerDocument } from '../types';
 
 export default function ContactsSection({
   value,
@@ -10,14 +10,14 @@ export default function ContactsSection({
   value: CareerDocument;
   update: <K extends keyof CareerDocument>(
     key: K,
-    next: CareerDocument[K]
+    next: CareerDocument[K],
   ) => void;
 }) {
   return (
     <label className="text-sm font-semibold">
       Contact methods, one per line
       <textarea
-        className={classInput + ' mt-2 resize-y leading-6'}
+        className={`${classInput} mt-2 resize-y leading-6`}
         rows={5}
         maxLength={4000}
         value={value.contacts.join('\n')}

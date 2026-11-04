@@ -1,8 +1,8 @@
 'use client';
 
 import { Trash2 } from 'lucide-react';
-import type { CareerDocument } from '../types';
 import { classButton, classInput } from '../styles';
+import type { CareerDocument } from '../types';
 import SectionField from './section-field';
 
 export default function CustomSection({
@@ -14,7 +14,7 @@ export default function CustomSection({
   customId: string;
   update: <K extends keyof CareerDocument>(
     key: K,
-    next: CareerDocument[K]
+    next: CareerDocument[K],
   ) => void;
 }) {
   const custom = value.customSections.find((x) => x.id === customId);
@@ -29,15 +29,15 @@ export default function CustomSection({
           update(
             'customSections',
             value.customSections.map((s) =>
-              s.id === customId ? { ...s, title: v } : s
-            )
+              s.id === customId ? { ...s, title: v } : s,
+            ),
           )
         }
       />
       <label className="text-sm font-semibold">
         Entries, one per line
         <textarea
-          className={classInput + ' mt-2 resize-y'}
+          className={`${classInput} mt-2 resize-y`}
           rows={7}
           maxLength={10500}
           value={custom.items.join('\n')}
@@ -47,20 +47,20 @@ export default function CustomSection({
               value.customSections.map((s) =>
                 s.id === customId
                   ? { ...s, items: e.target.value.split('\n').slice(0, 30) }
-                  : s
-              )
+                  : s,
+              ),
             )
           }
         />
       </label>
       <button
         type="button"
-        className={classButton + ' self-start text-rose-700'}
+        className={`${classButton} self-start text-rose-700`}
         onClick={() => {
           if (window.confirm('Remove this custom section?'))
             update(
               'customSections',
-              value.customSections.filter((s) => s.id !== customId)
+              value.customSections.filter((s) => s.id !== customId),
             );
         }}
       >

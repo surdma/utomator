@@ -65,11 +65,14 @@ export const providerMeta: Record<ProviderKey, ProviderMeta> = {
 
 /** One action per provider state, exactly as the connector contract defines it. */
 export type ProviderOperation =
-  'connect' | 'sync' | 'disconnect' | 'unavailable';
+  | 'connect'
+  | 'sync'
+  | 'disconnect'
+  | 'unavailable';
 
 export function primaryOperation(
   status: 'connected' | 'disconnected' | 'sign-in-open' | 'api-required',
-  verifiedAt: string | null
+  verifiedAt: string | null,
 ): ProviderOperation {
   if (status === 'connected') {
     const verified = verifiedAt ? Date.parse(verifiedAt) : 0;

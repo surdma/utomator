@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
-import { chromium } from 'playwright';
-import type { Locator, Page } from 'playwright';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { test } from 'node:test';
+import type { Locator, Page } from 'playwright';
+import { chromium } from 'playwright';
 import { AccountStore } from '../src/profile/account-store.js';
 
 process.env.NODE_ENV = 'test';
@@ -321,10 +321,7 @@ test('Growth workspace connects 21 capability and toolkit graphs, MDX, export an
     }));
     assert(bounds.scroll <= bounds.viewport + 1, 'Growth library fits mobile width');
     assert.equal(await mobile.getByTestId('studio-bottom-nav').isVisible(), true);
-    assert.equal(
-      await mobile.getByTestId('automation-navigation-sidebar').isVisible(),
-      false,
-    );
+    assert.equal(await mobile.getByTestId('automation-navigation-sidebar').isVisible(), false);
     await mobile.getByRole('button', { name: 'Workspace', exact: true }).click();
     assert.match(mobile.url(), /\/dashboard\/workspace$/);
     await mobile.close();
@@ -346,9 +343,7 @@ test('planning-only Growth YAML opens without triggering Runner', async () => {
     const before = (await app.inject('/runs')).json().length;
     const modal = page.getByRole('dialog', { name: 'Workflow library' });
     await clickUntilVisible(page, page.getByRole('button', { name: 'Browse templates' }), modal);
-    await modal
-      .getByRole('searchbox', { name: 'Search workflows' })
-      .fill('Personal brand positioning');
+    await modal.getByRole('searchbox', { name: 'Search workflows' }).fill('Personal brand positioning');
     const preview = modal.getByTestId('growth-template-pipeline-preview');
     await preview.waitFor();
     assert.match(await preview.innerText(), /2 connected pipelines/);
@@ -712,9 +707,7 @@ test('planning-only Growth YAML stays read-only and cannot launch Runner', {
     const before = (await app.inject('/runs')).json().length;
     const modal = page.getByRole('dialog', { name: 'Workflow library' });
     await clickUntilVisible(page, page.getByRole('button', { name: 'Browse templates' }), modal);
-    await modal
-      .getByRole('searchbox', { name: 'Search workflows' })
-      .fill('Personal brand positioning');
+    await modal.getByRole('searchbox', { name: 'Search workflows' }).fill('Personal brand positioning');
     const preview = modal.getByTestId('growth-template-pipeline-preview');
     await preview.waitFor();
     assert.match(await preview.innerText(), /2 connected pipelines/);

@@ -3,13 +3,13 @@ import {
   Check,
   FileText,
   Lock,
+  type LucideIcon,
   Pause,
   Play,
   ShieldCheck,
   Square,
   Timer,
   Zap,
-  type LucideIcon,
 } from 'lucide-react';
 import type { StepKind } from './workflow-types';
 

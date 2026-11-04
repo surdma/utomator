@@ -1,11 +1,11 @@
 'use client';
 
-import StudioDialog from '@/components/ui/studio-dialog';
 import { workFor } from '@/components/dashboard/account/account-format';
 import {
   growthJourneys,
   profileSections,
 } from '@/components/dashboard/growth/linkedin-growth-capabilities';
+import StudioDialog from '@/components/ui/studio-dialog';
 
 export function ProfilePlanDialog({
   open,

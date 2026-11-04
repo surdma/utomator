@@ -31,7 +31,7 @@ test('nested growth and legacy craft paths preserve the selected item', () => {
   });
   assert.equal(
     getDashboardRoute('/growth/default-growth-profile').craftId,
-    'default-growth-profile'
+    'default-growth-profile',
   );
 });
 

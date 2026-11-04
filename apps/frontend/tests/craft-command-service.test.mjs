@@ -38,7 +38,7 @@ test('craft open resolves an existing slug without writing', async () => {
   globalThis.fetch = async () => Response.json([craft]);
   const result = await executeCraftCommand(
     '/craft open candidate-profile',
-    null
+    null,
   );
   assert.deepEqual(result.kind, 'open');
   assert.equal(result.id, craft.id);
@@ -55,7 +55,7 @@ test('craft updates use the selected ID and exact version', async () => {
   };
   const result = await executeCraftCommand(
     '/craft rename Updated name',
-    craft.id
+    craft.id,
   );
   assert.equal(result.kind, 'updated');
   assert.equal(result.id, craft.id);
@@ -80,16 +80,16 @@ test('craft commands surface missing craft and API errors', async () => {
   globalThis.fetch = async () => Response.json([craft]);
   await assert.rejects(
     executeCraftCommand('/craft open absent', null),
-    /No craft matches/
+    /No craft matches/,
   );
   await assert.rejects(
     executeCraftCommand('/craft rename X', 'absent'),
-    /Select a craft/
+    /Select a craft/,
   );
   globalThis.fetch = async () =>
     Response.json({ error: 'Conflict' }, { status: 409 });
   await assert.rejects(
     executeCraftCommand('/craft help', null),
-    /Craft library is unavailable/
+    /Craft library is unavailable/,
   );
 });

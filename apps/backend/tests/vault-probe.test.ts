@@ -1,11 +1,11 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
+import test from 'node:test';
+import type { Page } from 'playwright';
 import {
   classifyProviderAuth,
-  toVaultOriginState,
   seedOriginStorage,
+  toVaultOriginState,
 } from '../src/browser/vault-probe.js';
-import type { Page } from 'playwright';
 
 const authed = (url: string, platform: 'linkedin' | 'x') => classifyProviderAuth(url, platform);
 

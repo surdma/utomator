@@ -26,7 +26,7 @@ export const defaultWorkflowPlan = (): WorkflowPlan => ({
 // The Runner requires four protected stages, so these are the minimal valid
 // starting graph rather than a workflow auto-created on page load.
 export const newWorkflowDraft = (
-  platform: WorkflowPlan['platform']
+  platform: WorkflowPlan['platform'],
 ): WorkflowPlan => {
   const steps: WorkflowPlan['steps'] = [
     { id: 'start', kind: 'start', title: 'Start workflow' },
@@ -41,7 +41,7 @@ export const newWorkflowDraft = (
     name: 'Untitled workflow',
     steps,
     links: steps.slice(1).map((step, i) => ({
-      source: steps[i]!.id,
+      source: steps[i]?.id,
       target: step.id,
     })),
   };

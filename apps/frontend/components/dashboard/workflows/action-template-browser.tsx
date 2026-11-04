@@ -1,6 +1,5 @@
 'use client';
 
-import { useMemo, useState } from 'react';
 import {
   ArrowRight,
   ChevronRight,
@@ -9,8 +8,9 @@ import {
   LockKeyhole,
   Search,
 } from 'lucide-react';
-import type { WorkflowPlan } from './workflow-types';
+import { useMemo, useState } from 'react';
 import { stepIconFor } from './workflow-step-icons';
+import type { WorkflowPlan } from './workflow-types';
 
 type Props = {
   platform: WorkflowPlan['platform'];
@@ -46,9 +46,9 @@ export default function ActionTemplateBrowser({
             item.steps.map((step) => step.title).join(' ')
           )
             .toLowerCase()
-            .includes(query.toLowerCase().trim())
+            .includes(query.toLowerCase().trim()),
       ),
-    [templates, platform, query]
+    [templates, platform, query],
   );
   const selected =
     options.find((item) => item.action === selectedAction) ??
@@ -60,13 +60,13 @@ export default function ActionTemplateBrowser({
     setSaving(true);
     setError('');
     try {
-      await onApply(selected, selected.platform + '-' + selected.action);
+      await onApply(selected, `${selected.platform}-${selected.action}`);
       onApplied();
     } catch (cause) {
       setError(
         cause instanceof Error
           ? cause.message
-          : 'Could not create workflow from template'
+          : 'Could not create workflow from template',
       );
     } finally {
       setSaving(false);
@@ -135,7 +135,7 @@ export default function ActionTemplateBrowser({
           {options.length ? (
             <ul className="space-y-1.5">
               {options.map((plan) => (
-                <li key={plan.platform + '-' + plan.action}>
+                <li key={`${plan.platform}-${plan.action}`}>
                   <button
                     type="button"
                     data-testid="action-template-option"

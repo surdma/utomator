@@ -25,9 +25,9 @@ export function reviewSection(pageUrl: string): string {
 export function appendVisualReviewStep(
   plan: WorkflowPlan,
   reviewId: string,
-  annotationCount: number
+  annotationCount: number,
 ): WorkflowPlan {
-  const id = 'review-' + reviewId.slice(0, 8);
+  const id = `review-${reviewId.slice(0, 8)}`;
   if (plan.steps.some((step) => step.id === id)) return plan;
   const steps = [...plan.steps];
   const index = steps.findIndex((step) => step.id === 'action');
@@ -47,6 +47,6 @@ export function appendVisualReviewStep(
     steps,
     links: steps
       .slice(1)
-      .map((step, i) => ({ source: steps[i]!.id, target: step.id })),
+      .map((step, i) => ({ source: steps[i]?.id, target: step.id })),
   };
 }

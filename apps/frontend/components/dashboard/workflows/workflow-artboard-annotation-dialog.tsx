@@ -49,7 +49,7 @@ export default function WorkflowAnnotationDialog({
               {review.annotations.map((a, i) => (
                 <p key={a.id} className="text-xs text-slate-700">
                   {i + 1}. {a.action.replaceAll('-', ' ')}
-                  {a.comment ? ' · ' + a.comment : ''}
+                  {a.comment ? ` · ${a.comment}` : ''}
                 </p>
               ))}
               {onAnnotateFurther && (

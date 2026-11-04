@@ -1,4 +1,4 @@
-import { MarkerType, Position, type Node, type Edge } from '@xyflow/react';
+import { type Edge, MarkerType, type Node, Position } from '@xyflow/react';
 
 export type CanvasEvent = {
   id?: number;
@@ -49,7 +49,7 @@ export type StudioEdge = Edge;
 export function phaseState(
   phase: Phase,
   runState: string | undefined,
-  history: CanvasEvent[]
+  history: CanvasEvent[],
 ): PhaseStatus {
   if (phase === 'annotation') return 'done';
   if (!runState) return 'idle';
@@ -97,7 +97,7 @@ export function buildGraph(
   actionLabel: string,
   runState: string | undefined,
   events: CanvasEvent[],
-  hasAnnotations: boolean
+  hasAnnotations: boolean,
 ): { nodes: StudioNode[]; edges: StudioEdge[] } {
   const isAudit = action === 'audit' || action === 'audit-page';
   const phases: Array<{
@@ -281,7 +281,7 @@ export function buildGraph(
   const edges: StudioEdge[] = phases.slice(1).map((target, i) => {
     const previous = phases[i];
     return {
-      id: previous.id + '-to-' + target.id,
+      id: `${previous.id}-to-${target.id}`,
       source: previous.id,
       target: target.id,
       type: 'smoothstep',

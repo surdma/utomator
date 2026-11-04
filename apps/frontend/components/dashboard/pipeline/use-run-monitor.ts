@@ -8,23 +8,23 @@ import {
   isPauseOrResume,
   isTerminalRunStatus,
 } from './run-event-utils';
-import type { Platform } from './workflow-catalog';
 import type {
+  Assessment,
+  Checkpoint,
+  Playbook,
+  Review,
   Run,
   Event as RunEvent,
-  Playbook,
-  Assessment,
-  Review,
-  Checkpoint,
 } from './run-models';
+import type { Platform } from './workflow-catalog';
 
 export function useRunMonitor(
   onNotice: (text: string) => void,
-  onRunError: (text: string) => void
+  onRunError: (text: string) => void,
 ) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [available, setAvailable] = useState<'checking' | 'ready' | 'offline'>(
-    'checking'
+    'checking',
   );
   const [playbook, setPlaybook] = useState<Playbook | null>(null);
   const [assessment, setAssessment] = useState<Assessment | null>(null);
@@ -60,15 +60,14 @@ export function useRunMonitor(
       if (savedReviews.ok) setReviews((await savedReviews.json()) as Review[]);
       if (currentRunRef.current) {
         const current = (await (
-          await fetch(getApi('runs/' + currentRunRef.current), {
+          await fetch(getApi(`runs/${currentRunRef.current}`), {
             cache: 'no-store',
           })
         ).json()) as Run;
         if (current.action === 'audit') {
-          const report = await fetch(
-            getApi('runs/' + current.id + '/assessment'),
-            { cache: 'no-store' }
-          );
+          const report = await fetch(getApi(`runs/${current.id}/assessment`), {
+            cache: 'no-store',
+          });
           if (report.ok) setAssessment((await report.json()) as Assessment);
         }
       }
@@ -88,7 +87,7 @@ export function useRunMonitor(
   }, [refresh]);
   function connect(runId: string) {
     streamRef.current?.close();
-    const source = new EventSource(getApi('events/' + runId));
+    const source = new EventSource(getApi(`events/${runId}`));
     streamRef.current = source;
     const kinds = [
       'status',
@@ -127,7 +126,7 @@ export function useRunMonitor(
   async function startMonitoredRun(
     payload: Record<string, unknown>,
     action: string,
-    platform: Platform
+    platform: Platform,
   ) {
     const result = await apiPost('runs', payload);
     if (!result.id) throw new Error('Server did not return a run ID');
@@ -157,7 +156,7 @@ export function useRunMonitor(
   async function pauseRun() {
     if (!active) return;
     try {
-      await apiPost('runs/' + active.id + '/pause');
+      await apiPost(`runs/${active.id}/pause`);
       void refresh();
     } catch (e) {
       onRunError(e instanceof Error ? e.message : 'Could not pause');
@@ -166,7 +165,7 @@ export function useRunMonitor(
   async function resumeRun() {
     if (!active) return;
     try {
-      await apiPost('runs/' + active.id + '/resume');
+      await apiPost(`runs/${active.id}/resume`);
       void refresh();
     } catch (e) {
       onRunError(e instanceof Error ? e.message : 'Could not resume');
@@ -177,12 +176,12 @@ export function useRunMonitor(
     setCheckpointError('');
     try {
       if (checkpoint.kind === 'approval')
-        await apiPost('runs/' + active.id + '/decision', {
+        await apiPost(`runs/${active.id}/decision`, {
           checkpointId: checkpoint.id,
           approved: approve,
         });
       else
-        await apiPost('runs/' + active.id + '/input', {
+        await apiPost(`runs/${active.id}/input`, {
           checkpointId: checkpoint.id,
           value: text || '',
         });
@@ -197,7 +196,7 @@ export function useRunMonitor(
   async function cancelRun() {
     if (!active) return;
     try {
-      await apiPost('runs/' + active.id + '/cancel');
+      await apiPost(`runs/${active.id}/cancel`);
       void refresh();
     } catch (error) {
       onNotice(String(error));

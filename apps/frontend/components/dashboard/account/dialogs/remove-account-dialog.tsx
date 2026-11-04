@@ -1,7 +1,7 @@
 'use client';
 
-import StudioDialog from '@/components/ui/studio-dialog';
 import type { SocialAccount } from '@/components/dashboard/account/account-home';
+import StudioDialog from '@/components/ui/studio-dialog';
 
 export function RemoveAccountDialog({
   account,

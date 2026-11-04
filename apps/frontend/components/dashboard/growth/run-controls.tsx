@@ -1,8 +1,8 @@
 'use client';
 
 import { ArrowRight } from 'lucide-react';
-import type { Program, Run } from './growth-profile-types';
 import { request } from '../../../lib/growth-profile-client';
+import type { Program, Run } from './growth-profile-types';
 
 type Props = {
   run: Run;
@@ -48,7 +48,7 @@ export default function GrowthRunControls({
       )}
       {child?.id && (
         <a
-          href={'/api/runs/' + child.id + '/workflow.yaml'}
+          href={`/api/runs/${child.id}/workflow.yaml`}
           target="_blank"
           rel="noopener noreferrer"
           className="mt-2 inline-flex min-h-9 items-center gap-1 text-xs font-semibold text-teal-800 underline"
@@ -73,10 +73,10 @@ export default function GrowthRunControls({
                 className="min-h-10 rounded-lg border border-amber-600 px-3 text-xs font-semibold text-amber-950 disabled:opacity-50"
                 onClick={() =>
                   void mutate(() =>
-                    request('/api/runs/' + child.id + '/decision', 'POST', {
+                    request(`/api/runs/${child.id}/decision`, 'POST', {
                       checkpointId: checkpoint.id,
                       approved,
-                    })
+                    }),
                   )
                 }
               >
@@ -92,9 +92,7 @@ export default function GrowthRunControls({
           disabled={working}
           className="mt-3 min-h-10 rounded-lg bg-slate-950 px-4 text-xs font-semibold text-white disabled:opacity-50"
           onClick={() =>
-            void mutate(() =>
-              request('/api/runs/' + child.id + '/resume', 'POST')
-            )
+            void mutate(() => request(`/api/runs/${child.id}/resume`, 'POST'))
           }
         >
           Resume reviewed Runner stage
@@ -108,16 +106,14 @@ export default function GrowthRunControls({
       {run.status === 'active' &&
         child &&
         ['running', 'paused', 'approval-needed', 'input-needed'].includes(
-          child.state
+          child.state,
         ) && (
           <button
             type="button"
             disabled={working}
             className="mt-3 ml-2 min-h-10 rounded-lg border border-rose-200 px-3 text-xs font-semibold text-rose-800 disabled:opacity-50"
             onClick={() =>
-              void mutate(() =>
-                request('/api/runs/' + child.id + '/cancel', 'POST')
-              )
+              void mutate(() => request(`/api/runs/${child.id}/cancel`, 'POST'))
             }
           >
             Cancel active Runner pipeline
@@ -136,7 +132,7 @@ export default function GrowthRunControls({
           className="mt-3 min-h-11 rounded-xl bg-teal-800 px-4 text-sm font-semibold text-white disabled:opacity-50"
           onClick={() =>
             void mutate(() =>
-              request(endpoint + '/runs/' + run.id + '/advance', 'POST')
+              request(`${endpoint}/runs/${run.id}/advance`, 'POST'),
             )
           }
         >

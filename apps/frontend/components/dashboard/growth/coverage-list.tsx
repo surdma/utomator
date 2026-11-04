@@ -8,7 +8,7 @@ export default function GrowthCoverageList({
   program: Program | null;
 }) {
   const labels = new Map(
-    program?.coverage.map((section) => [section.id, section.label]) ?? []
+    program?.coverage.map((section) => [section.id, section.label]) ?? [],
   );
   return (
     <details className="rounded-xl border border-slate-200 p-4">

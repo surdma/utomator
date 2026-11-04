@@ -39,7 +39,7 @@ export default function StageNode({ data, selected }: NodeProps<StudioNode>) {
             : 'bg-slate-100 text-slate-500';
   return (
     <div
-      data-testid={'workflow-node-' + data.phase}
+      data-testid={`workflow-node-${data.phase}`}
       className={
         'group w-[240px] overflow-hidden rounded-[18px] border bg-white shadow-[0_16px_50px_-25px_rgba(15,23,42,.6)] transition ' +
         (selected

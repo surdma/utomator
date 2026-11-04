@@ -1,19 +1,19 @@
 'use client';
 
-import { type ComponentType, type Dispatch, type SetStateAction } from 'react';
 import { useReducedMotion } from 'framer-motion';
-import PipelineRunSetupForm from './workspace/pipeline-run-setup-form';
+import type { ComponentType, Dispatch, SetStateAction } from 'react';
+import type { Connector } from '../connections/connector-onboarding';
 import WorkflowEmptyState from '../workflows/editor/workflow-empty-state';
-import FloatingWorkflowControls from './workspace/floating-workflow-controls';
 import WorkflowPlanEditor, {
   type WorkflowPlan,
 } from '../workflows/workflow-plan-editor';
-import type { Connector } from '../connections/connector-onboarding';
-import { type Platform, type Workflow } from './workflow-catalog';
 import { getApi } from './api-client';
 import type { DashboardPane } from './dashboard-route';
 import type { Run, Event as RunEvent } from './run-models';
 import type { WorkflowRecord } from './use-workflow-workspace';
+import type { Platform, Workflow } from './workflow-catalog';
+import FloatingWorkflowControls from './workspace/floating-workflow-controls';
+import PipelineRunSetupForm from './workspace/pipeline-run-setup-form';
 
 type Props = {
   pane: DashboardPane;
@@ -176,7 +176,7 @@ export default function PipelineWorkspace({
             onSave={saveWorkflowPlan}
             runError={runFormError}
             evidenceRoot={
-              active ? getApi('runs/' + active.id + '/evidence/') : undefined
+              active ? getApi(`runs/${active.id}/evidence/`) : undefined
             }
             onEvidenceOpen={annotateCapture}
           >

@@ -1,8 +1,8 @@
 'use client';
 
-import { useId, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ChevronDown, Circle, CircleCheck, LoaderCircle } from 'lucide-react';
+import { useId, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 export type PlanStep = {
@@ -35,7 +35,7 @@ export function Plan({ goal, steps, className }: Props) {
       data-testid="plan-trace"
       className={cn(
         'min-w-0 rounded-xl border border-slate-200 bg-white/80',
-        className
+        className,
       )}
     >
       <button
@@ -56,7 +56,7 @@ export function Plan({ goal, steps, className }: Props) {
           aria-hidden="true"
           className={cn(
             'size-3.5 shrink-0 text-slate-400 transition-transform',
-            open && 'rotate-180'
+            open && 'rotate-180',
           )}
         />
       </button>

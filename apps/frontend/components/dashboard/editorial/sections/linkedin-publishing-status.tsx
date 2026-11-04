@@ -39,10 +39,10 @@ export default function LinkedInPublishingStatus({
       </p>
       <p className="mt-2 text-xs font-semibold">
         {oauth?.connected
-          ? 'Authorized member: ' + oauth.subject
+          ? `Authorized member: ${oauth.subject}`
           : 'Not authorized for publishing'}
         {oauth?.expiresAt
-          ? ' · Expires ' + new Date(oauth.expiresAt).toLocaleDateString()
+          ? ` · Expires ${new Date(oauth.expiresAt).toLocaleDateString()}`
           : ''}
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
@@ -59,7 +59,7 @@ export default function LinkedInPublishingStatus({
           className={button}
           onClick={() =>
             void checkPublishingStatus(accountId).catch((e) =>
-              setError(String(e))
+              setError(String(e)),
             )
           }
         >

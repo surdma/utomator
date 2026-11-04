@@ -11,17 +11,17 @@ test('voice support stays unavailable when speech recognition is missing', () =>
   assert.equal(readVoiceSupport({}), 'unsupported');
   assert.equal(
     readVoiceSupport({ SpeechRecognition: function SpeechRecognition() {} }),
-    'ready'
+    'ready',
   );
   assert.equal(
     readVoiceSupport({
       webkitSpeechRecognition: function webkitSpeechRecognition() {},
     }),
-    'ready'
+    'ready',
   );
   assert.equal(
     readVoiceSupport({ SpeechRecognition: 'present' }),
-    'unsupported'
+    'unsupported',
   );
 });
 
@@ -32,10 +32,19 @@ test('late microphone permission releases its tracks after cancellation', async 
   });
   let current = true;
   let stops = 0;
-  const acquisition = acquireCurrentVoiceStream(() => permission, () => current);
+  const acquisition = acquireCurrentVoiceStream(
+    () => permission,
+    () => current,
+  );
   current = false;
   resolveStream({
-    getTracks: () => [{ stop: () => { stops += 1; } }],
+    getTracks: () => [
+      {
+        stop: () => {
+          stops += 1;
+        },
+      },
+    ],
   });
   assert.equal(await acquisition, null);
   assert.equal(stops, 1);
@@ -43,10 +52,18 @@ test('late microphone permission releases its tracks after cancellation', async 
 
 test('current microphone permission keeps its stream for recording', async () => {
   let stops = 0;
-  const stream = { getTracks: () => [{ stop: () => { stops += 1; } }] };
+  const stream = {
+    getTracks: () => [
+      {
+        stop: () => {
+          stops += 1;
+        },
+      },
+    ],
+  };
   const acquired = await acquireCurrentVoiceStream(
     async () => stream,
-    () => true
+    () => true,
   );
   assert.equal(acquired, stream);
   assert.equal(stops, 0);
@@ -56,7 +73,9 @@ test('completed transcription cannot reach a different conversation after invali
   const gate = createVoiceDeliveryGate();
   const original = gate.start();
   let fulfill;
-  const pending = new Promise((resolve) => { fulfill = resolve; });
+  const pending = new Promise((resolve) => {
+    fulfill = resolve;
+  });
   const delivered = [];
   const completion = pending.then((text) => {
     if (gate.isCurrent(original)) delivered.push(text);

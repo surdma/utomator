@@ -1,16 +1,16 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, writeFile, readFile, mkdir } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { test } from 'node:test';
 import { createClient } from '@libsql/client';
-import { createDocumentStore } from '../src/db/documents.js';
-import { CraftLibrary, parseMdx, toMdx, craftArchive, type Craft } from '../src/crafts/library.js';
 import {
   growthCapabilities,
   profileSections,
 } from '../../frontend/components/dashboard/growth/linkedin-growth-capabilities.js';
+import { type Craft, CraftLibrary, craftArchive, parseMdx, toMdx } from '../src/crafts/library.js';
+import { createDocumentStore } from '../src/db/documents.js';
 
 const root = await mkdtemp(join(tmpdir(), 'utomator-crafts-'));
 const databaseFile = `file:${join(root, 'crafts.db')}`;

@@ -1,17 +1,17 @@
 'use client';
 
-import { useMemo } from 'react';
 import {
   Background,
   BackgroundVariant,
   Controls,
+  type Edge,
   MarkerType,
+  type Node,
   Position,
   ReactFlow,
   ReactFlowProvider,
-  type Edge,
-  type Node,
 } from '@xyflow/react';
+import { useMemo } from 'react';
 import type { WorkflowPlan } from './workflow-plan-editor';
 
 /** Read-only preview of the same validated steps and links used by the artboard.
@@ -71,7 +71,7 @@ export default function TemplateGraphPreview({ plan }: { plan: WorkflowPlan }) {
     const edges: Edge[] = plan.links
       .filter((link) => order.has(link.source) && order.has(link.target))
       .map((link, index) => ({
-        id: 'preview-link-' + index,
+        id: `preview-link-${index}`,
         source: link.source,
         target: link.target,
         type: 'smoothstep',
@@ -85,7 +85,7 @@ export default function TemplateGraphPreview({ plan }: { plan: WorkflowPlan }) {
   return (
     <div
       data-testid="template-graph-preview"
-      aria-label={'Read-only workflow diagram with ' + nodes.length + ' stages'}
+      aria-label={`Read-only workflow diagram with ${nodes.length} stages`}
       role="group"
       className="relative h-60 w-full overflow-hidden rounded-xl border border-slate-200 bg-[#f5f8f9] sm:h-64"
     >

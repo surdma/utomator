@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { ExternalLink, History, RotateCcw, UserRound } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ExternalLink, History, RotateCcw, UserRound } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { portraitSrc } from '@/components/dashboard/account/account-format';
 import { AppMark } from '@/components/logo';
 import { Popover } from '@/components/ui/popover';
-import { portraitSrc } from '@/components/dashboard/account/account-format';
 
 type AccountSummary = {
   displayName?: string;

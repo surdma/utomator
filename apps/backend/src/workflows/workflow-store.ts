@@ -1,9 +1,9 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { defaultPlan, templates, validatePlan, type WorkflowPlan } from './workflow-plan.js';
 import type { Action, Platform } from '../core/types.js';
 import type { DocumentStore } from '../db/documents.js';
+import { defaultPlan, templates, validatePlan, type WorkflowPlan } from './workflow-plan.js';
 
 export class WorkflowPlanStore {
   private queue: Promise<unknown> = Promise.resolve();

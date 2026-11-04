@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
 import {
   appendEvent,
   createConversation,
@@ -10,7 +11,6 @@ import {
   MATOR_MESSAGES_NAMESPACE,
   setCurrentConversation,
 } from '../src/mator/mator-conversations.js';
-import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
 
 type Row = { version: number; value: unknown };
 class FakeDocuments implements DocumentStore {

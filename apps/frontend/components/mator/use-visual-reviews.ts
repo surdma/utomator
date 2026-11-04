@@ -1,14 +1,17 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { getApi } from '@/components/dashboard/pipeline/api-client';
+import type { Review } from '@/components/dashboard/pipeline/run-models';
+import {
+  captureSection,
+  validateReviewImage,
+} from '@/components/dashboard/pipeline/visual-review-model';
+import type { Platform } from '@/components/dashboard/pipeline/workflow-catalog';
 import type {
   ImageSource,
   VisualReviewDraft,
 } from '@/components/dashboard/reviews/visual-review-panel';
-import type { Platform } from '@/components/dashboard/pipeline/workflow-catalog';
-import type { Review } from '@/components/dashboard/pipeline/run-models';
-import { getApi } from '@/components/dashboard/pipeline/api-client';
-import { captureSection, validateReviewImage } from '@/components/dashboard/pipeline/visual-review-model';
 
 /** Chat assets that can open the full review studio. */
 export type ChatAnnotationRequest = {
@@ -29,7 +32,7 @@ export type ChatAnnotationResult = { reviewId: string } | null;
  * context. Returns null when the operator cancelled the source step.
  */
 export type ChatAnnotationBuilder = (
-  request: ChatAnnotationRequest
+  request: ChatAnnotationRequest,
 ) => Promise<{ imageDataUrl: string } | null>;
 
 type Options = {
@@ -46,7 +49,7 @@ type Options = {
 /** Serialized blob/image bytes as a data URL for the review studio upload. */
 export function imageDataUrlFromBlob(
   blob: Blob,
-  mime: string
+  mime: string,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -107,7 +110,7 @@ export function useVisualReviews({
   function annotateCapture(runId: string, fileName: string) {
     const section = captureSection(fileName);
     if (section && platform === 'linkedin') onCaptureSection(section);
-    const src = getApi('runs/' + runId + '/evidence/' + fileName);
+    const src = getApi(`runs/${runId}/evidence/${fileName}`);
     onSelectedNode('annotation');
     setImageDraft({ kind: 'capture', src, runId, fileName });
   }
@@ -117,7 +120,7 @@ export function useVisualReviews({
    * the created review id after the operator saves, or null when dismissed.
    */
   async function annotateChatAsset(
-    request: ChatAnnotationRequest
+    request: ChatAnnotationRequest,
   ): Promise<ChatAnnotationResult> {
     if (!annotateChatImage) {
       throw new Error('Full-image annotation is unavailable in this workspace');
@@ -177,7 +180,7 @@ export function useVisualReviews({
   }
 
   const reviewImage = (review: Review) =>
-    getApi('visual-reviews/' + review.id + '/image');
+    getApi(`visual-reviews/${review.id}/image`);
 
   function tagExistingReview(review: Review) {
     onSelectReviewAccount(review);

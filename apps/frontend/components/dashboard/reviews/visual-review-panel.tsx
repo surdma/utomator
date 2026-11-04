@@ -1,7 +1,5 @@
 'use client';
 
-import Image from 'next/image';
-import { useRef, useState, type PointerEvent } from 'react';
 import {
   Circle,
   Eraser,
@@ -10,8 +8,10 @@ import {
   RectangleHorizontal,
   RotateCcw,
 } from 'lucide-react';
-import StudioDialog from '@/components/ui/studio-dialog';
+import Image from 'next/image';
+import { type PointerEvent, useRef, useState } from 'react';
 import { useVoiceSession } from '@/components/mator/use-voice-session';
+import StudioDialog from '@/components/ui/studio-dialog';
 import { matchAnnotationAction, mergeSpokenComment } from './annotation-voice';
 import VisualReviewSidebar from './sections/visual-review-sidebar';
 import type {
@@ -68,7 +68,7 @@ function outline(item: VisualAnnotation, selected: boolean) {
     return (
       <polyline
         points={(item.points ?? [])
-          .map((p) => p.x * 1000 + ',' + p.y * 1000)
+          .map((p) => `${p.x * 1000},${p.y * 1000}`)
           .join(' ')}
         fill="none"
         stroke={stroke}
@@ -120,7 +120,7 @@ export default function VisualReviewPanel({
   const [tool, setTool] = useState<Tool>('ellipse');
   const [gesture, setGesture] = useState<Gesture | null>(null);
   const [annotations, setAnnotations] = useState<VisualAnnotation[]>(
-    source.kind === 'review' ? (source.initialAnnotations ?? []) : []
+    source.kind === 'review' ? (source.initialAnnotations ?? []) : [],
   );
   const [history, setHistory] = useState<VisualAnnotation[][]>([]);
   const [events, setEvents] = useState<AnnotationEditEvent[]>([]);
@@ -155,7 +155,7 @@ export default function VisualReviewPanel({
   const record = (
     kind: AnnotationEditEvent['kind'],
     annotationId: string,
-    annotation?: VisualAnnotation | null
+    annotation?: VisualAnnotation | null,
   ) =>
     setEvents((previous) => [
       ...previous,
@@ -190,7 +190,7 @@ export default function VisualReviewPanel({
                 ? [...prev.points, p]
                 : prev.points,
           }
-        : prev
+        : prev,
     );
   }
   function pointerUp(event: PointerEvent<HTMLDivElement>) {
@@ -202,21 +202,21 @@ export default function VisualReviewPanel({
       tool === 'freehand'
         ? geometry(
             {
-              x: Math.min(...points!.map((q) => q.x)),
-              y: Math.min(...points!.map((q) => q.y)),
+              x: Math.min(...points?.map((q) => q.x)),
+              y: Math.min(...points?.map((q) => q.y)),
             },
             {
-              x: Math.max(...points!.map((q) => q.x)),
-              y: Math.max(...points!.map((q) => q.y)),
-            }
+              x: Math.max(...points?.map((q) => q.x)),
+              y: Math.max(...points?.map((q) => q.y)),
+            },
           )
         : geometry(gesture.start, p);
-    if (tool === 'freehand' && points!.length < 2) {
+    if (tool === 'freehand' && points?.length < 2) {
       setGesture(null);
       return;
     }
     const annotation: VisualAnnotation = {
-      id: 'mark-' + Date.now().toString(36) + '-' + nextId.current++,
+      id: `mark-${Date.now().toString(36)}-${nextId.current++}`,
       shape: tool,
       ...box,
       ...(points ? { points } : {}),
@@ -232,7 +232,7 @@ export default function VisualReviewPanel({
   }
   function updateAnnotation(
     next: VisualAnnotation,
-    kind: 'action' | 'comment'
+    kind: 'action' | 'comment',
   ) {
     setHistory((prev) => [...prev, annotations]);
     setAnnotations((prev) => prev.map((a) => (a.id === next.id ? next : a)));
@@ -249,7 +249,7 @@ export default function VisualReviewPanel({
           comment: mergeSpokenComment(current.comment, utterance),
           ...(action ? { action: action as AnnotationAction } : {}),
         },
-        'comment'
+        'comment',
       );
     },
   });
@@ -300,7 +300,7 @@ export default function VisualReviewPanel({
       });
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : 'Could not tag the annotated image'
+        e instanceof Error ? e.message : 'Could not tag the annotated image',
       );
     } finally {
       setSaving(false);

@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
   Check,
@@ -11,16 +10,17 @@ import {
   ShieldCheck,
   Workflow,
 } from 'lucide-react';
-import type { WorkflowPlan } from './workflow-plan-editor';
-import ActionTemplateBrowser from './action-template-browser';
+import { useEffect, useMemo, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Program } from '../growth/growth-profile-types';
+import ActionTemplateBrowser from './action-template-browser';
 import {
   buildTemplateOptions,
-  growthTemplateCategories,
   type GrowthTemplateCategory,
   type GrowthTemplateSummary,
+  growthTemplateCategories,
 } from './template-options';
+import type { WorkflowPlan } from './workflow-plan-editor';
 
 export type { GrowthTemplateSummary } from './template-options';
 
@@ -53,17 +53,17 @@ export default function TemplateBrowser({
   const [catalog, setCatalog] = useState<GrowthTemplateSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [catalogError, setCatalogError] = useState('');
-  const [refresh, setRefresh] = useState(0);
+  const [_refresh, setRefresh] = useState(0);
   const [query, setQuery] = useState('');
   const [source, setSource] = useState<'yaml' | 'action'>(
-    activePlatform === 'linkedin' ? 'yaml' : 'action'
+    activePlatform === 'linkedin' ? 'yaml' : 'action',
   );
   const [category, setCategory] = useState<GrowthTemplateCategory>('All');
   const [readiness, setReadiness] = useState<Readiness>('all');
   const [picked, setPicked] = useState<string | null>(null);
   const [detail, setDetail] = useState<Program | null>(null);
   const [detailError, setDetailError] = useState('');
-  const [detailRefresh, setDetailRefresh] = useState(0);
+  const [_detailRefresh, setDetailRefresh] = useState(0);
   const [detailLoading, setDetailLoading] = useState(false);
   const [applying, setApplying] = useState(false);
   const [applyError, setApplyError] = useState('');
@@ -83,11 +83,11 @@ export default function TemplateBrowser({
           data.some(
             (item) =>
               typeof item.id !== 'string' ||
-              typeof item.executable !== 'boolean'
+              typeof item.executable !== 'boolean',
           )
         )
           throw Error(
-            'The YAML workflow catalogue returned an invalid response.'
+            'The YAML workflow catalogue returned an invalid response.',
           );
         if (!controller.signal.aborted) {
           setCatalog(data);
@@ -99,14 +99,14 @@ export default function TemplateBrowser({
           setCatalogError(
             cause instanceof Error
               ? cause.message
-              : 'Unable to load YAML workflows'
+              : 'Unable to load YAML workflows',
           );
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [refresh]);
+  }, []);
 
   const options = useMemo(() => buildTemplateOptions(catalog), [catalog]);
   const filtered = useMemo(() => {
@@ -127,7 +127,7 @@ export default function TemplateBrowser({
             item.id
           )
             .toLowerCase()
-            .includes(text))
+            .includes(text)),
     );
   }, [options, query, category, readiness]);
   const selected =
@@ -143,7 +143,7 @@ export default function TemplateBrowser({
         setDetailError('');
       }
     });
-    void fetch('/api/growth/templates/' + encodeURIComponent(selectedId), {
+    void fetch(`/api/growth/templates/${encodeURIComponent(selectedId)}`, {
       cache: 'no-store',
       signal: controller.signal,
     })
@@ -165,7 +165,7 @@ export default function TemplateBrowser({
       .catch((cause) => {
         if (!controller.signal.aborted)
           setDetailError(
-            cause instanceof Error ? cause.message : 'Workflow preview failed'
+            cause instanceof Error ? cause.message : 'Workflow preview failed',
           );
       })
       .finally(() => {
@@ -174,7 +174,7 @@ export default function TemplateBrowser({
     return () => {
       controller.abort();
     };
-  }, [selectedId, detailRefresh, source]);
+  }, [selectedId, source]);
 
   const currentDetail = detail?.id === selected?.id ? detail : null;
   async function loadSelected() {
@@ -193,7 +193,7 @@ export default function TemplateBrowser({
       onApplied();
     } catch (cause) {
       setApplyError(
-        cause instanceof Error ? cause.message : 'Unable to open this workflow'
+        cause instanceof Error ? cause.message : 'Unable to open this workflow',
       );
     } finally {
       setApplying(false);
@@ -473,7 +473,7 @@ export default function TemplateBrowser({
                       <span className="ml-auto font-normal">
                         {currentDetail.stages.reduce(
                           (total, stage) => total + stage.plan.steps.length,
-                          0
+                          0,
                         )}{' '}
                         steps
                       </span>

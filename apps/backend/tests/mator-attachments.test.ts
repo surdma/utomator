@@ -3,17 +3,17 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { createConversation } from '../src/mator/mator-conversations.js';
+import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
 import {
   getAttachmentFile,
   getAttachmentMeta,
-  validateMatorAsset,
   MATOR_ATTACHMENT_IMAGE_MAX_BYTES,
   MATOR_ATTACHMENTS_NAMESPACE,
   saveAttachment,
   upsertMarkers,
+  validateMatorAsset,
 } from '../src/mator/mator-attachments.js';
-import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
+import { createConversation } from '../src/mator/mator-conversations.js';
 
 type Row = { version: number; value: unknown };
 class FakeDocuments implements DocumentStore {
@@ -63,12 +63,16 @@ test('saveAttachment roundtrips bytes and metadata via getAttachmentFile', async
     const docs = new FakeDocuments('local-owner');
     const conv = await createConversation(docs, 'wf-attachments');
     const bytes = Buffer.from('fake-png-bytes');
-    const saved = await saveAttachment(docs, {
-      conversationId: conv.id,
-      filename: 'screenshot.png',
-      mime: 'image/png',
-      bytes,
-    }, { root });
+    const saved = await saveAttachment(
+      docs,
+      {
+        conversationId: conv.id,
+        filename: 'screenshot.png',
+        mime: 'image/png',
+        bytes,
+      },
+      { root },
+    );
 
     assert.equal(saved.kind, 'image');
     assert.equal(saved.mime, 'image/png');
@@ -89,12 +93,16 @@ test('upsertMarkers clamps x/y to [0,1] and requires text', async () => {
   try {
     const docs = new FakeDocuments('local-owner');
     const conv = await createConversation(docs, 'wf-markers');
-    const saved = await saveAttachment(docs, {
-      conversationId: conv.id,
-      filename: 'frame.jpg',
-      mime: 'image/jpeg',
-      bytes: Buffer.from([1, 2, 3]),
-    }, { root });
+    const saved = await saveAttachment(
+      docs,
+      {
+        conversationId: conv.id,
+        filename: 'frame.jpg',
+        mime: 'image/jpeg',
+        bytes: Buffer.from([1, 2, 3]),
+      },
+      { root },
+    );
 
     const updated = await upsertMarkers(docs, saved.id, [
       { id: 'm1', x: -0.25, y: 1.75, text: '  pin here  ' },
@@ -116,18 +124,26 @@ test('upsertMarkers validates and persists review references', async () => {
   try {
     const docs = new FakeDocuments('local-owner');
     const conv = await createConversation(docs, 'wf-reviews');
-    const savedA = await saveAttachment(docs, {
-      conversationId: conv.id,
-      filename: 'one.png',
-      mime: 'image/png',
-      bytes: Buffer.from([1]),
-    }, { root });
-    const savedB = await saveAttachment(docs, {
-      conversationId: conv.id,
-      filename: 'two.png',
-      mime: 'image/png',
-      bytes: Buffer.from([2]),
-    }, { root });
+    const savedA = await saveAttachment(
+      docs,
+      {
+        conversationId: conv.id,
+        filename: 'one.png',
+        mime: 'image/png',
+        bytes: Buffer.from([1]),
+      },
+      { root },
+    );
+    const savedB = await saveAttachment(
+      docs,
+      {
+        conversationId: conv.id,
+        filename: 'two.png',
+        mime: 'image/png',
+        bytes: Buffer.from([2]),
+      },
+      { root },
+    );
     const reviewId = '123e4567-e89b-42d3-a456-426614174000';
 
     await assert.rejects(
@@ -149,12 +165,16 @@ test('saveAttachment rejects unknown conversation', async () => {
     const docs = new FakeDocuments('local-owner');
     await assert.rejects(
       () =>
-        saveAttachment(docs, {
-          conversationId: '00000000-0000-4000-8000-000000000099',
-          filename: 'orphan.png',
-          mime: 'image/png',
-          bytes: Buffer.from('x'),
-        }, { root }),
+        saveAttachment(
+          docs,
+          {
+            conversationId: '00000000-0000-4000-8000-000000000099',
+            filename: 'orphan.png',
+            mime: 'image/png',
+            bytes: Buffer.from('x'),
+          },
+          { root },
+        ),
       /Conversation not found/,
     );
   } finally {
@@ -168,12 +188,16 @@ test('getAttachmentFile is scoped to document owner', async () => {
     const ownerA = new FakeDocuments('00000000-0000-4000-8000-0000000000aa');
     const ownerB = new FakeDocuments('00000000-0000-4000-8000-0000000000bb');
     const conv = await createConversation(ownerA, 'wf-owner-scope');
-    const saved = await saveAttachment(ownerA, {
-      conversationId: conv.id,
-      filename: 'secret.png',
-      mime: 'image/png',
-      bytes: Buffer.from('secret'),
-    }, { root });
+    const saved = await saveAttachment(
+      ownerA,
+      {
+        conversationId: conv.id,
+        filename: 'secret.png',
+        mime: 'image/png',
+        bytes: Buffer.from('secret'),
+      },
+      { root },
+    );
 
     await assert.rejects(() => getAttachmentFile(ownerB, saved.id, { root }), /Attachment not found/);
   } finally {
@@ -189,12 +213,16 @@ test('saveAttachment rejects oversized images', async () => {
     const tooLarge = Buffer.alloc(MATOR_ATTACHMENT_IMAGE_MAX_BYTES + 1);
     await assert.rejects(
       () =>
-        saveAttachment(docs, {
-          conversationId: conv.id,
-          filename: 'huge.png',
-          mime: 'image/png',
-          bytes: tooLarge,
-        }, { root }),
+        saveAttachment(
+          docs,
+          {
+            conversationId: conv.id,
+            filename: 'huge.png',
+            mime: 'image/png',
+            bytes: tooLarge,
+          },
+          { root },
+        ),
       /Attachment size limit exceeded/,
     );
   } finally {
@@ -238,7 +266,7 @@ test('attachment metadata is owner scoped and retains the original filename', as
         mime: 'text/markdown',
         bytes: Buffer.from('# Project'),
       },
-      { root }
+      { root },
     );
     const meta = await getAttachmentMeta(docs, result.id);
     assert.equal(meta.filename, 'README.md');

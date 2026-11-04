@@ -60,19 +60,19 @@ export function seedConversation(): MatorChatBubble[] {
 
 export function mergeMatorEvents(
   existing: MatorChatEvent[],
-  incoming: MatorChatEvent[]
+  incoming: MatorChatEvent[],
 ): MatorChatEvent[] {
   const byId = new Map<string, MatorChatEvent>();
   for (const event of existing) byId.set(event.id, event);
   for (const event of incoming) byId.set(event.id, event);
   return [...byId.values()].sort((a, b) =>
-    a.createdAt.localeCompare(b.createdAt)
+    a.createdAt.localeCompare(b.createdAt),
   );
 }
 
 export function eventsToConversation(
   events: MatorChatEvent[],
-  localNotices: MatorChatBubble[] = []
+  localNotices: MatorChatBubble[] = [],
 ): MatorChatBubble[] {
   const fromEvents: MatorChatBubble[] = [];
   for (const event of events) {
@@ -102,23 +102,25 @@ export function eventsToConversation(
  */
 export function stageResolution(
   events: MatorChatEvent[],
-  stagedId: string
+  stagedId: string,
 ): 'applied' | 'rejected' | null {
   const stagedAt = events.findIndex(
-    (event) => event.id === stagedId && event.status === 'staged'
+    (event) => event.id === stagedId && event.status === 'staged',
   );
   if (stagedAt < 0) return null;
   for (let index = stagedAt + 1; index < events.length; index += 1) {
     const candidate = events[index];
-    if (candidate.status !== 'applied' && candidate.status !== 'rejected') continue;
+    if (candidate.status !== 'applied' && candidate.status !== 'rejected')
+      continue;
     if (candidate.resolvesEventId) {
       if (candidate.resolvesEventId === stagedId) return candidate.status;
       continue;
     }
     // Backward compatibility for histories saved before resolvesEventId existed.
-    const latestStage = events.slice(0, index).reverse().find(
-      (event) => event.status === 'staged'
-    );
+    const latestStage = events
+      .slice(0, index)
+      .reverse()
+      .find((event) => event.status === 'staged');
     if (latestStage?.id === stagedId) return candidate.status;
   }
   return null;
@@ -127,7 +129,7 @@ export function stageResolution(
 /** Hide only duplicate UI status cards; persisted events remain available as evidence. */
 export function shouldRenderMatorEvent(
   events: MatorChatEvent[],
-  event: MatorChatEvent
+  event: MatorChatEvent,
 ): boolean {
   if (event.kind !== 'action') return true;
   const type = isRecord(event.action) ? event.action.type : null;
@@ -139,8 +141,13 @@ export function shouldRenderMatorEvent(
   if (event.status !== 'applied' && event.status !== 'rejected') return true;
   const priorStage = event.resolvesEventId
     ? events.find((candidate) => candidate.id === event.resolvesEventId)
-    : events.slice(0, events.findIndex((candidate) => candidate.id === event.id))
-        .reverse().find((candidate) => candidate.status === 'staged');
+    : events
+        .slice(
+          0,
+          events.findIndex((candidate) => candidate.id === event.id),
+        )
+        .reverse()
+        .find((candidate) => candidate.status === 'staged');
   return !(
     priorStage?.status === 'staged' &&
     stageResolution(events, priorStage.id) === event.status
@@ -163,7 +170,7 @@ function isAssistantTerminal(event: MatorChatEvent): boolean {
 
 /** Latest staged with no later applied/rejected resolution for that stage. */
 export function findPendingStage(
-  events: MatorChatEvent[]
+  events: MatorChatEvent[],
 ): MatorChatEvent | null {
   for (let index = events.length - 1; index >= 0; index -= 1) {
     const event = events[index];
@@ -171,7 +178,8 @@ export function findPendingStage(
       event?.status !== 'staged' ||
       !shouldRenderMatorEvent(events, event) ||
       (isRecord(event.action) && event.action.type === 'explain_how')
-    ) continue;
+    )
+      continue;
     if (!stageResolution(events, event.id)) return event;
   }
   return null;
@@ -179,7 +187,7 @@ export function findPendingStage(
 
 /** Incomplete only when it is the latest assistant terminal event. */
 export function findIncompleteEvent(
-  events: MatorChatEvent[]
+  events: MatorChatEvent[],
 ): MatorChatEvent | null {
   for (let index = events.length - 1; index >= 0; index -= 1) {
     const event = events[index];
@@ -191,7 +199,7 @@ export function findIncompleteEvent(
 
 export function shouldSpeakHow(
   event: MatorChatEvent,
-  howTtsEnabled: boolean
+  howTtsEnabled: boolean,
 ): boolean {
   return (
     howTtsEnabled &&
@@ -223,7 +231,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function readClarifyQuestions(
-  action: unknown
+  action: unknown,
 ): MatorClarifyQuestion[] | null {
   if (!isRecord(action) || action.type !== 'clarify') return null;
   if (!Array.isArray(action.questions) || action.questions.length === 0)
@@ -266,9 +274,10 @@ export function readClarifyQuestions(
       required: item.required === true,
       multiple: item.multiple === true,
       choices,
-      inputType: item.inputType === 'url' || item.inputType === 'file'
-        ? item.inputType
-        : 'text',
+      inputType:
+        item.inputType === 'url' || item.inputType === 'file'
+          ? item.inputType
+          : 'text',
       ...(typeof item.description === 'string'
         ? { description: item.description }
         : {}),
@@ -282,7 +291,7 @@ export function readClarifyQuestions(
 
 /** Latest clarify that the user has not answered yet. */
 export function findOpenClarify(
-  events: MatorChatEvent[]
+  events: MatorChatEvent[],
 ): MatorChatEvent | null {
   for (let index = events.length - 1; index >= 0; index -= 1) {
     const event = events[index];
@@ -296,7 +305,7 @@ export function findOpenClarify(
 
 export function formatClarifyReply(
   questions: MatorClarifyQuestion[],
-  formData: FormData
+  formData: FormData,
 ): string {
   return questions
     .map((question) => {

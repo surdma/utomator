@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Program, Run } from '../growth-profile-types';
 import { request } from '../../../../lib/growth-profile-client';
+import type { Program, Run } from '../growth-profile-types';
 
 type Snapshot = {
   key: string;
@@ -11,12 +11,12 @@ type Snapshot = {
 export function useGrowthProfileWorkflow(
   platform: 'linkedin' | 'x',
   templateId: string | null,
-  accountId?: string
+  accountId?: string,
 ) {
   const endpoint = templateId
-    ? '/api/growth/templates/' + encodeURIComponent(templateId)
+    ? `/api/growth/templates/${encodeURIComponent(templateId)}`
     : '';
-  const key = platform + '/' + (templateId ?? '') + '/' + (accountId ?? '');
+  const key = `${platform}/${templateId ?? ''}/${accountId ?? ''}`;
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [errorState, setErrorState] = useState<{
     key: string;
@@ -30,10 +30,10 @@ export function useGrowthProfileWorkflow(
   const setRun = useCallback(
     (next: Run | null) => {
       setSnapshot((current) =>
-        current?.key === key ? { ...current, run: next } : current
+        current?.key === key ? { ...current, run: next } : current,
       );
     },
-    [key]
+    [key],
   );
 
   const refresh = useCallback(
@@ -47,10 +47,10 @@ export function useGrowthProfileWorkflow(
         return;
       }
       const runs = await request<Run[]>(
-        endpoint + '/runs',
+        `${endpoint}/runs`,
         'GET',
         undefined,
-        signal
+        signal,
       );
       if (signal?.aborted) return;
       setSnapshot({
@@ -60,7 +60,7 @@ export function useGrowthProfileWorkflow(
       });
       setErrorState(null);
     },
-    [platform, templateId, accountId, endpoint, key]
+    [platform, templateId, accountId, endpoint, key],
   );
 
   useEffect(() => {

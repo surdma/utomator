@@ -1,9 +1,12 @@
 import type { FastifyInstance } from 'fastify';
-import { LinkedInProviderError, type LinkedInPublishingProvider } from '../linkedin/linkedin-publisher.js';
-import { editorialYaml } from '../linkedin/linkedin-editorial.js';
-import type { LinkedInEditorialStore } from '../linkedin/linkedin-editorial.js';
-import { researchYaml } from '../linkedin/linkedin-creator-research.js';
 import type { CreatorResearchStore } from '../linkedin/linkedin-creator-research.js';
+import { researchYaml } from '../linkedin/linkedin-creator-research.js';
+import type { LinkedInEditorialStore } from '../linkedin/linkedin-editorial.js';
+import { editorialYaml } from '../linkedin/linkedin-editorial.js';
+import type {
+  LinkedInProviderError,
+  LinkedInPublishingProvider,
+} from '../linkedin/linkedin-publisher.js';
 
 /**
  * Editorial publishing routes: OAuth authorization, internal draft CRUD, and

@@ -1,10 +1,10 @@
 import type { FastifyInstance } from 'fastify';
 import type { ConnectorService } from '../connect/service.js';
-import type { CareerStore } from '../profile/career-store.js';
-import { loadAutomationPlaybook } from '../profile/playbook.js';
-import type { AccountStore } from '../profile/account-store.js';
-import type { LinkedInPublishingProvider } from '../linkedin/linkedin-publisher.js';
 import type { DocumentStore } from '../db/documents.js';
+import type { LinkedInPublishingProvider } from '../linkedin/linkedin-publisher.js';
+import type { AccountStore } from '../profile/account-store.js';
+import type { CareerStore } from '../profile/career-store.js';
+import { loadAutomationPlaybook } from '../profile/profile-playbook.js';
 
 /** Owner identity and career workspace routes plus read-only planning reads. */
 export function registerProfileRoutes(

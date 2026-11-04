@@ -16,7 +16,7 @@ export function createMatorSendGate(): MatorSendGate {
 
 export function beginMatorSend(
   gate: MatorSendGate,
-  newKey: () => string
+  newKey: () => string,
 ): { key: string; next: MatorSendGate } | null {
   if (gate.inFlight) return null;
   const key = gate.idempotencyKey ?? newKey();

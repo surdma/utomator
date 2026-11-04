@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { type ReactNode, useEffect, useId, useRef } from 'react';
 import { cn } from '@/lib/utils';
+
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -76,7 +77,7 @@ export function Popover({
               'absolute z-50 w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_18px_44px_-18px_rgba(15,23,42,.35)]',
               side === 'top' ? 'bottom-full mb-2' : 'top-full mt-2',
               align === 'end' ? 'right-0' : 'left-0',
-              contentClassName
+              contentClassName,
             )}
           >
             {children}

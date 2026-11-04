@@ -1,9 +1,17 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { rm } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { test } from 'node:test';
 
 // Import after setting NODE_ENV so the module never starts a real listening socket.
 process.env.NODE_ENV = 'test';
 const { buildApp } = await import('../src/main.js');
+
+// Ensure each test starts from a clean account store (file persists across runs).
+await rm(resolve(process.cwd(), '.runtime', 'account-studio.json'), {
+  force: true,
+  recursive: false,
+}).catch(() => {});
 
 test('Fastify serves the API and source-backed playbook', async () => {
   const app = buildApp();

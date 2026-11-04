@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
 import { Check, ClipboardCopy, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { useState } from 'react';
 import { AlertDialog } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -63,12 +63,14 @@ export function Confirmation({
               : status === 'error'
                 ? 'border-rose-300'
                 : 'border-teal-200',
-        className
+        className,
       )}
     >
       <div className="flex items-center justify-between gap-2 px-3 pt-2.5">
         <Badge tone={meta.tone} size="xs">
-          {status === 'applied' && action === 'run step' ? 'Run started' : meta.label}
+          {status === 'applied' && action === 'run step'
+            ? 'Run started'
+            : meta.label}
         </Badge>
         {action && (
           <span className="truncate text-[11px] text-slate-400">{action}</span>

@@ -1,9 +1,14 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AccountStore, blankProfile, mergeEmptyProfile, parseSocialAccount } from '../src/profile/account-store.js';
+import { test } from 'node:test';
+import {
+  AccountStore,
+  blankProfile,
+  mergeEmptyProfile,
+  parseSocialAccount,
+} from '../src/profile/account-store.js';
 
 async function withStore(fn: (store: AccountStore, root: string) => Promise<void>) {
   const root = await mkdtemp(join(tmpdir(), 'account-store-'));

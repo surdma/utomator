@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync, unlinkSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { runtimePath } from '../core/paths.js';
 import type { RunSummary } from '../core/types.js';
 
 export interface ArchivedRun {
@@ -67,7 +68,7 @@ function parsedEntry(raw: unknown, id: string): ArchivedRun | null {
 /** Local-only durable run discovery. No browser session or authorization is restored. */
 export class RunArchive {
   private entries = new Map<string, ArchivedRun>();
-  constructor(private readonly root = resolve('.runtime', 'runs')) {}
+  constructor(private readonly root = runtimePath('runs')) {}
 
   pathFor(id: string): string {
     return resolve(this.root, checkedRunId(id));

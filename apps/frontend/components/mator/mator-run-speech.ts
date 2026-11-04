@@ -12,9 +12,9 @@ export function summarizeRunEventForSpeech(event: RunEvent): string | null {
     return 'The workflow needs attention. Open the run details for more information.';
   if (event.kind === 'step') {
     if (message.startsWith('Started: '))
-      return 'Step started: ' + message.slice(9, 110) + '.';
+      return `Step started: ${message.slice(9, 110)}.`;
     if (message.startsWith('Completed: '))
-      return 'Step completed: ' + message.slice(11, 110) + '.';
+      return `Step completed: ${message.slice(11, 110)}.`;
     if (message.startsWith('Failed: '))
       return 'A workflow step failed. Open its details to review the cause.';
     return null;
@@ -44,7 +44,7 @@ export function summarizeRunEventForSpeech(event: RunEvent): string | null {
 export function collectRunSpeechUpdates(
   events: RunEvent[],
   runId: string,
-  seen: Set<number>
+  seen: Set<number>,
 ): string[] {
   const updates: string[] = [];
   for (const event of events) {

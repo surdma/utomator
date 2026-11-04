@@ -1,12 +1,6 @@
 'use client';
 
-import { useRef, useState, type FormEvent } from 'react';
-import {
-  formatClarifyReply,
-  type MatorClarifyChoice,
-  type MatorClarifyQuestion,
-} from './mator-chat-state';
-import { ATTACH_ACCEPT } from './mator-composer';
+import { type FormEvent, useRef, useState } from 'react';
 import {
   Questionnaire,
   QuestionnaireActions,
@@ -23,13 +17,25 @@ import {
   QuestionnaireSubmit,
   QuestionnaireTitle,
 } from '@/components/ui/questionnaire';
+import {
+  formatClarifyReply,
+  type MatorClarifyChoice,
+  type MatorClarifyQuestion,
+} from './mator-chat-state';
+import { ATTACH_ACCEPT } from './mator-composer';
 
 type Props = {
   questions: MatorClarifyQuestion[];
   disabled?: boolean;
   onUploadFile?: (file: File) => Promise<string>;
-  onSubmit?: (text: string, attachmentIds?: string[]) => Promise<boolean | void> | void;
-  onAnswerData?: (answers: Record<string, string[]>, attachmentIds: string[]) => Promise<boolean | void> | void;
+  onSubmit?: (
+    text: string,
+    attachmentIds?: string[],
+  ) => Promise<boolean | undefined> | undefined;
+  onAnswerData?: (
+    answers: Record<string, string[]>,
+    attachmentIds: string[],
+  ) => Promise<boolean | undefined> | undefined;
   className?: string;
 };
 
@@ -65,37 +71,52 @@ export default function MatorClarifyForm({
           if (
             question.inputType === 'text' &&
             question.required &&
-            !form.getAll(question.name).some((value) =>
-              typeof value === 'string' && Boolean(value.trim())
-            )
+            !form
+              .getAll(question.name)
+              .some(
+                (value) => typeof value === 'string' && Boolean(value.trim()),
+              )
           ) {
-            throw new Error('Answer ' + question.prompt + ' before sending.');
+            throw new Error(`Answer ${question.prompt} before sending.`);
           }
           if (question.inputType === 'url') {
             const value = typeof answer === 'string' ? answer.trim() : '';
             if (!value && !question.required) continue;
             let url: URL;
-            try { url = new URL(value); }
-            catch { throw new Error('Enter a valid website URL for ' + question.prompt); }
+            try {
+              url = new URL(value);
+            } catch {
+              throw new Error(
+                `Enter a valid website URL for ${question.prompt}`,
+              );
+            }
             if (!['http:', 'https:'].includes(url.protocol))
-              throw new Error('Only HTTP and HTTPS website links are supported.');
+              throw new Error(
+                'Only HTTP and HTTPS website links are supported.',
+              );
             form.set(question.name, url.href);
           }
           if (question.inputType === 'file') {
             const control = formElement.elements.namedItem(question.name);
             const input = control instanceof HTMLInputElement ? control : null;
-            const file = input?.files?.[0] ?? (answer instanceof File ? answer : null);
+            const file =
+              input?.files?.[0] ?? (answer instanceof File ? answer : null);
             if (!file?.size) {
-              if (question.required) throw new Error('Attach a file for ' + question.prompt);
+              if (question.required)
+                throw new Error(`Attach a file for ${question.prompt}`);
               form.delete(question.name);
               continue;
             }
-            if (!input) throw new Error('Attachment input is unavailable. Please retry.');
-            if (!onUploadFile) throw new Error('Attachment upload is unavailable. Please try again.');
+            if (!input)
+              throw new Error('Attachment input is unavailable. Please retry.');
+            if (!onUploadFile)
+              throw new Error(
+                'Attachment upload is unavailable. Please try again.',
+              );
             let id = uploaded.current.get(input);
             if (!id) {
               id = await onUploadFile(file);
-              if (!id) throw new Error('Could not upload ' + file.name);
+              if (!id) throw new Error(`Could not upload ${file.name}`);
               uploaded.current.set(input, id);
             }
             attachments.push(id);
@@ -104,16 +125,21 @@ export default function MatorClarifyForm({
         }
         const answers: Record<string, string[]> = {};
         for (const question of questions) {
-          answers[question.name] = form.getAll(question.name)
+          answers[question.name] = form
+            .getAll(question.name)
             .filter((value): value is string => typeof value === 'string')
-            .map((value) => value.trim()).filter(Boolean);
+            .map((value) => value.trim())
+            .filter(Boolean);
         }
         const sent = onAnswerData
           ? await onAnswerData(answers, attachments)
           : await onSubmit?.(formatClarifyReply(questions, form), attachments);
-        if (sent === false) throw new Error('Mator could not send the answers. Please retry.');
+        if (sent === false)
+          throw new Error('Mator could not send the answers. Please retry.');
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : 'Could not submit answers.');
+        setError(
+          cause instanceof Error ? cause.message : 'Could not submit answers.',
+        );
       } finally {
         inFlight.current = false;
         setSubmitting(false);
@@ -121,14 +147,17 @@ export default function MatorClarifyForm({
     })();
   };
 
-
   // The shadcn questionnaire only registers choices and text inputs as answers.
   // A native file picker cannot satisfy that headless validation contract.
   // For a file request, use a real form and keep the same upload/send handler.
   if (questions.some((question) => question.inputType === 'file')) {
     return (
       <form
-        className={className ? `flex min-w-0 flex-col gap-3 ${className}` : 'flex min-w-0 flex-col gap-3'}
+        className={
+          className
+            ? `flex min-w-0 flex-col gap-3 ${className}`
+            : 'flex min-w-0 flex-col gap-3'
+        }
         onSubmit={handleSubmit}
         noValidate
         data-testid="mator-clarify-form"
@@ -141,9 +170,17 @@ export default function MatorClarifyForm({
           >
             <legend className="px-1 text-sm font-semibold text-slate-900">
               {question.prompt}
-              {question.required && <span aria-label="required" className="ml-1 text-orange-700">*</span>}
+              {question.required && (
+                <span aria-label="required" className="ml-1 text-orange-700">
+                  *
+                </span>
+              )}
             </legend>
-            {question.description && <p className="text-xs leading-relaxed text-slate-600">{question.description}</p>}
+            {question.description && (
+              <p className="text-xs leading-relaxed text-slate-600">
+                {question.description}
+              </p>
+            )}
             {question.inputType === 'file' ? (
               <label className="flex min-w-0 flex-col gap-1 text-xs font-medium text-slate-700">
                 Select attachment
@@ -153,15 +190,24 @@ export default function MatorClarifyForm({
                   accept={ATTACH_ACCEPT}
                   aria-label={question.prompt}
                   aria-required={question.required}
-                  onChange={(event) => uploaded.current.delete(event.currentTarget)}
+                  onChange={(event) =>
+                    uploaded.current.delete(event.currentTarget)
+                  }
                   className="min-h-11 w-full min-w-0 text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-teal-50 file:px-2 file:py-2 file:text-teal-800"
                 />
               </label>
             ) : (
               <>
                 {question.choices.map((choice) => (
-                  <label key={choice.value} className="flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-xs text-slate-700">
-                    <input type={question.multiple ? 'checkbox' : 'radio'} name={question.name} value={choice.value} />
+                  <label
+                    key={choice.value}
+                    className="flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-xs text-slate-700"
+                  >
+                    <input
+                      type={question.multiple ? 'checkbox' : 'radio'}
+                      name={question.name}
+                      value={choice.value}
+                    />
                     <span>{choice.label}</span>
                   </label>
                 ))}
@@ -181,7 +227,10 @@ export default function MatorClarifyForm({
           </fieldset>
         ))}
         {error && (
-          <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-2 text-xs text-rose-800">
+          <p
+            role="alert"
+            className="rounded-lg border border-rose-200 bg-rose-50 p-2 text-xs text-rose-800"
+          >
             {error}
           </p>
         )}
@@ -202,7 +251,9 @@ export default function MatorClarifyForm({
       items={questions.map((question) => ({
         name: question.name,
         required: question.required && question.inputType !== 'file',
-        choices: question.choices.map((choice: MatorClarifyChoice) => ({ value: choice.value })),
+        choices: question.choices.map((choice: MatorClarifyChoice) => ({
+          value: choice.value,
+        })),
       }))}
       onSubmit={handleSubmit}
       data-testid="mator-clarify-form"
@@ -218,7 +269,9 @@ export default function MatorClarifyForm({
         >
           <QuestionnaireTitle>{question.prompt}</QuestionnaireTitle>
           {question.description && (
-            <QuestionnaireDescription>{question.description}</QuestionnaireDescription>
+            <QuestionnaireDescription>
+              {question.description}
+            </QuestionnaireDescription>
           )}
           <QuestionnaireChoices>
             {question.choices.map((choice) => (
@@ -243,19 +296,30 @@ export default function MatorClarifyForm({
                   className="min-h-11 w-full min-w-0 text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-teal-50 file:px-2 file:py-2 file:text-teal-800"
                 />
               </label>
-            ) : question.freeformLabel && (
-              <QuestionnaireInput
-                type={question.inputType === 'url' ? 'url' : 'text'}
-                aria-label={question.freeformLabel}
-                placeholder={question.freeformLabel}
-                disabled={disabled || submitting}
-              />
+            ) : (
+              question.freeformLabel && (
+                <QuestionnaireInput
+                  type={question.inputType === 'url' ? 'url' : 'text'}
+                  aria-label={question.freeformLabel}
+                  placeholder={question.freeformLabel}
+                  disabled={disabled || submitting}
+                />
+              )
             )}
           </QuestionnaireChoices>
-          <QuestionnaireError>Choose an answer or use skip before moving on.</QuestionnaireError>
+          <QuestionnaireError>
+            Choose an answer or use skip before moving on.
+          </QuestionnaireError>
         </QuestionnaireItem>
       ))}
-      {error && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-2 text-xs text-rose-800">{error}</p>}
+      {error && (
+        <p
+          role="alert"
+          className="rounded-lg border border-rose-200 bg-rose-50 p-2 text-xs text-rose-800"
+        >
+          {error}
+        </p>
+      )}
       <QuestionnaireActions>
         <span className="flex items-center gap-2">
           <QuestionnairePrevious>Back</QuestionnairePrevious>

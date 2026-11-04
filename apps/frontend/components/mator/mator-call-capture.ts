@@ -13,7 +13,6 @@ export class VoiceActivityGate {
   private quietMs = 0;
   private elapsedMs = 0;
   private firstVoiceAt: number | null = null;
-  private lastVoiceAt: number | null = null;
   private options: Required<VoiceActivityOptions>;
 
   constructor(options: VoiceActivityOptions = {}) {
@@ -26,7 +25,10 @@ export class VoiceActivityGate {
     };
   }
 
-  feed(level: number, deltaMs: number): 'waiting' | 'speech' | 'stop' | 'empty' {
+  feed(
+    level: number,
+    deltaMs: number,
+  ): 'waiting' | 'speech' | 'stop' | 'empty' {
     const elapsed = Math.max(0, Math.min(200, deltaMs));
     this.elapsedMs += elapsed;
     if (level >= this.options.threshold) {
@@ -43,10 +45,15 @@ export class VoiceActivityGate {
     if (this.elapsedMs - this.firstVoiceAt >= this.options.maxTurnMs) {
       return this.spokenMs >= this.options.minSpeechMs ? 'stop' : 'empty';
     }
-    if (this.spokenMs >= this.options.minSpeechMs &&
-        this.quietMs >= this.options.endSilenceMs) return 'stop';
-    if (this.spokenMs < this.options.minSpeechMs &&
-        this.quietMs >= this.options.endSilenceMs) {
+    if (
+      this.spokenMs >= this.options.minSpeechMs &&
+      this.quietMs >= this.options.endSilenceMs
+    )
+      return 'stop';
+    if (
+      this.spokenMs < this.options.minSpeechMs &&
+      this.quietMs >= this.options.endSilenceMs
+    ) {
       // A click/cough is not a conversational turn.
       this.firstVoiceAt = null;
       this.spokenMs = 0;
@@ -72,7 +79,11 @@ function abortError(): Error {
 async function acquireMicrophone(signal: AbortSignal): Promise<MediaStream> {
   if (signal.aborted) throw abortError();
   const acquire = navigator.mediaDevices.getUserMedia({
-    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    },
   });
   return new Promise((resolve, reject) => {
     let settled = false;
@@ -82,17 +93,23 @@ async function acquireMicrophone(signal: AbortSignal): Promise<MediaStream> {
       reject(abortError());
     };
     signal.addEventListener('abort', onAbort, { once: true });
-    acquire.then((stream) => {
-      signal.removeEventListener('abort', onAbort);
-      if (settled || signal.aborted) { stream.getTracks().forEach((track) => track.stop()); return; }
-      settled = true;
-      resolve(stream);
-    }, (error: unknown) => {
-      signal.removeEventListener('abort', onAbort);
-      if (settled) return;
-      settled = true;
-      reject(error);
-    });
+    acquire.then(
+      (stream) => {
+        signal.removeEventListener('abort', onAbort);
+        if (settled || signal.aborted) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        settled = true;
+        resolve(stream);
+      },
+      (error: unknown) => {
+        signal.removeEventListener('abort', onAbort);
+        if (settled) return;
+        settled = true;
+        reject(error);
+      },
+    );
   });
 }
 
@@ -104,9 +121,15 @@ export async function captureMatorCallTurn(
   signal: AbortSignal,
   onLevel: (level: number) => void = () => {},
 ): Promise<Blob | null> {
-  if (typeof window === 'undefined' || typeof MediaRecorder === 'undefined' ||
-      typeof AudioContext === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-    throw new Error('Automatic voice calls need microphone and Web Audio support in this browser.');
+  if (
+    typeof window === 'undefined' ||
+    typeof MediaRecorder === 'undefined' ||
+    typeof AudioContext === 'undefined' ||
+    !navigator.mediaDevices?.getUserMedia
+  ) {
+    throw new Error(
+      'Automatic voice calls need microphone and Web Audio support in this browser.',
+    );
   }
   const stream = await acquireMicrophone(signal);
   let context: AudioContext | null = null;
@@ -125,9 +148,12 @@ export async function captureMatorCallTurn(
 
     const samples = new Float32Array(analyser.fftSize);
     const gate = new VoiceActivityGate();
-    const mime = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm']
-      .find((candidate) => MediaRecorder.isTypeSupported(candidate));
-    recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+    const mime = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find(
+      (candidate) => MediaRecorder.isTypeSupported(candidate),
+    );
+    recorder = mime
+      ? new MediaRecorder(stream, { mimeType: mime })
+      : new MediaRecorder(stream);
     const media = recorder;
     const chunks: Blob[] = [];
     let bytes = 0;
@@ -136,34 +162,67 @@ export async function captureMatorCallTurn(
       let completeWithAudio = false;
       let prevTime = performance.now();
       const cleanup = () => {
-        if (timer !== null) { clearInterval(timer); timer = null; }
+        if (timer !== null) {
+          clearInterval(timer);
+          timer = null;
+        }
         signal.removeEventListener('abort', onAbort);
       };
       const finish = (includeAudio: boolean, error?: Error) => {
         if (settled) return;
         completeWithAudio = includeAudio;
-        if (error) { settled = true; cleanup(); reject(error); }
+        if (error) {
+          settled = true;
+          cleanup();
+          reject(error);
+        }
         if (media.state !== 'inactive') media.stop();
         else media.onstop?.(new Event('stop'));
       };
       const onAbort = () => finish(false);
       signal.addEventListener('abort', onAbort, { once: true });
       media.ondataavailable = (event) => {
-        if (event.data.size > 0) { bytes += event.data.size; chunks.push(event.data); }
-        if (bytes > 16 * 1024 * 1024) finish(false, new Error('Audio turn exceeded the allowed capture size.'));
+        if (event.data.size > 0) {
+          bytes += event.data.size;
+          chunks.push(event.data);
+        }
+        if (bytes > 16 * 1024 * 1024)
+          finish(
+            false,
+            new Error('Audio turn exceeded the allowed capture size.'),
+          );
       };
-      media.onerror = () => finish(false, new Error('The microphone recorder encountered an error.'));
+      media.onerror = () =>
+        finish(
+          false,
+          new Error('The microphone recorder encountered an error.'),
+        );
       media.onstop = () => {
         if (settled) return;
         settled = true;
         cleanup();
-        resolve(completeWithAudio && !signal.aborted && bytes > 0
-          ? new Blob(chunks, { type: media.mimeType || 'audio/webm' }) : null);
+        resolve(
+          completeWithAudio && !signal.aborted && bytes > 0
+            ? new Blob(chunks, { type: media.mimeType || 'audio/webm' })
+            : null,
+        );
       };
-      try { media.start(200); }
-      catch (error) { finish(false, error instanceof Error ? error : new Error('Could not start microphone recording.')); return; }
+      try {
+        media.start(200);
+      } catch (error) {
+        finish(
+          false,
+          error instanceof Error
+            ? error
+            : new Error('Could not start microphone recording.'),
+        );
+        return;
+      }
       timer = setInterval(() => {
-        if (signal.aborted) { finish(false); return; }
+        if (signal.aborted) {
+          finish(false);
+          return;
+        }
         const now = performance.now();
         analyser.getFloatTimeDomainData(samples);
         const level = sampleRms(samples);

@@ -1,11 +1,11 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { test } from 'node:test';
+import { editorialYaml, LinkedInEditorialStore } from '../src/linkedin/linkedin-editorial.js';
 import { AccountStore } from '../src/profile/account-store.js';
-import { randomUUID } from 'node:crypto';
-import { LinkedInEditorialStore, editorialYaml } from '../src/linkedin/linkedin-editorial.js';
 
 process.env.NODE_ENV = 'test';
 const { buildApp } = await import('../src/main.js');

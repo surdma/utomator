@@ -1,12 +1,12 @@
 'use client';
 
 import {
+  type FormEvent,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type FormEvent,
 } from 'react';
 import {
   confirmMatorStage,
@@ -14,6 +14,9 @@ import {
   fetchMatorEvents,
   fetchMatorSettings,
   listMatorConversations,
+  type MatorImageMarkerDto,
+  type MatorSettingsMasked,
+  type MatorSettingsSavePatch,
   patchMatorMarkers,
   postMatorMessage,
   rejectMatorStage,
@@ -21,22 +24,21 @@ import {
   saveMatorSettings,
   switchMatorConversation,
   uploadMatorAttachment,
-  type MatorImageMarkerDto,
-  type MatorSettingsMasked,
-  type MatorSettingsSavePatch,
 } from './mator-api.ts';
+import { resolveMatorCallTurn } from './mator-call-contract.ts';
+import type { MatorCallTurnResult } from './mator-call-coordinator.ts';
 import {
   eventsToConversation,
   findIncompleteEvent,
   findPendingStage,
-  mergeMatorEvents,
-  pendingStageLabel,
-  shouldSpeakHow,
-  stageResolution,
   type MatorChatBubble,
   type MatorChatEvent,
   type MatorConversationSummary,
   type MatorSettingsToggles,
+  mergeMatorEvents,
+  pendingStageLabel,
+  shouldSpeakHow,
+  stageResolution,
 } from './mator-chat-state.ts';
 import {
   beginMatorSend,
@@ -45,8 +47,6 @@ import {
   finishMatorSendSuccess,
   type MatorSendGate,
 } from './mator-send-gate.ts';
-import { resolveMatorCallTurn } from './mator-call-contract.ts';
-import type { MatorCallTurnResult } from './mator-call-coordinator.ts';
 
 function newIdempotencyKey() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -62,7 +62,12 @@ type Options = {
   voiceOnly?: boolean;
 };
 
-export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly = false }: Options) {
+export function useMatorChat({
+  workflowId,
+  onSpeakHow,
+  onSpeakReply,
+  voiceOnly = false,
+}: Options) {
   const [message, setMessage] = useState('');
   const [conversations, setConversations] = useState<
     MatorConversationSummary[]
@@ -107,10 +112,16 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
     // In voice-only mode, speak the final assistant reply once, not every
     // guidance event followed by the same answer.
     const spokenReply = voiceOnlyRef.current
-      ? [...incoming].reverse().find(
-          (event) => event.role === 'assistant' && event.kind === 'message' &&
-            event.status !== 'error' && event.status !== 'incomplete' && Boolean(event.text?.trim())
-        )
+      ? [...incoming]
+          .reverse()
+          .find(
+            (event) =>
+              event.role === 'assistant' &&
+              event.kind === 'message' &&
+              event.status !== 'error' &&
+              event.status !== 'incomplete' &&
+              Boolean(event.text?.trim()),
+          )
       : null;
     if (spokenReply?.text) {
       try {
@@ -183,7 +194,7 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
 
   const conversation = useMemo(
     () => eventsToConversation(events, localNotices),
-    [events, localNotices]
+    [events, localNotices],
   );
 
   const staged = useMemo(() => findPendingStage(events), [events]);
@@ -223,7 +234,8 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
   const setConversation = useCallback(
     (
       next:
-        MatorChatBubble[] | ((previous: MatorChatBubble[]) => MatorChatBubble[])
+        | MatorChatBubble[]
+        | ((previous: MatorChatBubble[]) => MatorChatBubble[]),
     ) => {
       const resolved =
         typeof next === 'function'
@@ -235,11 +247,11 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
           (bubble) =>
             bubble.sender === 'assistant' &&
             !eventIds.has(String(bubble.id)) &&
-            bubble.id !== 'seed'
-        )
+            bubble.id !== 'seed',
+        ),
       );
     },
-    [events, localNotices]
+    [events, localNotices],
   );
 
   const send = useCallback(
@@ -249,14 +261,19 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
       if (!request && ids.length === 0) return;
       const conversationId = conversationIdRef.current;
       if (!conversationId) {
-        setError('Chat is not ready. Wait for the workflow conversation to load, then retry.');
+        setError(
+          'Chat is not ready. Wait for the workflow conversation to load, then retry.',
+        );
         if (text !== undefined) setMessage(request);
         return false;
       }
 
       // Only retry the same idempotency key when the payload is unchanged.
       const payloadSignature = JSON.stringify({ request, ids });
-      if (sendGateRef.current.idempotencyKey && lastSendPayloadRef.current !== payloadSignature) {
+      if (
+        sendGateRef.current.idempotencyKey &&
+        lastSendPayloadRef.current !== payloadSignature
+      ) {
         sendGateRef.current = createMatorSendGate();
       }
       const started = beginMatorSend(sendGateRef.current, newIdempotencyKey);
@@ -275,19 +292,19 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
             ...(request ? { text: request } : {}),
             ...(ids.length ? { attachmentIds: ids } : {}),
           },
-          started.key
+          started.key,
         );
         setEvents((previous) => mergeMatorEvents(previous, result.events));
         speakNewHow(result.events);
         sendGateRef.current = finishMatorSendSuccess(sendGateRef.current);
         lastSendPayloadRef.current = null;
         if (text !== undefined) {
-          setMessage((current) => current.trim() === request ? '' : current);
+          setMessage((current) => (current.trim() === request ? '' : current));
         }
         return true;
       } catch (err) {
         sendGateRef.current = finishMatorSendFailure(sendGateRef.current);
-        setMessage((current) => current.trim() ? current : request);
+        setMessage((current) => (current.trim() ? current : request));
         setError(err instanceof Error ? err.message : 'Unable to send message');
         return false;
       } finally {
@@ -295,56 +312,84 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
         setPending(false);
       }
     },
-    [message, speakNewHow]
+    [message, speakNewHow],
   );
 
   // Call requests reuse the exact Mator event stream and the same send gate,
   // but do not mutate the editable text draft or trigger the chat TTS callback.
-  const sendCallTurn = useCallback(async (
-    transcript: string, scope: string, signal: AbortSignal, attachmentIds?: string[]
-  ): Promise<MatorCallTurnResult> => {
-    const id = conversationIdRef.current;
-    const request = transcript.trim();
-    if (!id || !workflowId || scope !== `${workflowId}:${id}` || !request) {
-      throw new Error('The active Mator conversation changed.');
-    }
-    if (signal.aborted) throw new Error('The call was cancelled.');
-    if (inFlightRef.current) throw new Error('Mator is already processing another message.');
-    const signature = JSON.stringify({ request, ids: attachmentIds ?? [], mode: 'ai_call' });
-    if (sendGateRef.current.idempotencyKey && lastSendPayloadRef.current !== signature) {
-      sendGateRef.current = createMatorSendGate();
-    }
-    const started = beginMatorSend(sendGateRef.current, newIdempotencyKey);
-    if (!started) throw new Error('Mator is processing another message.');
-    sendGateRef.current = started.next;
-    lastSendPayloadRef.current = signature;
-    inFlightRef.current = true;
-    setPending(true);
-    setError(null);
-    try {
-      const response = await postMatorMessage(id, { text: request, ...(attachmentIds?.length ? {attachmentIds}:{}), interactionMode: 'ai_call' }, started.key, signal);
-      if (signal.aborted || conversationIdRef.current !== id) {
-        throw new Error('The call conversation changed before its reply arrived.');
+  const sendCallTurn = useCallback(
+    async (
+      transcript: string,
+      scope: string,
+      signal: AbortSignal,
+      attachmentIds?: string[],
+    ): Promise<MatorCallTurnResult> => {
+      const id = conversationIdRef.current;
+      const request = transcript.trim();
+      if (!id || !workflowId || scope !== `${workflowId}:${id}` || !request) {
+        throw new Error('The active Mator conversation changed.');
       }
-      setEvents((previous) => mergeMatorEvents(previous, response.events));
-      sendGateRef.current = finishMatorSendSuccess(sendGateRef.current);
-      lastSendPayloadRef.current = null;
-      return resolveMatorCallTurn(response.events);
-    } catch (cause) {
-      sendGateRef.current = finishMatorSendFailure(sendGateRef.current);
-      if (!signal.aborted && conversationIdRef.current === id) {
-        setError(cause instanceof Error ? cause.message : 'Unable to send call turn');
+      if (signal.aborted) throw new Error('The call was cancelled.');
+      if (inFlightRef.current)
+        throw new Error('Mator is already processing another message.');
+      const signature = JSON.stringify({
+        request,
+        ids: attachmentIds ?? [],
+        mode: 'ai_call',
+      });
+      if (
+        sendGateRef.current.idempotencyKey &&
+        lastSendPayloadRef.current !== signature
+      ) {
+        sendGateRef.current = createMatorSendGate();
       }
-      throw cause;
-    } finally {
-      inFlightRef.current = false;
-      setPending(false);
-    }
-  }, [workflowId]);
+      const started = beginMatorSend(sendGateRef.current, newIdempotencyKey);
+      if (!started) throw new Error('Mator is processing another message.');
+      sendGateRef.current = started.next;
+      lastSendPayloadRef.current = signature;
+      inFlightRef.current = true;
+      setPending(true);
+      setError(null);
+      try {
+        const response = await postMatorMessage(
+          id,
+          {
+            text: request,
+            ...(attachmentIds?.length ? { attachmentIds } : {}),
+            interactionMode: 'ai_call',
+          },
+          started.key,
+          signal,
+        );
+        if (signal.aborted || conversationIdRef.current !== id) {
+          throw new Error(
+            'The call conversation changed before its reply arrived.',
+          );
+        }
+        setEvents((previous) => mergeMatorEvents(previous, response.events));
+        sendGateRef.current = finishMatorSendSuccess(sendGateRef.current);
+        lastSendPayloadRef.current = null;
+        return resolveMatorCallTurn(response.events);
+      } catch (cause) {
+        sendGateRef.current = finishMatorSendFailure(sendGateRef.current);
+        if (!signal.aborted && conversationIdRef.current === id) {
+          setError(
+            cause instanceof Error ? cause.message : 'Unable to send call turn',
+          );
+        }
+        throw cause;
+      } finally {
+        inFlightRef.current = false;
+        setPending(false);
+      }
+    },
+    [workflowId],
+  );
 
   const uploadForClarify = useCallback(async (file: File): Promise<string> => {
     const conversationId = conversationIdRef.current;
-    if (!conversationId) throw new Error('Select a workflow conversation first.');
+    if (!conversationId)
+      throw new Error('Select a workflow conversation first.');
     const uploaded = await uploadMatorAttachment(conversationId, file);
     if (file.type.startsWith('image/')) {
       const previewUrl = URL.createObjectURL(file);
@@ -356,50 +401,65 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
     return uploaded.id;
   }, []);
 
-  const attachFile = useCallback(
-    async (file: File) => {
-      const conversationId = conversationIdRef.current;
-      if (!conversationId) {
-        setError('Select or create a workflow conversation first');
-        return null;
+  const attachFile = useCallback(async (file: File) => {
+    const conversationId = conversationIdRef.current;
+    if (!conversationId) {
+      setError('Select or create a workflow conversation first');
+      return null;
+    }
+    setError(null);
+    try {
+      const uploaded = await uploadMatorAttachment(conversationId, file);
+      if (file.type.startsWith('image/')) {
+        const previewUrl = URL.createObjectURL(file);
+        setAttachmentPreviews((previous) => ({
+          ...previous,
+          [uploaded.id]: previewUrl,
+        }));
       }
-      setError(null);
-      try {
-        const uploaded = await uploadMatorAttachment(conversationId, file);
-        if (file.type.startsWith('image/')) {
-          const previewUrl = URL.createObjectURL(file);
-          setAttachmentPreviews((previous) => ({
-            ...previous,
-            [uploaded.id]: previewUrl,
-          }));
-        }
-        // Uploading prepares the asset; sending happens only on user request.
-        return uploaded;
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : 'Unable to upload attachment'
-        );
-        return null;
-      }
-    },
-    []
-  );
+      // Uploading prepares the asset; sending happens only on user request.
+      return uploaded;
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Unable to upload attachment',
+      );
+      return null;
+    }
+  }, []);
 
   const saveMarkers = useCallback(
-    async (attachmentId: string, markers: MatorImageMarkerDto[], reviewId?: string) => {
+    async (
+      attachmentId: string,
+      markers: MatorImageMarkerDto[],
+      reviewId?: string,
+    ) => {
       setError(null);
       try {
         const meta = await patchMatorMarkers(attachmentId, markers, reviewId);
         setEvents((previous) =>
           previous.map((event) =>
-            event.attachmentId === attachmentId || event.attachments?.some((asset) => asset.id === attachmentId)
+            event.attachmentId === attachmentId ||
+            event.attachments?.some((asset) => asset.id === attachmentId)
               ? {
                   ...event,
-                  ...(event.attachmentId === attachmentId ? { markers: meta.markers, reviewId: meta.reviewId ?? undefined } : {}),
-                  attachments: event.attachments?.map((asset) => asset.id === attachmentId ? { ...asset, markers: meta.markers, reviewId: meta.reviewId ?? undefined } : asset),
+                  ...(event.attachmentId === attachmentId
+                    ? {
+                        markers: meta.markers,
+                        reviewId: meta.reviewId ?? undefined,
+                      }
+                    : {}),
+                  attachments: event.attachments?.map((asset) =>
+                    asset.id === attachmentId
+                      ? {
+                          ...asset,
+                          markers: meta.markers,
+                          reviewId: meta.reviewId ?? undefined,
+                        }
+                      : asset,
+                  ),
                 }
-              : event
-          )
+              : event,
+          ),
         );
         return meta;
       } catch (err) {
@@ -407,7 +467,7 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
         throw err;
       }
     },
-    []
+    [],
   );
 
   const sendMessage = useCallback(
@@ -415,7 +475,7 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
       event.preventDefault();
       void send();
     },
-    [send]
+    [send],
   );
 
   const incompleteContinue = useCallback(async () => {
@@ -423,47 +483,69 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
     await send('Continue');
   }, [incomplete, send]);
 
-  const confirmStage = useCallback(async (eventId?: string) => {
-    const conversationId = conversationIdRef.current;
-    const target = eventId ? events.find((event) => event.id === eventId && event.status === 'staged' && !stageResolution(events, event.id)) : staged;
-    if (!conversationId || !target || inFlightRef.current) return;
-    inFlightRef.current = true;
-    setPending(true);
-    setError(null);
-    try {
-      const result = await confirmMatorStage(conversationId, target.id);
-      setEvents((previous) => mergeMatorEvents(previous, [result.event]));
-      return true;
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Unable to confirm staged action'
-      );
-    } finally {
-      inFlightRef.current = false;
-      setPending(false);
-    }
-  }, [events, staged]);
+  const confirmStage = useCallback(
+    async (eventId?: string) => {
+      const conversationId = conversationIdRef.current;
+      const target = eventId
+        ? events.find(
+            (event) =>
+              event.id === eventId &&
+              event.status === 'staged' &&
+              !stageResolution(events, event.id),
+          )
+        : staged;
+      if (!conversationId || !target || inFlightRef.current) return;
+      inFlightRef.current = true;
+      setPending(true);
+      setError(null);
+      try {
+        const result = await confirmMatorStage(conversationId, target.id);
+        setEvents((previous) => mergeMatorEvents(previous, [result.event]));
+        return true;
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Unable to confirm staged action',
+        );
+      } finally {
+        inFlightRef.current = false;
+        setPending(false);
+      }
+    },
+    [events, staged],
+  );
 
-  const rejectStage = useCallback(async (eventId?: string) => {
-    const conversationId = conversationIdRef.current;
-    const target = eventId ? events.find((event) => event.id === eventId && event.status === 'staged' && !stageResolution(events, event.id)) : staged;
-    if (!conversationId || !target || inFlightRef.current) return;
-    inFlightRef.current = true;
-    setPending(true);
-    setError(null);
-    try {
-      const result = await rejectMatorStage(conversationId, target.id);
-      setEvents((previous) => mergeMatorEvents(previous, [result.event]));
-      return true;
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Unable to reject staged action'
-      );
-    } finally {
-      inFlightRef.current = false;
-      setPending(false);
-    }
-  }, [events, staged]);
+  const rejectStage = useCallback(
+    async (eventId?: string) => {
+      const conversationId = conversationIdRef.current;
+      const target = eventId
+        ? events.find(
+            (event) =>
+              event.id === eventId &&
+              event.status === 'staged' &&
+              !stageResolution(events, event.id),
+          )
+        : staged;
+      if (!conversationId || !target || inFlightRef.current) return;
+      inFlightRef.current = true;
+      setPending(true);
+      setError(null);
+      try {
+        const result = await rejectMatorStage(conversationId, target.id);
+        setEvents((previous) => mergeMatorEvents(previous, [result.event]));
+        return true;
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : 'Unable to reject staged action',
+        );
+      } finally {
+        inFlightRef.current = false;
+        setPending(false);
+      }
+    },
+    [events, staged],
+  );
 
   const newConversation = useCallback(async () => {
     if (!workflowId || inFlightRef.current) return;
@@ -483,7 +565,7 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
       lastSendPayloadRef.current = null;
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Unable to create conversation'
+        err instanceof Error ? err.message : 'Unable to create conversation',
       );
     } finally {
       inFlightRef.current = false;
@@ -509,14 +591,14 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
         sendGateRef.current = createMatorSendGate();
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : 'Unable to switch conversation'
+          err instanceof Error ? err.message : 'Unable to switch conversation',
         );
       } finally {
         inFlightRef.current = false;
         setPending(false);
       }
     },
-    [conversations, workflowId]
+    [conversations, workflowId],
   );
 
   const restorePipeline = useCallback(async (confirmDirty = false) => {
@@ -531,7 +613,7 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
       setEvents(loaded);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Unable to restore pipeline'
+        err instanceof Error ? err.message : 'Unable to restore pipeline',
       );
       throw err;
     } finally {
@@ -554,7 +636,7 @@ export function useMatorChat({ workflowId, onSpeakHow, onSpeakReply, voiceOnly =
         }
       },
     }),
-    [settingsToggles.howTtsEnabled]
+    [settingsToggles.howTtsEnabled],
   );
 
   return {

@@ -1,50 +1,54 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
-  ReactFlow,
-  ReactFlowProvider,
   Background,
   BackgroundVariant,
-  Controls,
-  Position,
-  MarkerType,
-  useNodesState,
-  type Edge,
   type Connection,
+  Controls,
+  type Edge,
+  MarkerType,
+  Position,
+  ReactFlow,
+  ReactFlowProvider,
+  useNodesState,
 } from '@xyflow/react';
 import { ArrowLeft, ChevronRight } from 'lucide-react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { WorkflowEditorDialogs } from './editor/workflow-editor-dialogs';
+import { WorkflowEditorToolbar } from './editor/workflow-editor-toolbar';
+import {
+  type StepForm,
+  WorkflowStepInspector,
+} from './editor/workflow-step-inspector';
 import StepCard from './workflow-step-card';
 import { fixed } from './workflow-step-policy';
-import { WorkflowEditorToolbar } from './editor/workflow-editor-toolbar';
-import { WorkflowEditorDialogs } from './editor/workflow-editor-dialogs';
-import {
-  WorkflowStepInspector,
-  type StepForm,
-} from './editor/workflow-step-inspector';
+
 export type { StepForm, StepFormField } from './editor/workflow-step-inspector';
+
 import type {
-  StepKind,
-  WorkflowStep,
-  WorkflowPlan,
-  RunEvent,
   FlowNode,
-} from './workflow-types';
-export type {
-  StepKind,
-  WorkflowStep,
-  WorkflowPlan,
   RunEvent,
+  StepKind,
+  WorkflowPlan,
+  WorkflowStep,
 } from './workflow-types';
+
+export type {
+  RunEvent,
+  StepKind,
+  WorkflowPlan,
+  WorkflowStep,
+} from './workflow-types';
+
+import { useGrowthRunJournal } from '../../../hooks/use-growth-run-journal';
+import StudioDialog from '../../ui/studio-dialog';
 import { GrowthGraphNodeCard } from '../growth/artboard/growth-graph-node-card';
 import {
   buildGrowthGraph,
   type GrowthGraphNode,
 } from '../growth/growth-graph-model';
-import { useGrowthProfileWorkflow } from '../growth/hooks/use-growth-profile-workflow';
 import GrowthWorkspaceDialogs from '../growth/growth-workspace-dialogs';
-import StudioDialog from '../../ui/studio-dialog';
-import { useGrowthRunJournal } from '../../../hooks/use-growth-run-journal';
+import { useGrowthProfileWorkflow } from '../growth/hooks/use-growth-profile-workflow';
 
 type Props = {
   plan: WorkflowPlan;
@@ -117,7 +121,7 @@ function chain(plan: WorkflowPlan, steps: WorkflowStep[]): WorkflowPlan {
     steps,
     links: steps
       .slice(1)
-      .map((s, i) => ({ source: steps[i]!.id, target: s.id })),
+      .map((s, i) => ({ source: steps[i]?.id, target: s.id })),
   };
 }
 function EditorBody(props: Props) {
@@ -162,7 +166,7 @@ function EditorBody(props: Props) {
   const growth = useGrowthProfileWorkflow(
     plan.platform,
     growthTemplateId ?? null,
-    growthAccountId
+    growthAccountId,
   );
   const growthProgram = growth.program;
   const growthRun = growth.run;
@@ -170,7 +174,7 @@ function EditorBody(props: Props) {
     growthProgram?.stages.find((stage) => stage.id === growthPipelineId) ??
     null;
   const liveGrowthPipeline = growthRun?.pipelineRuns.find(
-    (item) => item.id === growthPipelineId
+    (item) => item.id === growthPipelineId,
   );
   const { journal: growthJournal, logError: growthJournalError } =
     useGrowthRunJournal(liveGrowthPipeline?.childRunId ?? null);
@@ -182,10 +186,10 @@ function EditorBody(props: Props) {
             growthRun,
             growthStage,
             growthJournal,
-            liveGrowthPipeline
+            liveGrowthPipeline,
           )
         : null,
-    [growthProgram, growthRun, growthStage, growthJournal, liveGrowthPipeline]
+    [growthProgram, growthRun, growthStage, growthJournal, liveGrowthPipeline],
   );
   const [outputOpen, setOutputOpen] = useState(false);
   const [editorError, setEditorError] = useState('');
@@ -193,7 +197,7 @@ function EditorBody(props: Props) {
     Partial<Record<StepKind, StepForm>>
   >({});
   const [stepFormsError, setStepFormsError] = useState('');
-  const [stepFormsRequest, setStepFormsRequest] = useState(0);
+  const [_stepFormsRequest, setStepFormsRequest] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
     void fetch('/api/step-forms', {
@@ -207,7 +211,7 @@ function EditorBody(props: Props) {
           };
           throw Error(
             result.error ||
-              'Step fields unavailable (HTTP ' + response.status + ').'
+              `Step fields unavailable (HTTP ${response.status}).`,
           );
         }
         const data = (await response.json()) as Partial<
@@ -227,11 +231,11 @@ function EditorBody(props: Props) {
       .catch((error) => {
         if (!controller.signal.aborted)
           setStepFormsError(
-            error instanceof Error ? error.message : 'Step fields unavailable'
+            error instanceof Error ? error.message : 'Step fields unavailable',
           );
       });
     return () => controller.abort();
-  }, [stepFormsRequest]);
+  }, []);
   const latest = useMemo(() => {
     const m = new Map<string, string>();
     for (const e of events)
@@ -241,31 +245,36 @@ function EditorBody(props: Props) {
   }, [events]);
   const data = useMemo(
     () => ({
-      nodes: plan.steps.map((step, i): FlowNode => ({
-        id: step.id,
-        type: 'step',
-        position: step.position ?? {
-          x: 50 + (i % 4) * 290,
-          y: 70 + Math.floor(i / 4) * 230,
-        },
-        data: { step, index: i + 1, status: latest.get(step.id) ?? 'idle' },
-        sourcePosition: Position.Right,
-        targetPosition: Position.Left,
-      })),
-      edges: plan.links.map((link): Edge => ({
-        id: link.source + '-to-' + link.target,
-        source: link.source,
-        target: link.target,
-        type: 'smoothstep',
-        markerEnd: { type: MarkerType.ArrowClosed, color: '#0f766e' },
-        style: { stroke: '#0f766e', strokeWidth: 2 },
-        animated: state === 'running' && latest.get(link.target) === 'started',
-      })),
+      nodes: plan.steps.map(
+        (step, i): FlowNode => ({
+          id: step.id,
+          type: 'step',
+          position: step.position ?? {
+            x: 50 + (i % 4) * 290,
+            y: 70 + Math.floor(i / 4) * 230,
+          },
+          data: { step, index: i + 1, status: latest.get(step.id) ?? 'idle' },
+          sourcePosition: Position.Right,
+          targetPosition: Position.Left,
+        }),
+      ),
+      edges: plan.links.map(
+        (link): Edge => ({
+          id: `${link.source}-to-${link.target}`,
+          source: link.source,
+          target: link.target,
+          type: 'smoothstep',
+          markerEnd: { type: MarkerType.ArrowClosed, color: '#0f766e' },
+          style: { stroke: '#0f766e', strokeWidth: 2 },
+          animated:
+            state === 'running' && latest.get(link.target) === 'started',
+        }),
+      ),
     }),
-    [plan, latest, state]
+    [plan, latest, state],
   );
   const [nodes, setNodes, onNodesChange] = useNodesState<ArtboardNode>(
-    data.nodes
+    data.nodes,
   );
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -303,7 +312,7 @@ function EditorBody(props: Props) {
     const ordered = [...plan.steps];
     if (fixed.has(target)) {
       setEditorError(
-        'Required core nodes cannot be moved. Connect an optional step instead.'
+        'Required core nodes cannot be moved. Connect an optional step instead.',
       );
       return;
     }
@@ -347,12 +356,12 @@ function EditorBody(props: Props) {
     }
     if (kind === 'approve' && !evidence) {
       setEditorError(
-        'Add a connected evidence step before requesting approval.'
+        'Add a connected evidence step before requesting approval.',
       );
       return;
     }
     const step: WorkflowStep = {
-      id: 'step-' + crypto.randomUUID().slice(0, 8),
+      id: `step-${crypto.randomUUID().slice(0, 8)}`,
       kind,
       title: choices.find((c) => c.kind === kind)?.name ?? kind,
       ...(kind === 'delay' ? { delayMs: 1000 } : {}),
@@ -384,8 +393,8 @@ function EditorBody(props: Props) {
     update(
       chain(
         plan,
-        plan.steps.filter((s) => s.id !== stepDraft.id)
-      )
+        plan.steps.filter((s) => s.id !== stepDraft.id),
+      ),
     );
     setStepDraft(null);
   }
@@ -466,7 +475,7 @@ function EditorBody(props: Props) {
                   steps: plan.steps.map((step) =>
                     step.id === node.id
                       ? { ...step, position: node.position }
-                      : step
+                      : step,
                   ),
                 });
             }}
@@ -506,7 +515,7 @@ function EditorBody(props: Props) {
             aria-label={
               growthTemplateId
                 ? growthStage
-                  ? 'Compiled tasks for ' + growthStage.title
+                  ? `Compiled tasks for ${growthStage.title}`
                   : 'Growth workflow pipeline graph'
                 : 'Editable workflow step graph'
             }
@@ -542,7 +551,7 @@ function EditorBody(props: Props) {
                   className="rounded-xl border border-slate-200 bg-white/95 px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm"
                 >
                   {growthProgram
-                    ? growthProgram.stages.length + ' connected pipelines'
+                    ? `${growthProgram.stages.length} connected pipelines`
                     : plan.platform !== 'linkedin'
                       ? 'Growth workflows require a LinkedIn account.'
                       : growth.error || 'Loading workflow pipelines…'}
@@ -555,7 +564,7 @@ function EditorBody(props: Props) {
               )}
               {growthStage && liveGrowthPipeline?.childRunId && (
                 <a
-                  href={'/api/runs/' + liveGrowthPipeline.childRunId + '/logs'}
+                  href={`/api/runs/${liveGrowthPipeline.childRunId}/logs`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="pointer-events-auto rounded-xl border border-slate-200 bg-white/95 px-3 py-2 text-xs font-semibold text-teal-800 underline shadow-sm"
@@ -607,8 +616,8 @@ function EditorBody(props: Props) {
             <span>
               {growthProgram?.kind === 'GrowthBlueprintWorkflow'
                 ? 'Planning-only workflow'
-                : 'Growth execution: ' + (growthRun?.state ?? 'not started')}
-              {growthRun?.id ? ' · ' + growthRun.id.slice(0, 8) : ''}
+                : `Growth execution: ${growthRun?.state ?? 'not started'}`}
+              {growthRun?.id ? ` · ${growthRun.id.slice(0, 8)}` : ''}
             </span>
             <button
               type="button"
@@ -624,7 +633,7 @@ function EditorBody(props: Props) {
             <span>
               Live status:{' '}
               <strong className="capitalize">{state ?? 'idle'}</strong>
-              {runId ? ' · ' + runId.slice(0, 8) : ''}
+              {runId ? ` · ${runId.slice(0, 8)}` : ''}
             </span>
             <button
               type="button"

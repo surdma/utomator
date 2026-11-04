@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { ConnectorService } from '../connect/service.js';
-import type { ProfilePlanner } from '../profile/profile-planner.js';
 import type { CareerStore } from '../profile/career-store.js';
+import type { ProfilePlanner } from '../profile/profile-planner.js';
 
 /** Read-only full-profile optimization planning. Independent from social-site mutation. */
 export function registerProfilePlanRoutes(

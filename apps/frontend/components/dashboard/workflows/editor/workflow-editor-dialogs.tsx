@@ -1,10 +1,10 @@
 'use client';
 
 import Image from 'next/image';
-import { type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import StudioDialog from '@/components/ui/studio-dialog';
 import TemplateBrowser from '../template-browser';
-import type { StepKind, WorkflowPlan, RunEvent } from '../workflow-types';
+import type { RunEvent, StepKind, WorkflowPlan } from '../workflow-types';
 
 type StepChoice = { kind: StepKind; name: string; help: string };
 
@@ -68,14 +68,14 @@ export function WorkflowEditorDialogs({
   const images = events.filter(
     (e) =>
       e.kind === 'screenshot' &&
-      /^[a-zA-Z0-9_-]+\.png$/.test(e.details?.fileName ?? '')
+      /^[a-zA-Z0-9_-]+\.png$/.test(e.details?.fileName ?? ''),
   );
   const observed = [...events]
     .reverse()
     .find(
       (e) =>
         e.kind === 'audit' &&
-        (e.details?.headline || e.details?.bio || e.details?.excerpt)
+        (e.details?.headline || e.details?.bio || e.details?.excerpt),
     );
   const result = events.filter((e) => e.kind === 'result');
 
@@ -109,8 +109,8 @@ export function WorkflowEditorDialogs({
                   onEditorError(
                     error instanceof Error
                       ? error.message
-                      : 'Could not save workflow'
-                  )
+                      : 'Could not save workflow',
+                  ),
                 );
             }}
             disabled={saving || busy}
@@ -223,7 +223,7 @@ export function WorkflowEditorDialogs({
                   >
                     <Image
                       unoptimized
-                      src={evidenceRoot + e.details!.fileName}
+                      src={evidenceRoot + e.details?.fileName}
                       alt={e.message}
                       width={640}
                       height={420}

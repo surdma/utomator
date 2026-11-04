@@ -1,18 +1,18 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import test from 'node:test';
 import Fastify from 'fastify';
-import { registerMatorRoutes } from '../src/mator/mator-routes.js';
-import { createConversation } from '../src/mator/mator-conversations.js';
-import { stageAction, type MatorActionPorts } from '../src/mator/mator-actions.js';
-import { putMatorSettings } from '../src/mator/mator-settings.js';
+import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
+import { type MatorActionPorts, stageAction } from '../src/mator/mator-actions.js';
 import { MAX_MATOR_ACTIONS_PER_TURN } from '../src/mator/mator-agent.js';
+import { createConversation } from '../src/mator/mator-conversations.js';
+import { registerMatorRoutes } from '../src/mator/mator-routes.js';
+import { putMatorSettings } from '../src/mator/mator-settings.js';
 import { defaultPlan, type WorkflowPlan } from '../src/workflows/workflow-plan.js';
 import type { WorkflowRecord } from '../src/workflows/workflow-registry.js';
-import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
 
 const MASTER = Buffer.from(createHash('sha256').update('mator-hardening-test-master').digest());
 const hex = (buffer: Buffer) => buffer.toString('hex');
@@ -262,10 +262,7 @@ test('missing Groq key returns 400 with clear settings hint; invalid key yields 
       const err = events.find((e) => e.status === 'error');
       assert.ok(err, 'expected error event for invalid Groq key');
       assert.match(err!.text ?? '', /groq|invalid|api key|settings/i);
-      assert.equal(
-        events.filter((e) => e.status === 'staged' || e.status === 'applied').length,
-        0,
-      );
+      assert.equal(events.filter((e) => e.status === 'staged' || e.status === 'applied').length, 0);
     } finally {
       await appInvalid.close();
     }
@@ -301,9 +298,7 @@ test('action loop cap processes at most 3 model actions per turn', async () => {
         action?: { type?: string; reason?: string; text?: string };
         text?: string;
       }>;
-      const modelGuidance = events.filter(
-        (e) => e.kind === 'how' && /^explanation-/.test(e.text ?? ''),
-      );
+      const modelGuidance = events.filter((e) => e.kind === 'how' && /^explanation-/.test(e.text ?? ''));
       assert.equal(modelGuidance.length, MAX_MATOR_ACTIONS_PER_TURN);
       assert.deepEqual(
         modelGuidance.map((event) => event.text),
@@ -317,7 +312,8 @@ test('action loop cap processes at most 3 model actions per turn', async () => {
       assert.ok(
         events.some(
           (e) =>
-            (e.action?.type === 'explain_how' && /3 actions|continue/i.test(e.action.text ?? e.text ?? '')) ||
+            (e.action?.type === 'explain_how' &&
+              /3 actions|continue/i.test(e.action.text ?? e.text ?? '')) ||
             /Stopped after 3 actions/i.test(e.text ?? '') ||
             (e.action?.type === 'explain_how' && /Stopped after 3/i.test(String(e.action))),
         ),

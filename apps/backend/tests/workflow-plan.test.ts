@@ -1,21 +1,23 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import test from 'node:test';
 import { AccountStore } from '../src/profile/account-store.js';
-import { defaultPlan, templates, validatePlan } from '../src/workflows/workflow-plan.js';
-import { WorkflowPlanStore } from '../src/workflows/workflow-store.js';
-import { WorkflowRegistry } from '../src/workflows/workflow-registry.js';
 import { RunArchive } from '../src/runs/run-archive.js';
-import { compileWorkflow } from '../src/workflows/workflow-yaml.js';
 import { parseStepDefinition, StepDefinitionStore } from '../src/workflows/step-definitions.js';
 import { loadStepForms, parseStepForms } from '../src/workflows/step-forms.js';
-import { randomUUID } from 'node:crypto';
+import { defaultPlan, templates, validatePlan } from '../src/workflows/workflow-plan.js';
+import { WorkflowRegistry } from '../src/workflows/workflow-registry.js';
+import { WorkflowPlanStore } from '../src/workflows/workflow-store.js';
+import { compileWorkflow } from '../src/workflows/workflow-yaml.js';
+
 // Set test mode before dynamically importing the Fastify entry point.
 // Static ESM imports execute before assignments and would start a stray listener.
 process.env.NODE_ENV = 'test';
 const { buildApp } = await import('../src/main.js');
+
 import { BrowserSession } from '../src/browser/session.js';
 
 test('YAML step forms expose only known, bounded editable fields', async () => {

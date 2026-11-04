@@ -7,11 +7,11 @@ import {
   findPendingStage,
   formatClarifyReply,
   mergeMatorEvents,
-  stageResolution,
-  shouldRenderMatorEvent,
   pendingStageLabel,
   readClarifyQuestions,
+  shouldRenderMatorEvent,
   shouldSpeakHow,
+  stageResolution,
 } from '../components/mator/mator-chat-state.ts';
 
 const base = {
@@ -48,11 +48,11 @@ test('mergeMatorEvents dedupes by id and sorts by createdAt', () => {
         text: 'hi updated',
         createdAt: '2026-10-30T10:00:02.000Z',
       },
-    ]
+    ],
   );
   assert.deepEqual(
     merged.map((event) => event.id),
-    ['b', 'a']
+    ['b', 'a'],
   );
   assert.equal(merged[1].text, 'hi updated');
 });
@@ -85,7 +85,7 @@ test('eventsToConversation maps user/how/message and keeps seed when empty', () 
   ]);
   assert.deepEqual(
     bubbles.map((item) => item.sender),
-    ['user', 'assistant']
+    ['user', 'assistant'],
   );
   assert.equal(bubbles.length, 2);
 });
@@ -152,7 +152,7 @@ test('findPendingStage clears after applied or rejected', () => {
         action: { type: 'edit_step' },
       },
     ]),
-    null
+    null,
   );
   assert.equal(
     findPendingStage([
@@ -166,7 +166,7 @@ test('findPendingStage clears after applied or rejected', () => {
         action: { type: 'edit_step' },
       },
     ]),
-    null
+    null,
   );
 });
 
@@ -198,7 +198,7 @@ test('findIncompleteEvent clears after later assistant success', () => {
         text: 'Resumed and finished.',
       },
     ]),
-    null
+    null,
   );
   assert.equal(
     findIncompleteEvent([
@@ -211,7 +211,7 @@ test('findIncompleteEvent clears after later assistant success', () => {
         text: 'All done.',
       },
     ]),
-    null
+    null,
   );
 });
 
@@ -225,9 +225,9 @@ test('shouldSpeakHow only for assistant how when enabled; never user', () => {
         kind: 'how',
         text: 'Guidance',
       },
-      true
+      true,
     ),
-    true
+    true,
   );
   assert.equal(
     shouldSpeakHow(
@@ -238,9 +238,9 @@ test('shouldSpeakHow only for assistant how when enabled; never user', () => {
         kind: 'how',
         text: 'Guidance',
       },
-      false
+      false,
     ),
-    false
+    false,
   );
   assert.equal(
     shouldSpeakHow(
@@ -251,9 +251,9 @@ test('shouldSpeakHow only for assistant how when enabled; never user', () => {
         kind: 'message',
         text: 'hello',
       },
-      true
+      true,
     ),
-    false
+    false,
   );
 });
 
@@ -292,13 +292,13 @@ test('open clarify stays until the user answers', () => {
         createdAt: '2026-10-30T10:00:01.000Z',
       },
     ]),
-    null
+    null,
   );
   const form = new FormData();
   form.append('tone', 'Direct');
   assert.equal(
     formatClarifyReply(readClarifyQuestions(clarify.action), form),
-    'Which tone? Direct'
+    'Which tone? Direct',
   );
 });
 
@@ -306,32 +306,75 @@ test('typed URL and file clarify questions survive decoding', () => {
   const questions = readClarifyQuestions({
     type: 'clarify',
     questions: [
-      { name: 'website', prompt: 'Which website?', inputType: 'url', required: true },
-      { name: 'attachment', prompt: 'Attach a screenshot', inputType: 'file', required: false },
+      {
+        name: 'website',
+        prompt: 'Which website?',
+        inputType: 'url',
+        required: true,
+      },
+      {
+        name: 'attachment',
+        prompt: 'Attach a screenshot',
+        inputType: 'file',
+        required: false,
+      },
     ],
   });
-  assert.deepEqual(questions?.map((item) => item.inputType), ['url', 'file']);
+  assert.deepEqual(
+    questions?.map((item) => item.inputType),
+    ['url', 'file'],
+  );
   const form = new FormData();
   form.set('website', 'https://example.com/');
   form.set('attachment', 'capture.png');
-  assert.equal(formatClarifyReply(questions, form), 'Which website? https://example.com/\nAttach a screenshot capture.png');
+  assert.equal(
+    formatClarifyReply(questions, form),
+    'Which website? https://example.com/\nAttach a screenshot capture.png',
+  );
 });
 
 test('two outstanding staged proposals keep independent approval state', () => {
   const stages = [
-    { ...base, id: 'proposal-one', role: 'assistant', kind: 'action', status: 'staged', action: { type: 'edit_step' } },
-    { ...base, id: 'proposal-two', role: 'assistant', kind: 'action', status: 'staged', action: { type: 'edit_step' } },
+    {
+      ...base,
+      id: 'proposal-one',
+      role: 'assistant',
+      kind: 'action',
+      status: 'staged',
+      action: { type: 'edit_step' },
+    },
+    {
+      ...base,
+      id: 'proposal-two',
+      role: 'assistant',
+      kind: 'action',
+      status: 'staged',
+      action: { type: 'edit_step' },
+    },
   ];
-  const events = [...stages, {
-    ...base, id: 'decision-one', role: 'assistant', kind: 'action',
-    status: 'rejected', action: { type: 'edit_step' }, resolvesEventId: 'proposal-one',
-  }];
+  const events = [
+    ...stages,
+    {
+      ...base,
+      id: 'decision-one',
+      role: 'assistant',
+      kind: 'action',
+      status: 'rejected',
+      action: { type: 'edit_step' },
+      resolvesEventId: 'proposal-one',
+    },
+  ];
   assert.equal(stageResolution(events, 'proposal-one'), 'rejected');
   assert.equal(stageResolution(events, 'proposal-two'), null);
   assert.equal(findPendingStage(events)?.id, 'proposal-two');
   events.push({
-    ...base, id: 'decision-two', role: 'assistant', kind: 'action',
-    status: 'applied', action: { type: 'edit_step' }, resolvesEventId: 'proposal-two',
+    ...base,
+    id: 'decision-two',
+    role: 'assistant',
+    kind: 'action',
+    status: 'applied',
+    action: { type: 'edit_step' },
+    resolvesEventId: 'proposal-two',
   });
   assert.equal(findPendingStage(events), null);
   assert.equal(stageResolution(events, 'proposal-two'), 'applied');
@@ -339,34 +382,115 @@ test('two outstanding staged proposals keep independent approval state', () => {
 
 test('legacy unlinked stage decisions do not resolve every earlier proposal', () => {
   const events = [
-    { ...base, id: 'old-one', role: 'assistant', kind: 'action', status: 'staged' },
-    { ...base, id: 'old-two', role: 'assistant', kind: 'action', status: 'staged' },
-    { ...base, id: 'old-decision', role: 'assistant', kind: 'action', status: 'applied' },
+    {
+      ...base,
+      id: 'old-one',
+      role: 'assistant',
+      kind: 'action',
+      status: 'staged',
+    },
+    {
+      ...base,
+      id: 'old-two',
+      role: 'assistant',
+      kind: 'action',
+      status: 'staged',
+    },
+    {
+      ...base,
+      id: 'old-decision',
+      role: 'assistant',
+      kind: 'action',
+      status: 'applied',
+    },
   ];
   assert.equal(stageResolution(events, 'old-two'), 'applied');
   assert.equal(stageResolution(events, 'old-one'), null);
   assert.equal(findPendingStage(events)?.id, 'old-one');
 });
 
-
 test('informational and historic no-op actions never become fake confirmation cards', () => {
-  const stage = { ...base, id: 'stage-1', role: 'assistant', kind: 'action', status: 'staged', action: { type: 'edit_step', stepId: 'inspect' } };
-  const decision = { ...base, id: 'applied-1', role: 'assistant', kind: 'action', status: 'applied', resolvesEventId: 'stage-1', action: stage.action };
-  const noop = { ...base, id: 'noop-1', role: 'assistant', kind: 'action', status: 'applied', action: { type: 'noop', reason: 'No changes' } };
-  const how = { ...base, id: 'how-1', role: 'assistant', kind: 'how', text: 'Here is an explanation.' };
+  const stage = {
+    ...base,
+    id: 'stage-1',
+    role: 'assistant',
+    kind: 'action',
+    status: 'staged',
+    action: { type: 'edit_step', stepId: 'inspect' },
+  };
+  const decision = {
+    ...base,
+    id: 'applied-1',
+    role: 'assistant',
+    kind: 'action',
+    status: 'applied',
+    resolvesEventId: 'stage-1',
+    action: stage.action,
+  };
+  const noop = {
+    ...base,
+    id: 'noop-1',
+    role: 'assistant',
+    kind: 'action',
+    status: 'applied',
+    action: { type: 'noop', reason: 'No changes' },
+  };
+  const how = {
+    ...base,
+    id: 'how-1',
+    role: 'assistant',
+    kind: 'how',
+    text: 'Here is an explanation.',
+  };
   const records = [stage, decision, noop, how];
-  assert.deepEqual(records.filter(event => shouldRenderMatorEvent(records, event)).map(event => event.id), ['stage-1', 'how-1']);
+  assert.deepEqual(
+    records
+      .filter((event) => shouldRenderMatorEvent(records, event))
+      .map((event) => event.id),
+    ['stage-1', 'how-1'],
+  );
   assert.equal(stageResolution(records, 'stage-1'), 'applied');
   assert.equal(findPendingStage(records), null);
   const orphan = { ...decision, id: 'orphan', resolvesEventId: 'not-found' };
-  assert.equal(shouldRenderMatorEvent([orphan], orphan), true, 'unmatched decision evidence stays visible');
+  assert.equal(
+    shouldRenderMatorEvent([orphan], orphan),
+    true,
+    'unmatched decision evidence stays visible',
+  );
 });
 
 test('historic unlinked decision is shown once while unrelated events are retained', () => {
-  const stage = { ...base, id: 'stage-old', role: 'assistant', kind: 'action', status: 'staged', action: { type: 'edit_step' } };
-  const applied = { ...base, id: 'applied-old', role: 'assistant', kind: 'action', status: 'applied', action: stage.action };
-  const oldExplanation = { ...base, id: 'old-how', role: 'assistant', kind: 'action', status: 'staged', action: { type: 'explain_how' }, text: 'Try reviewing the proposal.' };
+  const stage = {
+    ...base,
+    id: 'stage-old',
+    role: 'assistant',
+    kind: 'action',
+    status: 'staged',
+    action: { type: 'edit_step' },
+  };
+  const applied = {
+    ...base,
+    id: 'applied-old',
+    role: 'assistant',
+    kind: 'action',
+    status: 'applied',
+    action: stage.action,
+  };
+  const oldExplanation = {
+    ...base,
+    id: 'old-how',
+    role: 'assistant',
+    kind: 'action',
+    status: 'staged',
+    action: { type: 'explain_how' },
+    text: 'Try reviewing the proposal.',
+  };
   const records = [stage, applied, oldExplanation];
-  assert.deepEqual(records.filter(event => shouldRenderMatorEvent(records, event)).map(event => event.id), ['stage-old', 'old-how']);
+  assert.deepEqual(
+    records
+      .filter((event) => shouldRenderMatorEvent(records, event))
+      .map((event) => event.id),
+    ['stage-old', 'old-how'],
+  );
   assert.equal(findPendingStage(records), null);
 });

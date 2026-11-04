@@ -1,11 +1,11 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AccountStore } from '../src/profile/account-store.js';
-import { randomBytes } from 'node:crypto';
+import { test } from 'node:test';
 import { createClient } from '@libsql/client';
+import { AccountStore } from '../src/profile/account-store.js';
 
 process.env.NODE_ENV = 'test';
 const { buildApp } = await import('../src/main.js');

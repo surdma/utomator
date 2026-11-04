@@ -1,17 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { usePathname } from 'next/navigation';
-import StudioDialog from '@/components/ui/studio-dialog';
 import { Plus, Save } from 'lucide-react';
-import type { CareerDocument, Resume, CareerState, SectionKey } from './types';
-import { classInput, classButton } from './styles';
+import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import StudioDialog from '@/components/ui/studio-dialog';
 import SectionEditor from './section-editor';
 import CareerStudioHeader from './sections/career-studio-header';
 import CareerStudioNav from './sections/career-studio-nav';
+import ResumeDetail from './sections/resume-detail';
 import ResumeLibrary from './sections/resume-library';
 import ResumeTemplateGallery from './sections/resume-template-gallery';
-import ResumeDetail from './sections/resume-detail';
+import { classButton, classInput } from './styles';
+import type { CareerDocument, CareerState, Resume, SectionKey } from './types';
 import './career-studio.css';
 import './career-redesign.css';
 
@@ -111,7 +111,7 @@ export default function CareerStudio({
   }
   function meta(
     key: 'label' | 'targetRole' | 'targetCompany' | 'jobDescription',
-    value: string
+    value: string,
   ) {
     if (!draft) return;
     setDraft({ ...draft, [key]: value });
@@ -121,7 +121,7 @@ export default function CareerStudio({
   async function request(
     path: string,
     method: 'POST' | 'PUT' | 'DELETE',
-    body: Record<string, unknown>
+    body: Record<string, unknown>,
   ) {
     const result = await fetch(api + path, {
       method,
@@ -142,9 +142,9 @@ export default function CareerStudio({
       await request(
         sourceView
           ? '/profile'
-          : '/resumes/' + encodeURIComponent(detailId || ''),
+          : `/resumes/${encodeURIComponent(detailId || '')}`,
         'PUT',
-        { expectedRevision: state.revision, document: draft }
+        { expectedRevision: state.revision, document: draft },
       );
       setDirty(false);
       setNotice('Saved to your personal career library.');
@@ -167,9 +167,9 @@ export default function CareerStudio({
         fromId,
       });
       const added = next.resumes.find(
-        (r) => !state.resumes.some((old) => old.id === r.id)
+        (r) => !state.resumes.some((old) => old.id === r.id),
       );
-      if (added) onNavigate('/dashboard/resumes/' + added.id);
+      if (added) onNavigate(`/dashboard/resumes/${added.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not create résumé');
     } finally {
@@ -187,7 +187,7 @@ export default function CareerStudio({
     setSaving(true);
     setError('');
     try {
-      await request('/resumes/' + encodeURIComponent(detailId), 'DELETE', {
+      await request(`/resumes/${encodeURIComponent(detailId)}`, 'DELETE', {
         expectedRevision: state.revision,
       });
       onNavigate('/dashboard/resumes');
@@ -213,8 +213,8 @@ export default function CareerStudio({
   const versions =
     state?.resumes.filter((r) =>
       [r.label, r.targetRole, r.targetCompany].some((s) =>
-        s.toLowerCase().includes(search.toLowerCase())
-      )
+        s.toLowerCase().includes(search.toLowerCase()),
+      ),
     ) || [];
   const resumeDetail = detailId
     ? state?.resumes.find((r) => r.id === detailId)
@@ -351,7 +351,7 @@ export default function CareerStudio({
                 This résumé does not exist in the local library.
               </p>
               <button
-                className={classButton + ' mt-4'}
+                className={`${classButton} mt-4`}
                 onClick={() => go('/dashboard/resumes')}
               >
                 Back to library
@@ -397,9 +397,7 @@ export default function CareerStudio({
                 Close
               </button>
               <button
-                className={
-                  classButton + ' bg-teal-700 text-white hover:bg-teal-800'
-                }
+                className={`${classButton} bg-teal-700 text-white hover:bg-teal-800`}
                 disabled={saving}
                 onClick={() => {
                   void save().then((ok) => {
@@ -425,7 +423,7 @@ export default function CareerStudio({
           <label className="text-sm font-semibold text-slate-700">
             Section title
             <input
-              className={classInput + ' mt-2'}
+              className={`${classInput} mt-2`}
               maxLength={100}
               value={newSectionName}
               onChange={(e) => setNewSectionName(e.target.value)}
@@ -442,11 +440,11 @@ export default function CareerStudio({
                 >
                   {x}
                 </button>
-              )
+              ),
             )}
           </div>
           <button
-            className={classButton + ' self-end bg-teal-700 text-white'}
+            className={`${classButton} self-end bg-teal-700 text-white`}
             disabled={!newSectionName.trim() || newSectionName.length > 100}
             onClick={addCustom}
           >

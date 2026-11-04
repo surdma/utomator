@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import {
   ArrowRight,
   FilePlus2,
@@ -8,10 +7,11 @@ import {
   LayoutTemplate,
   Workflow,
 } from 'lucide-react';
+import { useState } from 'react';
 import StudioDialog from '@/components/ui/studio-dialog';
+import type { WorkflowRecord } from '../../pipeline/use-workflow-workspace';
 import TemplateBrowser from '../template-browser';
 import type { WorkflowPlan } from '../workflow-types';
-import type { WorkflowRecord } from '../../pipeline/use-workflow-workspace';
 
 type Props = {
   platform: WorkflowPlan['platform'];
@@ -40,7 +40,7 @@ export default function WorkflowEmptyState({
 }: Props) {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const visibleSaved = savedWorkflows.filter(
-    (entry) => entry.plan.platform === platform
+    (entry) => entry.plan.platform === platform,
   );
 
   return (

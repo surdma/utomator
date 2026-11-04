@@ -2,8 +2,8 @@
 
 import { ArrowRight, GitBranch } from 'lucide-react';
 import type { GrowthCapability } from '../../growth/linkedin-growth-capabilities';
-import type { Craft } from '../craft-types';
 import { craftCategoryTitles } from '../craft-category-titles';
+import type { Craft } from '../craft-types';
 
 type Props = {
   craft: Craft;
@@ -15,14 +15,14 @@ export function CraftCatalogCard({ craft, capability, onOpen }: Props) {
   return (
     <button
       type="button"
-      data-testid={'craft-card-' + craft.slug}
+      data-testid={`craft-card-${craft.slug}`}
       onClick={() => onOpen(craft.id, craft.slug)}
       className="group flex min-h-56 min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-5 text-left transition hover:border-teal-500 hover:shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
     >
       <span className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-slate-600">
         <span className="rounded-md border border-slate-200 px-2 py-1">
           {capability
-            ? capability.priority + ' · ' + capability.pillar
+            ? `${capability.priority} · ${capability.pillar}`
             : craftCategoryTitles[craft.category]}
         </span>
         <span className="rounded-md bg-slate-100 px-2 py-1">
@@ -46,8 +46,8 @@ export function CraftCatalogCard({ craft, capability, onOpen }: Props) {
           <GitBranch className="size-4" />
           {craft.steps.length} steps ·{' '}
           {capability
-            ? capability.actions.length + ' actions'
-            : craft.links.length + ' links'}
+            ? `${capability.actions.length} actions`
+            : `${craft.links.length} links`}
         </span>
         <span className="inline-flex shrink-0 items-center gap-1 font-semibold text-teal-800">
           Explore

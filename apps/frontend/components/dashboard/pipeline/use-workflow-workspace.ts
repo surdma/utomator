@@ -1,17 +1,17 @@
 'use client';
 
 import {
+  type Dispatch,
+  type SetStateAction,
   useCallback,
   useEffect,
   useRef,
   useState,
-  type Dispatch,
-  type SetStateAction,
 } from 'react';
 import type { WorkflowPlan } from '../workflows/workflow-plan-editor';
-import type { Platform } from './workflow-catalog';
 import { getApi } from './api-client';
 import { defaultWorkflowPlan, newWorkflowDraft } from './default-workflow-plan';
+import type { Platform } from './workflow-catalog';
 
 export type WorkflowRecord = {
   id: string;
@@ -42,7 +42,7 @@ export function useWorkflowWorkspace({
   >(null);
   const [savedWorkflows, setSavedWorkflows] = useState<WorkflowRecord[]>([]);
   const [activeWorkflow, setActiveWorkflow] = useState<WorkflowRecord | null>(
-    null
+    null,
   );
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [loadingWorkflow, setLoadingWorkflow] = useState(false);
@@ -65,7 +65,7 @@ export function useWorkflowWorkspace({
       .catch(() => {
         if (live)
           setRunFormError(
-            'Saved workflows unavailable. Check the local automation API.'
+            'Saved workflows unavailable. Check the local automation API.',
           );
       });
     return () => {
@@ -76,7 +76,7 @@ export function useWorkflowWorkspace({
     let live = true;
     setTemplatePlans([]);
     const controller = new AbortController();
-    void fetch(getApi('workflow-templates/' + platform), {
+    void fetch(getApi(`workflow-templates/${platform}`), {
       cache: 'no-store',
       signal: controller.signal,
     })
@@ -103,16 +103,16 @@ export function useWorkflowWorkspace({
     try {
       const value = { ...workflowPlan, parameters: { ...form } };
       const response = await fetch(
-        getApi(activeWorkflow ? 'workflows/' + activeWorkflow.id : 'workflows'),
+        getApi(activeWorkflow ? `workflows/${activeWorkflow.id}` : 'workflows'),
         {
           method: activeWorkflow ? 'PUT' : 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify(
             activeWorkflow
               ? { plan: value, expectedRevision: activeWorkflow.revision }
-              : { plan: value }
+              : { plan: value },
           ),
-        }
+        },
       );
       const json = (await response.json()) as WorkflowRecord & {
         error?: string;
@@ -142,13 +142,13 @@ export function useWorkflowWorkspace({
   async function applyGrowthTemplate(id: string): Promise<void> {
     if (busy)
       throw Error(
-        'Stop the current Runner workflow before loading a Growth template'
+        'Stop the current Runner workflow before loading a Growth template',
       );
     if (platform !== 'linkedin')
       throw Error('Growth template requires LinkedIn');
     const response = await fetch(
-      getApi('growth/templates/' + encodeURIComponent(id)),
-      { cache: 'no-store' }
+      getApi(`growth/templates/${encodeURIComponent(id)}`),
+      { cache: 'no-store' },
     );
     const program = (await response.json()) as {
       id?: string;
@@ -163,23 +163,23 @@ export function useWorkflowWorkspace({
     )
       throw Error(
         program.error ||
-          'Growth YAML did not compile into a connected pipeline graph'
+          'Growth YAML did not compile into a connected pipeline graph',
       );
     setSelectedGrowthTemplateId(id);
     setWorkspaceOpen(true);
   }
   async function applyTemplate(
     plan: WorkflowPlan,
-    templateId: string
+    templateId: string,
   ): Promise<void> {
     setSelectedGrowthTemplateId(null);
     if (busy)
       throw Error(
-        'Stop or finish the active workflow before changing templates'
+        'Stop or finish the active workflow before changing templates',
       );
     if (plan.platform !== platform)
       throw Error(
-        'Select the matching studio account before applying this template'
+        'Select the matching studio account before applying this template',
       );
     if (planSaving) throw Error('A workflow save is already running');
     const selection = ++workflowSelectionEpoch.current;
@@ -216,15 +216,12 @@ export function useWorkflowWorkspace({
   }
   async function openActionWorkflow(
     nextAction: string,
-    parameters: Record<string, string> = {}
+    parameters: Record<string, string> = {},
   ): Promise<void> {
     if (busy) throw Error('Stop the active workflow before changing actions');
-    if (planSaving) throw Error('Wait for the current workflow to finish saving');
-    if (
-      workspaceOpen &&
-      !selectedGrowthTemplateId &&
-      (planDirty || formDirty)
-    )
+    if (planSaving)
+      throw Error('Wait for the current workflow to finish saving');
+    if (workspaceOpen && !selectedGrowthTemplateId && (planDirty || formDirty))
       throw Error('Save or discard the current workflow edits first');
 
     const selection = ++workflowSelectionEpoch.current;
@@ -232,8 +229,8 @@ export function useWorkflowWorkspace({
     setRunFormError('');
     try {
       const response = await fetch(
-        getApi('workflow-plans/' + platform + '/' + encodeURIComponent(nextAction)),
-        { cache: 'no-store' }
+        getApi(`workflow-plans/${platform}/${encodeURIComponent(nextAction)}`),
+        { cache: 'no-store' },
       );
       const result = (await response.json()) as WorkflowPlan & {
         error?: string;
@@ -244,7 +241,9 @@ export function useWorkflowWorkspace({
         result.action !== nextAction ||
         !Array.isArray(result.steps)
       )
-        throw Error(result.error || 'The selected action workflow is unavailable');
+        throw Error(
+          result.error || 'The selected action workflow is unavailable',
+        );
       if (selection !== workflowSelectionEpoch.current) return;
       setSelectedGrowthTemplateId(null);
       setActiveWorkflow(null);
@@ -255,7 +254,9 @@ export function useWorkflowWorkspace({
       setWorkspaceOpen(true);
     } catch (cause) {
       const message =
-        cause instanceof Error ? cause.message : 'Could not open the action workflow';
+        cause instanceof Error
+          ? cause.message
+          : 'Could not open the action workflow';
       if (selection === workflowSelectionEpoch.current)
         setRunFormError(message);
       throw Error(message);

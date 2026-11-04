@@ -16,12 +16,12 @@
     "test:frontend": "pnpm --filter @utomator/frontend test",
     "lint:backend": "pnpm --filter @utomator/backend lint",
     "typecheck:backend": "pnpm --filter @utomator/backend typecheck",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml,css,scss}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml,css,scss}\""
+    "biome:check": "biome check .",
+    "biome:fix": "biome check --write .",
+    "biome:unsafe-fix": "biome check --write --unsafe ."
   },
   "devDependencies": {
-    "prettier": "^3.9.10",
-    "prettier-plugin-tailwindcss": "^0.8.1",
+    "@biomejs/biome": "^2.6.3",
     "turbo": "^2.11.10"
   }
 }

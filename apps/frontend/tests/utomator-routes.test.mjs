@@ -1,7 +1,7 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import test from 'node:test';
 
 const root = resolve(import.meta.dirname, '..');
 const app = resolve(root, 'app');
@@ -29,7 +29,7 @@ test('operator pages live under dashboard, not at the app root', () => {
   for (const route of routes.filter((item) => item !== 'growth'))
     assert.ok(!existsSync(resolve(app, route)));
   assert.ok(
-    existsSync(resolve(app, 'growth', 'default-growth-profile', 'page.tsx'))
+    existsSync(resolve(app, 'growth', 'default-growth-profile', 'page.tsx')),
   );
   assert.ok(!existsSync(resolve(app, '_automate')));
 });
@@ -43,7 +43,7 @@ test('public portfolio routes are absent', () => {
 test('the proxy still rejects unsupported endpoints and non-local access', () => {
   const proxy = readFileSync(
     resolve(app, 'api', '[...path]', 'route.ts'),
-    'utf8'
+    'utf8',
   );
   assert.match(proxy, /function allowedHost/);
   assert.match(proxy, /function permitted/);
@@ -51,9 +51,9 @@ test('the proxy still rejects unsupported endpoints and non-local access', () =>
   assert.match(proxy, /Unsupported endpoint/);
   assert.ok(
     proxy.includes(
-      "...(body?.length ? { 'content-type': 'application/json' } : {})"
+      "...(body?.length ? { 'content-type': 'application/json' } : {})",
     ),
-    'bodyless clone POST does not advertise JSON'
+    'bodyless clone POST does not advertise JSON',
   );
   assert.match(proxy, /idempotency-key/);
   assert.match(proxy, /same-origin|Same-origin/);
@@ -64,7 +64,7 @@ test('landing page and pipeline identity are Utomator, not the portfolio', () =>
   const home = readFileSync(resolve(app, 'page.tsx'), 'utf8');
   const hero = readFileSync(
     resolve(root, 'components', 'home', 'hero-text.tsx'),
-    'utf8'
+    'utf8',
   );
   assert.ok(!home.includes('ProfileAvatar'));
   assert.match(hero, /Utomator/);
@@ -74,47 +74,47 @@ test('landing page and pipeline identity are Utomator, not the portfolio', () =>
 test('unified Growth editor reads the ID from nested Growth and legacy Craft URLs', () => {
   const pipeline = readFileSync(
     resolve(root, 'components', 'dashboard', 'dashboard-shell.tsx'),
-    'utf8'
+    'utf8',
   );
   const navigation = readFileSync(
     resolve(root, 'components/dashboard/pipeline/dashboard-route.ts'),
-    'utf8'
+    'utf8',
   );
   const navigationHook = readFileSync(
     resolve(root, 'components/dashboard/pipeline/use-dashboard-navigation.ts'),
-    'utf8'
+    'utf8',
   );
   assert.match(
     navigation,
-    /const\s+id\s*=\s*pathname\.split\(['"]\/['"]\)\[3\]/
+    /const\s+id\s*=\s*pathname\.split\(['"]\/['"]\)\[3\]/,
   );
   assert.doesNotMatch(
     navigation,
-    /const\s+id\s*=\s*pathname\.split\(['"]\/['"]\)\[2\]/
+    /const\s+id\s*=\s*pathname\.split\(['"]\/['"]\)\[2\]/,
   );
   assert.match(
     navigation,
-    /pathname.startsWith\(['"]\/dashboard\/growth\/['"]\)/
+    /pathname.startsWith\(['"]\/dashboard\/growth\/['"]\)/,
   );
   assert.match(
     pipeline,
-    /pane\s*===\s*['"]growth['"]\s*&&\s*\(?\s*<CraftsLibrary/
+    /pane\s*===\s*['"]growth['"]\s*&&\s*\(?\s*<CraftsLibrary/,
   );
   const pipelineWorkspace = readFileSync(
     resolve(root, 'components/dashboard/pipeline/pipeline-workspace.tsx'),
-    'utf8'
+    'utf8',
   );
   assert.match(
     pipelineWorkspace,
-    /onGrowthTemplateApply=\{applyGrowthTemplate\}/
+    /onGrowthTemplateApply=\{applyGrowthTemplate\}/,
   );
   assert.match(
     pipelineWorkspace,
-    /growthTemplateId=\{selectedGrowthTemplateId\}/
+    /growthTemplateId=\{selectedGrowthTemplateId\}/,
   );
   assert.match(
     navigationHook,
-    /['"]\/dashboard\/growth\/['"]\s*\+\s*encodeURIComponent/
+    /['"]\/dashboard\/growth\/['"]\s*\+\s*encodeURIComponent/,
   );
   assert.ok(!pipeline.includes('<LinkedInGrowthHub'));
   for (const route of [
@@ -129,52 +129,52 @@ test('unified Growth editor reads the ID from nested Growth and legacy Craft URL
   ])
     assert.match(
       readFileSync(resolve(root, route), 'utf8'),
-      /redirect\(['"]\/dashboard\/growth/
+      /redirect\(['"]\/dashboard\/growth/,
     );
 });
 
 test('dashboard navigation is distinct from account and career API paths', () => {
   const account = readFileSync(
     resolve(root, 'components', 'dashboard', 'account/account-home.tsx'),
-    'utf8'
+    'utf8',
   );
   const career = readFileSync(
     resolve(root, 'components', 'dashboard', 'career/career-studio.tsx'),
-    'utf8'
+    'utf8',
   );
   assert.match(
     account,
     /saveAccount\(\s*['"]\/profile['"]\s*,\s*['"]PUT['"]/,
-    'account settings use /api/account/profile'
+    'account settings use /api/account/profile',
   );
   assert.match(
     career,
     /request\(\s*sourceView\s*\?\s*['"]\/profile['"]\s*:\s*['"]\/resumes\/['"]/,
-    'career editor uses /api/career/profile or /api/career/resumes'
+    'career editor uses /api/career/profile or /api/career/resumes',
   );
   assert.match(
     career,
     /request\(\s*['"]\/resumes['"]\s*,\s*['"]POST['"]/,
-    'creating a résumé uses the backend API'
+    'creating a résumé uses the backend API',
   );
   assert.ok(
     /['"]\/dashboard\/resumes\/profile['"]/.test(account),
-    'navigation still lives inside dashboard'
+    'navigation still lives inside dashboard',
   );
 });
 
 test('unified Growth UI retains coverage, pipeline boundaries and the MDX editor', () => {
   const catalog = readFileSync(
     resolve(root, 'components/dashboard/crafts/craft-catalog.tsx'),
-    'utf8'
+    'utf8',
   );
   const details = readFileSync(
     resolve(root, 'components/dashboard/growth/growth-capability-details.tsx'),
-    'utf8'
+    'utf8',
   );
   const editor = readFileSync(
     resolve(root, 'components/dashboard/crafts/crafts-library.tsx'),
-    'utf8'
+    'utf8',
   );
   assert.match(catalog, /growthJourneys\.map/);
   assert.match(catalog, /capabilityForSlug/);
@@ -194,41 +194,41 @@ test('unified Growth UI retains coverage, pipeline boundaries and the MDX editor
 test('Growth YAML uses the persistent Artboard canvas and real Runner controls', () => {
   const modal = readFileSync(
     resolve(root, 'components/dashboard/workflows/template-browser.tsx'),
-    'utf8'
+    'utf8',
   );
   const editor = readFileSync(
     resolve(root, 'components/dashboard/workflows/workflow-plan-editor.tsx'),
-    'utf8'
+    'utf8',
   );
   const details = readFileSync(
     resolve(root, 'components/dashboard/growth/growth-workspace-dialogs.tsx'),
-    'utf8'
+    'utf8',
   );
   const graphNode = readFileSync(
     resolve(
       root,
-      'components/dashboard/growth/artboard/growth-graph-node-card.tsx'
+      'components/dashboard/growth/artboard/growth-graph-node-card.tsx',
     ),
-    'utf8'
+    'utf8',
   );
   const graphModel = readFileSync(
     resolve(root, 'components/dashboard/growth/growth-graph-model.ts'),
-    'utf8'
+    'utf8',
   );
   const toolbar = readFileSync(
     resolve(
       root,
-      'components/dashboard/workflows/editor/workflow-editor-toolbar.tsx'
+      'components/dashboard/workflows/editor/workflow-editor-toolbar.tsx',
     ),
-    'utf8'
+    'utf8',
   );
   const proxy = readFileSync(
     resolve(root, 'app/api/[...path]/route.ts'),
-    'utf8'
+    'utf8',
   );
   const optionsModel = readFileSync(
     resolve(root, 'components/dashboard/workflows/template-options.ts'),
-    'utf8'
+    'utf8',
   );
   assert.match(modal, /buildTemplateOptions\(catalog\)/);
   assert.match(modal, /growthTemplateCategories/);
@@ -258,7 +258,7 @@ test('Growth YAML uses the persistent Artboard canvas and real Runner controls',
   assert.match(proxy, /growth\\\/templates/);
   const legacy = readFileSync(
     resolve(root, 'app/growth/default-growth-profile/page.tsx'),
-    'utf8'
+    'utf8',
   );
   assert.match(legacy, /redirect\(['"]\/dashboard\/workspace['"]\)/);
 });
@@ -266,37 +266,37 @@ test('Growth YAML uses the persistent Artboard canvas and real Runner controls',
 test('the first visit shows a blank Artboard and a genuinely broader workflow library', () => {
   const hook = readFileSync(
     resolve(root, 'components/dashboard/pipeline/use-workflow-workspace.ts'),
-    'utf8'
+    'utf8',
   );
   const workspace = readFileSync(
     resolve(root, 'components/dashboard/pipeline/pipeline-workspace.tsx'),
-    'utf8'
+    'utf8',
   );
   const empty = readFileSync(
     resolve(
       root,
-      'components/dashboard/workflows/editor/workflow-empty-state.tsx'
+      'components/dashboard/workflows/editor/workflow-empty-state.tsx',
     ),
-    'utf8'
+    'utf8',
   );
   const library = readFileSync(
     resolve(root, 'components/dashboard/workflows/template-browser.tsx'),
-    'utf8'
+    'utf8',
   );
   const action = readFileSync(
     resolve(root, 'components/dashboard/workflows/action-template-browser.tsx'),
-    'utf8'
+    'utf8',
   );
   const graph = readFileSync(
     resolve(
       root,
-      'components/dashboard/growth/artboard/growth-graph-node-card.tsx'
+      'components/dashboard/growth/artboard/growth-graph-node-card.tsx',
     ),
-    'utf8'
+    'utf8',
   );
   const step = readFileSync(
     resolve(root, 'components/dashboard/workflows/workflow-step-card.tsx'),
-    'utf8'
+    'utf8',
   );
   assert.match(hook, /useState\(false\)/);
   assert.doesNotMatch(hook, /createDefaultWorkspace/);
@@ -311,38 +311,41 @@ test('the first visit shows a blank Artboard and a genuinely broader workflow li
   const editorToolbar = readFileSync(
     resolve(
       root,
-      'components/dashboard/workflows/editor/workflow-editor-toolbar.tsx'
+      'components/dashboard/workflows/editor/workflow-editor-toolbar.tsx',
     ),
-    'utf8'
+    'utf8',
   );
   const workspaceEditor = readFileSync(
-    resolve(
-      root,
-      'components/dashboard/workflows/workflow-plan-editor.tsx'
-    ),
-    'utf8'
+    resolve(root, 'components/dashboard/workflows/workflow-plan-editor.tsx'),
+    'utf8',
   );
   assert.match(editorToolbar, /onReturnToWorkspace/);
   assert.match(workspaceEditor, /workflow-leave-confirmation/);
   assert.match(workspaceEditor, /Discard draft/);
   const commandBridge = readFileSync(
     resolve(root, 'components/dashboard/pipeline/use-operator-commands.ts'),
-    'utf8'
+    'utf8',
   );
   const dashboard = readFileSync(
     resolve(root, 'components/dashboard/dashboard-shell.tsx'),
-    'utf8'
+    'utf8',
   );
   assert.match(hook, /async function openActionWorkflow/);
   assert.match(hook, /getApi\('workflow-plans\/'/);
-  assert.match(commandBridge, /onStageWorkflow\(command.action, command.fields\)/);
-  assert.match(dashboard, /if \(!workspaceOpen \|\| selectedGrowthTemplateId\)/);
+  assert.match(
+    commandBridge,
+    /onStageWorkflow\(command.action, command.fields\)/,
+  );
+  assert.match(
+    dashboard,
+    /if \(!workspaceOpen \|\| selectedGrowthTemplateId\)/,
+  );
   assert.match(library, /ActionTemplateBrowser/);
   assert.match(library, /Workflow library/);
   assert.doesNotMatch(library, /Growth workflow library/);
   assert.match(
     action,
-    /onApply\(selected, selected.platform \+ '-' \+ selected.action\)/
+    /onApply\(selected, selected.platform \+ '-' \+ selected.action\)/,
   );
   assert.match(action, /Use this template/);
   assert.match(graph, /stepIconFor/);

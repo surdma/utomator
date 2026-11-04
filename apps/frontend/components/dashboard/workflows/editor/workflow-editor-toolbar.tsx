@@ -1,6 +1,5 @@
 'use client';
 
-import type { ReactNode } from 'react';
 import {
   ArrowLeft,
   LayoutTemplate,
@@ -9,6 +8,7 @@ import {
   Save,
   Settings2,
 } from 'lucide-react';
+import type { ReactNode } from 'react';
 import type { WorkflowPlan } from '../workflow-types';
 
 type Props = {
@@ -80,12 +80,12 @@ export function WorkflowEditorToolbar({
   const target =
     plan.platform === 'linkedin'
       ? connected
-        ? 'Runs on ' + (accountLabel || 'the selected LinkedIn account')
+        ? `Runs on ${accountLabel || 'the selected LinkedIn account'}`
         : 'Connect LinkedIn before you run'
       : 'A verified account is required to run';
   const detail = growthTemplateId
     ? 'Pipelines connected as nodes'
-    : 'One pipeline · ' + taskLabel + ' · ' + target;
+    : `One pipeline · ${taskLabel} · ${target}`;
   const detailClass = growthTemplateId
     ? 'text-slate-500'
     : plan.platform === 'linkedin' && connected
@@ -102,11 +102,11 @@ export function WorkflowEditorToolbar({
       <div className="pointer-events-auto flex max-w-xl min-w-0 items-center gap-1 rounded-2xl border border-white/80 bg-white/95 py-1 pr-1 pl-3 shadow-lg ring-1 shadow-slate-900/5 ring-slate-200/80 backdrop-blur-md">
         <h2
           className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight text-slate-950"
-          title={title + ' · ' + detail}
+          title={`${title} · ${detail}`}
           data-testid="workflow-run-readiness"
         >
           {title}
-          <span className={'font-normal ' + detailClass}>{' · ' + detail}</span>
+          <span className={`font-normal ${detailClass}`}>{` · ${detail}`}</span>
         </h2>
         {!growthTemplateId && (
           <button
@@ -168,8 +168,8 @@ export function WorkflowEditorToolbar({
                   onSaveError(
                     error instanceof Error
                       ? error.message
-                      : 'Could not save workflow'
-                  )
+                      : 'Could not save workflow',
+                  ),
                 );
               }}
             >

@@ -1,6 +1,6 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
-import { loadOwnerContext } from '../src/profile/context.js';
+import test from 'node:test';
+import { loadOwnerContext } from '../src/profile/profile-context.js';
 
 test('context comes from the current portfolio, resume and evidence', async () => {
   const context = await loadOwnerContext();

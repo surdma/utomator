@@ -34,10 +34,10 @@ export default function HeroText() {
           setDisplayText(
             isDeleting
               ? currentRole.substring(0, displayText.length - 1)
-              : currentRole.substring(0, displayText.length + 1)
+              : currentRole.substring(0, displayText.length + 1),
           );
         },
-        isDeleting ? 30 : 60
+        isDeleting ? 30 : 60,
       );
     }
 

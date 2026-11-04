@@ -52,11 +52,11 @@ test('pipeline graph preserves dependencies and real run state', () => {
   const graph = buildGrowthGraph(program, run, null, [], undefined);
   assert.deepEqual(
     graph.nodes.map((node) => node.id),
-    ['audit', 'review']
+    ['audit', 'review'],
   );
   assert.deepEqual(
     graph.edges.map((edge) => [edge.source, edge.target, edge.animated]),
-    [['audit', 'review', true]]
+    [['audit', 'review', true]],
   );
   assert.equal(graph.nodes[0].data.state, 'completed');
   assert.equal(graph.nodes[1].data.state, 'running');
@@ -92,13 +92,13 @@ test('failed task comes from persisted journal and active Runner checkpoint', ()
     { id: 'r1', pipelineRuns: [live] },
     stage,
     journal,
-    live
+    live,
   );
   assert.equal(graph.nodes[1].data.state, 'failed');
   assert.equal(graph.nodes[1].data.failure, 'Could not inspect');
   assert.deepEqual(
     graph.edges.map((edge) => [edge.source, edge.target, edge.animated]),
-    [['start', 'inspect', false]]
+    [['start', 'inspect', false]],
   );
 });
 
@@ -125,7 +125,7 @@ test('pipeline and task cards receive numbered step metadata and real step kinds
     null,
     stage,
     [],
-    undefined
+    undefined,
   );
   assert.equal(designOnly.nodes[1].data.designOnly, true);
 });

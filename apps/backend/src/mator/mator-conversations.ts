@@ -42,9 +42,9 @@ export type MatorEvent = {
 
 export type MatorEventInput = Omit<MatorEvent, 'id' | 'conversationId' | 'createdAt'>;
 
-type WorkflowConversationIndex = {
+export type WorkflowConversationIndex = {
   currentId: string | null;
-  items: MatorConversation[];
+  items: Array<MatorConversation & { contextSummary?: string | null }>;
 };
 
 type MatorMessageChunk = {
@@ -52,7 +52,7 @@ type MatorMessageChunk = {
   idempotencyKeys: Record<string, string>;
 };
 
-const workflowIndexKey = (workflowId: string) => `workflow:${workflowId}`;
+export const workflowIndexKey = (workflowId: string) => `workflow:${workflowId}`;
 const messageChunkKey = (conversationId: string, chunkIndex: number) =>
   `${conversationId}:${chunkIndex}`;
 

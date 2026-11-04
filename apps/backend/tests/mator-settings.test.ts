@@ -1,22 +1,22 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import test from 'node:test';
+import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
 import {
-  encryptSecret,
   decryptSecret,
-  MatorDecryptError,
+  encryptSecret,
   loadMatorMasterKey,
+  MatorDecryptError,
   matorEncryptionConfigured,
 } from '../src/mator/mator-crypto.js';
 import {
   DEFAULT_MATOR_GROQ_MODEL_ID,
   getMatorSettings,
-  putMatorSettings,
   isGroqKeyConfigured,
-  MATOR_SETTINGS_NAMESPACE,
   MATOR_SETTINGS_KEY,
+  MATOR_SETTINGS_NAMESPACE,
+  putMatorSettings,
 } from '../src/mator/mator-settings.js';
-import type { DocumentStore, DocumentRecord } from '../src/db/documents.js';
 
 const MASTER = Buffer.from(createHash('sha256').update('mator-test-master').digest());
 const hex = (buffer: Buffer) => buffer.toString('hex');

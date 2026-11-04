@@ -1,15 +1,15 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, rename, writeFile, unlink, rm } from 'node:fs/promises';
+import { mkdir, readFile, rename, rm, unlink, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import type { CareerDocument } from './career-store.js';
 import { validateProfileUrl } from '../core/validate.js';
-import { loadIdentityTimeline } from './timeline.js';
 import {
-  evidenceRecord,
   approvalDecision,
-  isEvidenceRecord,
+  evidenceRecord,
   isApprovalFor,
+  isEvidenceRecord,
 } from '../runs/evidence-approval.js';
+import type { CareerDocument } from './career-store.js';
+import { loadIdentityTimeline } from './profile-timeline.js';
 
 type State = 'approval-needed' | 'selection-needed' | 'completed' | 'declined';
 type StageState = 'completed' | 'waiting' | 'pending' | 'declined';

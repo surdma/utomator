@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Check, ChevronDown, Sparkles } from 'lucide-react';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Popover } from '@/components/ui/popover';
-import type { MatorModelOption } from '../mator-api';
 import { cn } from '@/lib/utils';
+import type { MatorModelOption } from '../mator-api';
 
 type Props = {
   models: MatorModelOption[];
@@ -46,10 +46,12 @@ export function ModelSelector({
           disabled={disabled}
           onClick={() => setOpen((value) => !value)}
           data-testid="mator-model-selector"
-          aria-label={current ? `Chat model: ${current.label}` : 'Choose chat model'}
+          aria-label={
+            current ? `Chat model: ${current.label}` : 'Choose chat model'
+          }
           className={cn(
             'inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40',
-            compact && 'min-h-11 px-2'
+            compact && 'min-h-11 px-2',
           )}
         >
           <Sparkles className="size-3 text-teal-700" aria-hidden="true" />
@@ -86,7 +88,7 @@ export function ModelSelector({
                     }}
                     className={cn(
                       'flex w-full cursor-pointer items-start gap-2 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700',
-                      selected && 'bg-slate-50'
+                      selected && 'bg-slate-50',
                     )}
                   >
                     <span className="min-w-0 flex-1">

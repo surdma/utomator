@@ -1,10 +1,10 @@
 'use client';
 
-import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { Handle, type NodeProps, Position } from '@xyflow/react';
 import { Settings2 } from 'lucide-react';
-import type { FlowNode } from './workflow-types';
-import { fixed } from './workflow-step-policy';
 import { stepIconFor } from './workflow-step-icons';
+import { fixed } from './workflow-step-policy';
+import type { FlowNode } from './workflow-types';
 
 export default function StepCard({ data, selected }: NodeProps<FlowNode>) {
   const step = data.step,
@@ -12,7 +12,7 @@ export default function StepCard({ data, selected }: NodeProps<FlowNode>) {
     status = data.status;
   return (
     <div
-      data-testid={'workflow-node-' + step.id}
+      data-testid={`workflow-node-${step.id}`}
       className={
         'w-[228px] overflow-hidden rounded-2xl border bg-white shadow-lg ' +
         (status === 'failed'

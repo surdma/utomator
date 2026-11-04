@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, extname, join, resolve } from 'node:path';
-import { MATOR_CONVERSATIONS_NAMESPACE } from './mator-conversations.js';
 import type { DocumentStore } from '../db/documents.js';
+import { MATOR_CONVERSATIONS_NAMESPACE } from './mator-conversations.js';
 
 export const MATOR_ATTACHMENTS_NAMESPACE = 'mator-attachments';
 
@@ -57,9 +57,11 @@ export function validateMatorAsset(filename: string, mime: string): void {
   const ext = extname(name);
   const acceptedImageExtensions = safeImages[mime.toLowerCase()];
   if (acceptedImageExtensions?.includes(ext)) return;
-  const isText = ['text/plain', 'text/markdown', 'application/octet-stream'].includes(mime.toLowerCase());
-  const safeTextName = ['.txt', '.md', '.markdown', '.readme'].includes(ext) ||
-    /^readme(?:\.[a-z0-9_-]+)?$/.test(name);
+  const isText = ['text/plain', 'text/markdown', 'application/octet-stream'].includes(
+    mime.toLowerCase(),
+  );
+  const safeTextName =
+    ['.txt', '.md', '.markdown', '.readme'].includes(ext) || /^readme(?:\.[a-z0-9_-]+)?$/.test(name);
   if (isText && safeTextName) return;
   throw Error('Unsupported attachment type. Use a raster image, TXT or README file.');
 }
@@ -88,7 +90,10 @@ async function conversationExists(docs: DocumentStore, conversationId: string): 
   return false;
 }
 
-async function loadMeta(docs: DocumentStore, id: string): Promise<{ version: number; value: MatorAttachmentMeta } | null> {
+async function loadMeta(
+  docs: DocumentStore,
+  id: string,
+): Promise<{ version: number; value: MatorAttachmentMeta } | null> {
   const record = await docs.get<MatorAttachmentMeta>(MATOR_ATTACHMENTS_NAMESPACE, id);
   if (!record) return null;
   return { version: record.version, value: record.value };
@@ -146,10 +151,7 @@ export async function saveAttachment(
   return { id, mime, size: bytes.length, kind };
 }
 
-export async function getAttachmentMeta(
-  docs: DocumentStore,
-  id: string
-): Promise<MatorAttachmentMeta> {
+export async function getAttachmentMeta(docs: DocumentStore, id: string): Promise<MatorAttachmentMeta> {
   const record = await loadMeta(docs, id);
   if (!record) throw Error('Attachment not found');
   return record.value;

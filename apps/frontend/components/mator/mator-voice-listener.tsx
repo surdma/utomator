@@ -123,7 +123,7 @@ function VoiceBars({ call }: { call: MatorAiCall }) {
 export default function MatorVoiceListener({ call, ready }: Props) {
   const { state, active } = call;
   const resumeAllowed = ['paused', 'needs-attention', 'error-paused'].includes(
-    state.phase
+    state.phase,
   );
   return (
     <section

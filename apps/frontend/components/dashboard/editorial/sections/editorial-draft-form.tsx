@@ -1,7 +1,7 @@
 'use client';
 
-import type { Dispatch, FormEvent, SetStateAction } from 'react';
 import { CheckCircle2, FileText, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import type { Dispatch, FormEvent, SetStateAction } from 'react';
 
 type Account = { id: string; platform: string; label: string; handle: string };
 type Research = {
@@ -75,7 +75,7 @@ export default function EditorialDraftForm({
   oauth: { connected: boolean; configured: boolean } | null;
   publish: () => void;
   transition: (
-    action: 'approve' | 'reopen' | 'archive' | 'delete' | 'restore'
+    action: 'approve' | 'reopen' | 'archive' | 'delete' | 'restore',
   ) => void;
 }) {
   return (
@@ -87,7 +87,7 @@ export default function EditorialDraftForm({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-sm font-bold">
           {selected
-            ? 'Edit draft v' + selected.version
+            ? `Edit draft v${selected.version}`
             : 'New evidence-backed post'}
         </h2>
         <button type="button" className={button} onClick={() => choose(null)}>
@@ -160,7 +160,7 @@ export default function EditorialDraftForm({
         Post draft
         <textarea
           rows={8}
-          className={input + ' resize-y leading-6'}
+          className={`${input} resize-y leading-6`}
           minLength={20}
           maxLength={3000}
           required
@@ -178,7 +178,7 @@ export default function EditorialDraftForm({
         Evidence links (one clean HTTPS URL per line; up to eight)
         <textarea
           rows={3}
-          className={input + ' resize-y'}
+          className={`${input} resize-y`}
           value={sourcesText}
           onChange={(e) => setSourcesText(e.target.value)}
         />
@@ -191,12 +191,12 @@ export default function EditorialDraftForm({
             !accountId ||
             Boolean(
               selected &&
-              !['draft', 'approved', 'publish-failed'].includes(selected.status)
+                !['draft', 'approved', 'publish-failed'].includes(
+                  selected.status,
+                ),
             )
           }
-          className={
-            button + ' border-teal-700 bg-teal-700 text-white hover:bg-teal-800'
-          }
+          className={`${button} border-teal-700 bg-teal-700 text-white hover:bg-teal-800`}
         >
           <FileText className="size-4" />
           {busy
@@ -271,12 +271,12 @@ export default function EditorialDraftForm({
           )}
         {selected &&
           ['draft', 'approved', 'archived', 'publish-failed'].includes(
-            selected.status
+            selected.status,
           ) && (
             <button
               type="button"
               disabled={busy}
-              className={button + ' border-rose-300 text-rose-700'}
+              className={`${button} border-rose-300 text-rose-700`}
               onClick={() => void transition('delete')}
             >
               <Trash2 className="size-4" />

@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { profileUrlForHandle, validatePageScope } from '../core/validate.js';
+import { runtimePath } from '../core/paths.js';
 import type { Platform } from '../core/types.js';
+import { profileUrlForHandle, validatePageScope } from '../core/validate.js';
 
 export type VisualRegion = {
   x: number;
@@ -69,7 +70,7 @@ export type IdentityNote = {
   text: string;
 };
 
-const root = resolve(process.cwd(), '.runtime', 'visual');
+const root = runtimePath('visual');
 const recordFile = resolve(root, 'reviews.json');
 const memoryFile = resolve(root, 'identity-notes.json');
 const png = /^data:image\/(png|jpeg|webp);base64,([a-zA-Z0-9+/=]+)$/;
@@ -264,7 +265,11 @@ function mimeFor(bytes: Buffer): string {
 export class VisualReviewStore {
   private writeQueue: Promise<unknown> = Promise.resolve();
   constructor(
-    private readonly captureAllowed: (runId: string, fileName: string, platform: Platform) => boolean,
+    private readonly captureAllowed: (
+      runId: string,
+      fileName: string,
+      platform: Platform,
+    ) => boolean | Promise<boolean>,
   ) {}
   private serialize<T>(work: () => Promise<T>): Promise<T> {
     const result = this.writeQueue.then(work);
@@ -341,13 +346,13 @@ export class VisualReviewStore {
       if (
         !uuid.test(runId) ||
         !captureFilename.test(fileName) ||
-        !this.captureAllowed(runId, fileName, input.platform)
+        !(await this.captureAllowed(runId, fileName, input.platform))
       )
         throw new Error('Screenshot does not belong to a verified run');
       // Copy authorized capture bytes into the immutable review archive.
       // The original run/event journal is in-memory, but the annotated review
       // must remain viewable after restarting the engine.
-      image = await readFile(resolve(process.cwd(), '.runtime', 'evidence', runId, fileName));
+      image = await readFile(runtimePath('evidence', runId, fileName));
       if (
         image.length < 8 ||
         image.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a' ||

@@ -15,7 +15,7 @@ test('journal request uses the child run identifier and forwards cancellation', 
     };
     assert.deepEqual(
       await fetchGrowthRunJournal('run/one', controller.signal),
-      entries
+      entries,
     );
   } finally {
     globalThis.fetch = previous;
@@ -28,7 +28,7 @@ test('journal request reports server errors without claiming tasks completed', a
     globalThis.fetch = async () => ({ ok: false, status: 503 });
     await assert.rejects(
       fetchGrowthRunJournal('run-one', new AbortController().signal),
-      /Runner event journal unavailable \(HTTP 503\)/
+      /Runner event journal unavailable \(HTTP 503\)/,
     );
     globalThis.fetch = async () => ({
       ok: true,
@@ -36,7 +36,7 @@ test('journal request reports server errors without claiming tasks completed', a
     });
     await assert.rejects(
       fetchGrowthRunJournal('run-one', new AbortController().signal),
-      /Invalid Runner journal/
+      /Invalid Runner journal/,
     );
   } finally {
     globalThis.fetch = previous;

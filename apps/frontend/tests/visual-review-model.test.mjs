@@ -13,12 +13,12 @@ test('review upload accepts only supported types at the original 2 MiB boundary'
     assert.equal(validateReviewImage({ size: 2 * 1024 * 1024, type }), null);
     assert.match(
       validateReviewImage({ size: 2 * 1024 * 1024 + 1, type }),
-      /under 2 MB/
+      /under 2 MB/,
     );
   }
   assert.match(
     validateReviewImage({ size: 10, type: 'image/svg+xml' }),
-    /PNG, JPEG or WebP/
+    /PNG, JPEG or WebP/,
   );
 });
 
@@ -28,7 +28,7 @@ test('capture and saved page sections stay within the original allowlist', () =>
   assert.equal(captureSection('audit-../../skills.png'), null);
   assert.equal(
     reviewSection('https://example.com/in/a/details/projects/'),
-    'projects'
+    'projects',
   );
   assert.equal(reviewSection('https://example.com/in/a'), 'profile');
 });
@@ -43,7 +43,7 @@ test('tagged review inserts a non-executable note before the action step', () =>
   assert.match(after.steps[3].message, /approval still required/);
   assert.deepEqual(
     after.links.map(({ source, target }) => [source, target]),
-    after.steps.slice(1).map((step, index) => [after.steps[index].id, step.id])
+    after.steps.slice(1).map((step, index) => [after.steps[index].id, step.id]),
   );
 });
 

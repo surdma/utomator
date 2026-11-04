@@ -12,17 +12,17 @@ async function main() {
 
   function assert(condition, name) {
     if (condition) {
-      console.log('  PASS: ' + name);
+      console.log(`  PASS: ${name}`);
       passed++;
     } else {
-      console.log('  FAIL: ' + name);
+      console.log(`  FAIL: ${name}`);
       failed++;
     }
   }
 
   try {
     console.log('\nTest 1: Connector onboarding dialog');
-    await page.goto(BASE + '/dashboard/pipeline', {
+    await page.goto(`${BASE}/dashboard/pipeline`, {
       waitUntil: 'domcontentloaded',
     });
     await page.waitForTimeout(3000);
@@ -82,7 +82,7 @@ async function main() {
         await page.waitForTimeout(3000);
         assert(
           syncUrls.length > 0,
-          'Sync API was called (' + syncUrls.length + ' requests)'
+          `Sync API was called (${syncUrls.length} requests)`,
         );
       }
     }
@@ -90,7 +90,7 @@ async function main() {
     await page.keyboard.press('Escape');
 
     console.log('\nTest 3: Server-managed session survives reload');
-    await page.goto(BASE + '/dashboard/profile/connections', {
+    await page.goto(`${BASE}/dashboard/profile/connections`, {
       waitUntil: 'domcontentloaded',
     });
     await page.waitForTimeout(2000);
@@ -101,7 +101,7 @@ async function main() {
     const linkedinText = page.locator('text=LinkedIn');
     assert(
       await linkedinText.isVisible(),
-      'LinkedIn accounts visible from server'
+      'LinkedIn accounts visible from server',
     );
 
     await page.reload();
@@ -109,16 +109,16 @@ async function main() {
     assert(await heading.isVisible(), 'Connections page survives reload');
     assert(
       await linkedinText.isVisible(),
-      'LinkedIn accounts still visible after reload'
+      'LinkedIn accounts still visible after reload',
     );
   } catch (error) {
-    console.log('  ERROR: ' + error.message);
+    console.log(`  ERROR: ${error.message}`);
     failed++;
   }
 
   await browser.close();
 
-  console.log('\nResults: ' + passed + ' passed, ' + failed + ' failed');
+  console.log(`\nResults: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);
 }
 

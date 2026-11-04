@@ -1,16 +1,16 @@
 'use client';
 
 import Image from 'next/image';
-import {
-  primaryOperation,
-  providerMeta,
-} from '@/components/dashboard/connections/provider-meta';
+import type { ConnectionStatus } from '@/components/dashboard/account/account-format';
 import {
   portraitSrc,
   statusLine,
 } from '@/components/dashboard/account/account-format';
-import type { ConnectionStatus } from '@/components/dashboard/account/account-format';
 import type { SocialAccount } from '@/components/dashboard/account/account-home';
+import {
+  primaryOperation,
+  providerMeta,
+} from '@/components/dashboard/connections/provider-meta';
 
 const platforms = ['linkedin', 'x', 'instagram', 'github', 'devto'] as const;
 
@@ -140,7 +140,7 @@ export function NetworksSection({
                     const disconnecting =
                       primaryOperation(
                         live?.status ?? 'disconnected',
-                        live?.verifiedAt ?? null
+                        live?.verifiedAt ?? null,
                       ) === 'disconnect';
                     const portrait = portraitSrc(row.avatarUrl);
                     return (
@@ -194,11 +194,11 @@ export function NetworksSection({
                               disabled={linkBusy === row.id}
                               onClick={() => {
                                 onOpenProviderTab(
-                                  row.platform as 'linkedin' | 'x'
+                                  row.platform as 'linkedin' | 'x',
                                 );
                                 void onBeginSync(
                                   row.platform as 'linkedin' | 'x',
-                                  row.id
+                                  row.id,
                                 );
                               }}
                               className="inline-flex min-h-11 shrink-0 cursor-pointer items-center rounded-xl bg-[#111a25] px-4 text-sm font-semibold text-white hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40"

@@ -17,7 +17,7 @@ test('Growth client sends scoped JSON mutation', async () => {
       await request('/api/growth/templates/profile/runs', 'POST', {
         accountId: 'owner-123',
       }),
-      { id: 'run-1' }
+      { id: 'run-1' },
     );
   } finally {
     globalThis.fetch = previous;
@@ -40,9 +40,9 @@ test('Growth client reports errors and forwards cancellation', async () => {
         '/api/growth/templates/profile',
         'GET',
         undefined,
-        controller.signal
+        controller.signal,
       ),
-      /Missing account scope/
+      /Missing account scope/,
     );
   } finally {
     globalThis.fetch = previous;

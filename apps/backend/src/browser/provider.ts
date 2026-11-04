@@ -1,6 +1,6 @@
 import { mkdir, rm } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import { type Browser, type BrowserContext, type CDPSession, chromium, type Page } from 'playwright';
+import { runtimePath } from '../core/paths.js';
 
 /**
  * Centralized browser provider.
@@ -54,7 +54,7 @@ export async function launchPersistent(
 }
 
 export function scratchDirectory(label: string): string {
-  return resolve('.runtime', 'chrome', 'scratch', label);
+  return runtimePath('chrome', 'scratch', label);
 }
 
 /** Throwaway scratch profile: created here, deleted by `dispose`. */

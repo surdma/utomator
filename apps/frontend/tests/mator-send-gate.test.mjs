@@ -32,7 +32,7 @@ test('rapid second send while in-flight is a no-op (no second key / POST)', () =
   assert.equal(
     keyCount,
     1,
-    'idempotency key must not be re-allocated mid-flight'
+    'idempotency key must not be re-allocated mid-flight',
   );
 });
 
@@ -53,7 +53,7 @@ test('failure keeps idempotency key for retry; success clears for next turn', ()
   assert.equal(
     retry.key,
     'key-1',
-    'retry after failure reuses Idempotency-Key'
+    'retry after failure reuses Idempotency-Key',
   );
   assert.equal(keyCount, 1);
 
@@ -63,7 +63,7 @@ test('failure keeps idempotency key for retry; success clears for next turn', ()
   assert.equal(
     nextTurn.key,
     'key-2',
-    'successful send clears key for next turn'
+    'successful send clears key for next turn',
   );
   assert.equal(keyCount, 2);
 });

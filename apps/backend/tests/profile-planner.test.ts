@@ -1,12 +1,13 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ProfilePlanner, planningManifest } from '../src/profile/profile-planner.js';
-import { isApprovalFor, isEvidenceRecord } from '../src/runs/evidence-approval.js';
-import { loadIdentityTimeline } from '../src/profile/timeline.js';
+import test from 'node:test';
 import type { CareerDocument } from '../src/profile/career-store.js';
+import { ProfilePlanner, planningManifest } from '../src/profile/profile-planner.js';
+import { loadIdentityTimeline } from '../src/profile/profile-timeline.js';
+import { isApprovalFor, isEvidenceRecord } from '../src/runs/evidence-approval.js';
+
 // main.ts also supports direct server startup. Set test mode before importing it,
 // otherwise a stray Fastify listener keeps the unit-test worker running forever.
 process.env.NODE_ENV = 'test';

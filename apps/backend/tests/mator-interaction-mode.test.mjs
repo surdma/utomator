@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseMatorInteractionMode, mayAutoApproveMatorAction } from '../src/mator/mator-interaction-mode.ts';
+import {
+  mayAutoApproveMatorAction,
+  parseMatorInteractionMode,
+} from '../src/mator/mator-interaction-mode.ts';
 
 test('legacy text messages retain global approval policy', () => {
   assert.equal(parseMatorInteractionMode(undefined), 'text');

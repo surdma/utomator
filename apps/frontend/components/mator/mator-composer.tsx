@@ -1,14 +1,8 @@
 'use client';
 
 import {
-  useEffect,
-  useRef,
-  useState,
-  type FormEvent,
-} from 'react';
-import {
-  ArrowUp,
   ArrowRight,
+  ArrowUp,
   LoaderCircle,
   Mic,
   Paperclip,
@@ -17,22 +11,26 @@ import {
   Volume2,
   X,
 } from 'lucide-react';
-import type { VoiceSession } from './use-voice-session';
-import type { MatorAiCall } from './use-mator-ai-call';
-import MatorVoiceListener from './mator-voice-listener';
-import MatorAttachmentPreview from './mator-attachment-preview';
-import type { MatorCanvasMarker } from './mator-attachment-canvas';
-import { setVoiceOnlyPreference, useVoiceOnlyPreference } from './mator-voice-preference';
-import type { MatorModelOption, MatorSettingsMasked } from './mator-api';
-import { ModelSelector } from './elements/model-selector';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { Switch } from '@/components/ui/switch';
-import MatorChatSettings from './mator-chat-settings';
 import { cn } from '@/lib/utils';
 import {
   fileSizeLabel,
   iconButton,
   supportedFile,
 } from './chat/mator-composer-format';
+import { ModelSelector } from './elements/model-selector';
+import type { MatorModelOption, MatorSettingsMasked } from './mator-api';
+import type { MatorCanvasMarker } from './mator-attachment-canvas';
+import MatorAttachmentPreview from './mator-attachment-preview';
+import MatorChatSettings from './mator-chat-settings';
+import MatorVoiceListener from './mator-voice-listener';
+import {
+  setVoiceOnlyPreference,
+  useVoiceOnlyPreference,
+} from './mator-voice-preference';
+import type { MatorAiCall } from './use-mator-ai-call';
+import type { VoiceSession } from './use-voice-session';
 
 export const ATTACH_ACCEPT = 'image/*,.txt,.md,.markdown,.readme,README';
 
@@ -46,16 +44,19 @@ type Props = {
   onMessageChange: (message: string) => void;
   onSendMessage: (event: FormEvent<HTMLFormElement>) => void;
   onUploadFile?: (file: File) => Promise<string>;
-  onSendText?: (text: string, attachmentIds?: string[]) => Promise<boolean | void> | void;
+  onSendText?: (
+    text: string,
+    attachmentIds?: string[],
+  ) => Promise<boolean | undefined> | undefined;
   onSaveMarkers?: (
     attachmentId: string,
     markers: MatorCanvasMarker[],
-    reviewId?: string
-  ) => void | Promise<unknown>;
+    reviewId?: string,
+  ) => undefined | Promise<unknown>;
   /** Opens the full YAML-driven review studio for a pending draft image. */
   onAnnotateDraft?: (
     file: File,
-    note?: string
+    note?: string,
   ) => Promise<{ reviewId: string } | null>;
   onPendingAssetsChange?: (count: number) => void;
   busy?: boolean;
@@ -157,16 +158,19 @@ export default function MatorComposer({
     if (!textarea || voiceOnly) return;
     textarea.style.height = 'auto';
     textarea.style.height = `${Math.min(textarea.scrollHeight, 116)}px`;
-  }, [message, voiceOnly]);
+  }, [voiceOnly]);
 
   useEffect(() => {
     onPendingAssetsChange?.(pending.length);
   }, [pending.length, onPendingAssetsChange]);
 
-  useEffect(() => () => {
-    for (const url of previewUrls.current) URL.revokeObjectURL(url);
-    previewUrls.current.clear();
-  }, []);
+  useEffect(
+    () => () => {
+      for (const url of previewUrls.current) URL.revokeObjectURL(url);
+      previewUrls.current.clear();
+    },
+    [],
+  );
 
   const attach = (files: FileList | null) => {
     if (!files?.length) return;
@@ -179,17 +183,25 @@ export default function MatorComposer({
       return;
     }
     if (accepted.length !== selected.length) {
-      setDraftError('Supported assets are raster images, TXT and README files.');
+      setDraftError(
+        'Supported assets are raster images, TXT and README files.',
+      );
     } else {
       setDraftError('');
     }
     const rows = accepted.map((file) => {
-      const imageSrc = file.type.startsWith('image/') ? URL.createObjectURL(file) : null;
+      const imageSrc = file.type.startsWith('image/')
+        ? URL.createObjectURL(file)
+        : null;
       if (imageSrc) previewUrls.current.add(imageSrc);
       return {
         id: nextAttachmentId.current++,
-        file, name: file.name, size: fileSizeLabel(file.size),
-        imageSrc, markers: [], state: 'ready' as const,
+        file,
+        name: file.name,
+        size: fileSizeLabel(file.size),
+        imageSrc,
+        markers: [],
+        state: 'ready' as const,
       };
     });
     setPending((current) => [...current, ...rows]);
@@ -208,7 +220,8 @@ export default function MatorComposer({
   };
 
   const sendDraft = async () => {
-    if (submitting || busy || !pending.length || !onUploadFile || !onSendText) return;
+    if (submitting || busy || !pending.length || !onUploadFile || !onSendText)
+      return;
     setSubmitting(true);
     setDraftError('');
     try {
@@ -216,11 +229,21 @@ export default function MatorComposer({
       for (const asset of pending) {
         let id = asset.uploadedId;
         if (!id) {
-          setPending((current) => current.map((row) => row.id === asset.id ? { ...row, state: 'uploading' } : row));
+          setPending((current) =>
+            current.map((row) =>
+              row.id === asset.id ? { ...row, state: 'uploading' } : row,
+            ),
+          );
           id = await onUploadFile(asset.file);
-          if (!id) throw Error('Could not upload ' + asset.name);
+          if (!id) throw Error(`Could not upload ${asset.name}`);
           asset.uploadedId = id;
-          setPending((current) => current.map((row) => row.id === asset.id ? { ...row, uploadedId: id, state: 'ready' } : row));
+          setPending((current) =>
+            current.map((row) =>
+              row.id === asset.id
+                ? { ...row, uploadedId: id, state: 'ready' }
+                : row,
+            ),
+          );
         }
         if ((asset.markers.length || asset.reviewId) && onSaveMarkers) {
           await onSaveMarkers(id, asset.markers, asset.reviewId);
@@ -228,7 +251,8 @@ export default function MatorComposer({
         ids.push(id);
       }
       const sent = await onSendText(message.trim(), ids);
-      if (sent === false) throw Error('Could not send assets. Your draft is preserved.');
+      if (sent === false)
+        throw Error('Could not send assets. Your draft is preserved.');
       setPending([]);
       setAnnotateError('');
       for (const asset of pending) {
@@ -239,8 +263,14 @@ export default function MatorComposer({
       }
       onMessageChange('');
     } catch (cause) {
-      setPending((current) => current.map((row) => row.state === 'uploading' ? { ...row, state: 'error' } : row));
-      setDraftError(cause instanceof Error ? cause.message : 'Could not send assets');
+      setPending((current) =>
+        current.map((row) =>
+          row.state === 'uploading' ? { ...row, state: 'error' } : row,
+        ),
+      );
+      setDraftError(
+        cause instanceof Error ? cause.message : 'Could not send assets',
+      );
     } finally {
       setSubmitting(false);
     }
@@ -252,36 +282,49 @@ export default function MatorComposer({
     try {
       const result = await onAnnotateDraft(
         asset.file,
-        message.trim().slice(0, 1500) || undefined
+        message.trim().slice(0, 1500) || undefined,
       );
       if (result?.reviewId) {
-        setPending((current) => current.map((row) =>
-          row.id === asset.id ? { ...row, reviewId: result.reviewId } : row
-        ));
+        setPending((current) =>
+          current.map((row) =>
+            row.id === asset.id ? { ...row, reviewId: result.reviewId } : row,
+          ),
+        );
       }
     } catch (cause) {
       setAnnotateError(
-        cause instanceof Error ? cause.message : 'Could not open the annotation studio'
+        cause instanceof Error
+          ? cause.message
+          : 'Could not open the annotation studio',
       );
     }
   };
 
   const gallery = pending.length ? (
     <div className="min-w-0 px-1.5 py-1.5">
-      <div data-testid="mator-pending-gallery" className="grid max-h-44 grid-cols-3 gap-1.5 overflow-y-auto sm:grid-cols-4" role="list" aria-label="Assets ready to send">
+      <div
+        data-testid="mator-pending-gallery"
+        className="grid max-h-44 grid-cols-3 gap-1.5 overflow-y-auto sm:grid-cols-4"
+        role="list"
+        aria-label="Assets ready to send"
+      >
         {pending.map((asset) => (
           <div key={asset.id} role="listitem" className="relative w-fit">
             <MatorAttachmentPreview
               attachmentId={asset.uploadedId ?? `draft-${asset.id}`}
               filename={asset.name}
-              mime={asset.file.type || (asset.imageSrc ? 'image/png' : 'text/plain')}
+              mime={
+                asset.file.type || (asset.imageSrc ? 'image/png' : 'text/plain')
+              }
               imageSrc={asset.imageSrc}
               markers={asset.markers}
               reviewId={asset.reviewId}
               onMarkersChange={(markers) => {
-                setPending((current) => current.map((row) =>
-                  row.id === asset.id ? { ...row, markers } : row
-                ));
+                setPending((current) =>
+                  current.map((row) =>
+                    row.id === asset.id ? { ...row, markers } : row,
+                  ),
+                );
               }}
               onAnnotateFull={
                 onAnnotateDraft && asset.file.type.startsWith('image/')
@@ -289,21 +332,33 @@ export default function MatorComposer({
                   : undefined
               }
             />
-            <button type="button" aria-label={`Remove ${asset.name}`} onClick={() => removeDraft(asset.id)} className="absolute -top-1 -right-1 flex size-6 items-center justify-center rounded-full bg-slate-800 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700">
+            <button
+              type="button"
+              aria-label={`Remove ${asset.name}`}
+              onClick={() => removeDraft(asset.id)}
+              className="absolute -top-1 -right-1 flex size-6 items-center justify-center rounded-full bg-slate-800 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+            >
               <X className="size-3" aria-hidden="true" />
             </button>
-            {asset.state !== 'ready' && <span className="block text-[10px] text-slate-600">{asset.state}</span>}
+            {asset.state !== 'ready' && (
+              <span className="block text-[10px] text-slate-600">
+                {asset.state}
+              </span>
+            )}
           </div>
         ))}
       </div>
       {annotateError && (
-        <p role="alert" data-testid="mator-annotate-error" className="px-1 pt-1 text-xs text-rose-700">
+        <p
+          role="alert"
+          data-testid="mator-annotate-error"
+          className="px-1 pt-1 text-xs text-rose-700"
+        >
           {annotateError}
         </p>
       )}
     </div>
   ) : null;
-
 
   /* ── AI Call: transparent galaxy listener dock replaces the text composer
      and the old card; the header owns mute + end call during the call. ── */
@@ -320,29 +375,85 @@ export default function MatorComposer({
             Mator AI Call
           </span>
           <div className="inline-flex min-w-0 shrink-0 flex-nowrap items-center gap-0.5">
-            <button type="button" aria-label="Attach a file during AI call" data-testid="mator-voice-attach" disabled={call.active} onClick={() => inputRef.current?.click()} className={iconButton('default')}>
+            <button
+              type="button"
+              aria-label="Attach a file during AI call"
+              data-testid="mator-voice-attach"
+              disabled={call.active}
+              onClick={() => inputRef.current?.click()}
+              className={iconButton('default')}
+            >
               <Paperclip className="size-4" aria-hidden="true" />
             </button>
-            <input ref={inputRef} type="file" multiple accept={ATTACH_ACCEPT} className="sr-only" aria-hidden="true" tabIndex={-1} onChange={(event) => { attach(event.target.files); event.target.value = ''; }} />
-            <MatorChatSettings disabled={busy || call.active} onSettingsSaved={onSettingsSaved} />
-            <span className="inline-flex size-11 shrink-0 items-center justify-center" title="Switch to text conversation">
-              <Switch checked={voiceOnly} onCheckedChange={(checked) => { if (!checked) call.end(); setVoiceOnlyPreference(checked); }} aria-label="Mator AI Call mode" data-testid="mator-voice-switch" />
+            <input
+              ref={inputRef}
+              type="file"
+              multiple
+              accept={ATTACH_ACCEPT}
+              className="sr-only"
+              aria-hidden="true"
+              tabIndex={-1}
+              onChange={(event) => {
+                attach(event.target.files);
+                event.target.value = '';
+              }}
+            />
+            <MatorChatSettings
+              disabled={busy || call.active}
+              onSettingsSaved={onSettingsSaved}
+            />
+            <span
+              className="inline-flex size-11 shrink-0 items-center justify-center"
+              title="Switch to text conversation"
+            >
+              <Switch
+                checked={voiceOnly}
+                onCheckedChange={(checked) => {
+                  if (!checked) call.end();
+                  setVoiceOnlyPreference(checked);
+                }}
+                aria-label="Mator AI Call mode"
+                data-testid="mator-voice-switch"
+              />
             </span>
           </div>
         </div>
         {gallery}
         {pending.length > 0 && (
           <div className="mt-2 flex items-end gap-2">
-            <input type="text" value={message} onChange={(event) => onMessageChange(event.target.value)} aria-label="Caption for assets" placeholder="Add a caption or prompt…" className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-200 px-3 text-sm" />
-            <button type="button" data-testid="mator-send" onClick={() => void sendDraft()} disabled={submitting || busy || call.active} className="min-h-11 rounded-xl bg-teal-800 px-3 text-sm font-semibold text-white disabled:opacity-50">Send assets</button>
+            <input
+              type="text"
+              value={message}
+              onChange={(event) => onMessageChange(event.target.value)}
+              aria-label="Caption for assets"
+              placeholder="Add a caption or prompt…"
+              className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-200 px-3 text-sm"
+            />
+            <button
+              type="button"
+              data-testid="mator-send"
+              onClick={() => void sendDraft()}
+              disabled={submitting || busy || call.active}
+              className="min-h-11 rounded-xl bg-teal-800 px-3 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              Send assets
+            </button>
           </div>
         )}
-        {draftError && <p role="alert" className="text-xs text-rose-700">{draftError}</p>}
+        {draftError && (
+          <p role="alert" className="text-xs text-rose-700">
+            {draftError}
+          </p>
+        )}
         <div className="mt-1">
           <MatorVoiceListener call={call} ready={callReady && !busy} />
         </div>
         {operatorPendingLabel && onConfirmOperator && (
-          <OperatorPendingApproval label={operatorPendingLabel} onConfirm={onConfirmOperator} busy={busy} />
+          <OperatorPendingApproval
+            label={operatorPendingLabel}
+            onConfirm={onConfirmOperator}
+            busy={busy}
+          />
         )}
         {incomplete && (
           <IncompleteBanner onContinue={onIncompleteContinue} busy={busy} />
@@ -352,7 +463,8 @@ export default function MatorComposer({
   }
 
   /* ── Text-first deck ─────────────────────────────────────────── */
-  const canSend = Boolean(message.trim() || pending.length) && !busy && !submitting;
+  const canSend =
+    Boolean(message.trim() || pending.length) && !busy && !submitting;
   const showSuggestions = emptyThread && Boolean(startPrompt);
 
   return (
@@ -365,7 +477,11 @@ export default function MatorComposer({
         <IncompleteBanner onContinue={onIncompleteContinue} busy={busy} />
       )}
       {operatorPendingLabel && onConfirmOperator && (
-        <OperatorPendingApproval label={operatorPendingLabel} onConfirm={onConfirmOperator} busy={busy} />
+        <OperatorPendingApproval
+          label={operatorPendingLabel}
+          onConfirm={onConfirmOperator}
+          busy={busy}
+        />
       )}
       {showSuggestions && (
         <div className="flex flex-wrap gap-1.5 pt-1 pb-2">
@@ -375,8 +491,8 @@ export default function MatorComposer({
             onClick={() => onMessageChange(startPrompt!)}
             className="min-h-9 cursor-pointer rounded-full border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 transition-colors hover:border-teal-400 hover:bg-teal-50/60 hover:text-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
           >
-            {startPrompt!.slice(0, 42)}
-            {startPrompt!.length > 42 ? '…' : ''}
+            {startPrompt?.slice(0, 42)}
+            {startPrompt?.length > 42 ? '…' : ''}
           </button>
         </div>
       )}
@@ -392,7 +508,11 @@ export default function MatorComposer({
       >
         <div className="min-w-0 rounded-2xl border border-slate-200 bg-white px-1.5 pt-1 pb-1.5 shadow-[inset_0_1px_2px_rgba(15,23,42,.03)] transition-colors focus-within:border-teal-600/70 focus-within:ring-2 focus-within:ring-teal-700/10">
           {gallery}
-          {draftError && <p role="alert" className="px-2 text-xs text-rose-700">{draftError}</p>}
+          {draftError && (
+            <p role="alert" className="px-2 text-xs text-rose-700">
+              {draftError}
+            </p>
+          )}
           <textarea
             ref={textareaRef}
             value={message}
@@ -436,7 +556,9 @@ export default function MatorComposer({
             />
             <button
               type="button"
-              aria-label={voice.listening ? 'Stop dictation' : 'Dictate into text draft'}
+              aria-label={
+                voice.listening ? 'Stop dictation' : 'Dictate into text draft'
+              }
               aria-pressed={voice.listening}
               data-testid="mator-mic"
               disabled={voice.support === 'unsupported' || busy}
@@ -458,10 +580,21 @@ export default function MatorComposer({
               </span>
             )}
             <div className="ml-auto flex min-w-0 shrink-0 flex-nowrap items-center gap-0.5">
-              <span className="inline-flex size-11 shrink-0 items-center justify-center" title="Voice-only conversation">
-                <Switch checked={voiceOnly} onCheckedChange={setVoiceOnlyPreference} aria-label="Mator AI Call mode" data-testid="mator-voice-switch" />
+              <span
+                className="inline-flex size-11 shrink-0 items-center justify-center"
+                title="Voice-only conversation"
+              >
+                <Switch
+                  checked={voiceOnly}
+                  onCheckedChange={setVoiceOnlyPreference}
+                  aria-label="Mator AI Call mode"
+                  data-testid="mator-voice-switch"
+                />
               </span>
-              <MatorChatSettings disabled={busy} onSettingsSaved={onSettingsSaved} />
+              <MatorChatSettings
+                disabled={busy}
+                onSettingsSaved={onSettingsSaved}
+              />
               {models.length > 0 && (
                 <ModelSelector
                   models={models}
@@ -481,7 +614,7 @@ export default function MatorComposer({
                   'inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed',
                   canSend
                     ? 'bg-teal-800 text-white hover:bg-teal-700'
-                    : 'bg-slate-100 text-slate-300'
+                    : 'bg-slate-100 text-slate-300',
                 )}
               >
                 {busy ? (
@@ -522,7 +655,9 @@ function OperatorPendingApproval({
       role="status"
       className="mb-2 flex w-fit max-w-full min-w-0 flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900"
     >
-      <span className="min-w-0 max-w-48 truncate" title={label}>Local command: {label}</span>
+      <span className="min-w-0 max-w-48 truncate" title={label}>
+        Local command: {label}
+      </span>
       <button
         type="button"
         data-testid="operator-confirm-pending"

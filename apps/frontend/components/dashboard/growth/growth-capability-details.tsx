@@ -15,14 +15,14 @@ import {
 } from './linkedin-growth-capabilities';
 
 export function capabilityForSlug(slug: string) {
-  return growthCapabilities.find((item) => slug === 'growth-' + item.id);
+  return growthCapabilities.find((item) => slug === `growth-${item.id}`);
 }
 
 export default function GrowthCapabilityDetails({ slug }: { slug: string }) {
   const capability = capabilityForSlug(slug);
   if (!capability) return null;
   const journeys = growthJourneys.filter((journey) =>
-    (journey.sequence as readonly string[]).includes(capability.id)
+    (journey.sequence as readonly string[]).includes(capability.id),
   );
   return (
     <section

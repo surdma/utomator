@@ -1,7 +1,7 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash, generateKeyPairSync, sign } from 'node:crypto';
+import test from 'node:test';
 import { createHostedAuth } from '../hosted/auth.mjs';
-import { generateKeyPairSync, sign, createHash } from 'node:crypto';
 
 const issuer = 'https://identity.example.test';
 const redirect = 'https://utomator.example.test/auth/callback';

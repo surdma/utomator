@@ -1,8 +1,8 @@
 'use client';
 
-import { useId, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ChevronDown, CircleCheck, Workflow } from 'lucide-react';
+import { useId, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 type Props = {
@@ -36,7 +36,7 @@ export function Reasoning({
       data-slot="reasoning"
       className={cn(
         'min-w-0 rounded-xl border border-slate-200 bg-white/70',
-        className
+        className,
       )}
     >
       <div className="flex items-center justify-between gap-2 px-3 py-2">
@@ -59,7 +59,7 @@ export function Reasoning({
             aria-hidden="true"
             className={cn(
               'size-3.5 shrink-0 text-slate-400 transition-transform',
-              open && 'rotate-180'
+              open && 'rotate-180',
             )}
           />
         </button>

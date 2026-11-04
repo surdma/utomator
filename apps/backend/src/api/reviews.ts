@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import { loadIdentityTimeline } from '../profile/timeline.js';
 import type { Platform } from '../core/types.js';
+import { loadIdentityTimeline } from '../profile/profile-timeline.js';
 import type {
   AnnotationEditEvent,
   VisualAnnotation,

@@ -1,34 +1,35 @@
 import { timingSafeEqual } from 'node:crypto';
 import { resolve } from 'node:path';
 import Fastify from 'fastify';
-import { Runner } from './runs/runner.js';
+import { registerConnectorRoutes } from './api/connect.js';
+import { registerCraftRoutes } from './api/crafts.js';
+import { registerEditorialRoutes } from './api/editorial.js';
+import { registerGrowthRoutes } from './api/growth.js';
+import { registerIntelligenceRoutes } from './api/intelligence.js';
+import { registerProfilePlanRoutes } from './api/planning.js';
+import { registerProfileRoutes } from './api/profile.js';
+import { registerReviewRoutes } from './api/reviews.js';
+import { registerRunRoutes } from './api/runs.js';
+import { registerWorkflowRoutes } from './api/workflows.js';
 import { ConnectorService } from './connect/service.js';
-import { ActivityMemory } from './mator/activity-memory.js';
+import { AuthBlockedError } from './core/errors.js';
+import { CraftLibrary } from './crafts/library.js';
+import { createDocumentStore, type DocumentStore } from './db/documents.js';
+import { ProfileGrowthCoordinator } from './engine/profile-growth-coordinator.js';
 import { CreatorResearchStore } from './linkedin/linkedin-creator-research.js';
 import { LinkedInEditorialStore } from './linkedin/linkedin-editorial.js';
 import { LinkedInPublishingProvider } from './linkedin/linkedin-publisher.js';
-import { ProfilePlanner } from './profile/profile-planner.js';
-import { WorkflowPlanStore } from './workflows/workflow-store.js';
-import { ProfileGrowthCoordinator } from './engine/profile-growth-coordinator.js';
-import { WorkflowRegistry } from './workflows/workflow-registry.js';
-import { StepDefinitionStore } from './workflows/step-definitions.js';
-import { createDocumentStore, type DocumentStore } from './db/documents.js';
-import { CareerStore } from './profile/career-store.js';
-import { AccountStore } from './profile/account-store.js';
-import { VisualReviewStore } from './runs/visual-review.js';
-import { CraftLibrary } from './crafts/library.js';
-import { registerMatorRoutes } from './mator/mator-routes.js';
 import { workflowRegistryPort } from './mator/mator-actions.js';
-import { registerConnectorRoutes } from './api/connect.js';
-import { registerEditorialRoutes } from './api/editorial.js';
-import { registerIntelligenceRoutes } from './api/intelligence.js';
-import { registerWorkflowRoutes } from './api/workflows.js';
-import { registerCraftRoutes } from './api/crafts.js';
-import { registerReviewRoutes } from './api/reviews.js';
-import { registerProfileRoutes } from './api/profile.js';
-import { registerProfilePlanRoutes } from './api/planning.js';
-import { registerGrowthRoutes } from './api/growth.js';
-import { registerRunRoutes } from './api/runs.js';
+import { ActivityMemory } from './mator/mator-activity-memory.js';
+import { registerMatorRoutes } from './mator/mator-routes.js';
+import { AccountStore } from './profile/account-store.js';
+import { CareerStore } from './profile/career-store.js';
+import { ProfilePlanner } from './profile/profile-planner.js';
+import { Runner } from './runs/runner.js';
+import { VisualReviewStore } from './runs/visual-review.js';
+import { StepDefinitionStore } from './workflows/step-definitions.js';
+import { WorkflowRegistry } from './workflows/workflow-registry.js';
+import { WorkflowPlanStore } from './workflows/workflow-store.js';
 
 /**
  * HTTP composition root.
@@ -72,7 +73,9 @@ export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?
       if (state === 'temporarily-unavailable')
         throw Error('LinkedIn is temporarily unavailable; the saved login was not cleared');
       if (state !== 'verified')
-        throw Error('LinkedIn session not authenticated. Reconnect and verify this account.');
+        throw new AuthBlockedError(
+          'LinkedIn session not authenticated. Reconnect and verify this account.',
+        );
     },
   );
   const profilePlanner = new ProfilePlanner();
@@ -88,18 +91,10 @@ export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?
   const authoredSteps = new StepDefinitionStore();
   const growthProfileRuns = new ProfileGrowthCoordinator(runner);
   const craftLibrary = new CraftLibrary();
-  const visual = new VisualReviewStore((runId, fileName, platform) => {
+  const visual = new VisualReviewStore(async (runId, fileName, platform) => {
     const run = runner.get(runId);
-    return (
-      run?.platform === platform &&
-      runner.events
-        .getSince(0, runId)
-        .some(
-          (event) =>
-            event.kind === 'screenshot' &&
-            (event.details as { fileName?: unknown } | undefined)?.fileName === fileName,
-        )
-    );
+    if (!run || run.platform !== platform) return false;
+    return runner.isScreenshotAuthorized(runId, fileName);
   });
 
   app.addHook('onReady', async () => {
@@ -176,8 +171,7 @@ export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?
   registerMatorRoutes(app, {
     getDocuments: () => database,
     ports: matorPorts,
-    resolveVisualReview: async (reviewId) =>
-      (await visual.yamlFor(reviewId)) !== null,
+    resolveVisualReview: async (reviewId) => (await visual.yamlFor(reviewId)) !== null,
   });
 
   registerConnectorRoutes(app, connectors);

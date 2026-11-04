@@ -12,29 +12,29 @@ test('natural phrases map onto the same four commands', () => {
   assert.equal(
     explainCommand('change my headline to Clinical Systems Lead')?.fields
       .headline,
-    'Clinical Systems Lead'
+    'Clinical Systems Lead',
   );
   assert.equal(
     explainCommand('make my headline Clinical Systems Lead')?.fields.headline,
-    'Clinical Systems Lead'
+    'Clinical Systems Lead',
   );
   assert.equal(explainCommand('change my headline to'), null);
   assert.equal(explainCommand('change my headline to .'), null);
   assert.equal(
     explainCommand('add a skill called React')?.fields.skill,
-    'React'
+    'React',
   );
   assert.equal(
     explainCommand('add the skill TypeScript')?.fields.skill,
-    'TypeScript'
+    'TypeScript',
   );
   assert.equal(
     explainCommand('draft a post about New research')?.fields.postText,
-    'New research'
+    'New research',
   );
   assert.equal(
     explainCommand('write a post saying Hello team')?.fields.postText,
-    'Hello team'
+    'Hello team',
   );
   assert.equal(explainCommand('launch everything'), null);
   assert.equal(explainCommand('add a skill called'), null);
@@ -44,7 +44,7 @@ test('typed exact commands stage immediately and spoken ones wait', () => {
   const typed = decideUtterance(
     'set headline: Clinical Systems Lead',
     'text',
-    false
+    false,
   );
   assert.equal(typed.kind, 'stage-now');
   const staged = nextCommandState(null, typed);
@@ -54,7 +54,7 @@ test('typed exact commands stage immediately and spoken ones wait', () => {
   const spoken = decideUtterance(
     'change my headline to Clinical Systems Lead',
     'voice',
-    false
+    false,
   );
   assert.equal(spoken.kind, 'needs-confirm');
   const waiting = nextCommandState(null, spoken);
@@ -65,7 +65,7 @@ test('typed exact commands stage immediately and spoken ones wait', () => {
   const typedNatural = decideUtterance(
     'change my headline to Clinical Systems Lead',
     'text',
-    false
+    false,
   );
   assert.equal(typedNatural.kind, 'needs-confirm');
 });
@@ -74,12 +74,12 @@ test('confirm stages the pending command and does nothing when none is waiting',
   const heard = decideUtterance(
     'change my headline to Clinical Systems Lead',
     'voice',
-    false
+    false,
   );
   const waiting = nextCommandState(null, heard);
   const confirmed = nextCommandState(
     waiting.pending,
-    decideUtterance('stage it', 'voice', true)
+    decideUtterance('stage it', 'voice', true),
   );
   assert.equal(confirmed.stage?.action, 'edit-profile');
   assert.equal(confirmed.pending, null);
@@ -87,7 +87,7 @@ test('confirm stages the pending command and does nothing when none is waiting',
 
   const idle = nextCommandState(
     null,
-    decideUtterance('go ahead', 'text', false)
+    decideUtterance('go ahead', 'text', false),
   );
   assert.equal(idle.stage, null);
   assert.equal(idle.pending, null);
@@ -95,7 +95,7 @@ test('confirm stages the pending command and does nothing when none is waiting',
 
   const dropped = nextCommandState(
     waiting.pending,
-    decideUtterance('never mind', 'voice', true)
+    decideUtterance('never mind', 'voice', true),
   );
   assert.equal(dropped.stage, null);
   assert.equal(dropped.pending, null);

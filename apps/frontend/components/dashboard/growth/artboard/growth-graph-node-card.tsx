@@ -1,6 +1,6 @@
 'use client';
 
-import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { Handle, type NodeProps, Position } from '@xyflow/react';
 import { AlertCircle, ArrowUpRight, GitBranch, Settings2 } from 'lucide-react';
 import { stepIconFor } from '../../workflows/workflow-step-icons';
 import type { GrowthGraphNode } from '../growth-graph-model';
@@ -30,8 +30,8 @@ export function GrowthGraphNodeCard({
     <div
       data-testid={
         isPipeline
-          ? 'growth-pipeline-node-' + data.nodeId
-          : 'growth-task-node-' + data.nodeId
+          ? `growth-pipeline-node-${data.nodeId}`
+          : `growth-task-node-${data.nodeId}`
       }
       title={data.label}
       className={
@@ -86,7 +86,7 @@ export function GrowthGraphNodeCard({
           {data.designOnly
             ? 'PLANNED · NOT EXECUTABLE'
             : isPipeline
-              ? 'OPEN · ' + data.stepCount + ' STEPS'
+              ? `OPEN · ${data.stepCount} STEPS`
               : 'INSPECT · READ ONLY'}
         </span>
         {isPipeline ? (

@@ -1,12 +1,12 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  validateRun,
-  validateProfileUrl,
-  validatePostUrl,
-  profileUrlForHandle,
-} from '../src/core/validate.ts';
+import test from 'node:test';
 import { EventJournal } from '../src/core/events.ts';
+import {
+  profileUrlForHandle,
+  validatePostUrl,
+  validateProfileUrl,
+  validateRun,
+} from '../src/core/validate.ts';
 import { ApprovalGate } from '../src/runs/approvals.ts';
 
 const linkedIn = 'https://www.linkedin.com/in/surdma/';

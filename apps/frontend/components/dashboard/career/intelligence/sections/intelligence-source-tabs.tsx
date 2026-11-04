@@ -37,7 +37,7 @@ export default function IntelligenceSourceTabs({
           key={tab.id}
           onClick={() =>
             onNavigate(
-              tab.id === 'memory' ? '/dashboard/memory' : '/dashboard/observer'
+              tab.id === 'memory' ? '/dashboard/memory' : '/dashboard/observer',
             )
           }
           className={

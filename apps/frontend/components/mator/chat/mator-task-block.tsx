@@ -1,8 +1,8 @@
 'use client';
 
-import { type ReactNode } from 'react';
-import { Task } from '../elements/task';
+import type { ReactNode } from 'react';
 import type { Event as RunEvent } from '@/components/dashboard/pipeline/run-models';
+import { Task } from '../elements/task';
 
 export function TaskBlock({
   steps,

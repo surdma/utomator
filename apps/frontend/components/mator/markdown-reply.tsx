@@ -26,7 +26,7 @@ function inline(text: string): ReactNode[] {
       nodes.push(
         <strong key={nextKey('b')} className="font-semibold text-slate-900">
           {token.slice(2, -2)}
-        </strong>
+        </strong>,
       );
     } else if (token.startsWith('`')) {
       nodes.push(
@@ -35,7 +35,7 @@ function inline(text: string): ReactNode[] {
           className="rounded-md bg-slate-100 px-1 font-mono text-[12px] text-slate-800"
         >
           {token.slice(1, -1)}
-        </code>
+        </code>,
       );
     } else {
       nodes.push(<em key={nextKey('i')}>{token.slice(1, -1)}</em>);
@@ -61,7 +61,7 @@ export function MarkdownReply({ text }: { text: string }) {
         className="text-[13px] leading-relaxed text-slate-700"
       >
         {inline(paragraph.join(' '))}
-      </p>
+      </p>,
     );
     paragraph = [];
   };
@@ -87,7 +87,7 @@ export function MarkdownReply({ text }: { text: string }) {
         >
           {items}
         </ul>
-      )
+      ),
     );
     list = null;
   };
@@ -101,7 +101,7 @@ export function MarkdownReply({ text }: { text: string }) {
             className="overflow-x-auto rounded-xl bg-slate-900 px-3 py-2.5 text-[12px] leading-5 text-slate-100"
           >
             <code className="font-mono">{code.join('\n')}</code>
-          </pre>
+          </pre>,
         );
         code = null;
       } else {
@@ -134,7 +134,7 @@ export function MarkdownReply({ text }: { text: string }) {
     }
     if (ordered) {
       flushParagraph();
-      if (!list || !list.ordered) {
+      if (!list?.ordered) {
         flushList();
         list = { ordered: true, items: [] };
       }
@@ -161,7 +161,7 @@ export function MarkdownReply({ text }: { text: string }) {
           >
             {inline(heading[2])}
           </p>
-        )
+        ),
       );
       continue;
     }
@@ -177,7 +177,7 @@ export function MarkdownReply({ text }: { text: string }) {
         className="overflow-x-auto rounded-xl bg-slate-900 px-3 py-2.5 text-[12px] leading-5 text-slate-100"
       >
         <code className="font-mono">{code.join('\n')}</code>
-      </pre>
+      </pre>,
     );
   }
   return (

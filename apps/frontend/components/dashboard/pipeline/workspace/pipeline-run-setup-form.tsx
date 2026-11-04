@@ -1,9 +1,9 @@
 'use client';
 
-import { type Dispatch, type SetStateAction } from 'react';
 import { motion } from 'framer-motion';
 import { Crosshair, Focus } from 'lucide-react';
-import { workflows, type Platform, type Workflow } from '../workflow-catalog';
+import type { Dispatch, SetStateAction } from 'react';
+import { type Platform, type Workflow, workflows } from '../workflow-catalog';
 
 type Props = {
   reduceMotion: boolean;
@@ -132,7 +132,7 @@ export default function PipelineRunSetupForm({
             <div key={field.key}>
               <label
                 className="mb-1 block text-xs font-semibold"
-                htmlFor={'automation-' + field.key}
+                htmlFor={`automation-${field.key}`}
               >
                 {field.label}
                 {field.required && (
@@ -141,7 +141,7 @@ export default function PipelineRunSetupForm({
               </label>
               {field.multiline ? (
                 <textarea
-                  id={'automation-' + field.key}
+                  id={`automation-${field.key}`}
                   className="min-h-24 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-teal-600"
                   maxLength={field.max || 3000}
                   required={field.required}
@@ -155,7 +155,7 @@ export default function PipelineRunSetupForm({
                 />
               ) : (
                 <input
-                  id={'automation-' + field.key}
+                  id={`automation-${field.key}`}
                   className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-teal-600"
                   maxLength={field.max || 500}
                   placeholder={field.placeholder}

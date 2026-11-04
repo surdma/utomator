@@ -58,7 +58,7 @@ export type WorkflowPlan = {
   links: WorkflowLink[];
 };
 
-const actions: Record<Platform, readonly Action[]> = {
+export const ACTIONS: Record<Platform, readonly Action[]> = {
   linkedin: [
     'audit',
     'audit-page',
@@ -72,7 +72,7 @@ const actions: Record<Platform, readonly Action[]> = {
   ],
   x: ['audit', 'audit-page', 'edit-profile', 'compose-post', 'pin-post', 'delete-post', 'upload-banner'],
 };
-const stepKinds = new Set<StepKind>([
+export const STEP_KINDS = new Set<StepKind>([
   'start',
   'session',
   'inspect',
@@ -87,8 +87,8 @@ const stepKinds = new Set<StepKind>([
   'stop',
   'finish',
 ]);
-const required = ['start', 'session', 'action', 'finish'] as const;
-const idPattern = /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/;
+export const required = ['start', 'session', 'action', 'finish'] as const;
+export const STEP_ID_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/;
 const allowedParameterKeys = new Set([
   'headline',
   'about',
@@ -111,7 +111,7 @@ const allowedParameterKeys = new Set([
 ]);
 
 export function defaultPlan(platform: Platform, action: Action, name?: string): WorkflowPlan {
-  if (!actions[platform]?.includes(action)) throw Error('Unsupported workflow template for platform');
+  if (!ACTIONS[platform]?.includes(action)) throw Error('Unsupported workflow template for platform');
   const verb =
     action === 'audit' || action === 'audit-page' ? 'Inspect page' : 'Execute approved action';
   const steps: WorkflowStep[] = [
@@ -139,7 +139,7 @@ export function validatePlan(raw: unknown, platform: Platform, action: Action): 
     plan.version !== 1 ||
     plan.platform !== platform ||
     plan.action !== action ||
-    !actions[platform]?.includes(action) ||
+    !ACTIONS[platform]?.includes(action) ||
     typeof plan.name !== 'string' ||
     !plan.name.trim() ||
     plan.name.length > 120
@@ -171,8 +171,8 @@ export function validatePlan(raw: unknown, platform: Platform, action: Action): 
       (step) =>
         step &&
         typeof step.id === 'string' &&
-        idPattern.test(step.id) &&
-        stepKinds.has(step.kind) &&
+        STEP_ID_PATTERN.test(step.id) &&
+        STEP_KINDS.has(step.kind) &&
         typeof step.title === 'string' &&
         step.title.trim().length > 0 &&
         step.title.length <= 100 &&
@@ -187,7 +187,7 @@ export function validatePlan(raw: unknown, platform: Platform, action: Action): 
             step.expectedText.length <= 120)) &&
         (step.definition === undefined ||
           (typeof step.definition?.id === 'string' &&
-            idPattern.test(step.definition.id) &&
+            STEP_ID_PATTERN.test(step.definition.id) &&
             Number.isSafeInteger(step.definition.version) &&
             step.definition.version >= 1 &&
             step.definition.version <= 100000 &&
@@ -525,6 +525,6 @@ export function linkedinPipeline(action: Action): WorkflowPlan {
 
 export function templates(platform: Platform): WorkflowPlan[] {
   return platform === 'linkedin'
-    ? actions.linkedin.map(linkedinPipeline)
-    : actions[platform].map((action) => defaultPlan(platform, action));
+    ? ACTIONS.linkedin.map(linkedinPipeline)
+    : ACTIONS[platform].map((action) => defaultPlan(platform, action));
 }

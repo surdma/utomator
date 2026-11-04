@@ -1,6 +1,6 @@
 'use client';
 
-import { providerMeta, type ProviderKey } from '../provider-meta';
+import { type ProviderKey, providerMeta } from '../provider-meta';
 
 export default function ConnectorOtherNetworks({
   network,
