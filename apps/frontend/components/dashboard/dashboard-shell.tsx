@@ -24,6 +24,9 @@ import { matorAttachmentFileUrl } from '@/components/mator/mator-api';
 import { collectRunSpeechUpdates } from '@/components/mator/mator-run-speech';
 import { useVoiceOnlyPreference } from '@/components/mator/mator-voice-preference';
 import OperatorChatPanel from '@/components/mator/operator-chat-panel';
+import { useGrowthProfileWorkflow } from '@/components/dashboard/growth/hooks/use-growth-profile-workflow';
+import { useGrowthExecutionProjection } from '@/hooks/use-growth-execution-projection';
+import { request as growthRequest } from '@/lib/growth-profile-client';
 import { useMatorAiCall } from '@/components/mator/use-mator-ai-call';
 import { useMatorChat } from '@/components/mator/use-mator-chat';
 import {
@@ -153,6 +156,36 @@ export default function DashboardShell({
     applyTemplate,
     invalidateWorkflowSelection,
   } = useWorkflowWorkspace({ busy, setRunFormError });
+  const workspaceGrowth = useGrowthProfileWorkflow(
+    platform,
+    selectedGrowthTemplateId,
+    activeConnector?.status === 'connected' && activeConnector.platform === 'linkedin'
+      ? activeConnector.id
+      : undefined,
+  );
+  const { projection: workspaceExecution, error: workspaceJournalError } =
+    useGrowthExecutionProjection(workspaceGrowth.run);
+
+  async function submitWorkspaceCheckpoint(
+    runId: string,
+    checkpointId: string,
+    type: 'decision' | 'input',
+    payload: { approved: boolean } | { value: string },
+  ) {
+    const child = workspaceGrowth.run?.currentChild;
+    if (
+      !child || child.id !== runId ||
+      child.checkpoint?.id !== checkpointId ||
+      (type === 'decision' && child.state !== 'approval-needed') ||
+      (type === 'input' && child.state !== 'input-needed')
+    ) throw Error('Checkpoint is no longer pending for this workspace');
+    await workspaceGrowth.mutate(() =>
+      growthRequest('/api/runs/' + encodeURIComponent(runId) + '/' + type, 'POST', {
+        checkpointId, ...payload,
+      }),
+    );
+  }
+
   function selectSocialAccount(account: SocialAccount) {
     setConnectorRequest(account.id);
     setConnectorOpenSignal((value) => value + 1);
@@ -768,6 +801,16 @@ export default function DashboardShell({
           matorEvents={matorEvents}
           conversations={matorConversations}
           conversationMeta={conversationMeta}
+          growthExecution={pane === 'workspace' && selectedGrowthTemplateId ? workspaceExecution : null}
+          growthExecutionTitle={workspaceGrowth.program?.title}
+          growthExecutionError={workspaceJournalError || workspaceGrowth.error}
+          growthExecutionBusy={workspaceGrowth.working}
+          onGrowthDecision={(runId, checkpointId, approved) =>
+            submitWorkspaceCheckpoint(runId, checkpointId, 'decision', { approved })
+          }
+          onGrowthInput={(runId, checkpointId, value) =>
+            submitWorkspaceCheckpoint(runId, checkpointId, 'input', { value })
+          }
           loading={matorLoading}
           modelId={settingsToggles.modelId ?? null}
           onModelChange={(modelId) => patchSettings({ modelId })}
