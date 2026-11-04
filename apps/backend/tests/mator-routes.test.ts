@@ -1,9 +1,9 @@
-import assert from 'node:assert/strict';
+
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import test from 'node:test';
+import { test, expect } from 'vitest';
 import Fastify from 'fastify';
 import type { RunRequest, RunSummary } from '../src/core/types.js';
 import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
@@ -168,31 +168,31 @@ test('GET settings masks key; PUT never echoes raw groqApiKey', async () => {
   const app = await buildMatorApp({ docs, ports });
   try {
     const empty = await app.inject({ method: 'GET', url: '/mator/settings' });
-    assert.equal(empty.statusCode, 200);
-    assert.equal(empty.json().groqKeyConfigured, false);
-    assert.equal(empty.json().keySource, 'none');
-    assert.equal(empty.json().autoApprove, false);
-    assert.equal(empty.json().squashPipelineHistory, false);
-    assert.equal(empty.json().howTtsEnabled, true);
-    assert.equal(empty.json().modelName, 'GPT-OSS 20B');
-    assert.equal(empty.json().modelTier, 'free');
-    assert.match(empty.json().modelLabel, /reasoning/i);
-    assert.equal('groqApiKey' in empty.json(), false);
-    assert.equal('groqKey' in empty.json(), false);
+    expect(empty.statusCode).toEqual(200);
+    expect(empty.json().groqKeyConfigured).toEqual(false);
+    expect(empty.json().keySource).toEqual('none');
+    expect(empty.json().autoApprove).toEqual(false);
+    expect(empty.json().squashPipelineHistory).toEqual(false);
+    expect(empty.json().howTtsEnabled).toEqual(true);
+    expect(empty.json().modelName).toEqual('GPT-OSS 20B');
+    expect(empty.json().modelTier).toEqual('free');
+    expect(empty.json().modelLabel).toMatch(/reasoning/i);
+    expect('groqApiKey' in empty.json()).toEqual(false);
+    expect('groqKey' in empty.json()).toEqual(false);
 
     const put = await app.inject({
       method: 'PUT',
       url: '/mator/settings',
       payload: { groqApiKey: 'gsk_secret_should_not_echo', autoApprove: true },
     });
-    assert.equal(put.statusCode, 200);
-    assert.equal(put.json().groqKeyConfigured, true);
-    assert.equal(put.json().autoApprove, true);
-    assert.equal(JSON.stringify(put.json()).includes('gsk_secret_should_not_echo'), false);
+    expect(put.statusCode).toEqual(200);
+    expect(put.json().groqKeyConfigured).toEqual(true);
+    expect(put.json().autoApprove).toEqual(true);
+    expect(JSON.stringify(put.json()).includes('gsk_secret_should_not_echo')).toEqual(false);
 
     const get = await app.inject({ method: 'GET', url: '/mator/settings' });
-    assert.equal(get.json().groqKeyConfigured, true);
-    assert.equal(JSON.stringify(get.json()).includes('gsk_secret_should_not_echo'), false);
+    expect(get.json().groqKeyConfigured).toEqual(true);
+    expect(JSON.stringify(get.json()).includes('gsk_secret_should_not_echo')).toEqual(false);
   } finally {
     await app.close();
     if (previous === undefined) delete process.env.UTOMATOR_MATOR_ENCRYPTION_KEY;
@@ -217,8 +217,8 @@ test('POST messages requires Idempotency-Key; missing Groq key returns 400 with 
       url: `/mator/conversations/${conversation.id}/messages`,
       payload: { text: 'hello' },
     });
-    assert.equal(missingHeader.statusCode, 400);
-    assert.match(missingHeader.json().error, /idempotency/i);
+    expect(missingHeader.statusCode).toEqual(400);
+    expect(missingHeader.json().error).toMatch(/idempotency/i);
 
     const missingKey = await app.inject({
       method: 'POST',
@@ -226,8 +226,8 @@ test('POST messages requires Idempotency-Key; missing Groq key returns 400 with 
       headers: { 'idempotency-key': randomUUID() },
       payload: { text: 'hello' },
     });
-    assert.equal(missingKey.statusCode, 400);
-    assert.match(missingKey.json().error, /groq|settings/i);
+    expect(missingKey.statusCode).toEqual(400);
+    expect(missingKey.json().error).toMatch(/groq|settings/i);
   } finally {
     await app.close();
   }
@@ -265,13 +265,10 @@ test('idempotent message POST returns same events; stage confirm applies plan ed
       headers: { 'idempotency-key': key },
       payload: { text: 'rename inspect' },
     });
-    assert.equal(first.statusCode, 200);
+    expect(first.statusCode).toEqual(200);
     const firstEvents = first.json().events as Array<{ id: string; status?: string }>;
-    assert.ok(firstEvents.some((e) => e.status === 'staged'));
-    assert.equal(
-      workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title,
-      'Inspect current page',
-    );
+    expect(firstEvents.some((e) => e.status === 'staged')).toBeTruthy();
+    expect(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title).toEqual('Inspect current page');
 
     const second = await app.inject({
       method: 'POST',
@@ -279,21 +276,18 @@ test('idempotent message POST returns same events; stage confirm applies plan ed
       headers: { 'idempotency-key': key },
       payload: { text: 'rename inspect' },
     });
-    assert.equal(second.statusCode, 200);
-    assert.equal(groqCalls, 2);
-    assert.deepEqual(
-      (second.json().events as Array<{ id: string }>).map((e) => e.id),
-      firstEvents.map((e) => e.id),
-    );
+    expect(second.statusCode).toEqual(200);
+    expect(groqCalls).toEqual(2);
+    expect((second.json().events as Array<{ id: string }>).map((e) => e.id)).toEqual(firstEvents.map((e) => e.id));
 
     const staged = firstEvents.find((e) => e.status === 'staged')!;
     const confirm = await app.inject({
       method: 'POST',
       url: `/mator/conversations/${conversation.id}/stage/${staged.id}/confirm`,
     });
-    assert.equal(confirm.statusCode, 200);
-    assert.equal(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title, 'Inspect via chat');
-    assert.ok((confirm.json().event as { status: string }).status === 'applied');
+    expect(confirm.statusCode).toEqual(200);
+    expect(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title).toEqual('Inspect via chat');
+    expect((confirm.json().event as { status: string }).status === 'applied').toBeTruthy();
   } finally {
     await app.close();
     if (previous === undefined) delete process.env.UTOMATOR_MATOR_ENCRYPTION_KEY;
@@ -324,7 +318,7 @@ test('POST messages with autoApprove applies action without staged-only outcome'
   const app = await buildMatorApp({ docs, ports, fetch: fetchImpl });
   try {
     const settings = await app.inject({ method: 'GET', url: '/mator/settings' });
-    assert.equal(settings.json().autoApprove, true);
+    expect(settings.json().autoApprove).toEqual(true);
 
     const res = await app.inject({
       method: 'POST',
@@ -332,20 +326,11 @@ test('POST messages with autoApprove applies action without staged-only outcome'
       headers: { 'idempotency-key': randomUUID() },
       payload: { text: 'auto rename inspect' },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toEqual(200);
     const events = res.json().events as Array<{ status?: string; kind: string }>;
-    assert.ok(
-      events.some((e) => e.status === 'applied'),
-      'expected applied action event',
-    );
-    assert.ok(
-      events.some((e) => e.status === 'staged') && events.some((e) => e.status === 'applied'),
-      'autoApprove still records stage then apply audit trail',
-    );
-    assert.equal(
-      workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title,
-      'Inspect auto-applied',
-    );
+    expect(events.some((e) => e.status === 'applied')).toBeTruthy();
+    expect(events.some((e) => e.status === 'staged') && events.some((e) => e.status === 'applied')).toBeTruthy();
+    expect(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title).toEqual('Inspect auto-applied');
   } finally {
     await app.close();
     if (previous === undefined) delete process.env.UTOMATOR_MATOR_ENCRYPTION_KEY;
@@ -378,12 +363,12 @@ test('switch current conversation does not swap YAML; restore changes plan with 
       method: 'POST',
       url: `/mator/conversations/${a.id}/stage/${staged.id}/confirm`,
     });
-    assert.equal(applied.statusCode, 200);
+    expect(applied.statusCode).toEqual(200);
   } finally {
     await confirmApp.close();
   }
   const boundTitle = workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title;
-  assert.equal(boundTitle, 'Bound for A');
+  expect(boundTitle).toEqual('Bound for A');
 
   await workflow.update(workflow.live.id, workflow.live.revision, {
     ...workflow.live.plan,
@@ -400,38 +385,38 @@ test('switch current conversation does not swap YAML; restore changes plan with 
       url: `/mator/workflows/${workflow.live.id}/current`,
       payload: { conversationId: a.id },
     });
-    assert.equal(switchRes.statusCode, 200);
-    assert.equal(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title, 'Live drifted');
+    expect(switchRes.statusCode).toEqual(200);
+    expect(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title).toEqual('Live drifted');
 
     const dirty = await app.inject({
       method: 'POST',
       url: `/mator/conversations/${a.id}/restore-pipeline`,
       payload: {},
     });
-    assert.equal(dirty.statusCode, 409);
-    assert.match(dirty.json().error, /dirty|confirm/i);
-    assert.equal(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title, 'Live drifted');
+    expect(dirty.statusCode).toEqual(409);
+    expect(dirty.json().error).toMatch(/dirty|confirm/i);
+    expect(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title).toEqual('Live drifted');
 
     const restored = await app.inject({
       method: 'POST',
       url: `/mator/conversations/${a.id}/restore-pipeline`,
       payload: { confirmDirty: true },
     });
-    assert.equal(restored.statusCode, 200);
-    assert.equal(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title, 'Bound for A');
+    expect(restored.statusCode).toEqual(200);
+    expect(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title).toEqual('Bound for A');
 
     // ensure B still exists / switch left plans alone earlier
     const list = await app.inject({
       method: 'GET',
       url: `/mator/workflows/${workflow.live.id}/conversations`,
     });
-    assert.equal(list.statusCode, 200);
+    expect(list.statusCode).toEqual(200);
     const listed = list.json() as {
       currentId: string | null;
       items: Array<{ id: string }>;
     };
-    assert.ok(listed.items.some((c) => c.id === b.id));
-    assert.equal(listed.currentId, a.id);
+    expect(listed.items.some((c) => c.id === b.id)).toBeTruthy();
+    expect(listed.currentId).toEqual(a.id);
   } finally {
     await app.close();
   }
@@ -458,10 +443,10 @@ test('SSE events stream ends with event: done', async () => {
       method: 'GET',
       url: `/mator/conversations/${conversation.id}/events/stream`,
     });
-    assert.equal(stream.statusCode, 200);
-    assert.match(stream.headers['content-type'] || '', /text\/event-stream/);
-    assert.match(stream.body, /event: done\b/);
-    assert.ok(stream.body.indexOf('event: done') > stream.body.indexOf('data:'));
+    expect(stream.statusCode).toEqual(200);
+    expect(stream.headers['content-type'] || '').toMatch(/text\/event-stream/);
+    expect(stream.body).toMatch(/event: done\b/);
+    expect(stream.body.indexOf('event: done') > stream.body.indexOf('data:')).toBeTruthy();
   } finally {
     await app.close();
   }
@@ -502,17 +487,17 @@ test('workflowRegistryPort tags land in workflow-revisions via stage confirm', a
       method: 'POST',
       url: `/mator/conversations/${conversation.id}/stage/${staged.id}/confirm`,
     });
-    assert.equal(confirm.statusCode, 200);
+    expect(confirm.statusCode).toEqual(200);
     const live = await registry.get(created.id);
-    assert.ok(live);
-    assert.equal(live!.revision, 2);
+    expect(live).toBeTruthy();
+    expect(live!.revision).toEqual(2);
     const revisionDoc = await docs.get<TaggedRecord>(
       'workflow-revisions',
       `${created.id}:${live!.revision}`,
     );
-    assert.ok(revisionDoc);
-    assert.equal(revisionDoc!.value.conversationId, conversation.id);
-    assert.equal(revisionDoc!.value.eventId, staged.id);
+    expect(revisionDoc).toBeTruthy();
+    expect(revisionDoc!.value.conversationId).toEqual(conversation.id);
+    expect(revisionDoc!.value.eventId).toEqual(staged.id);
   } finally {
     await app.close();
   }
@@ -541,9 +526,9 @@ test('attachment upload (base64 JSON) and marker patch', async () => {
         data: png.toString('base64'),
       },
     });
-    assert.equal(upload.statusCode, 201);
+    expect(upload.statusCode).toEqual(201);
     const id = upload.json().id as string;
-    assert.ok(id);
+    expect(id).toBeTruthy();
 
     const markers = await app.inject({
       method: 'PATCH',
@@ -552,8 +537,8 @@ test('attachment upload (base64 JSON) and marker patch', async () => {
         markers: [{ id: 'm1', x: 1.5, y: -0.2, text: 'here' }],
       },
     });
-    assert.equal(markers.statusCode, 200);
-    assert.deepEqual(markers.json().markers, [{ id: 'm1', x: 1, y: 0, text: 'here' }]);
+    expect(markers.statusCode).toEqual(200);
+    expect(markers.json().markers).toEqual([{ id: 'm1', x: 1, y: 0, text: 'here' }]);
   } finally {
     await app.close();
     await rm(root, { recursive: true, force: true });
@@ -593,10 +578,10 @@ test('marker patch links, validates and rejects review references', async () => 
       url: `/mator/attachments/${id}/markers`,
       payload: { markers: [], reviewId },
     });
-    assert.equal(linked.statusCode, 200);
-    assert.equal(linked.json().reviewId, reviewId);
+    expect(linked.statusCode).toEqual(200);
+    expect(linked.json().reviewId).toEqual(reviewId);
     const meta = await getAttachmentMeta(docs, id);
-    assert.equal(meta.reviewId, reviewId);
+    expect(meta.reviewId).toEqual(reviewId);
 
     // Malformed reference is rejected before any write.
     const malformed = await app.inject({
@@ -604,8 +589,8 @@ test('marker patch links, validates and rejects review references', async () => 
       url: `/mator/attachments/${id}/markers`,
       payload: { markers: [], reviewId: '../etc/passwd' },
     });
-    assert.equal(malformed.statusCode, 400);
-    assert.equal(malformed.json().error, 'Invalid review reference');
+    expect(malformed.statusCode).toEqual(400);
+    expect(malformed.json().error).toEqual('Invalid review reference');
 
     // Missing review YAML means there is no fabricated link.
     const missing = await app.inject({
@@ -616,10 +601,10 @@ test('marker patch links, validates and rejects review references', async () => 
         reviewId: '00000000-0000-4000-8000-000000000000',
       },
     });
-    assert.equal(missing.statusCode, 400);
-    assert.equal(missing.json().error, 'Review does not exist');
+    expect(missing.statusCode).toEqual(400);
+    expect(missing.json().error).toEqual('Review does not exist');
     const unchanged = await getAttachmentMeta(docs, id);
-    assert.equal(unchanged.reviewId, reviewId);
+    expect(unchanged.reviewId).toEqual(reviewId);
 
     // Regression: the pre-link contract stays identical.
     const plain = await app.inject({
@@ -627,9 +612,9 @@ test('marker patch links, validates and rejects review references', async () => 
       url: `/mator/attachments/${id}/markers`,
       payload: { markers: [{ id: 'm1', x: 0.5, y: 0.5, text: 'note' }] },
     });
-    assert.equal(plain.statusCode, 200);
-    assert.deepEqual(plain.json().markers, [{ id: 'm1', x: 0.5, y: 0.5, text: 'note' }]);
-    assert.equal(plain.json().reviewId, reviewId);
+    expect(plain.statusCode).toEqual(200);
+    expect(plain.json().markers).toEqual([{ id: 'm1', x: 0.5, y: 0.5, text: 'note' }]);
+    expect(plain.json().reviewId).toEqual(reviewId);
   } finally {
     await app.close();
     await rm(root, { recursive: true, force: true });
@@ -657,9 +642,9 @@ test('list events returns persisted conversation events', async () => {
       method: 'GET',
       url: `/mator/conversations/${conversation.id}/events`,
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toEqual(200);
     const events = res.json() as unknown[];
-    assert.equal(events.length, (await listEvents(docs, conversation.id, {})).length);
+    expect(events.length).toEqual((await listEvents(docs, conversation.id, {})).length);
   } finally {
     await app.close();
   }
@@ -691,28 +676,25 @@ test('two staged decisions are bound to their own proposal and cannot be repeate
       method: 'POST',
       url: `/mator/conversations/${conversation.id}/stage/${first.id}/reject`,
     });
-    assert.equal(rejectFirst.statusCode, 200);
-    assert.equal(rejectFirst.json().event.resolvesEventId, first.id);
-    assert.equal(rejectFirst.json().event.status, 'rejected');
+    expect(rejectFirst.statusCode).toEqual(200);
+    expect(rejectFirst.json().event.resolvesEventId).toEqual(first.id);
+    expect(rejectFirst.json().event.status).toEqual('rejected');
     const confirmSecond = await app.inject({
       method: 'POST',
       url: `/mator/conversations/${conversation.id}/stage/${second.id}/confirm`,
     });
-    assert.equal(confirmSecond.statusCode, 200);
-    assert.equal(confirmSecond.json().event.resolvesEventId, second.id);
-    assert.equal(confirmSecond.json().event.status, 'applied');
-    assert.equal(
-      workflow.live.plan.steps.find((step) => step.id === 'inspect')?.title,
-      'Second proposed edit',
-    );
+    expect(confirmSecond.statusCode).toEqual(200);
+    expect(confirmSecond.json().event.resolvesEventId).toEqual(second.id);
+    expect(confirmSecond.json().event.status).toEqual('applied');
+    expect(workflow.live.plan.steps.find((step) => step.id === 'inspect')?.title).toEqual('Second proposed edit');
     const repeated = await app.inject({
       method: 'POST',
       url: `/mator/conversations/${conversation.id}/stage/${second.id}/confirm`,
     });
-    assert.equal(repeated.statusCode, 409);
+    expect(repeated.statusCode).toEqual(409);
     const persisted = await listEvents(docs, conversation.id, {});
-    assert.equal(persisted.filter((event) => event.resolvesEventId === first.id).length, 1);
-    assert.equal(persisted.filter((event) => event.resolvesEventId === second.id).length, 1);
+    expect(persisted.filter((event) => event.resolvesEventId === first.id).length).toEqual(1);
+    expect(persisted.filter((event) => event.resolvesEventId === second.id).length).toEqual(1);
   } finally {
     await app.close();
   }

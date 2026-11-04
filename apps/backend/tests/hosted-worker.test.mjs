@@ -1,8 +1,8 @@
-import assert from 'node:assert/strict';
+
 import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import test from 'node:test';
+import { test, expect } from 'vitest';
 import { TenantWorkerManager } from '../hosted/workers.mjs';
 
 const alice = '11111111-1111-4111-8111-111111111111';
@@ -30,21 +30,21 @@ test('real per-owner Fastify workers isolate SQL, legacy files, memory and saved
     maxWorkers: 2,
   });
   try {
-    await assert.rejects(manager.start('local-owner'), /verified UUID/);
+    await expect((manager.start('local-owner'))).rejects.toThrow(/verified UUID/);
     const [a, b] = await Promise.all([manager.start(alice), manager.start(bob)]);
-    assert.notEqual(a.port, b.port);
-    assert.notEqual(a.child.pid, b.child.pid);
-    assert.notEqual(a.secret, b.secret);
+    expect(a.port).not.toEqual(b.port);
+    expect(a.child.pid).not.toEqual(b.child.pid);
+    expect(a.secret).not.toEqual(b.secret);
     const direct = await fetch(`${a.target}/account`);
-    assert.equal(direct.status, 401);
+    expect(direct.status).toEqual(401);
     const foreign = await fetch(`${a.target}/account`, {
       headers: { 'x-utomator-worker-token': b.secret },
     });
-    assert.equal(foreign.status, 401);
-    assert.equal(a.child.connected, true);
-    assert.equal(b.child.connected, true);
-    assert.equal((await json(a, '/career')).data.profile.name, '');
-    assert.equal((await json(b, '/career')).data.profile.name, '');
+    expect(foreign.status).toEqual(401);
+    expect(a.child.connected).toEqual(true);
+    expect(b.child.connected).toEqual(true);
+    expect((await json(a, '/career')).data.profile.name).toEqual('');
+    expect((await json(b, '/career')).data.profile.name).toEqual('');
 
     const updated = await json(a, '/account/profile', {
       method: 'PUT',
@@ -58,10 +58,10 @@ test('real per-owner Fastify workers isolate SQL, legacy files, memory and saved
         },
       },
     });
-    assert.equal(updated.status, 200, JSON.stringify(updated.data));
-    assert.equal(updated.data.profile.displayName, 'Alice Example');
-    assert.equal((await json(b, '/account')).data.profile.displayName, '');
-    assert.equal((await json(a, '/account')).data.profile.displayName, 'Alice Example');
+    expect(updated.status).toEqual(200);
+    expect(updated.data.profile.displayName).toEqual('Alice Example');
+    expect((await json(b, '/account')).data.profile.displayName).toEqual('');
+    expect((await json(a, '/account')).data.profile.displayName).toEqual('Alice Example');
     const bobUpdate = await json(b, '/account/profile', {
       method: 'PUT',
       body: {
@@ -74,23 +74,23 @@ test('real per-owner Fastify workers isolate SQL, legacy files, memory and saved
         },
       },
     });
-    assert.equal(bobUpdate.status, 200, JSON.stringify(bobUpdate.data));
-    assert.equal((await json(a, '/account')).data.profile.displayName, 'Alice Example');
+    expect(bobUpdate.status).toEqual(200);
+    expect((await json(a, '/account')).data.profile.displayName).toEqual('Alice Example');
 
     const memory = await json(b, '/intelligence/chat', {
       method: 'POST',
       body: { text: 'Bob private career plans for next year', platform: 'linkedin' },
     });
-    assert.equal(memory.status, 201, JSON.stringify(memory.data));
-    assert.equal((await json(a, '/intelligence')).data.length, 0);
-    assert.equal((await json(b, '/intelligence')).data.length, 1);
+    expect(memory.status).toEqual(201);
+    expect((await json(a, '/intelligence')).data.length).toEqual(0);
+    expect((await json(b, '/intelligence')).data.length).toEqual(1);
 
     const aliceDb = await stat(join(temp, 'tenants', alice, 'utomator.db'));
     const bobDb = await stat(join(temp, 'tenants', bob, 'utomator.db'));
-    assert(aliceDb.size > 0);
-    assert(bobDb.size > 0);
-    assert.equal((await json(b, '/runs')).data.length, 0);
-    assert.equal((await json(a, '/runs')).data.length, 0);
+    expect(aliceDb.size > 0).toBeTruthy();
+    expect(bobDb.size > 0).toBeTruthy();
+    expect((await json(b, '/runs')).data.length).toEqual(0);
+    expect((await json(a, '/runs')).data.length).toEqual(0);
     // Simulate abrupt gateway loss by disconnecting the parent IPC channel.
     // The worker must terminate rather than continue exposing a live browser.
     const exited = new Promise((resolve) => a.child.once('exit', resolve));
@@ -110,9 +110,9 @@ test('real per-owner Fastify workers isolate SQL, legacy files, memory and saved
       clearTimeout(deadline);
     }
     const restarted = await manager.start(alice);
-    assert.equal((await json(restarted, '/account')).data.profile.displayName, 'Alice Example');
-    assert.equal((await json(restarted, '/intelligence')).data.length, 0);
-    assert.equal((await json(b, '/account')).data.profile.displayName, 'Bob Example');
+    expect((await json(restarted, '/account')).data.profile.displayName).toEqual('Alice Example');
+    expect((await json(restarted, '/intelligence')).data.length).toEqual(0);
+    expect((await json(b, '/account')).data.profile.displayName).toEqual('Bob Example');
   } finally {
     await manager.close();
     await rm(temp, { recursive: true, force: true });

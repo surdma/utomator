@@ -1,5 +1,5 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
+
+import { test, expect } from 'vitest';
 import type { Page } from 'playwright';
 import {
   classifyProviderAuth,
@@ -10,30 +10,27 @@ import {
 const authed = (url: string, platform: 'linkedin' | 'x') => classifyProviderAuth(url, platform);
 
 test('LinkedIn classification trusts only authenticated feed/profile URLs', () => {
-  assert.equal(authed('https://www.linkedin.com/feed/', 'linkedin'), 'authenticated');
-  assert.equal(authed('https://www.linkedin.com/', 'linkedin'), 'authenticated');
-  assert.equal(authed('https://www.linkedin.com/in/owner-handle/', 'linkedin'), 'authenticated');
-  assert.equal(authed('https://www.linkedin.com/feed/', 'x'), 'auth-walled');
+  expect(authed('https://www.linkedin.com/feed/', 'linkedin')).toEqual('authenticated');
+  expect(authed('https://www.linkedin.com/', 'linkedin')).toEqual('authenticated');
+  expect(authed('https://www.linkedin.com/in/owner-handle/', 'linkedin')).toEqual('authenticated');
+  expect(authed('https://www.linkedin.com/feed/', 'x')).toEqual('auth-walled');
   // Bounces
-  assert.equal(authed('https://www.linkedin.com/authwall/protected?url=x', 'linkedin'), 'auth-walled');
-  assert.equal(authed('https://authwall.linkedin.com/u/login', 'linkedin'), 'auth-walled');
-  assert.equal(
-    authed('https://www.linkedin.com/login?session_redirect=/feed/', 'linkedin'),
-    'auth-walled',
-  );
-  assert.equal(authed('https://www.linkedin.com/checkpoint/lg/login', 'linkedin'), 'auth-walled');
-  assert.equal(authed('https://www.linkedin.com/uas/login/', 'linkedin'), 'auth-walled');
+  expect(authed('https://www.linkedin.com/authwall/protected?url=x', 'linkedin')).toEqual('auth-walled');
+  expect(authed('https://authwall.linkedin.com/u/login', 'linkedin')).toEqual('auth-walled');
+  expect(authed('https://www.linkedin.com/login?session_redirect=/feed/', 'linkedin')).toEqual('auth-walled');
+  expect(authed('https://www.linkedin.com/checkpoint/lg/login', 'linkedin')).toEqual('auth-walled');
+  expect(authed('https://www.linkedin.com/uas/login/', 'linkedin')).toEqual('auth-walled');
   // Unknown provider subdomain is never trusted
-  assert.equal(authed('https://unknown.linkedin.com/feed/', 'linkedin'), 'auth-walled');
-  assert.equal(authed('not a url', 'linkedin'), 'auth-walled');
-  assert.equal(authed('http://www.linkedin.com/feed/', 'linkedin'), 'auth-walled');
+  expect(authed('https://unknown.linkedin.com/feed/', 'linkedin')).toEqual('auth-walled');
+  expect(authed('not a url', 'linkedin')).toEqual('auth-walled');
+  expect(authed('http://www.linkedin.com/feed/', 'linkedin')).toEqual('auth-walled');
 });
 
 test('X classification distinguishes home from login and consent flows', () => {
-  assert.equal(authed('https://x.com/home', 'x'), 'authenticated');
-  assert.equal(authed('https://www.x.com/home', 'x'), 'authenticated');
-  assert.equal(authed('https://x.com/i/flow/login', 'x'), 'auth-walled');
-  assert.equal(authed('https://x.com/login', 'x'), 'auth-walled');
+  expect(authed('https://x.com/home', 'x')).toEqual('authenticated');
+  expect(authed('https://www.x.com/home', 'x')).toEqual('authenticated');
+  expect(authed('https://x.com/i/flow/login', 'x')).toEqual('auth-walled');
+  expect(authed('https://x.com/login', 'x')).toEqual('auth-walled');
 });
 
 test('storageState origins map into vault origin state', () => {
@@ -46,7 +43,7 @@ test('storageState origins map into vault origin state', () => {
       },
     ],
   } as unknown as Parameters<typeof toVaultOriginState>[0];
-  assert.deepEqual(toVaultOriginState(state), [
+  expect(toVaultOriginState(state)).toEqual([
     {
       origin: 'https://www.linkedin.com',
       localStorage: [{ name: 'a', value: '1' }],
@@ -77,9 +74,9 @@ test('origin seeding navigates each HTTPS origin and writes its built-ins only',
   ]);
   // Only the HTTPS origin is visited. Closing the throwaway seed page is
   // openRestored's responsibility (it owns the context pages).
-  assert.equal(calls.length, 1);
-  assert.equal((calls[0].origin as string).startsWith('https://www.linkedin.com/'), true);
-  assert.deepEqual(calls[0].args, [['theme', 'dark']]);
+  expect(calls.length).toEqual(1);
+  expect((calls[0].origin as string).startsWith('https://www.linkedin.com/')).toEqual(true);
+  expect(calls[0].args).toEqual([['theme', 'dark']]);
 });
 
 test('seed origin navigation errors surface to the caller', async () => {
@@ -90,14 +87,11 @@ test('seed origin navigation errors surface to the caller', async () => {
     evaluate: async () => undefined,
     close: async () => undefined,
   } as unknown as Page;
-  await assert.rejects(
-    () =>
+  await expect(() =>
       seedOriginStorage(page, [
         {
           origin: 'https://www.linkedin.com',
           localStorage: [{ name: 'x', value: 'y' }],
         },
-      ]),
-    /ERR_TIMED_OUT/,
-  );
+      ])).rejects.toThrow(/ERR_TIMED_OUT/);
 });

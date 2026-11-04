@@ -1,5 +1,5 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
+
+import { test, expect } from 'vitest';
 import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
 import {
   appendEvent,
@@ -59,18 +59,18 @@ test('two conversations, current pointer, idempotency, ordered events, setCurren
   const workflowId = 'wf-mator-chat-1';
 
   const first = await createConversation(docs, workflowId, 'First thread');
-  assert.equal(first.workflowId, workflowId);
-  assert.equal(await getCurrentConversationId(docs, workflowId), first.id);
+  expect(first.workflowId).toEqual(workflowId);
+  expect(await getCurrentConversationId(docs, workflowId)).toEqual(first.id);
 
   const second = await createConversation(docs, workflowId, 'Second thread');
-  assert.equal(await getCurrentConversationId(docs, workflowId), second.id);
+  expect(await getCurrentConversationId(docs, workflowId)).toEqual(second.id);
 
   const threads = await listConversations(docs, workflowId);
-  assert.equal(threads.length, 2);
-  assert.deepEqual(new Set(threads.map((c) => c.id)), new Set([first.id, second.id]));
+  expect(threads.length).toEqual(2);
+  expect(new Set(threads.map((c) => c.id))).toEqual(new Set([first.id, second.id]));
 
   await setCurrentConversation(docs, workflowId, first.id);
-  assert.equal(await getCurrentConversationId(docs, workflowId), first.id);
+  expect(await getCurrentConversationId(docs, workflowId)).toEqual(first.id);
 
   const touchedWorkflowYaml = [...docs.rows.keys()].some(
     (k) =>
@@ -78,7 +78,7 @@ test('two conversations, current pointer, idempotency, ordered events, setCurren
       k.startsWith('workflow-revisions:') ||
       k.startsWith('workflow-plans:'),
   );
-  assert.equal(touchedWorkflowYaml, false);
+  expect(touchedWorkflowYaml).toEqual(false);
 
   const userEvent = await appendEvent(
     docs,
@@ -92,22 +92,22 @@ test('two conversations, current pointer, idempotency, ordered events, setCurren
     { role: 'user', kind: 'message', text: 'ignored duplicate body' },
     { idempotencyKey: 'submit-once' },
   );
-  assert.equal(duplicate.id, userEvent.id);
-  assert.equal(duplicate.text, 'hello');
+  expect(duplicate.id).toEqual(userEvent.id);
+  expect(duplicate.text).toEqual('hello');
 
   await appendEvent(docs, first.id, { role: 'assistant', kind: 'message', text: 'hi there' });
 
   const events = await listEvents(docs, first.id, {});
-  assert.equal(events.length, 2);
+  expect(events.length).toEqual(2);
   const [firstEvent, secondEvent] = events;
-  assert.equal(firstEvent?.id, userEvent.id);
-  assert.equal(firstEvent?.text, 'hello');
-  assert.equal(secondEvent?.text, 'hi there');
+  expect(firstEvent?.id).toEqual(userEvent.id);
+  expect(firstEvent?.text).toEqual('hello');
+  expect(secondEvent?.text).toEqual('hi there');
 
   const indexKey = `${MATOR_CONVERSATIONS_NAMESPACE}:workflow:${workflowId}`;
-  assert.ok(docs.rows.has(indexKey));
+  expect(docs.rows.has(indexKey)).toBeTruthy();
   const messageKeys = [...docs.rows.keys()].filter((k) => k.startsWith(`${MATOR_MESSAGES_NAMESPACE}:`));
-  assert.ok(messageKeys.some((k) => k.includes(`${first.id}:0`)));
+  expect(messageKeys.some((k) => k.includes(`${first.id}:0`))).toBeTruthy();
 });
 
 test('concurrent append with same idempotencyKey stores one event', async () => {
@@ -120,10 +120,10 @@ test('concurrent append with same idempotencyKey stores one event', async () => 
     appendEvent(docs, conv.id, input, { idempotencyKey: 'client-retry' }),
   ]);
 
-  assert.equal(first.id, second.id);
+  expect(first.id).toEqual(second.id);
   const events = await listEvents(docs, conv.id, {});
-  assert.equal(events.length, 1);
-  assert.equal(events.at(0)?.text, 'once');
+  expect(events.length).toEqual(1);
+  expect(events.at(0)?.text).toEqual('once');
 });
 
 test('appendEvent re-scans idempotencyKey after CAS conflict on first chunk', async () => {
@@ -160,9 +160,9 @@ test('appendEvent re-scans idempotencyKey after CAS conflict on first chunk', as
     { idempotencyKey: 'shared-key' },
   );
 
-  assert.equal(result.id, 'peer-event-id');
-  assert.equal(result.text, 'peer-won');
-  assert.equal((await listEvents(docs, conv.id, {})).length, 1);
+  expect(result.id).toEqual('peer-event-id');
+  expect(result.text).toEqual('peer-won');
+  expect((await listEvents(docs, conv.id, {})).length).toEqual(1);
 });
 
 test('listEvents respects cursor and limit', async () => {
@@ -175,6 +175,6 @@ test('listEvents respects cursor and limit', async () => {
   await appendEvent(docs, conv.id, { role: 'user', kind: 'message', text: 'three' });
 
   const page = await listEvents(docs, conv.id, { cursor: e1.id, limit: 1 });
-  assert.equal(page.length, 1);
-  assert.equal(page.at(0)?.id, e2.id);
+  expect(page.length).toEqual(1);
+  expect(page.at(0)?.id).toEqual(e2.id);
 });

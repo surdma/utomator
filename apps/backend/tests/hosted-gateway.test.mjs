@@ -1,7 +1,7 @@
-import assert from 'node:assert/strict';
+
 import { once } from 'node:events';
 import http from 'node:http';
-import test from 'node:test';
+import { test, expect } from 'vitest';
 import { createHostedGateway } from '../hosted/server.mjs';
 
 async function server(handler) {
@@ -96,8 +96,8 @@ test('authenticated hosted gateway authorizes UI, API, SSE, mutations and select
   const origin = `http://127.0.0.1:${gateway.address().port}`;
   try {
     const publicPage = await request(origin, '/');
-    assert.equal(publicPage.status, 200);
-    assert.match(publicPage.body, /Utomator/);
+    expect(publicPage.status).toEqual(200);
+    expect(publicPage.body).toMatch(/Utomator/);
     for (const page of [
       '/dashboard',
       '/dashboard/pipeline',
@@ -114,65 +114,61 @@ test('authenticated hosted gateway authorizes UI, API, SSE, mutations and select
       '/dashboard/settings',
     ]) {
       const privatePage = await request(origin, page);
-      assert.equal(privatePage.status, 303, `${page} should require authentication`);
-      assert.equal(privatePage.headers.location, '/auth/login');
+      expect(privatePage.status).toEqual(303);
+      expect(privatePage.headers.location).toEqual('/auth/login');
     }
     const anonymous = await request(origin, '/api/runs');
-    assert.equal(anonymous.status, 401);
-    assert.deepEqual(starts, []);
+    expect(anonymous.status).toEqual(401);
+    expect(starts).toEqual([]);
     const alice = await request(origin, '/api/runs/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/logs', {
       cookie: 'sid=alice',
     });
     const bob = await request(origin, '/api/runs', { cookie: 'sid=bob' });
-    assert.equal(JSON.parse(alice.body).owner, 'alice');
-    assert.equal(JSON.parse(bob.body).owner, 'bob');
-    assert.deepEqual(starts, ['owner-alice', 'owner-bob']);
+    expect(JSON.parse(alice.body).owner).toEqual('alice');
+    expect(JSON.parse(bob.body).owner).toEqual('bob');
+    expect(starts).toEqual(['owner-alice', 'owner-bob']);
     const allowed = await request(origin, '/api/runs', {
       method: 'POST',
       cookie: 'sid=alice',
       origin: 'https://utomator.example.test',
       body: JSON.stringify({ test: true }),
     });
-    assert.equal(allowed.status, 200);
-    assert.equal(
-      JSON.parse(allowed.body).origin,
-      null,
-      'upstream loopback worker receives no browser Origin or spoofed owner header',
-    );
+    expect(allowed.status).toEqual(200);
+    expect(JSON.parse(allowed.body).origin).toEqual(null);
     const forbidden = await request(origin, '/api/runs/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/decision', {
       method: 'POST',
       cookie: 'sid=bob',
       origin: 'https://other.example.test',
       body: JSON.stringify({ approved: true }),
     });
-    assert.equal(forbidden.status, 403);
+    expect(forbidden.status).toEqual(403);
     const forged = await request(origin, '/api/runs', {
       method: 'POST',
       cookie: 'sid=alice',
       body: '{}',
     });
-    assert.equal(forged.status, 403);
+    expect(forged.status).toEqual(403);
     const stream = await request(origin, '/api/events/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', {
       cookie: 'sid=alice',
     });
-    assert.equal(stream.status, 200);
-    assert.equal(stream.headers['content-type'], 'text/event-stream');
-    assert.match(stream.body, /event: status/);
-    assert.match(stream.body, /"owner":"alice"/);
+    expect(stream.status).toEqual(200);
+    expect(stream.headers['content-type']).toEqual('text/event-stream');
+    expect(stream.body).toMatch(/event: status/);
+    expect(stream.body).toMatch(/"owner":"alice"/);
     const escaped = await request(origin, '/%5fautomate/api/runs');
-    assert.equal(escaped.status, 404);
+    expect(escaped.status).toEqual(404);
     const login = await request(origin, '/auth/login');
-    assert.equal(login.status, 303);
-    assert.equal(login.headers.location, 'https://identity.example.test/authorize');
+    expect(login.status).toEqual(303);
+    expect(login.headers.location).toEqual('https://identity.example.test/authorize');
     const session = await request(origin, '/auth/me', { cookie: 'sid=alice' });
-    assert.equal(JSON.parse(session.body).authenticated, true);
+    expect(JSON.parse(session.body).authenticated).toEqual(true);
     const logout = await request(origin, '/auth/logout', {
       method: 'POST',
       cookie: 'sid=alice',
       origin: 'https://utomator.example.test',
     });
-    assert.equal(logout.status, 303);
-    assert.equal(stops, 1);
+    expect(logout.status).toEqual(303);
+    expect(stops).toEqual(1);
   } finally {
     await Promise.all([
       new Promise((resolve) => gateway.close(resolve)),

@@ -1,15 +1,15 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
+
+import { test, expect } from 'vitest';
 import { loadOwnerContext } from '../src/profile/profile-context.js';
 
 test('context comes from the current portfolio, resume and evidence', async () => {
   const context = await loadOwnerContext();
-  assert.equal((context.portfolio.siteConfig as { fullName: string }).fullName, 'Sodiq Opeyemi Oladejo');
-  assert.equal((context.portfolio.socialLinks as { twitter: string }).twitter, 'https://x.com/surdma');
-  assert.ok(Array.isArray(context.portfolio.projects));
-  assert.ok(context.portfolio.projects.length > 6);
-  assert.ok(Array.isArray(context.resume.resumeExperience));
-  assert.ok(context.resume.resumeExperience.length >= 6);
-  assert.match(context.evidence.portfolio, /SabiGo/);
-  assert.ok(Array.isArray(context.about.technologyGroups));
+  expect((context.portfolio.siteConfig as { fullName: string }).fullName).toEqual('Sodiq Opeyemi Oladejo');
+  expect((context.portfolio.socialLinks as { twitter: string }).twitter).toEqual('https://x.com/surdma');
+  expect(Array.isArray(context.portfolio.projects)).toBeTruthy();
+  expect(context.portfolio.projects.length > 6).toBeTruthy();
+  expect(Array.isArray(context.resume.resumeExperience)).toBeTruthy();
+  expect(context.resume.resumeExperience.length >= 6).toBeTruthy();
+  expect(context.evidence.portfolio).toMatch(/SabiGo/);
+  expect(Array.isArray(context.about.technologyGroups)).toBeTruthy();
 });

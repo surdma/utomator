@@ -1,8 +1,8 @@
-import assert from 'node:assert/strict';
+
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import test from 'node:test';
+import { test, expect } from 'vitest';
 import type { RunRequest, RunSummary } from '../src/core/types.js';
 import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
 import {
@@ -171,13 +171,15 @@ test('parseMatorAction accepts a clarify questionnaire', () => {
       },
     ],
   });
-  assert.equal(action.type, 'clarify');
+  expect(action.type).toEqual('clarify');
   if (action.type !== 'clarify') return;
-  assert.equal(action.questions[0]?.name, 'tone');
-  assert.throws(
-    () => parseMatorAction({ type: 'clarify', questions: [] }),
-    (error: unknown) => error instanceof MatorActionValidationError,
-  );
+  expect(action.questions[0]?.name).toEqual('tone');
+  {
+let e;
+try { (() => parseMatorAction({ type: 'clarify', questions: [] }))(); } catch (caught) { e = caught; }
+expect(e).toBeDefined();
+expect(e instanceof MatorActionValidationError).toBe(true);
+};
 });
 
 test('generated clarify recovers oversized choice sets without dropping a question', () => {
@@ -201,27 +203,27 @@ test('generated clarify recovers oversized choice sets without dropping a questi
       },
     ],
   };
-  assert.throws(
-    () => parseMatorAction(raw),
-    (error: unknown) =>
-      error instanceof MatorActionValidationError &&
-      error.message === 'Too many choices on questions[0]',
-  );
+  {
+let e;
+try { (() => parseMatorAction(raw))(); } catch (caught) { e = caught; }
+expect(e).toBeDefined();
+expect(e instanceof MatorActionValidationError &&
+      e.message === 'Too many choices on questions[0]').toBe(true);
+};
   const recovered = parseGeneratedMatorAction(raw);
-  assert.equal(recovered.type, 'clarify');
+  expect(recovered.type).toEqual('clarify');
   if (recovered.type !== 'clarify') return;
-  assert.equal(recovered.questions.length, 2);
-  assert.equal(recovered.questions[0]?.prompt, 'Which setting?');
-  assert.deepEqual(recovered.questions[0]?.choices, []);
-  assert.equal(recovered.questions[0]?.freeform?.label, 'Your answer');
-  assert.equal(recovered.questions[0]?.required, true);
-  assert.equal(recovered.questions[1]?.choices.length, 2);
-  assert.equal(raw.questions[0]?.choices.length, 7, 'model response is not mutated');
+  expect(recovered.questions.length).toEqual(2);
+  expect(recovered.questions[0]?.prompt).toEqual('Which setting?');
+  expect(recovered.questions[0]?.choices).toEqual([]);
+  expect(recovered.questions[0]?.freeform?.label).toEqual('Your answer');
+  expect(recovered.questions[0]?.required).toEqual(true);
+  expect(recovered.questions[1]?.choices.length).toEqual(2);
+  expect(raw.questions[0]?.choices.length).toEqual(7);
 });
 
 test('generated clarify recovery cannot bypass invalid action validation', () => {
-  assert.throws(
-    () =>
+  expect(() =>
       parseGeneratedMatorAction({
         type: 'clarify',
         questions: [
@@ -235,18 +237,12 @@ test('generated clarify recovery cannot bypass invalid action validation', () =>
             })),
           },
         ],
-      }),
-    MatorActionValidationError,
-  );
-  assert.throws(
-    () =>
+      })).toThrow(MatorActionValidationError);
+  expect(() =>
       parseGeneratedMatorAction({
         type: 'delete_everything',
-      }),
-    MatorActionValidationError,
-  );
-  assert.throws(
-    () =>
+      })).toThrow(MatorActionValidationError);
+  expect(() =>
       parseGeneratedMatorAction({
         type: 'clarify',
         questions: Array.from({ length: 5 }, (_, index) => ({
@@ -257,9 +253,7 @@ test('generated clarify recovery cannot bypass invalid action validation', () =>
             { value: 'b', label: 'B' },
           ],
         })),
-      }),
-    MatorActionValidationError,
-  );
+      })).toThrow(MatorActionValidationError);
 });
 
 test('clarify validates URL and file answer types without inventing attachments', () => {
@@ -270,22 +264,15 @@ test('clarify validates URL and file answer types without inventing attachments'
       { name: 'asset', prompt: 'Attach the image', inputType: 'file', required: true },
     ],
   });
-  assert.equal(action.type, 'clarify');
+  expect(action.type).toEqual('clarify');
   if (action.type !== 'clarify') return;
-  assert.deepEqual(
-    action.questions.map((q) => q.inputType),
-    ['url', 'file'],
-  );
-  assert.throws(
-    () =>
+  expect(action.questions.map((q) => q.inputType)).toEqual(['url', 'file']);
+  expect(() =>
       parseMatorAction({
         type: 'clarify',
         questions: [{ name: 'bad', prompt: 'Invalid', inputType: 'html' }],
-      }),
-    MatorActionValidationError,
-  );
-  assert.throws(
-    () =>
+      })).toThrow(MatorActionValidationError);
+  expect(() =>
       parseMatorAction({
         type: 'clarify',
         questions: [
@@ -299,20 +286,22 @@ test('clarify validates URL and file answer types without inventing attachments'
             ],
           },
         ],
-      }),
-    MatorActionValidationError,
-  );
+      })).toThrow(MatorActionValidationError);
 });
 
 test('parseMatorAction rejects unknown action type and invalid shape', () => {
-  assert.throws(
-    () => parseMatorAction({ type: 'delete_universe' }),
-    (error: unknown) => error instanceof MatorActionValidationError,
-  );
-  assert.throws(
-    () => parseMatorAction({ type: 'edit_step' }),
-    (error: unknown) => error instanceof MatorActionValidationError,
-  );
+  {
+let e;
+try { (() => parseMatorAction({ type: 'delete_universe' }))(); } catch (caught) { e = caught; }
+expect(e).toBeDefined();
+expect(e instanceof MatorActionValidationError).toBe(true);
+};
+  {
+let e;
+try { (() => parseMatorAction({ type: 'edit_step' }))(); } catch (caught) { e = caught; }
+expect(e).toBeDefined();
+expect(e instanceof MatorActionValidationError).toBe(true);
+};
 });
 
 test('apply/stage reject hallucinated step ids with typed validation error', async () => {
@@ -328,19 +317,24 @@ test('apply/stage reject hallucinated step ids with typed validation error', asy
     patch: { title: 'Nope' },
   });
 
-  await assert.rejects(
-    () =>
+  {
+  let e;
+  try {
+    await (() =>
       stageAction(docs, ports, {
         workflowId: workflow.live.id,
         conversationId: conversation.id,
         action: bad,
-      }),
-    (error: unknown) =>
-      error instanceof MatorActionValidationError && /does-not-exist|unknown step/i.test(error.message),
-  );
+      }))();
+  } catch (caught) { e = caught; }
+  expect(e).toBeDefined();
+  expect(/does-not-exist|unknown step/i.test(e.message)).toBe(true);
+  }
 
-  await assert.rejects(
-    () =>
+  {
+  let e;
+  try {
+    await (() =>
       applyAction(
         docs,
         ports,
@@ -351,9 +345,11 @@ test('apply/stage reject hallucinated step ids with typed validation error', asy
           action: bad,
         },
         { squash: false },
-      ),
-    (error: unknown) => error instanceof MatorActionValidationError,
-  );
+      ))();
+  } catch (caught) { e = caught; }
+  expect(e).toBeDefined();
+  expect(e instanceof MatorActionValidationError).toBe(true);
+  }
 });
 
 test('apply edit_step without squash tags revision and updates boundRevisionId', async () => {
@@ -375,8 +371,8 @@ test('apply edit_step without squash tags revision and updates boundRevisionId',
     conversationId: conversation.id,
     action,
   });
-  assert.equal(staged.status, 'staged');
-  assert.equal(workflow.live.revision, beforeRevision);
+  expect(staged.status).toEqual('staged');
+  expect(workflow.live.revision).toEqual(beforeRevision);
 
   const applied = await applyAction(
     docs,
@@ -390,21 +386,18 @@ test('apply edit_step without squash tags revision and updates boundRevisionId',
     { squash: false },
   );
 
-  assert.equal(workflow.live.revision, beforeRevision + 1);
-  assert.equal(
-    workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title,
-    'Inspect more carefully',
-  );
-  assert.equal(applied.record?.conversationId, conversation.id);
-  assert.equal(applied.record?.eventId, staged.id);
+  expect(workflow.live.revision).toEqual(beforeRevision + 1);
+  expect(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title).toEqual('Inspect more carefully');
+  expect(applied.record?.conversationId).toEqual(conversation.id);
+  expect(applied.record?.eventId).toEqual(staged.id);
 
   const tagged = workflow.revisions.get(workflow.live.revision);
-  assert.equal(tagged?.conversationId, conversation.id);
-  assert.equal(tagged?.eventId, staged.id);
+  expect(tagged?.conversationId).toEqual(conversation.id);
+  expect(tagged?.eventId).toEqual(staged.id);
 
   const [updated]: MatorConversation[] = await listConversations(docs, workflow.live.id);
-  assert.equal(updated?.boundRevisionId, `${workflow.live.id}:${workflow.live.revision}`);
-  assert.equal(applied.event.status, 'applied');
+  expect(updated?.boundRevisionId).toEqual(`${workflow.live.id}:${workflow.live.revision}`);
+  expect(applied.event.status).toEqual('applied');
 });
 
 test('squash=true updates live plan only without conversation-bound revision trail', async () => {
@@ -433,17 +426,17 @@ test('squash=true updates live plan only without conversation-bound revision tra
     { squash: true },
   );
 
-  assert.equal(workflow.live.revision, beforeRevision + 1);
-  assert.equal(workflow.live.plan.steps.find((s) => s.id === 'action')?.title, 'Squashed edit');
-  assert.equal(result.record?.conversationId, undefined);
-  assert.equal(result.record?.eventId, undefined);
+  expect(workflow.live.revision).toEqual(beforeRevision + 1);
+  expect(workflow.live.plan.steps.find((s) => s.id === 'action')?.title).toEqual('Squashed edit');
+  expect(result.record?.conversationId).toEqual(undefined);
+  expect(result.record?.eventId).toEqual(undefined);
 
   const tagged = workflow.revisions.get(workflow.live.revision);
-  assert.equal(tagged?.conversationId, undefined);
-  assert.equal(tagged?.eventId, undefined);
+  expect(tagged?.conversationId).toEqual(undefined);
+  expect(tagged?.eventId).toEqual(undefined);
 
   const [updated] = await listConversations(docs, workflow.live.id);
-  assert.equal(updated?.boundRevisionId, null);
+  expect(updated?.boundRevisionId).toEqual(null);
 });
 
 test('restoreConversationPipeline copies bound revision into live via CAS', async () => {
@@ -479,7 +472,7 @@ test('restoreConversationPipeline copies bound revision into live via CAS', asyn
       s.id === 'inspect' ? { ...s, title: 'Live drifted' } : s,
     ),
   });
-  assert.notEqual(workflow.live.revision, boundRevision);
+  expect(workflow.live.revision).not.toEqual(boundRevision);
 
   const liveBeforeRestore = workflow.live.revision;
   const restored = await restoreConversationPipeline(
@@ -489,10 +482,10 @@ test('restoreConversationPipeline copies bound revision into live via CAS', asyn
     conversation.id,
   );
 
-  assert.equal(restored.revision, liveBeforeRestore + 1);
-  assert.ok(restored.revision > boundRevision);
-  assert.equal(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title, boundTitle);
-  assert.equal(restored.plan.steps.find((s) => s.id === 'inspect')?.title, boundTitle);
+  expect(restored.revision).toEqual(liveBeforeRestore + 1);
+  expect(restored.revision > boundRevision).toBeTruthy();
+  expect(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title).toEqual(boundTitle);
+  expect(restored.plan.steps.find((s) => s.id === 'inspect')?.title).toEqual(boundTitle);
 });
 
 test('run_step invokes injectable runner port', async () => {
@@ -527,14 +520,14 @@ test('run_step invokes injectable runner port', async () => {
     { squash: true },
   );
 
-  assert.equal(started.length, 1);
-  assert.equal(started[0]?.workflowId, workflow.live.id);
-  assert.equal(started[0]?.profileUrl, 'https://www.linkedin.com/in/example');
-  assert.equal(result.run?.id, 'run-1');
-  assert.equal(workflow.live.revision, 1);
+  expect(started.length).toEqual(1);
+  expect(started[0]?.workflowId).toEqual(workflow.live.id);
+  expect(started[0]?.profileUrl).toEqual('https://www.linkedin.com/in/example');
+  expect(result.run?.id).toEqual('run-1');
+  expect(workflow.live.revision).toEqual(1);
 
   const events = await listEvents(docs, conversation.id, {});
-  assert.ok(events.some((e) => e.status === 'applied' && e.kind === 'action'));
+  expect(events.some((e) => e.status === 'applied' && e.kind === 'action')).toBeTruthy();
 });
 
 test('apply annotate_image upserts attachment markers', async () => {
@@ -574,9 +567,9 @@ test('apply annotate_image upserts attachment markers', async () => {
       { squash: true },
     );
 
-    assert.equal(result.event.status, 'applied');
+    expect(result.event.status).toEqual('applied');
     const loaded = await getAttachmentFile(docs, saved.id, { root });
-    assert.deepEqual(loaded.meta.markers, [{ id: 'pin-1', x: 0.25, y: 0.75, text: 'look here' }]);
+    expect(loaded.meta.markers).toEqual([{ id: 'pin-1', x: 0.25, y: 0.75, text: 'look here' }]);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -602,16 +595,13 @@ test('annotate_image parses and links optional review references', async () => {
     const reviewId = '123e4567-e89b-42d3-a456-426614174000';
 
     // A malformed reference never parses into an applicable action.
-    assert.throws(
-      () =>
+    expect(() =>
         parseMatorAction({
           type: 'annotate_image',
           attachmentId: saved.id,
           markers: [],
           reviewId: '“quote”/inject',
-        }),
-      /Invalid action\.reviewId/,
-    );
+        })).toThrow(/Invalid action\.reviewId/);
 
     const action = parseMatorAction({
       type: 'annotate_image',
@@ -630,9 +620,9 @@ test('annotate_image parses and links optional review references', async () => {
       },
       { squash: true },
     );
-    assert.equal(result.event.status, 'applied');
+    expect(result.event.status).toEqual('applied');
     const meta = await getAttachmentMeta(docs, saved.id);
-    assert.equal(meta.reviewId, reviewId);
+    expect(meta.reviewId).toEqual(reviewId);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
