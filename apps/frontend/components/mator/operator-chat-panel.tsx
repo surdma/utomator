@@ -1,39 +1,45 @@
 'use client';
 
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from 'react';
-import Image from 'next/image';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   AlertCircle,
   ChevronRight,
+  CircleCheck,
+  ClipboardCopy,
   Image as ImageIcon,
+  LoaderCircle,
   MessageSquare,
   Plus,
   RotateCcw,
   Volume2,
   Workflow,
-  ClipboardCopy,
-  CircleCheck,
-  LoaderCircle,
 } from 'lucide-react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { useToast } from '@/components/ui/toast';
-import { Badge } from '@/components/ui/badge';
+import Image from 'next/image';
+import {
+  type FormEvent,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { getApi } from '@/components/dashboard/pipeline/api-client';
+import type { DashboardPane } from '@/components/dashboard/pipeline/dashboard-route';
+import type {
+  ChatMessage,
+  Review,
+  Event as RunEvent,
+} from '@/components/dashboard/pipeline/run-models';
+import type { Platform } from '@/components/dashboard/pipeline/workflow-catalog';
+import { Card } from '@/components/ui/automate-card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Popover } from '@/components/ui/popover';
-import { ThreadSkeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Bubble, BubbleContent } from '@/components/ui/bubble';
 import {
   Message,
   MessageContent,
   MessageFooter,
   MessageHeader,
 } from '@/components/ui/message';
-import { Bubble, BubbleContent } from '@/components/ui/bubble';
 import {
   MessageScroller,
   MessageScrollerButton,
@@ -42,47 +48,42 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller';
-import { Card } from '@/components/ui/automate-card';
-import { Confirmation } from './elements/confirmation';
-import { Reasoning } from './elements/reasoning';
+import { Popover } from '@/components/ui/popover';
+import { ThreadSkeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/components/ui/toast';
+import { AssistantAvatar } from './chat/mator-assistant-avatar';
+import { ReviewImage } from './chat/mator-review-image';
+import { TaskBlock } from './chat/mator-task-block';
+import { clarifyCount, threadWhen } from './chat/mator-thread-format';
+import { ThreadRow } from './chat/mator-thread-row';
 import { Checkpoint } from './elements/checkpoint';
+import { Confirmation } from './elements/confirmation';
 import { Queue } from './elements/queue';
+import { Reasoning } from './elements/reasoning';
 import { Suggestion } from './elements/suggestion';
-import MatorClarifyForm from './mator-clarify-form';
-import MatorComposer from './mator-composer';
-import type { MatorAiCall } from './use-mator-ai-call';
 import { MarkdownReply } from './markdown-reply';
-import { getApi } from '@/components/dashboard/pipeline/api-client';
+import {
+  fetchMatorModels,
+  type MatorImageMarkerDto,
+  type MatorModelOption,
+  type MatorSettingsMasked,
+  matorAttachmentFileUrl,
+} from './mator-api';
 import MatorAttachmentPreview from './mator-attachment-preview';
-import type { VoiceSession } from './use-voice-session';
-import type { DashboardPane } from '@/components/dashboard/pipeline/dashboard-route';
-import type {
-  ChatMessage,
-  Event as RunEvent,
-  Review,
-} from '@/components/dashboard/pipeline/run-models';
-import type { Platform } from '@/components/dashboard/pipeline/workflow-catalog';
 import {
   findOpenClarify,
-  stageResolution,
-  shouldRenderMatorEvent,
-  readClarifyQuestions,
   type MatorChatAsset,
   type MatorChatEvent,
   type MatorConversationSummary,
+  readClarifyQuestions,
+  shouldRenderMatorEvent,
+  stageResolution,
 } from './mator-chat-state';
-import {
-  fetchMatorModels,
-  matorAttachmentFileUrl,
-  type MatorSettingsMasked,
-  type MatorImageMarkerDto,
-  type MatorModelOption,
-} from './mator-api';
-import { threadWhen, clarifyCount } from './chat/mator-thread-format';
-import { ThreadRow } from './chat/mator-thread-row';
-import { AssistantAvatar } from './chat/mator-assistant-avatar';
-import { TaskBlock } from './chat/mator-task-block';
-import { ReviewImage } from './chat/mator-review-image';
+import MatorClarifyForm from './mator-clarify-form';
+import MatorComposer from './mator-composer';
+import { MatorCallControls } from './mator-voice-listener';
+import type { MatorAiCall } from './use-mator-ai-call';
+import type { VoiceSession } from './use-voice-session';
 
 const PANE_LABEL: Partial<Record<DashboardPane, string>> = {
   workspace: 'Workspace',
@@ -118,21 +119,21 @@ type Props = {
   onRestorePipeline?: () => void;
   onSendText?: (
     text: string,
-    attachmentIds?: string[]
-  ) => Promise<boolean | void> | void;
+    attachmentIds?: string[],
+  ) => Promise<boolean | undefined> | undefined;
   onUploadClarifyFile?: (file: File) => Promise<string>;
   attachmentPreviews?: Record<string, string>;
   onSaveMarkers?: (
     attachmentId: string,
     markers: MatorImageMarkerDto[],
-    reviewId?: string
-  ) => void | Promise<unknown>;
+    reviewId?: string,
+  ) => undefined | Promise<unknown>;
   /** Opens the full YAML-driven review studio for a pending draft image. */
   onAnnotateDraft?: (file: File) => Promise<{ reviewId: string } | null>;
   /** Opens the studio for an already-sent attachment; caller links the result. */
   onAnnotateAttachment?: (
     attachmentId: string,
-    note?: string
+    note?: string,
   ) => Promise<{ reviewId: string } | null>;
   /**
    * True only when the active pipeline page scope exists, because review
@@ -154,7 +155,8 @@ type Props = {
   onSendMessage: (event: FormEvent<HTMLFormElement>) => void;
   onPendingAssetsChange?: (count: number) => void;
   checkpoint:
-    import('@/components/dashboard/pipeline/run-models').Checkpoint | null;
+    | import('@/components/dashboard/pipeline/run-models').Checkpoint
+    | null;
   voice: VoiceSession;
   call: MatorAiCall;
   callReady: boolean;
@@ -249,14 +251,14 @@ export default function OperatorChatPanel({
   const orderedMatorEvents = useMemo(
     () =>
       [...matorEvents].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
-    [matorEvents]
+    [matorEvents],
   );
   const visibleMatorEvents = useMemo(
     () =>
       orderedMatorEvents.filter((event) =>
-        shouldRenderMatorEvent(orderedMatorEvents, event)
+        shouldRenderMatorEvent(orderedMatorEvents, event),
       ),
-    [orderedMatorEvents]
+    [orderedMatorEvents],
   );
   const openClarify = findOpenClarify(matorEvents);
   const clarifyQuestions = openClarify
@@ -269,7 +271,7 @@ export default function OperatorChatPanel({
         if (b.id === conversationMeta?.id) return 1;
         return (b.updatedAt || '').localeCompare(a.updatedAt || '');
       }),
-    [conversations, conversationMeta?.id]
+    [conversations, conversationMeta?.id],
   );
   const threadTitle = conversationMeta?.title || 'New conversation';
 
@@ -300,14 +302,14 @@ export default function OperatorChatPanel({
     try {
       const result = await onAnnotateAttachment(
         asset.id,
-        markerDraft.slice(0, 1500) || undefined
+        markerDraft.slice(0, 1500) || undefined,
       );
       if (result?.reviewId && onSaveMarkers) {
         try {
           await onSaveMarkers(asset.id, asset.markers ?? [], result.reviewId);
         } catch {
           throw new Error(
-            `Saved as review ${result.reviewId} but could not link to the chat message. Re-open the annotation editor to retry.`
+            `Saved as review ${result.reviewId} but could not link to the chat message. Re-open the annotation editor to retry.`,
           );
         }
       }
@@ -315,7 +317,7 @@ export default function OperatorChatPanel({
       setAnnotateAttachmentError(
         cause instanceof Error
           ? cause.message
-          : 'Could not open the annotation studio'
+          : 'Could not open the annotation studio',
       );
     }
   };
@@ -542,6 +544,7 @@ export default function OperatorChatPanel({
               )}
             </nav>
           </Popover>
+          {call.active && <MatorCallControls call={call} />}
           <button
             type="button"
             onClick={onClose}
@@ -590,7 +593,7 @@ export default function OperatorChatPanel({
                         label="Run segment"
                         runId={runId}
                         time={steps[0]?.time ?? null}
-                      />
+                      />,
                     );
                     // Screenshot evidence stays clickable for the current run.
                     const capture = steps.find(
@@ -598,7 +601,7 @@ export default function OperatorChatPanel({
                         event.kind === 'screenshot' &&
                         typeof event.details?.fileName === 'string' &&
                         /^[a-zA-Z0-9_-]+\.png$/.test(event.details.fileName) &&
-                        event.runId === currentRunId
+                        event.runId === currentRunId,
                     );
                     rows.push(
                       <MessageScrollerItem key={`task-${key}`}>
@@ -613,7 +616,7 @@ export default function OperatorChatPanel({
                             ) : null
                           }
                         />
-                      </MessageScrollerItem>
+                      </MessageScrollerItem>,
                     );
                     steps = [];
                   };
@@ -632,7 +635,7 @@ export default function OperatorChatPanel({
                   .filter(
                     (r) =>
                       r.platform === platform &&
-                      r.handle.toLowerCase() === normalizedHandle.toLowerCase()
+                      r.handle.toLowerCase() === normalizedHandle.toLowerCase(),
                   )
                   .map((review) => (
                     <MessageScrollerItem
@@ -669,7 +672,7 @@ export default function OperatorChatPanel({
                             <button
                               type="button"
                               onClick={() => onEditReview(review)}
-                              aria-label={'Edit annotated image ' + review.id}
+                              aria-label={`Edit annotated image ${review.id}`}
                               className="relative block w-full cursor-pointer overflow-hidden bg-slate-50 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
                             >
                               {/* Annotated image + markers */}
@@ -688,7 +691,7 @@ export default function OperatorChatPanel({
                                         {index + 1}.{' '}
                                         {a.action.replaceAll('-', ' ')}
                                       </strong>
-                                      {a.comment ? ' · ' + a.comment : ''}
+                                      {a.comment ? ` · ${a.comment}` : ''}
                                     </p>
                                   ))}
                                   <p className="pt-1 text-[10px] leading-4 text-slate-400">
@@ -898,7 +901,7 @@ export default function OperatorChatPanel({
                               ((event.status === 'staged'
                                 ? (stageResolution(
                                     orderedMatorEvents,
-                                    event.id
+                                    event.id,
                                   ) ?? 'staged')
                                 : event.status) ?? 'staged') as
                                 | 'staged'
@@ -912,7 +915,7 @@ export default function OperatorChatPanel({
                               typeof event.action === 'object' &&
                               'type' in event.action
                                 ? String(
-                                    (event.action as { type: unknown }).type
+                                    (event.action as { type: unknown }).type,
                                   ).replaceAll('_', ' ')
                                 : event.text
                                   ? event.text.slice(0, 48)
@@ -1073,20 +1076,34 @@ export default function OperatorChatPanel({
         </AnimatePresence>
 
         {call.active && call.question && (
-          <div data-testid="mator-call-question" role="group"
+          <div
+            data-testid="mator-call-question"
+            role="group"
             aria-label={`Clarification question ${call.question.index} of ${call.question.total}`}
-            className="mx-2 mb-2 rounded-2xl border border-teal-200 bg-teal-50/60 p-3">
-            <p className="text-xs font-semibold text-teal-900">Question {call.question.index} of {call.question.total}</p>
-            <p className="mt-2 text-sm font-medium leading-relaxed text-slate-900">{call.question.value.prompt}</p>
+            className="mx-2 mb-2 rounded-2xl border border-teal-100 bg-white/75 p-3 backdrop-blur-sm"
+          >
+            <p className="text-xs font-semibold text-teal-900">
+              Question {call.question.index} of {call.question.total}
+            </p>
+            <p className="mt-2 text-sm font-medium leading-relaxed text-slate-900">
+              {call.question.value.prompt}
+            </p>
             {call.state.phase === 'clarifying-voice' && (
-              <p className="mt-2 text-xs text-slate-600">Answer aloud. Mator will continue automatically.</p>
+              <p className="mt-2 text-xs text-slate-600">
+                Answer aloud. Mator will continue automatically.
+              </p>
             )}
             {call.state.phase === 'clarifying-form' && (
               <div className="mt-3">
-                <MatorClarifyForm key={call.question.value.name} questions={[call.question.value]}
+                <MatorClarifyForm
+                  key={call.question.value.name}
+                  questions={[call.question.value]}
                   onUploadFile={onUploadClarifyFile}
                   onAnswerData={async (answers, ids) => {
-                    await call.answerVisual(answers[call.question!.value.name] ?? [], ids);
+                    await call.answerVisual(
+                      answers[call.question?.value.name] ?? [],
+                      ids,
+                    );
                     return true;
                   }}
                 />
@@ -1152,8 +1169,8 @@ export default function OperatorChatPanel({
                 cause instanceof Error
                   ? cause.message
                   : 'Unable to change chat model',
-                'error'
-              )
+                'error',
+              ),
             );
           }}
         />
@@ -1172,14 +1189,14 @@ function ScreenshotEvidence({
   onAnnotate: (runId: string, fileName: string) => void;
 }) {
   const fileName = event.details?.fileName ?? '';
-  const evidenceUrl = getApi('runs/' + event.runId + '/evidence/' + fileName);
+  const evidenceUrl = getApi(`runs/${event.runId}/evidence/${fileName}`);
   return (
     <button
       type="button"
       data-testid="workflow-screenshot"
       data-evidence-url={evidenceUrl}
       onClick={() => onAnnotate(event.runId, fileName)}
-      aria-label={'Annotate captured image: ' + fileName}
+      aria-label={`Annotate captured image: ${fileName}`}
       className="block w-fit max-w-[min(100%,18rem)] cursor-pointer overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-left transition-colors hover:border-teal-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
     >
       <Image
@@ -1187,7 +1204,7 @@ function ScreenshotEvidence({
         src={evidenceUrl}
         width={640}
         height={400}
-        alt={'Actual browser capture: ' + event.message}
+        alt={`Actual browser capture: ${event.message}`}
         className="max-h-44 w-full object-contain"
       />
       <span className="flex items-center gap-2 px-3 py-2 text-[11px] text-slate-500">

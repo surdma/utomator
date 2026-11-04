@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto';
-import type { Runner } from '../core/runner.js';
-import { validateProfileUrl } from '../core/validate.js';
 import type { RunSummary } from '../core/types.js';
+import { validateProfileUrl } from '../core/validate.js';
 import type { DocumentStore } from '../db/documents.js';
+import type { Runner } from '../runs/runner.js';
 import { readGrowthTemplate } from './growth-profile.js';
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

@@ -1,59 +1,58 @@
 'use client';
 
+import { MessageSquare } from 'lucide-react';
 import {
+  type FormEvent,
   useCallback,
   useEffect,
   useRef,
   useState,
-  type FormEvent,
 } from 'react';
-import type { ChatMessage } from './pipeline/run-models';
-import { MessageSquare } from 'lucide-react';
-import CraftsLibrary from '@/components/dashboard/crafts/crafts-library';
-import VisualReviewPanel from '@/components/dashboard/reviews/visual-review-panel';
-import CareerStudio from '@/components/dashboard/career/career-studio';
 import AccountHome, {
   type SocialAccount,
 } from '@/components/dashboard/account/account-home';
+import CareerStudio from '@/components/dashboard/career/career-studio';
 import ActivityIntelligence from '@/components/dashboard/career/intelligence/activity-intelligence';
-import LinkedInResearchStudio from '@/components/dashboard/research/linkedin-research-studio';
-import LinkedInEditorialStudio from '@/components/dashboard/editorial/linkedin-editorial-studio';
-
 import ConnectorOnboarding, {
   type Connector,
 } from '@/components/dashboard/connections/connector-onboarding';
-import { LinkedInIcon, TwitterIcon } from '@/components/svgs';
-import { workflows, type Platform } from './pipeline/workflow-catalog';
-import PipelineWorkspace from './pipeline/pipeline-workspace';
-import { buildRunPayload } from './pipeline/build-run-payload';
-import RunHistory from './pipeline/run-history';
-import OperatorChatPanel from '@/components/mator/operator-chat-panel';
-import { useRunMonitor } from './pipeline/use-run-monitor';
+import CraftsLibrary from '@/components/dashboard/crafts/crafts-library';
+import LinkedInEditorialStudio from '@/components/dashboard/editorial/linkedin-editorial-studio';
+import LinkedInResearchStudio from '@/components/dashboard/research/linkedin-research-studio';
+import VisualReviewPanel from '@/components/dashboard/reviews/visual-review-panel';
+import { matorAttachmentFileUrl } from '@/components/mator/mator-api';
 import { collectRunSpeechUpdates } from '@/components/mator/mator-run-speech';
+import { useVoiceOnlyPreference } from '@/components/mator/mator-voice-preference';
+import OperatorChatPanel from '@/components/mator/operator-chat-panel';
+import { useMatorAiCall } from '@/components/mator/use-mator-ai-call';
+import { useMatorChat } from '@/components/mator/use-mator-chat';
 import {
-  useVisualReviews,
   imageDataUrlFromBlob,
+  useVisualReviews,
 } from '@/components/mator/use-visual-reviews';
+import { useVoiceSession } from '@/components/mator/use-voice-session';
+import { LinkedInIcon, TwitterIcon } from '@/components/svgs';
+import { buildRunPayload } from './pipeline/build-run-payload';
+import CheckpointDialog from './pipeline/checkpoint-dialog';
+import DashboardBottomNav from './pipeline/dashboard-bottom-nav';
+import DashboardHeader from './pipeline/dashboard-header';
+import DashboardSidebar from './pipeline/dashboard-sidebar';
+import PipelineWorkspace from './pipeline/pipeline-workspace';
+import RunHistory from './pipeline/run-history';
+import type { ChatMessage } from './pipeline/run-models';
+import {
+  type DashboardPane,
+  useDashboardNavigation,
+} from './pipeline/use-dashboard-navigation';
+import { useOperatorCommands } from './pipeline/use-operator-commands';
+import { useRunMonitor } from './pipeline/use-run-monitor';
+import { useWorkflowWorkspace } from './pipeline/use-workflow-workspace';
 import {
   appendVisualReviewStep,
   reviewSection,
   validateReviewImage,
 } from './pipeline/visual-review-model';
-import { matorAttachmentFileUrl } from '@/components/mator/mator-api';
-import { useMatorChat } from '@/components/mator/use-mator-chat';
-import { useOperatorCommands } from './pipeline/use-operator-commands';
-import { useVoiceSession } from '@/components/mator/use-voice-session';
-import { useVoiceOnlyPreference } from '@/components/mator/mator-voice-preference';
-import { useMatorAiCall } from '@/components/mator/use-mator-ai-call';
-import { useWorkflowWorkspace } from './pipeline/use-workflow-workspace';
-import CheckpointDialog from './pipeline/checkpoint-dialog';
-import DashboardHeader from './pipeline/dashboard-header';
-import DashboardSidebar from './pipeline/dashboard-sidebar';
-import DashboardBottomNav from './pipeline/dashboard-bottom-nav';
-import {
-  useDashboardNavigation,
-  type DashboardPane,
-} from './pipeline/use-dashboard-navigation';
+import { type Platform, workflows } from './pipeline/workflow-catalog';
 
 export default function DashboardShell({
   initialPane = 'workspace',
@@ -74,7 +73,7 @@ export default function DashboardShell({
     navigateCraftView,
   } = useDashboardNavigation(initialPane);
   const [activeConnector, setActiveConnector] = useState<Connector | null>(
-    null
+    null,
   );
   const [connectorRequest, setConnectorRequest] = useState<string | null>(null);
   const [connectorOpenSignal, setConnectorOpenSignal] = useState(0);
@@ -113,13 +112,13 @@ export default function DashboardShell({
         ...previous,
         { id: Date.now(), sender: 'assistant', text },
       ]),
-    (text) => setRunFormError(text)
+    (text) => setRunFormError(text),
   );
   const busy = Boolean(
     active &&
-    ['running', 'paused', 'input-needed', 'approval-needed'].includes(
-      active.state
-    )
+      ['running', 'paused', 'input-needed', 'approval-needed'].includes(
+        active.state,
+      ),
   );
   const {
     platform,
@@ -135,6 +134,13 @@ export default function DashboardShell({
     templatePlans,
     selectedGrowthTemplateId,
     setSelectedGrowthTemplateId,
+    workspaceOpen,
+    setWorkspaceOpen,
+    savedWorkflows,
+    beginNewWorkflow,
+    openActionWorkflow,
+    selectSavedWorkflow,
+    closeWorkspace,
     activeWorkflow,
     setActiveWorkflow,
     loadingWorkflow,
@@ -162,7 +168,7 @@ export default function DashboardShell({
       : '';
   const selectedPage =
     profilePage && platform === 'linkedin' && scopeSection !== 'profile'
-      ? profilePage.replace(/\/$/, '') + '/details/' + scopeSection + '/'
+      ? `${profilePage.replace(/\/$/, '')}/details/${scopeSection}/`
       : profilePage;
   const pageOptions =
     platform === 'linkedin'
@@ -175,7 +181,7 @@ export default function DashboardShell({
   const PlatformIcon = platform === 'linkedin' ? LinkedInIcon : TwitterIcon;
   const platformLabel = platform === 'linkedin' ? 'LinkedIn' : 'X';
   const submitRef = useRef<(text: string, source: 'voice' | 'text') => void>(
-    () => {}
+    () => {},
   );
   const pendingAssetsRef = useRef(false);
   const voice = useVoiceSession({
@@ -261,14 +267,14 @@ export default function DashboardShell({
       tracker.seen = new Set(
         events
           .filter((item) => item.runId === currentRunId)
-          .map((item) => item.id)
+          .map((item) => item.id),
       );
       return;
     }
     const summaries = collectRunSpeechUpdates(
       events,
       currentRunId,
-      tracker.seen
+      tracker.seen,
     );
     if (
       voiceOnly &&
@@ -307,11 +313,8 @@ export default function DashboardShell({
     navigatePane,
     navigateCraft,
     setCraftsRevision,
-    invalidateWorkflowSelection,
-    setActiveWorkflow,
-    setAction,
-    setForm,
     setSelectedNode,
+    onStageWorkflow: openActionWorkflow,
   });
   useEffect(() => {
     setConversationRef.current = setConversation;
@@ -324,7 +327,7 @@ export default function DashboardShell({
       // The text-mode mic only dictates. AI Call owns its separate turn loop.
       if (source === 'voice') {
         setMessage((current) =>
-          [current.trim(), request].filter(Boolean).join(' ')
+          [current.trim(), request].filter(Boolean).join(' '),
         );
         return;
       }
@@ -341,7 +344,7 @@ export default function DashboardShell({
       // The call's microphone does not come through this text-input route.
       void send(request);
     },
-    [send, setMessage, submitUtterance]
+    [send, setMessage, submitUtterance],
   );
 
   const sendMessage = (event: FormEvent<HTMLFormElement>) => {
@@ -381,7 +384,7 @@ export default function DashboardShell({
         const ok =
           typeof window !== 'undefined' &&
           window.confirm(
-            'Live pipeline has unsaved changes. Restore this conversation’s pipeline anyway?'
+            'Live pipeline has unsaved changes. Restore this conversation’s pipeline anyway?',
           );
         if (ok) await restorePipeline(true);
         return;
@@ -399,7 +402,7 @@ export default function DashboardShell({
       // Connecting or resyncing the same account must not discard a template
       // that the user already loaded and configured offline.
       const switchingAccount = Boolean(
-        activeConnector?.id && activeConnector.id !== account.id
+        activeConnector?.id && activeConnector.id !== account.id,
       );
       const switchingPlatform = platform !== account.platform;
       setActiveConnector(account);
@@ -409,6 +412,8 @@ export default function DashboardShell({
       // Switching identities or platforms intentionally resets any account-specific form.
       invalidateWorkflowSelection();
       setActiveWorkflow(null);
+      setWorkspaceOpen(false);
+      setSelectedGrowthTemplateId(null);
       setAction('audit');
       setForm({});
       setScopeSection('profile');
@@ -420,14 +425,18 @@ export default function DashboardShell({
       invalidateWorkflowSelection,
       setAction,
       setActiveWorkflow,
+      setWorkspaceOpen,
+      setSelectedGrowthTemplateId,
       setForm,
       setHandle,
       setPlatform,
-    ]
+    ],
   );
   function choosePlatform(next: Platform) {
     invalidateWorkflowSelection();
     setActiveWorkflow(null);
+    setWorkspaceOpen(false);
+    setSelectedGrowthTemplateId(null);
     setPlatform(next);
     setAction('audit');
     setForm({});
@@ -436,15 +445,20 @@ export default function DashboardShell({
     setHandle('');
   }
   function chooseAction(next: string) {
-    setSelectedGrowthTemplateId(null);
-    invalidateWorkflowSelection();
-    setActiveWorkflow(null);
-    setAction(next);
-    setForm({});
-    setRunFormError('');
+    void openActionWorkflow(next).catch((reason) => {
+      const message =
+        reason instanceof Error
+          ? reason.message
+          : 'Unable to load action workflow';
+      setRunFormError(message);
+      chatNotice(message);
+    });
     navigatePane('workspace');
   }
   async function startRun() {
+    if (!workspaceOpen || selectedGrowthTemplateId) {
+      throw Error('Choose an executable workflow before starting a run');
+    }
     const payload = buildRunPayload({
       loadingWorkflow,
       activeWorkflow,
@@ -473,11 +487,11 @@ export default function DashboardShell({
   }
   /** Reads chat image bytes and guards the pipeline page scope for the review studio. */
   async function buildChatAnnotationSource(
-    request: import('@/components/mator/use-visual-reviews').ChatAnnotationRequest
+    request: import('@/components/mator/use-visual-reviews').ChatAnnotationRequest,
   ): Promise<{ imageDataUrl: string } | null> {
     if (!normalizedHandle.trim() || !selectedPage.trim()) {
       throw new Error(
-        'Open a pipeline account page before annotating chat images as YAML reviews'
+        'Open a pipeline account page before annotating chat images as YAML reviews',
       );
     }
     if (request.file) {
@@ -499,7 +513,7 @@ export default function DashboardShell({
     }
     if (request.attachmentId) {
       const response = await fetch(
-        matorAttachmentFileUrl(request.attachmentId)
+        matorAttachmentFileUrl(request.attachmentId),
       );
       if (!response.ok) {
         throw new Error('Attachment bytes are unavailable for annotation');
@@ -534,7 +548,7 @@ export default function DashboardShell({
     onReviewSaved: (id, annotationCount) => {
       setPlanDirty(true);
       setWorkflowPlan((previous) =>
-        appendVisualReviewStep(previous, id, annotationCount)
+        appendVisualReviewStep(previous, id, annotationCount),
       );
       setChatVisible(true);
       setConversation((previous) => [
@@ -621,10 +635,14 @@ export default function DashboardShell({
             workflowPlan={workflowPlan}
             templatePlans={templatePlans}
             selectedGrowthTemplateId={selectedGrowthTemplateId}
+            workspaceOpen={workspaceOpen}
+            savedWorkflows={savedWorkflows}
+            beginNewWorkflow={beginNewWorkflow}
+            selectSavedWorkflow={selectSavedWorkflow}
+            closeWorkspace={closeWorkspace}
             connectorReady={connectorReady}
             activeConnector={activeConnector}
             applyGrowthTemplate={applyGrowthTemplate}
-            setSelectedGrowthTemplateId={setSelectedGrowthTemplateId}
             chooseAction={chooseAction}
             platform={platform}
             action={action}
@@ -726,7 +744,7 @@ export default function DashboardShell({
               onNavigate={(path) => {
                 navigate(path);
                 setPane(
-                  path.endsWith('/dashboard/observer') ? 'observer' : 'memory'
+                  path.endsWith('/dashboard/observer') ? 'observer' : 'memory',
                 );
               }}
             />

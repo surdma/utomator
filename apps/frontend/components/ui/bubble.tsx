@@ -18,7 +18,7 @@ export function Bubble({ className = '', variant, align, ...props }: Props) {
         'rounded-2xl border px-4 py-3 text-[13px] leading-relaxed shadow-sm',
         variant ? variantClasses[variant] : variantClasses.default,
         align === 'end' && 'text-right',
-        className
+        className,
       )}
       {...props}
     />

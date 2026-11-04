@@ -1,10 +1,10 @@
-import { readFile, readdir } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
+import { readdir, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { parseRestrictedYaml } from '../core/step-definitions.js';
-import { linkedinPipeline } from '../core/workflow-plan.js';
-import { compileWorkflow } from '../core/workflow-yaml.js';
+import { fileURLToPath } from 'node:url';
 import type { Action } from '../core/types.js';
+import { parseRestrictedYaml } from '../workflows/step-definitions.js';
+import { linkedinPipeline } from '../workflows/workflow-plan.js';
+import { compileWorkflow } from '../workflows/workflow-yaml.js';
 
 /** YAML program inspection is read-only. Executions retain /runs ownership, approval and verification. */
 export const linkedInProfileActions = [
@@ -62,7 +62,11 @@ function entries(input: unknown, prefix: 'requirement' | '', min: number, max: n
  */
 function compileGrowthBlueprintYaml(parsed: Record<string, unknown>) {
   fields(parsed.metadata, ['id', 'version', 'title'], 'blueprint metadata');
-  fields(parsed.spec, ['platform', 'objective', 'requirements', 'coverage', 'pipelines'], 'blueprint spec');
+  fields(
+    parsed.spec,
+    ['platform', 'objective', 'requirements', 'coverage', 'pipelines'],
+    'blueprint spec',
+  );
   const metadata = parsed.metadata;
   const spec = parsed.spec;
   if (
@@ -79,13 +83,17 @@ function compileGrowthBlueprintYaml(parsed: Record<string, unknown>) {
     typeof spec.objective !== 'string' ||
     !spec.objective.trim() ||
     spec.objective.length > 300
-  ) throw Error('Invalid Growth blueprint identity');
+  )
+    throw Error('Invalid Growth blueprint identity');
 
   const requirements = entries(spec.requirements, 'requirement', 1, 32, 'blueprint requirements');
   const coverage = entries(spec.coverage, '', 1, 64, 'blueprint coverage');
   const pipelineMap = spec.pipelines;
-  if (!plain(pipelineMap) || Object.keys(pipelineMap).length < 1 ||
-    Object.keys(pipelineMap).length > 8) {
+  if (
+    !plain(pipelineMap) ||
+    Object.keys(pipelineMap).length < 1 ||
+    Object.keys(pipelineMap).length > 8
+  ) {
     throw Error('Growth blueprint requires 1–8 ordered pipelines');
   }
   const keys = Object.keys(pipelineMap);
@@ -98,14 +106,25 @@ function compileGrowthBlueprintYaml(parsed: Record<string, unknown>) {
     fields(rawTasks, taskKinds, 'blueprint task types');
     if (
       typeof raw.title !== 'string' ||
-      !raw.title.trim() || raw.title.length > 120 ||
+      !raw.title.trim() ||
+      raw.title.length > 120 ||
       raw.dependsOn !== (index === 0 ? 'none' : keys[index - 1]) ||
-      taskKinds.some((kind) => typeof rawTasks[kind] !== 'string' ||
-        !(rawTasks[kind] as string).trim() || (rawTasks[kind] as string).length > 200)
-    ) throw Error('Invalid Growth blueprint pipeline or task');
+      taskKinds.some(
+        (kind) =>
+          typeof rawTasks[kind] !== 'string' ||
+          !(rawTasks[kind] as string).trim() ||
+          (rawTasks[kind] as string).length > 200,
+      )
+    )
+      throw Error('Invalid Growth blueprint pipeline or task');
     const steps = taskKinds.map((kind) => ({
       id: kind,
-      kind: kind === 'procedure' ? 'assess' as const : kind === 'verify' ? 'verify' as const : 'note' as const,
+      kind:
+        kind === 'procedure'
+          ? ('assess' as const)
+          : kind === 'verify'
+            ? ('verify' as const)
+            : ('note' as const),
       title: rawTasks[kind] as string,
       message: kind + ' · Owner-operated planning step; not a provider command',
     }));
@@ -139,7 +158,9 @@ function compileGrowthBlueprintYaml(parsed: Record<string, unknown>) {
     objective: spec.objective as string,
     requirements: requirements.map(([id, text]) => ({ id, text })),
     coverage: coverage.map(([id, label]) => ({
-      id, label, status: 'requires-independent-evidence' as const,
+      id,
+      label,
+      status: 'requires-independent-evidence' as const,
     })),
     pipelines: stages.map((stage) => ({
       id: stage.id,
@@ -153,7 +174,8 @@ function compileGrowthBlueprintYaml(parsed: Record<string, unknown>) {
     stages,
     executable: false as const,
     execution: 'design-only' as const,
-    limitation: 'This YAML defines planned or owner-operated procedures. No unsupported provider action or automated outcome is available.',
+    limitation:
+      'This YAML defines planned or owner-operated procedures. No unsupported provider action or automated outcome is available.',
   };
 }
 

@@ -1,9 +1,9 @@
 'use client';
 
-import type { RefObject } from 'react';
 import { LoaderCircle } from 'lucide-react';
-import { providerMeta, type ProviderKey } from '../provider-meta';
+import type { RefObject } from 'react';
 import type { Connector } from '../connector-types';
+import { type ProviderKey, providerMeta } from '../provider-meta';
 import ConnectorStatusNotices from './connector-status-notices';
 
 type Command = 'connect' | 'sync' | 'disconnect';
@@ -11,7 +11,7 @@ type Command = 'connect' | 'sync' | 'disconnect';
 const button =
   'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0a66c2] disabled:cursor-not-allowed disabled:opacity-50';
 const shortDate = (value: string | null) =>
-  value ? 'Checked ' + new Date(value).toLocaleString() : 'Not verified';
+  value ? `Checked ${new Date(value).toLocaleString()}` : 'Not verified';
 
 export default function ConnectorSavedAccount({
   network,
@@ -91,7 +91,7 @@ export default function ConnectorSavedAccount({
 }) {
   return (
     <section
-      aria-label={providerMeta[network].name + ' connection'}
+      aria-label={`${providerMeta[network].name} connection`}
       className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3.5 sm:px-5">

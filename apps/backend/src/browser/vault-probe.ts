@@ -1,5 +1,5 @@
 import type { BrowserContext, Page } from 'playwright';
-import type { VaultPayload } from '../core/session-vault.js';
+import type { VaultPayload } from '../connect/session-vault.js';
 
 /**
  * Vault restore helpers: session-state classification, snapshot capture and

@@ -1,7 +1,7 @@
 'use client';
 
-import { type ReactNode } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
+import type { ReactNode } from 'react';
 import { MessageScrollerItem } from '@/components/ui/message-scroller';
 
 /** Mount-in-place row: transform/opacity only; disabled under reduced motion. */

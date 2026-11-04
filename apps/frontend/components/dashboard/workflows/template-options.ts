@@ -1,4 +1,8 @@
-import { growthCapabilities, type GrowthPillar, type GrowthPriority } from '../growth/linkedin-growth-capabilities';
+import {
+  type GrowthPillar,
+  type GrowthPriority,
+  growthCapabilities,
+} from '../growth/linkedin-growth-capabilities';
 
 export type GrowthTemplateSummary = {
   id: string;
@@ -17,13 +21,21 @@ export type GrowthOption = GrowthTemplateSummary & {
 };
 
 export const growthTemplateCategories = [
-  'All', 'research', 'execution', 'measurement', 'methodology',
+  'All',
+  'research',
+  'execution',
+  'measurement',
+  'methodology',
 ] as const;
 export type GrowthTemplateCategory = (typeof growthTemplateCategories)[number];
 
 /** Only validated YAML returned by the Growth engine is a selectable template. */
-export function buildTemplateOptions(growthTemplates: GrowthTemplateSummary[]): GrowthOption[] {
-  const lookup = new Map(growthCapabilities.map((item) => ['linkedin-' + item.id, item] as const));
+export function buildTemplateOptions(
+  growthTemplates: GrowthTemplateSummary[],
+): GrowthOption[] {
+  const lookup = new Map(
+    growthCapabilities.map((item) => [`linkedin-${item.id}`, item] as const),
+  );
   return growthTemplates.map((template) => {
     const capability = lookup.get(template.id);
     return {

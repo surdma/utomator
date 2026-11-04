@@ -24,23 +24,23 @@ let sequence = 0;
 /** Deterministic connector row matching the backend `GET /connectors` response. */
 export function connectorAccount(
   platform: ProviderKey,
-  overrides: Partial<Omit<ConnectorFixture, 'platform'>> = {}
+  overrides: Partial<Omit<ConnectorFixture, 'platform'>> = {},
 ): ConnectorFixture {
   sequence += 1;
   const cap = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
   return {
-    id: overrides.id ?? platform + '-' + sequence,
+    id: overrides.id ?? `${platform}-${sequence}`,
     platform,
-    label: overrides.label ?? cap(platform) + ' sample',
+    label: overrides.label ?? `${cap(platform)} sample`,
     handle:
       overrides.handle ??
-      (platform === 'devto' ? 'sample.dev' : 'sample.' + platform),
+      (platform === 'devto' ? 'sample.dev' : `sample.${platform}`),
     profileUrl:
       overrides.profileUrl ??
       'https://www.' +
-        (platform === 'devto' ? 'dev.to/' : platform + '.com/') +
+        (platform === 'devto' ? 'dev.to/' : `${platform}.com/`) +
         (platform === 'linkedin' ? 'in/' : '') +
-        (platform === 'devto' ? 'sample.dev' : 'sample.' + platform),
+        (platform === 'devto' ? 'sample.dev' : `sample.${platform}`),
     status: overrides.status ?? 'disconnected',
     verifiedAt: overrides.verifiedAt ?? null,
     authentication:
@@ -102,7 +102,7 @@ export type ConnectorApiMock = {
 export async function installConnectorApi(
   page: Page,
   seed: ConnectorFixture[],
-  behavior?: (event: ConnectorCommandEvent) => ConnectorBehavior
+  behavior?: (event: ConnectorCommandEvent) => ConnectorBehavior,
 ): Promise<ConnectorApiMock> {
   const accounts = seed.map((account) => ({ ...account }));
   const requests: ConnectorCommandEvent[] = [];
@@ -177,7 +177,7 @@ export async function installConnectorApi(
         if (custom && 'simulate' in custom) return; // request stays pending
         if (custom?.respondAfter)
           await new Promise((resolve) =>
-            setTimeout(resolve, custom.respondAfter)
+            setTimeout(resolve, custom.respondAfter),
           );
         await respond(route, accounts, custom?.status ?? 200);
         return;
@@ -197,13 +197,12 @@ export async function installConnectorApi(
       if (custom && 'simulate' in custom) return;
       if (custom?.respondAfter)
         await new Promise((resolve) =>
-          setTimeout(resolve, custom.respondAfter)
+          setTimeout(resolve, custom.respondAfter),
         );
       if (starting) {
         const provider = (request.postDataJSON() as { platform: ProviderKey })
           .platform;
-        const pendingId =
-          '00000000-0000-4000-8000-' + String(sequence++).padStart(12, '0');
+        const pendingId = `00000000-0000-4000-8000-${String(sequence++).padStart(12, '0')}`;
         accounts.push({
           id: pendingId,
           platform: provider,

@@ -25,10 +25,7 @@ export function readVoiceSupport(scope: object | null | undefined) {
  */
 export async function acquireCurrentVoiceStream<
   T extends { getTracks(): Array<{ stop(): void }> },
->(
-  request: () => Promise<T>,
-  isCurrent: () => boolean
-): Promise<T | null> {
+>(request: () => Promise<T>, isCurrent: () => boolean): Promise<T | null> {
   const stream = await request();
   if (isCurrent()) return stream;
   for (const track of stream.getTracks()) track.stop();
@@ -40,7 +37,9 @@ export function createVoiceDeliveryGate() {
   let epoch = 0;
   return {
     start: () => ++epoch,
-    invalidate: () => { epoch += 1; },
+    invalidate: () => {
+      epoch += 1;
+    },
     isCurrent: (token: number) => token === epoch,
   };
 }

@@ -1,5 +1,5 @@
 import type { Page } from 'playwright';
-import type { Platform, LoginCredentials } from '../core/types.js';
+import type { LoginCredentials, Platform } from '../core/types.js';
 
 // Credentials exist only for the active request. Never capture login screens in evidence.
 export async function attemptLogin(

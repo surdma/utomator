@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { getDashboardRoute, type DashboardPane } from './dashboard-route';
+import { useState } from 'react';
+import { type DashboardPane, getDashboardRoute } from './dashboard-route';
 
 export type { DashboardPane } from './dashboard-route';
 
@@ -12,10 +12,10 @@ export function useDashboardNavigation(initialPane: DashboardPane) {
   const [requestedPane, setPane] = useState<DashboardPane>(initialPane);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [rememberedCraftId, setSelectedCraftId] = useState<string | null>(
-    () => getDashboardRoute(pathname).craftId ?? null
+    () => getDashboardRoute(pathname).craftId ?? null,
   );
   const [selectedCraftSlug, setSelectedCraftSlug] = useState<string | null>(
-    null
+    null,
   );
 
   const pane = route.pane ?? requestedPane;
@@ -36,7 +36,7 @@ export function useDashboardNavigation(initialPane: DashboardPane) {
     )
       return;
     setPane(next);
-    navigate('/dashboard/' + next);
+    navigate(`/dashboard/${next}`);
   }
   function navigateSubpage(path: string) {
     if (
@@ -50,7 +50,7 @@ export function useDashboardNavigation(initialPane: DashboardPane) {
         ? 'resumes'
         : path.startsWith('/dashboard/settings')
           ? 'settings'
-          : 'profile'
+          : 'profile',
     );
     navigate(path);
   }
@@ -60,16 +60,16 @@ export function useDashboardNavigation(initialPane: DashboardPane) {
     if (id && slug) setSelectedCraftSlug(slug);
     if (!id) setSelectedCraftSlug(null);
     const target = id
-      ? '/dashboard/growth/' + encodeURIComponent(id)
+      ? `/dashboard/growth/${encodeURIComponent(id)}`
       : '/dashboard/growth';
-    navigate(id && pathname === target + '/source' ? pathname : target);
+    navigate(id && pathname === `${target}/source` ? pathname : target);
   }
   function navigateCraftView(next: 'visual' | 'source') {
     if (!selectedCraftId) return;
     navigate(
       '/dashboard/growth/' +
         encodeURIComponent(selectedCraftId) +
-        (next === 'source' ? '/source' : '')
+        (next === 'source' ? '/source' : ''),
     );
   }
 

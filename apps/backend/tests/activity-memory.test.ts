@@ -1,9 +1,9 @@
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
+
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ActivityMemory } from '../src/core/activity-memory.js';
+import { test, expect } from 'vitest';
+import { ActivityMemory } from '../src/mator/mator-activity-memory.js';
 
 test('conversation memory stores user messages as chat evidence, never invented facts', async () => {
   const root = await mkdtemp(join(tmpdir(), 'utomator-memory-'));
@@ -13,22 +13,17 @@ test('conversation memory stores user messages as chat evidence, never invented 
       text: 'Prefer concise application letters.',
       platform: 'linkedin',
     });
-    assert.equal(first.source, 'chat');
-    assert.equal(first.platform, 'linkedin');
+    expect(first.source).toEqual('chat');
+    expect(first.platform).toEqual('linkedin');
     const records = await memory.list();
-    assert(
-      records.some(
+    expect(records.some(
         (item) => item.id === first.id && item.text === 'Prefer concise application letters.',
-      ),
-    );
-    await assert.rejects(
-      memory.addChat({ text: 'My password is somebody-secret' }),
-      /Do not save secrets/,
-    );
-    await assert.rejects(memory.addChat({ text: 'x' }), /2–2000/);
+      )).toBeTruthy();
+    await expect((memory.addChat({ text: 'My password is somebody-secret' }))).rejects.toThrow(/Do not save secrets/);
+    await expect((memory.addChat({ text: 'x' }))).rejects.toThrow(/2–2000/);
     const restarted = new ActivityMemory(root);
     const again = await restarted.list();
-    assert(again.some((item) => item.id === first.id));
+    expect(again.some((item) => item.id === first.id)).toBeTruthy();
   } finally {
     await rm(root, { recursive: true, force: true });
   }

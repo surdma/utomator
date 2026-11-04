@@ -6,8 +6,8 @@ import { and, eq } from 'drizzle-orm';
 import { drizzle as sqliteDrizzle } from 'drizzle-orm/libsql';
 import { drizzle as postgresDrizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { documents as sqliteDocuments } from './schema-sqlite.js';
 import { documents as pgDocuments } from './schema-postgres.js';
+import { documents as sqliteDocuments } from './schema-sqlite.js';
 
 export type DocumentRecord<T> = { key: string; version: number; value: T };
 export interface DocumentStore {
@@ -76,6 +76,103 @@ function checkRevision(expected: number) {
   if (!Number.isSafeInteger(expected) || expected < 0) throw Error('Invalid database revision');
 }
 const conflict = () => Error('Database document changed. Reload before saving.');
+
+/** Build a `DocumentStore` over a Drizzle client and table.
+ *
+ * `get`/`list`/`put`/`remove`/`close` are identical between the SQLite and
+ * PostgreSQL dialects; the only dialect-dependent pieces are the Drizzle table
+ * reference and the client close function. This factory removes the ~200 lines
+ * of near-duplicated CRUD code that previously lived in both branches.
+ */
+function buildDocumentStore(
+  db: any,
+  table: any,
+  dialect: DocumentStore['dialect'],
+  ownerId: string,
+  close: () => Promise<void>,
+): DocumentStore {
+  return {
+    dialect,
+    ownerId,
+    async get<T>(namespace: string, key: string) {
+      validated(namespace, key);
+      const rows = await db
+        .select({ key: table.key, version: table.version, payload: table.payload })
+        .from(table)
+        .where(and(eq(table.ownerId, ownerId), eq(table.namespace, namespace), eq(table.key, key)))
+        .limit(1);
+      return rows[0] ? decode<T>(rows[0]) : null;
+    },
+    async list<T>(namespace: string) {
+      validated(namespace, 'list');
+      const rows = await db
+        .select({ key: table.key, version: table.version, payload: table.payload })
+        .from(table)
+        .where(and(eq(table.ownerId, ownerId), eq(table.namespace, namespace)));
+      return rows.map((row: any) => decode<T>(row));
+    },
+    async put<T>(namespace: string, key: string, value: T, expectedVersion: number) {
+      validated(namespace, key);
+      checkRevision(expectedVersion);
+      const now = new Date().toISOString(),
+        serialized = payload(value);
+      if (!expectedVersion) {
+        const rows = await db
+          .insert(table)
+          .values({
+            ownerId,
+            namespace,
+            key,
+            version: 1,
+            payload: serialized,
+            updatedAt: now,
+          })
+          .onConflictDoNothing()
+          .returning({ version: table.version });
+        if (!rows.length) throw conflict();
+        return 1;
+      }
+      const rows = await db
+        .update(table)
+        .set({
+          payload: serialized,
+          version: expectedVersion + 1,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(table.ownerId, ownerId),
+            eq(table.namespace, namespace),
+            eq(table.key, key),
+            eq(table.version, expectedVersion),
+          ),
+        )
+        .returning({ version: table.version });
+      if (!rows.length) throw conflict();
+      return rows[0]!.version;
+    },
+    async remove(namespace: string, key: string, expectedVersion: number) {
+      validated(namespace, key);
+      checkRevision(expectedVersion);
+      const rows = await db
+        .delete(table)
+        .where(
+          and(
+            eq(table.ownerId, ownerId),
+            eq(table.namespace, namespace),
+            eq(table.key, key),
+            eq(table.version, expectedVersion),
+          ),
+        )
+        .returning({ key: table.key });
+      if (!rows.length) throw conflict();
+    },
+    async close() {
+      await close();
+    },
+  };
+}
+
 export async function createDocumentStore(
   environment: NodeJS.ProcessEnv = process.env,
   authenticatedOwnerId: string = LOCAL_OWNER_ID,
@@ -95,100 +192,7 @@ export async function createDocumentStore(
         { cause: error },
       );
     }
-    return {
-      dialect: 'postgresql',
-      ownerId: owner,
-      async get<T>(namespace: string, key: string) {
-        validated(namespace, key);
-        const rows = await db
-          .select({
-            key: pgDocuments.key,
-            version: pgDocuments.version,
-            payload: pgDocuments.payload,
-          })
-          .from(pgDocuments)
-          .where(
-            and(
-              eq(pgDocuments.ownerId, owner),
-              eq(pgDocuments.namespace, namespace),
-              eq(pgDocuments.key, key),
-            ),
-          )
-          .limit(1);
-        return rows[0] ? decode<T>(rows[0]) : null;
-      },
-      async list<T>(namespace: string) {
-        validated(namespace, 'list');
-        const rows = await db
-          .select({
-            key: pgDocuments.key,
-            version: pgDocuments.version,
-            payload: pgDocuments.payload,
-          })
-          .from(pgDocuments)
-          .where(and(eq(pgDocuments.ownerId, owner), eq(pgDocuments.namespace, namespace)));
-        return rows.map((row) => decode<T>(row));
-      },
-      async put<T>(namespace: string, key: string, value: T, expectedVersion: number) {
-        validated(namespace, key);
-        checkRevision(expectedVersion);
-        const now = new Date().toISOString(),
-          serialized = payload(value);
-        if (!expectedVersion) {
-          const rows = await db
-            .insert(pgDocuments)
-            .values({
-              ownerId: owner,
-              namespace,
-              key,
-              version: 1,
-              payload: serialized,
-              updatedAt: now,
-            })
-            .onConflictDoNothing()
-            .returning({ version: pgDocuments.version });
-          if (!rows.length) throw conflict();
-          return 1;
-        }
-        const rows = await db
-          .update(pgDocuments)
-          .set({
-            payload: serialized,
-            version: expectedVersion + 1,
-            updatedAt: now,
-          })
-          .where(
-            and(
-              eq(pgDocuments.ownerId, owner),
-              eq(pgDocuments.namespace, namespace),
-              eq(pgDocuments.key, key),
-              eq(pgDocuments.version, expectedVersion),
-            ),
-          )
-          .returning({ version: pgDocuments.version });
-        if (!rows.length) throw conflict();
-        return rows[0]!.version;
-      },
-      async remove(namespace: string, key: string, expectedVersion: number) {
-        validated(namespace, key);
-        checkRevision(expectedVersion);
-        const rows = await db
-          .delete(pgDocuments)
-          .where(
-            and(
-              eq(pgDocuments.ownerId, owner),
-              eq(pgDocuments.namespace, namespace),
-              eq(pgDocuments.key, key),
-              eq(pgDocuments.version, expectedVersion),
-            ),
-          )
-          .returning({ key: pgDocuments.key });
-        if (!rows.length) throw conflict();
-      },
-      async close() {
-        await client.end();
-      },
-    };
+    return buildDocumentStore(db, pgDocuments, 'postgresql', owner, () => client.end());
   }
   const file = environment.DB_FILE_NAME?.trim() || 'file:local.db';
   if (!file.startsWith('file:') || file.startsWith('file://'))
@@ -210,98 +214,7 @@ export async function createDocumentStore(
       { cause: error },
     );
   }
-  return {
-    dialect: 'sqlite',
-    ownerId: owner,
-    async get<T>(namespace: string, key: string) {
-      validated(namespace, key);
-      const rows = await db
-        .select({
-          key: sqliteDocuments.key,
-          version: sqliteDocuments.version,
-          payload: sqliteDocuments.payload,
-        })
-        .from(sqliteDocuments)
-        .where(
-          and(
-            eq(sqliteDocuments.ownerId, owner),
-            eq(sqliteDocuments.namespace, namespace),
-            eq(sqliteDocuments.key, key),
-          ),
-        )
-        .limit(1);
-      return rows[0] ? decode<T>(rows[0]) : null;
-    },
-    async list<T>(namespace: string) {
-      validated(namespace, 'list');
-      const rows = await db
-        .select({
-          key: sqliteDocuments.key,
-          version: sqliteDocuments.version,
-          payload: sqliteDocuments.payload,
-        })
-        .from(sqliteDocuments)
-        .where(and(eq(sqliteDocuments.ownerId, owner), eq(sqliteDocuments.namespace, namespace)));
-      return rows.map((row) => decode<T>(row));
-    },
-    async put<T>(namespace: string, key: string, value: T, expectedVersion: number) {
-      validated(namespace, key);
-      checkRevision(expectedVersion);
-      const now = new Date().toISOString(),
-        serialized = payload(value);
-      if (!expectedVersion) {
-        const rows = await db
-          .insert(sqliteDocuments)
-          .values({
-            ownerId: owner,
-            namespace,
-            key,
-            version: 1,
-            payload: serialized,
-            updatedAt: now,
-          })
-          .onConflictDoNothing()
-          .returning({ version: sqliteDocuments.version });
-        if (!rows.length) throw conflict();
-        return 1;
-      }
-      const rows = await db
-        .update(sqliteDocuments)
-        .set({
-          payload: serialized,
-          version: expectedVersion + 1,
-          updatedAt: now,
-        })
-        .where(
-          and(
-            eq(sqliteDocuments.ownerId, owner),
-            eq(sqliteDocuments.namespace, namespace),
-            eq(sqliteDocuments.key, key),
-            eq(sqliteDocuments.version, expectedVersion),
-          ),
-        )
-        .returning({ version: sqliteDocuments.version });
-      if (!rows.length) throw conflict();
-      return rows[0]!.version;
-    },
-    async remove(namespace: string, key: string, expectedVersion: number) {
-      validated(namespace, key);
-      checkRevision(expectedVersion);
-      const rows = await db
-        .delete(sqliteDocuments)
-        .where(
-          and(
-            eq(sqliteDocuments.ownerId, owner),
-            eq(sqliteDocuments.namespace, namespace),
-            eq(sqliteDocuments.key, key),
-            eq(sqliteDocuments.version, expectedVersion),
-          ),
-        )
-        .returning({ key: sqliteDocuments.key });
-      if (!rows.length) throw conflict();
-    },
-    async close() {
-      client.close();
-    },
-  };
+  return buildDocumentStore(db, sqliteDocuments, 'sqlite', owner, async () => {
+    await client.close();
+  });
 }

@@ -1,14 +1,14 @@
 'use client';
 
-import { type Dispatch, type SetStateAction } from 'react';
 import { ArrowDown, ArrowUp, Trash2 } from 'lucide-react';
+import type { Dispatch, SetStateAction } from 'react';
 import StudioDialog from '@/components/ui/studio-dialog';
 import { fixed } from '../workflow-step-policy';
 import type {
-  StepKind,
-  WorkflowStep,
-  WorkflowPlan,
   RunEvent,
+  StepKind,
+  WorkflowPlan,
+  WorkflowStep,
 } from '../workflow-types';
 
 export type StepFormField = {
@@ -123,13 +123,13 @@ export function WorkflowStepInspector({
                                       .slice(
                                         0,
                                         plan.steps.findIndex(
-                                          (item) => item.id === stepDraft.id
-                                        )
+                                          (item) => item.id === stepDraft.id,
+                                        ),
                                       )
                                       .findLast(
                                         (item) =>
                                           item.kind === 'inspect' ||
-                                          item.kind === 'verify'
+                                          item.kind === 'verify',
                                       );
                                     return prior
                                       ? {
@@ -146,11 +146,11 @@ export function WorkflowStepInspector({
                                         .slice(
                                           0,
                                           plan.steps.findIndex(
-                                            (item) => item.id === stepDraft.id
-                                          )
+                                            (item) => item.id === stepDraft.id,
+                                          ),
                                         )
                                         .findLast(
-                                          (item) => item.kind === 'evidence'
+                                          (item) => item.kind === 'evidence',
                                         );
                                       return prior
                                         ? {
@@ -265,19 +265,19 @@ export function WorkflowStepInspector({
                 {plan.steps
                   .slice(
                     0,
-                    plan.steps.findIndex((item) => item.id === stepDraft.id)
+                    plan.steps.findIndex((item) => item.id === stepDraft.id),
                   )
                   .filter(
-                    (item) => item.kind === 'inspect' || item.kind === 'verify'
+                    (item) => item.kind === 'inspect' || item.kind === 'verify',
                   )
                   .flatMap((item) => [
                     <option
-                      key={item.id + ':excerpt'}
-                      value={item.id + ':excerpt'}
+                      key={`${item.id}:excerpt`}
+                      value={`${item.id}:excerpt`}
                     >
                       {item.title}: observed excerpt
                     </option>,
-                    <option key={item.id + ':url'} value={item.id + ':url'}>
+                    <option key={`${item.id}:url`} value={`${item.id}:url`}>
                       {item.title}: observed URL
                     </option>,
                   ])}
@@ -313,10 +313,10 @@ export function WorkflowStepInspector({
                 {plan.steps
                   .slice(
                     0,
-                    plan.steps.findIndex((item) => item.id === stepDraft.id)
+                    plan.steps.findIndex((item) => item.id === stepDraft.id),
                   )
                   .filter(
-                    (item) => item.kind === 'inspect' || item.kind === 'verify'
+                    (item) => item.kind === 'inspect' || item.kind === 'verify',
                   )
                   .map((item) => (
                     <option key={item.id} value={item.id}>
@@ -351,7 +351,7 @@ export function WorkflowStepInspector({
                 {plan.steps
                   .slice(
                     0,
-                    plan.steps.findIndex((item) => item.id === stepDraft.id)
+                    plan.steps.findIndex((item) => item.id === stepDraft.id),
                   )
                   .filter((item) => item.kind === 'evidence')
                   .map((item) => (

@@ -37,7 +37,7 @@ export function Switch({
         checked
           ? 'border-teal-700 bg-teal-700'
           : 'border-slate-300 bg-slate-200',
-        className
+        className,
       )}
     >
       <span
@@ -45,7 +45,7 @@ export function Switch({
         data-slot="switch-thumb"
         className={cn(
           'pointer-events-none block size-4 translate-x-1 rounded-full bg-white shadow-sm transition-transform',
-          checked && 'translate-x-5'
+          checked && 'translate-x-5',
         )}
       />
     </button>

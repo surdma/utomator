@@ -1,13 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { accountSection } from '@/components/dashboard/account/account-format';
 import type { AccountSection } from '@/components/dashboard/account/account-format';
+import { accountSection } from '@/components/dashboard/account/account-format';
 import { Notice } from '@/components/dashboard/account/account-notice';
 import { DisconnectNetworkDialog } from '@/components/dashboard/account/dialogs/disconnect-network-dialog';
 import {
-  ProfileEditorDialog,
   type ProfileDraft,
+  ProfileEditorDialog,
 } from '@/components/dashboard/account/dialogs/profile-editor-dialog';
 import { ProfilePlanDialog } from '@/components/dashboard/account/dialogs/profile-plan-dialog';
 import { RemoveAccountDialog } from '@/components/dashboard/account/dialogs/remove-account-dialog';
@@ -19,10 +19,10 @@ import { ProfileSection } from '@/components/dashboard/account/sections/profile-
 import {
   fetchMatorModels,
   fetchMatorSettings,
-  saveMatorSettings,
   type MatorModelOption,
   type MatorSettingsMasked,
   type MatorSettingsSavePatch,
+  saveMatorSettings,
 } from '@/components/mator/mator-api';
 
 export type SocialAccount = {
@@ -110,7 +110,7 @@ export default function AccountHome({
   useEffect(() => {
     if (pane === 'settings' || pathname === '/dashboard/settings') {
       setSection((current) =>
-        current === 'preferences' || current === 'mator' ? current : 'mator'
+        current === 'preferences' || current === 'mator' ? current : 'mator',
       );
       return;
     }
@@ -152,7 +152,7 @@ export default function AccountHome({
 
   useEffect(() => {
     void loadAccount();
-  }, [loadAccount, linkedAccountId]);
+  }, [loadAccount]);
 
   const refreshConnections = useCallback(async () => {
     const response = await fetch('/api/connectors', { cache: 'no-store' });
@@ -192,12 +192,12 @@ export default function AccountHome({
           if (!alive) return;
           try {
             const response = await fetch(
-              '/api/connectors/' + encodeURIComponent(id) + '/sync',
+              `/api/connectors/${encodeURIComponent(id)}/sync`,
               {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: '{}',
-              }
+              },
             );
             const result = (await response.json()) as { status?: string };
             if (!alive || !response.ok || result.status !== 'connected')
@@ -232,7 +232,7 @@ export default function AccountHome({
       return false;
     }
     setNotice(
-      'Sign in in the new tab. Phone and computer use the same page. Come back and click Sync when you are done.'
+      'Sign in in the new tab. Phone and computer use the same page. Come back and click Sync when you are done.',
     );
     return true;
   }
@@ -242,7 +242,7 @@ export default function AccountHome({
       (item) =>
         item.platform === platform &&
         item.status === 'sign-in-open' &&
-        !item.handle
+        !item.handle,
     );
     const known = accountId || pendingSync[platform] || openSignIn?.id;
     const busyKey = known || platform;
@@ -277,12 +277,12 @@ export default function AccountHome({
       // Connect is only for a profile that was saved and later signed out.
       if (live?.status === 'disconnected') {
         const response = await fetch(
-          '/api/connectors/' + encodeURIComponent(known) + '/connect',
+          `/api/connectors/${encodeURIComponent(known)}/connect`,
           {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: '{}',
-          }
+          },
         );
         const result = (await response.json()) as {
           error?: string;
@@ -293,12 +293,12 @@ export default function AccountHome({
         return;
       }
       const response = await fetch(
-        '/api/connectors/' + encodeURIComponent(known) + '/sync',
+        `/api/connectors/${encodeURIComponent(known)}/sync`,
         {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: '{}',
-        }
+        },
       );
       const result = (await response.json()) as {
         error?: string;
@@ -313,11 +313,11 @@ export default function AccountHome({
       setNotice(
         result.status === 'connected'
           ? 'Network synced.'
-          : 'Sign-in is still open. Finish it, then click Sync again.'
+          : 'Sign-in is still open. Finish it, then click Sync again.',
       );
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : 'Could not sync this network'
+        cause instanceof Error ? cause.message : 'Could not sync this network',
       );
     } finally {
       setLinkBusy(null);
@@ -330,12 +330,12 @@ export default function AccountHome({
     setNotice('');
     try {
       const response = await fetch(
-        '/api/connectors/' + encodeURIComponent(id) + '/' + operation,
+        `/api/connectors/${encodeURIComponent(id)}/${operation}`,
         {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: '{}',
-        }
+        },
       );
       const result = (await response.json()) as { error?: string };
       if (!response.ok)
@@ -343,11 +343,13 @@ export default function AccountHome({
       await refreshConnections();
       setDisconnectId(null);
       setNotice(
-        operation === 'sync' ? 'Network synced.' : 'Network disconnected.'
+        operation === 'sync' ? 'Network synced.' : 'Network disconnected.',
       );
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : 'Could not update this network'
+        cause instanceof Error
+          ? cause.message
+          : 'Could not update this network',
       );
     } finally {
       setLinkBusy(null);
@@ -367,7 +369,7 @@ export default function AccountHome({
       setVoices(catalog.voices);
     } catch (cause) {
       setMatorError(
-        cause instanceof Error ? cause.message : 'Unable to load Mator'
+        cause instanceof Error ? cause.message : 'Unable to load Mator',
       );
     } finally {
       setMatorLoading(false);
@@ -381,7 +383,7 @@ export default function AccountHome({
   async function saveAccount(
     path: string,
     method: 'PUT' | 'DELETE',
-    document?: unknown
+    document?: unknown,
   ) {
     if (!data) return;
     setSaving(true);
@@ -413,7 +415,7 @@ export default function AccountHome({
 
   async function patchMator(
     patch: MatorSettingsSavePatch,
-    options?: { clearDraft?: boolean; saved?: string }
+    options?: { clearDraft?: boolean; saved?: string },
   ) {
     setMatorBusy(true);
     setMatorError('');
@@ -441,7 +443,7 @@ export default function AccountHome({
         ? '/dashboard/profile/connections'
         : next === 'you'
           ? '/dashboard/profile'
-          : '/dashboard/settings'
+          : '/dashboard/settings',
     );
   }
 
@@ -455,14 +457,14 @@ export default function AccountHome({
       return;
     }
     window.location.assign(
-      id === 'audience' ? '/dashboard/editorial' : '/dashboard/growth'
+      id === 'audience' ? '/dashboard/editorial' : '/dashboard/growth',
     );
   }
 
   const profile = data?.profile;
   const initial = (profile?.displayName || 'U').trim().charAt(0).toUpperCase();
   const linkedCount = connections.filter(
-    (item) => item.status === 'connected'
+    (item) => item.status === 'connected',
   ).length;
   const removeAccount =
     data?.socialAccounts.find((row) => row.id === removeId) ?? null;
@@ -579,7 +581,7 @@ export default function AccountHome({
         onDismiss={() => setRemoveId(null)}
         onConfirm={() => {
           if (removeAccount) {
-            void saveAccount('/social/' + removeAccount.id, 'DELETE');
+            void saveAccount(`/social/${removeAccount.id}`, 'DELETE');
           }
         }}
       />

@@ -1,8 +1,8 @@
 'use client';
 
 import { Plus } from 'lucide-react';
-import type { CareerDocument } from '../types';
 import { classButton } from '../styles';
+import type { CareerDocument } from '../types';
 import SectionField from './section-field';
 
 export default function ProjectsSection({
@@ -12,7 +12,7 @@ export default function ProjectsSection({
   value: CareerDocument;
   update: <K extends keyof CareerDocument>(
     key: K,
-    next: CareerDocument[K]
+    next: CareerDocument[K],
   ) => void;
 }) {
   return (
@@ -26,11 +26,11 @@ export default function ProjectsSection({
             <strong className="text-sm">Project {i + 1}</strong>
             <button
               type="button"
-              className={classButton + ' text-rose-700'}
+              className={`${classButton} text-rose-700`}
               onClick={() =>
                 update(
                   'projects',
-                  value.projects.filter((_, j) => i !== j)
+                  value.projects.filter((_, j) => i !== j),
                 )
               }
             >
@@ -44,7 +44,9 @@ export default function ProjectsSection({
             onChange={(v) =>
               update(
                 'projects',
-                value.projects.map((x, j) => (i === j ? { ...x, title: v } : x))
+                value.projects.map((x, j) =>
+                  i === j ? { ...x, title: v } : x,
+                ),
               )
             }
           />
@@ -57,8 +59,8 @@ export default function ProjectsSection({
               update(
                 'projects',
                 value.projects.map((x, j) =>
-                  i === j ? { ...x, outcome: v } : x
-                )
+                  i === j ? { ...x, outcome: v } : x,
+                ),
               )
             }
           />
@@ -67,7 +69,7 @@ export default function ProjectsSection({
       <button
         type="button"
         disabled={value.projects.length >= 30}
-        className={classButton + ' self-start'}
+        className={`${classButton} self-start`}
         onClick={() =>
           update('projects', [...value.projects, { title: '', outcome: '' }])
         }

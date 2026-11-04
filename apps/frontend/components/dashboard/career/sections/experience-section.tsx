@@ -1,8 +1,8 @@
 'use client';
 
 import { Plus, Trash2 } from 'lucide-react';
-import type { CareerDocument, Role } from '../types';
 import { classButton } from '../styles';
+import type { CareerDocument, Role } from '../types';
 import SectionField from './section-field';
 
 export default function ExperienceSection({
@@ -13,7 +13,7 @@ export default function ExperienceSection({
   value: CareerDocument;
   update: <K extends keyof CareerDocument>(
     key: K,
-    next: CareerDocument[K]
+    next: CareerDocument[K],
   ) => void;
   roleUpdate: (i: number, next: Role) => void;
 }) {
@@ -29,11 +29,11 @@ export default function ExperienceSection({
             <button
               type="button"
               aria-label={`Remove position ${i + 1}`}
-              className={classButton + ' text-rose-700'}
+              className={`${classButton} text-rose-700`}
               onClick={() =>
                 update(
                   'experience',
-                  value.experience.filter((_, j) => i !== j)
+                  value.experience.filter((_, j) => i !== j),
                 )
               }
             >
@@ -81,9 +81,7 @@ export default function ExperienceSection({
       <button
         type="button"
         disabled={value.experience.length >= 35}
-        className={
-          classButton + ' self-start border border-dashed border-teal-400'
-        }
+        className={`${classButton} self-start border border-dashed border-teal-400`}
         onClick={() =>
           update('experience', [
             ...value.experience,

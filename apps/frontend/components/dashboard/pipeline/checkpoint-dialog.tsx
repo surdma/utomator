@@ -1,8 +1,8 @@
 'use client';
 
 import { CheckCircle2 } from 'lucide-react';
-import StudioDialog from '@/components/ui/studio-dialog';
 import { Button } from '@/components/ui/automate-card';
+import StudioDialog from '@/components/ui/studio-dialog';
 import type { Checkpoint } from './run-models';
 
 type Props = {

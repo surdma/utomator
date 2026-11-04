@@ -2,7 +2,7 @@
 export function chunkMatorSpeech(input: string, limit = 190): string[] {
   if (!Number.isInteger(limit) || limit < 20 || limit > 200) {
     throw new RangeError(
-      'Speech chunk limit must be between 20 and 200 characters'
+      'Speech chunk limit must be between 20 and 200 characters',
     );
   }
   let remaining = input.replace(/\s+/g, ' ').trim();
@@ -12,7 +12,7 @@ export function chunkMatorSpeech(input: string, limit = 190): string[] {
     const punctuation = Math.max(
       window.lastIndexOf('. '),
       window.lastIndexOf('! '),
-      window.lastIndexOf('? ')
+      window.lastIndexOf('? '),
     );
     const whitespace = window.lastIndexOf(' ');
     let cut = limit;

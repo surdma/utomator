@@ -28,7 +28,7 @@ export function ProfileEditorDialog({
   saving: boolean;
   onDismiss: () => void;
   onDraftChange: (
-    updater: (current: ProfileDraft) => ProfileDraft | null
+    updater: (current: ProfileDraft) => ProfileDraft | null,
   ) => void;
   onSubmit: () => void;
 }) {
@@ -69,7 +69,7 @@ export function ProfileEditorDialog({
                 onChange={(event) =>
                   onDraftChange(
                     (current) =>
-                      current && { ...current, [key]: event.target.value }
+                      current && { ...current, [key]: event.target.value },
                   )
                 }
                 className="mt-2 block min-h-11 w-full rounded-xl border border-slate-200 px-3 text-base font-normal text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
@@ -85,7 +85,7 @@ export function ProfileEditorDialog({
               onChange={(event) =>
                 onDraftChange(
                   (current) =>
-                    current && { ...current, about: event.target.value }
+                    current && { ...current, about: event.target.value },
                 )
               }
               className="mt-2 block w-full resize-y rounded-xl border border-slate-200 px-3 py-3 text-base leading-7 font-normal text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"

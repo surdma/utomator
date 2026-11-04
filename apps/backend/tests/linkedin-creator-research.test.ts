@@ -1,13 +1,13 @@
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
+
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { test, expect } from 'vitest';
 import {
   CreatorResearchStore,
   executeResearch,
   researchYaml,
-} from '../src/core/linkedin-creator-research.js';
+} from '../src/linkedin/linkedin-creator-research.js';
 
 process.env.NODE_ENV = 'test';
 const { buildApp } = await import('../src/main.js');
@@ -36,20 +36,18 @@ const fixture = {
 
 test('LinkedIn creator research executes five typed steps with source-bound observations', () => {
   const run = executeResearch(fixture);
-  assert.equal(run.status, 'completed');
-  assert.equal(run.stages.length, 5);
-  assert.equal(run.sources.length, 2);
-  assert.equal(run.sources[0]?.digest.length, 64);
-  assert.ok(run.output.profiles[0]?.topics.some((topic) => topic.word === 'technical'));
-  assert.ok(run.output.gaps.some((gap) => gap.topic === 'technical'));
-  assert.ok(
-    run.output.experiments[0]?.evidenceUrls.some((value) => value.includes('linkedin.com/posts')),
-  );
-  assert.match(run.output.limitation, /does not verify live LinkedIn pages/);
+  expect(run.status).toEqual('completed');
+  expect(run.stages.length).toEqual(5);
+  expect(run.sources.length).toEqual(2);
+  expect(run.sources[0]?.digest.length).toEqual(64);
+  expect(run.output.profiles[0]?.topics.some((topic) => topic.word === 'technical')).toBeTruthy();
+  expect(run.output.gaps.some((gap) => gap.topic === 'technical')).toBeTruthy();
+  expect(run.output.experiments[0]?.evidenceUrls.some((value) => value.includes('linkedin.com/posts'))).toBeTruthy();
+  expect(run.output.limitation).toMatch(/does not verify live LinkedIn pages/);
   const yaml = researchYaml(run);
-  assert.match(yaml, /CompletedLinkedInResearch/);
-  assert.match(yaml, /outputSha256/);
-  assert.match(yaml, /local-read-only/);
+  expect(yaml).toMatch(/CompletedLinkedInResearch/);
+  expect(yaml).toMatch(/outputSha256/);
+  expect(yaml).toMatch(/local-read-only/);
 });
 test('Creator research refuses unsafe input and invented URLs', () => {
   const creator = fixture.creators[0]!;
@@ -59,30 +57,48 @@ test('Creator research refuses unsafe input and invented URLs', () => {
     'https://www.linkedin.com/in/sample-creator/?x=y',
     'https://www.linkedin.com.evil.test/in/sample-creator/',
   ]) {
-    assert.throws(() =>
+    {
+let e;
+try { (() =>
       executeResearch({
         ...fixture,
         creators: [{ ...creator, profileUrl: value }],
-      }),
-    );
+      }))(); } catch (caught) { e = caught; }
+expect(e).toBeDefined();
+expect(() => { throw e; }).toThrow();
+};
   }
-  assert.throws(() => executeResearch({ ...fixture, creators: [] }));
-  assert.throws(() => executeResearch({ ...fixture, creators: [{ ...creator, posts: [] }] }));
-  assert.throws(() =>
+  {
+let e;
+try { (() => executeResearch({ ...fixture, creators: [] }))(); } catch (caught) { e = caught; }
+expect(e).toBeDefined();
+expect(() => { throw e; }).toThrow();
+};
+  {
+let e;
+try { (() => executeResearch({ ...fixture, creators: [{ ...creator, posts: [] }] }))(); } catch (caught) { e = caught; }
+expect(e).toBeDefined();
+expect(() => { throw e; }).toThrow();
+};
+  {
+let e;
+try { (() =>
     executeResearch({
       ...fixture,
       creators: [{ ...creator, posts: [creator.posts[0], creator.posts[0]] }],
-    }),
-  );
+    }))(); } catch (caught) { e = caught; }
+expect(e).toBeDefined();
+expect(() => { throw e; }).toThrow();
+};
 });
 test('Research receipts persist and reload without relying on memory', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'utomator-research-'));
   try {
     const one = new CreatorResearchStore(directory);
     const run = await one.create(fixture);
-    assert.equal((await new CreatorResearchStore(directory).get(run.id))?.id, run.id);
-    assert.equal((await one.list()).length, 1);
-    assert.equal(await one.get('00000000-0000-0000-0000-000000000000'), null);
+    expect((await new CreatorResearchStore(directory).get(run.id))?.id).toEqual(run.id);
+    expect((await one.list()).length).toEqual(1);
+    expect(await one.get('00000000-0000-0000-0000-000000000000')).toEqual(null);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -104,26 +120,26 @@ test('Fastify validates research and returns persisted report and YAML', async (
         ],
       },
     });
-    assert.equal(rejected.statusCode, 400);
+    expect(rejected.statusCode).toEqual(400);
     const response = await app.inject({
       method: 'POST',
       url: '/linkedin/research',
       payload: fixture,
     });
-    assert.equal(response.statusCode, 201, response.body);
+    expect(response.statusCode).toEqual(201);
     const created = response.json();
-    assert.equal(created.output.profiles.length, 1);
+    expect(created.output.profiles.length).toEqual(1);
     const read = await app.inject(`/linkedin/research/${created.id}`);
-    assert.equal(read.statusCode, 200);
-    assert.equal(read.json().id, created.id);
+    expect(read.statusCode).toEqual(200);
+    expect(read.json().id).toEqual(created.id);
     const list = await app.inject('/linkedin/research');
-    assert.equal(list.statusCode, 200);
-    assert.ok(list.json().some((row: { id: string }) => row.id === created.id));
+    expect(list.statusCode).toEqual(200);
+    expect(list.json().some((row: { id: string }) => row.id === created.id)).toBeTruthy();
     const yaml = await app.inject(`/linkedin/research/${created.id}/yaml`);
-    assert.equal(yaml.statusCode, 200);
-    assert.match(yaml.headers['content-type'] as string, /yaml/);
-    assert.match(yaml.body, /outputSha256/);
-    assert.equal((await app.inject('/linkedin/research/invalid')).statusCode, 400);
+    expect(yaml.statusCode).toEqual(200);
+    expect(yaml.headers['content-type'] as string).toMatch(/yaml/);
+    expect(yaml.body).toMatch(/outputSha256/);
+    expect((await app.inject('/linkedin/research/invalid')).statusCode).toEqual(400);
   } finally {
     await app.close();
   }

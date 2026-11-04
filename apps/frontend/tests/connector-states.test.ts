@@ -2,8 +2,8 @@ import { expect, test } from '@playwright/test';
 import {
   connectorAccount,
   installConnectorApi,
-  openConnectorDialog,
   iso,
+  openConnectorDialog,
 } from './support/connector-mocks';
 
 test('LinkedIn connection moves from disconnected through sign-in to verified and persists', async ({
@@ -22,24 +22,24 @@ test('LinkedIn connection moves from disconnected through sign-in to verified an
     .getByRole('button', { name: 'Connect LinkedIn', exact: true })
     .click();
   await expect(dialog.getByTestId('connector-status')).toHaveText(
-    'Sign-in in progress'
+    'Sign-in in progress',
   );
   await expect(
-    dialog.getByRole('button', { name: 'Verify connection' })
+    dialog.getByRole('button', { name: 'Verify connection' }),
   ).toBeVisible();
   await dialog.getByRole('button', { name: 'Verify connection' }).click();
   await expect(dialog.getByTestId('connector-status')).toHaveText(
-    'Session connected'
+    'Session connected',
   );
   await expect(dialog.getByText(/LinkedIn session verified/)).toBeVisible();
   expect(
     fixture.commands
       .filter((command) => command.operation !== 'check')
-      .map((command) => command.operation)
+      .map((command) => command.operation),
   ).toEqual(['connect', 'sync']);
   await page.reload();
   await expect(
-    (await openConnectorDialog(page)).getByTestId('connector-status')
+    (await openConnectorDialog(page)).getByTestId('connector-status'),
   ).toHaveText('Session connected');
 });
 
@@ -57,7 +57,7 @@ test('An explicit check does not disconnect a valid LinkedIn account', async ({
   const dialog = await openConnectorDialog(page);
   await dialog.getByRole('button', { name: 'Check connection' }).click();
   await expect(dialog.getByTestId('connector-status')).toHaveText(
-    'Session connected'
+    'Session connected',
   );
   expect(fixture.commands.at(-1)?.operation).toBe('sync');
 });
@@ -75,26 +75,26 @@ test('Errors can be retried without pretending that the account was connected', 
         return { status: 502, body: { error: 'LinkedIn sign-in unavailable' } };
       }
       return undefined;
-    }
+    },
   );
   const dialog = await openConnectorDialog(page);
   await dialog
     .getByRole('button', { name: 'Connect LinkedIn', exact: true })
     .click();
   await expect(dialog.getByRole('alert')).toContainText(
-    'LinkedIn sign-in unavailable'
+    'LinkedIn sign-in unavailable',
   );
   await expect(dialog.getByTestId('connector-status')).toHaveText(
-    'Not connected'
+    'Not connected',
   );
   await dialog
     .getByRole('button', { name: 'Connect LinkedIn', exact: true })
     .click();
   await expect(dialog.getByTestId('connector-status')).toHaveText(
-    'Sign-in in progress'
+    'Sign-in in progress',
   );
   expect(fixture.commands.filter((c) => c.operation === 'connect').length).toBe(
-    2
+    2,
   );
 });
 
@@ -112,16 +112,16 @@ test('Disconnect is explicitly confirmed and clears the server connection', asyn
   const dialog = await openConnectorDialog(page);
   await dialog.getByRole('button', { name: 'Disconnect', exact: true }).click();
   await expect(
-    dialog.getByRole('button', { name: 'Confirm disconnect' })
+    dialog.getByRole('button', { name: 'Confirm disconnect' }),
   ).toBeVisible();
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(dialog.getByTestId('connector-status')).toHaveText(
-    'Session connected'
+    'Session connected',
   );
   await dialog.getByRole('button', { name: 'Disconnect', exact: true }).click();
   await dialog.getByRole('button', { name: 'Confirm disconnect' }).click();
   await expect(dialog.getByTestId('connector-status')).toHaveText(
-    'Not connected'
+    'Not connected',
   );
   expect(fixture.commands.at(-1)?.operation).toBe('disconnect');
 });
@@ -140,15 +140,15 @@ test('Compact LinkedIn dialog stays usable on narrow mobile viewports', async ({
   ]);
   const dialog = await openConnectorDialog(page);
   await expect(
-    dialog.getByRole('heading', { name: 'LinkedIn', exact: true })
+    dialog.getByRole('heading', { name: 'LinkedIn', exact: true }),
   ).toBeVisible();
   await expect(
-    dialog.getByRole('button', { name: 'Check connection' })
+    dialog.getByRole('button', { name: 'Check connection' }),
   ).toBeVisible();
   expect(
     await dialog.evaluate(
-      (element) => element.scrollWidth <= element.clientWidth + 1
-    )
+      (element) => element.scrollWidth <= element.clientWidth + 1,
+    ),
   ).toBe(true);
 });
 
@@ -158,20 +158,20 @@ test('a new connection discovers its identity without manual input', async ({
   const fixture = await installConnectorApi(page, []);
   const dialog = await openConnectorDialog(page);
   await expect(
-    dialog.getByRole('textbox', { name: /profile address|handle|username/i })
+    dialog.getByRole('textbox', { name: /profile address|handle|username/i }),
   ).toHaveCount(0);
   await dialog
     .getByRole('button', { name: 'Connect LinkedIn', exact: true })
     .click();
   await expect(dialog.getByTestId('connector-status')).toHaveText(
-    'Sign-in in progress'
+    'Sign-in in progress',
   );
   await dialog.getByRole('button', { name: 'Verify connection' }).click();
   await expect(dialog.getByText('@verified-owner')).toBeVisible();
   expect(
     fixture.commands
       .filter((event) => event.operation !== 'check')
-      .map((event) => event.operation)
+      .map((event) => event.operation),
   ).toEqual(['start', 'sync']);
 });
 
@@ -181,12 +181,12 @@ test('unsupported providers cannot sync', async ({ page }) => {
   await dialog.getByRole('button', { name: /Other networks/ }).click();
   await dialog.getByRole('button', { name: 'GitHub' }).click();
   await expect(
-    dialog.getByText(/Official API connector not available yet/)
+    dialog.getByText(/Official API connector not available yet/),
   ).toBeVisible();
   await expect(
     dialog.getByRole('button', {
       name: /Sync|Verify connection|Check connection/,
-    })
+    }),
   ).toHaveCount(0);
   expect(fixture.commands).toHaveLength(0);
 });
@@ -201,7 +201,7 @@ test('X linking is discovered through provider sign-in', async ({ page }) => {
   expect(
     fixture.commands
       .filter((event) => event.operation !== 'check')
-      .map((event) => event.operation)
+      .map((event) => event.operation),
   ).toEqual(['start', 'sync']);
 });
 
@@ -212,22 +212,22 @@ test('provider completion is detected automatically without a Verify click', asy
   const fixture = await installConnectorApi(page, [], (event) =>
     event.operation === 'check' && ownerSignedIn
       ? { body: { status: 'connected' } }
-      : undefined
+      : undefined,
   );
   const dialog = await openConnectorDialog(page);
   await dialog
     .getByRole('button', { name: 'Connect LinkedIn', exact: true })
     .click();
   await expect(dialog.getByTestId('connector-status')).toHaveText(
-    'Sign-in in progress'
+    'Sign-in in progress',
   );
   ownerSignedIn = true;
   await expect(dialog.getByTestId('connector-status')).toHaveText(
     'Session connected',
-    { timeout: 16000 }
+    { timeout: 16000 },
   );
   expect(fixture.commands.some((event) => event.operation === 'check')).toBe(
-    true
+    true,
   );
 });
 
@@ -244,10 +244,10 @@ test('mobile Safari cannot start a server-side Playwright browser login', async 
   const fixture = await installConnectorApi(page, []);
   const dialog = await openConnectorDialog(page);
   await expect(
-    dialog.getByText(/Mobile Chrome and Safari cannot share/)
+    dialog.getByText(/Mobile Chrome and Safari cannot share/),
   ).toBeVisible();
   await expect(
-    dialog.getByRole('button', { name: 'Connect LinkedIn', exact: true })
+    dialog.getByRole('button', { name: 'Connect LinkedIn', exact: true }),
   ).toBeDisabled();
   expect(fixture.commands).toHaveLength(0);
 });

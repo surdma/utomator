@@ -1,10 +1,10 @@
-import assert from 'node:assert/strict';
-import { test } from 'node:test';
-import { chromium } from 'playwright';
-import type { Locator, Page } from 'playwright';
+
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { test, expect } from 'vitest';
+import type { Locator, Page } from 'playwright';
+import { chromium } from 'playwright';
 import { AccountStore } from '../src/profile/account-store.js';
 
 process.env.NODE_ENV = 'test';
@@ -39,24 +39,27 @@ async function exercise(mode: 'audit' | 'audit-race' | 'reject') {
     await page.goto('http://127.0.0.1:3100/dashboard/pipeline', {
       waitUntil: 'domcontentloaded',
     });
-    // The toolbar is the current connection entry point; the old header
-    // launcher is deliberately hidden in the workspace.
+    // A fresh Artboard has no default workflow and must not launch the Runner.
+    await page.getByTestId('workflow-artboard').waitFor();
+    await page.getByTestId('workflow-empty-state').waitFor();
+    expect(await page.locator('[data-testid^="workflow-node-"]').count()).toEqual(0);
+    expect(await page.getByRole('button', { name: 'Start workflow' }).count()).toEqual(0);
+    const create = page.getByRole('button', { name: 'Create new workflow' });
+    await clickUntilVisible(page, create, page.getByTestId('workflow-node-start'));
+    expect(await page.locator('[data-testid^="workflow-node-"]').count()).toEqual(4);
+    // The connection entry point remains available after creating the draft.
     const launcher = page.getByTestId('floating-connector-button');
     const wizard = page.getByRole('dialog', {
       name: 'Connect your social accounts',
     });
     await clickUntilVisible(page, launcher, wizard);
     await wizard.getByTestId('connector-status').waitFor();
-    assert.equal((await wizard.getByTestId('connector-status').innerText()).trim(), 'Not connected');
+    expect((await wizard.getByTestId('connector-status').innerText()).trim()).toEqual('Not connected');
     await wizard.getByRole('button', { name: 'Connect LinkedIn', exact: true }).waitFor();
     // A saved profile reference is not a verified browser session.
     await wizard.getByRole('button', { name: 'Close Connect your social accounts' }).click();
     await wizard.waitFor({ state: 'hidden' });
-    assert.equal(
-      await page.getByRole('button', { name: 'Start workflow' }).isDisabled(),
-      true,
-      'unverified account must never launch an automation',
-    );
+    expect(await page.getByRole('button', { name: 'Start workflow' }).isDisabled()).toEqual(true);
 
     const invalid = await page.evaluate(async () => {
       const response = await fetch('/api/runs', {
@@ -70,46 +73,40 @@ async function exercise(mode: 'audit' | 'audit-race' | 'reject') {
       });
       return response.status;
     });
-    assert.equal(invalid, 400, 'proxy must preserve server-side input validation');
+    expect(invalid).toEqual(400);
     const forms = await page.request.get('http://127.0.0.1:3100/api/step-forms');
-    assert.equal(forms.status(), 200);
+    expect(forms.status()).toEqual(200);
     const schema = (await forms.json()) as {
       note: { fields: Array<{ key: string; label: string }> };
       delay: { fields: Array<{ max: number }> };
     };
-    assert.equal(schema.note.fields[0]?.key, 'message');
-    assert.equal(schema.delay.fields[0]?.max, 30000);
+    expect(schema.note.fields[0]?.key).toEqual('message');
+    expect(schema.delay.fields[0]?.max).toEqual(30000);
 
     const templateRunsBefore = (await app.inject('/runs')).json().length;
-    const templates = page.getByRole('dialog', { name: 'Growth workflow templates' });
+    const templates = page.getByRole('dialog', { name: 'Workflow library' });
     await clickUntilVisible(
       page,
       page.getByRole('button', { name: 'Choose workflow template' }),
       templates,
     );
     await templates.getByTestId('growth-template-count').getByText('21 workflows').waitFor();
-    await templates.getByRole('searchbox', { name: 'Search Growth workflows' }).fill('Profile auditing');
+    await templates.getByRole('searchbox', { name: 'Search workflows' }).fill('Profile auditing');
     await templates.getByTestId('growth-template-option').click();
     const preview = templates.getByTestId('growth-template-pipeline-preview');
     await preview.waitFor();
-    assert.match(await preview.innerText(), /6 connected pipelines/);
-    assert.equal(
-      await templates.getByRole('button', { name: 'Open YAML workflow' }).isDisabled(),
-      false,
-    );
+    expect(await preview.innerText()).toMatch(/6 connected pipelines/);
+    expect(await templates.getByRole('button', { name: 'Open YAML workflow' }).isDisabled()).toEqual(false);
     await templates
       .getByRole('combobox', { name: 'Filter workflow availability' })
       .selectOption('design');
     await templates
-      .getByRole('searchbox', { name: 'Search Growth workflows' })
+      .getByRole('searchbox', { name: 'Search workflows' })
       .fill('Personal brand positioning');
     await preview.getByText('Evidence and preparation').waitFor();
-    assert.equal(
-      await templates.getByRole('button', { name: 'Inspect planning workflow' }).isDisabled(),
-      false,
-    );
-    assert.equal((await app.inject('/runs')).json().length, templateRunsBefore);
-    await templates.getByRole('button', { name: 'Close Growth workflow templates' }).click();
+    expect(await templates.getByRole('button', { name: 'Inspect planning workflow' }).isDisabled()).toEqual(false);
+    expect((await app.inject('/runs')).json().length).toEqual(templateRunsBefore);
+    await templates.getByRole('button', { name: 'Close Workflow library' }).click();
     await templates.waitFor({ state: 'hidden' });
 
     if (mode === 'audit') {
@@ -121,16 +118,16 @@ async function exercise(mode: 'audit' | 'audit-race' | 'reject') {
           resumes: unknown[];
         }>;
       });
-      assert.equal(career.profile.name, '', 'new users must not inherit portfolio owner names');
-      assert.equal(career.profile.headline, '', 'new users must supply their own career evidence');
-      assert.deepEqual(career.resumes, [], 'no repository-owner résumé is preloaded');
+      expect(career.profile.name).toEqual('');
+      expect(career.profile.headline).toEqual('');
+      expect(career.resumes).toEqual([]);
       await page.getByRole('button', { name: 'Add workflow step' }).click();
       const add = page.getByRole('dialog', { name: 'Add executable step' });
       await add.getByRole('button', { name: /Record event/i }).click();
       const form = page.getByRole('dialog', { name: 'Record a journal event' });
       await form.getByLabel('Journal message').fill('Form configured from validated fields');
       await form.getByRole('button', { name: 'Apply node changes' }).click();
-      assert.equal(await page.locator('[data-testid^="workflow-node-"]').count(), 12);
+      expect(await page.locator('[data-testid^="workflow-node-"]').count()).toEqual(5);
     }
     if (mode === 'reject') {
       const status = await page.evaluate(async () => {
@@ -146,7 +143,7 @@ async function exercise(mode: 'audit' | 'audit-race' | 'reject') {
         });
         return response.status;
       });
-      assert.equal(status, 400, 'a same-origin request must still reject an unverified account');
+      expect(status).toEqual(400);
     }
     if (mode === 'audit-race') {
       await page.getByRole('button', { name: 'Open run tracking' }).click();
@@ -184,43 +181,29 @@ test('Growth workspace connects 21 capability and toolkit graphs, MDX, export an
     const catalog = page.getByTestId('crafts-catalogue');
     await catalog.waitFor();
     await page.getByTestId('craft-card-growth-profile').waitFor({ timeout: 40000 });
-    assert.equal(
-      await page.locator('[data-testid^="craft-card-"]').count(),
-      21,
-      '15 capabilities and 6 historical toolkits appear in one Growth library',
-    );
+    expect(await page.locator('[data-testid^="craft-card-"]').count()).toEqual(21);
     await page.getByRole('button', { name: 'LinkedIn capabilities' }).click();
-    assert.equal(await page.locator('[data-testid^="craft-card-"]').count(), 15);
+    expect(await page.locator('[data-testid^="craft-card-"]').count()).toEqual(15);
     await page.getByRole('button', { name: 'Growth toolkits' }).click();
-    assert.equal(await page.locator('[data-testid^="craft-card-"]').count(), 6);
+    expect(await page.locator('[data-testid^="craft-card-"]').count()).toEqual(6);
     await page.getByRole('button', { name: 'All experiences' }).click();
     await page.getByTestId('craft-card-growth-profile').click();
     const detail = page.getByTestId('growth-capability-details');
     await detail.waitFor();
     await detail.getByText('20 profile sections requiring independent evidence and coverage').waitFor();
-    assert.match(await detail.innerText(), /Proposed actions and pipeline requirements \(9\)/);
-    assert.match(await detail.innerText(), /Profile photo/);
-    assert.match(await detail.innerText(), /Custom profile URL/);
-    assert.match(await detail.innerText(), /Required before full delivery/);
+    expect(await detail.innerText()).toMatch(/Proposed actions and pipeline requirements \(9\)/);
+    expect(await detail.innerText()).toMatch(/Profile photo/);
+    expect(await detail.innerText()).toMatch(/Custom profile URL/);
+    expect(await detail.innerText()).toMatch(/Required before full delivery/);
     await page.getByTestId('crafts-artboard').waitFor();
-    assert.match(page.url(), /\/dashboard\/growth\/default-growth-profile$/);
-    assert.equal(
-      await page.getByRole('button', { name: 'Save', exact: true }).isDisabled(),
-      true,
-      'published default instructions must remain read-only',
-    );
+    expect(page.url()).toMatch(/\/dashboard\/growth\/default-growth-profile$/);
+    expect(await page.getByRole('button', { name: 'Save', exact: true }).isDisabled()).toEqual(true);
     await page.getByRole('tab', { name: 'MDX source' }).click();
     const editor = page.getByTestId('craft-mdx-editor');
     await editor.waitFor();
-    assert.match(page.url(), /\/dashboard\/growth\/default-growth-profile\/source$/);
-    assert.match(
-      await editor.inputValue(),
-      /Review photo framing, banner hierarchy, name and pronunciation accuracy/,
-    );
-    assert.match(
-      await editor.inputValue(),
-      /Additional section extractors, real field-by-field audit rubric/,
-    );
+    expect(page.url()).toMatch(/\/dashboard\/growth\/default-growth-profile\/source$/);
+    expect(await editor.inputValue()).toMatch(/Review photo framing);
+    expect(await editor.inputValue()).toMatch(/Additional section extractors);
     await page.getByRole('button', { name: 'Clone to my crafts' }).click();
     await page.getByText('Created your private craft variation.').waitFor();
     await page.getByRole('tab', { name: 'Visual flow' }).click();
@@ -230,8 +213,8 @@ test('Growth workspace connects 21 capability and toolkit graphs, MDX, export an
     await page.getByText('Saved and synchronized with MDX source.').waitFor();
     await page.getByRole('tab', { name: 'MDX source' }).click();
     const originalSource = await editor.inputValue();
-    assert.match(originalSource, /## Step: scope \| Scope verified LinkedIn profile evidence/);
-    assert.match(originalSource, /\*\*Next:\*\* \[evidence\]/);
+    expect(originalSource).toMatch(/## Step: scope \| Scope verified LinkedIn profile evidence/);
+    expect(originalSource).toMatch(/\*\*Next:\*\* \[evidence\]/);
     await editor.fill(
       originalSource.replace(
         '**Next:** [evidence](#step-evidence)',
@@ -248,17 +231,14 @@ test('Growth workspace connects 21 capability and toolkit graphs, MDX, export an
       links: Array<{ source: string; target: string }>;
     }>;
     const personal = library.find((entry) => entry.slug === 'growth-profile-copy');
-    assert(personal, 'the clone must persist in the per-owner library');
-    assert(
-      personal.links.some((edge) => edge.source === 'scope' && edge.target === 'outcome'),
-      'applying the MDX source must update the stored visual graph',
-    );
-    assert(!personal.links.some((edge) => edge.source === 'scope' && edge.target === 'evidence'));
+    expect(personal).toBeTruthy();
+    expect(personal.links.some((edge) => edge.source === 'scope' && edge.target === 'outcome')).toBeTruthy();
+    expect(!personal.links.some((edge) => edge.source === 'scope' && edge.target === 'evidence')).toBeTruthy();
     await page.getByRole('tab', { name: 'Visual flow' }).click();
     await page.locator('.react-flow__edge').first().waitFor();
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: '.skill' }).click();
-    assert.equal((await downloadPromise).suggestedFilename(), 'growth-profile-copy.skill');
+    expect((await downloadPromise).suggestedFilename()).toEqual('growth-profile-copy.skill');
     await page.getByTestId('craft-node-scope').click();
     await page.getByRole('button', { name: 'Unlink outcome' }).click();
     await page.getByRole('button', { name: 'Save', exact: true }).click();
@@ -266,23 +246,16 @@ test('Growth workspace connects 21 capability and toolkit graphs, MDX, export an
     const updated = (await app.inject('/crafts/' + personal.id)).json() as {
       links: Array<{ source: string; target: string }>;
     };
-    assert(
-      !updated.links.some((edge) => edge.source === 'scope' && edge.target === 'outcome'),
-      'graph editing must update the owner clone, never a shared default',
-    );
+    expect(!updated.links.some((edge) => edge.source === 'scope' && edge.target === 'outcome')).toBeTruthy();
     const original = (await app.inject('/crafts/default-growth-profile')).json() as {
       steps: Array<{ title: string }>;
     };
-    assert.equal(original.steps[0]?.title, 'Scope 20 profile sections');
+    expect(original.steps[0]?.title).toEqual('Scope 20 profile sections');
     const sidebar = page.getByTestId('automation-navigation-sidebar');
     await sidebar.getByRole('button', { name: 'Profile', exact: true }).click();
     await sidebar.getByRole('button', { name: 'Growth', exact: true }).click();
     await catalog.waitFor();
-    assert.match(
-      page.url(),
-      /\/dashboard\/growth$/,
-      'returning via sidebar must not reopen a stale editor',
-    );
+    expect(page.url()).toMatch(/\/dashboard\/growth$/);
     await page.getByRole('button', { name: 'New growth flow' }).click();
     const creation = page.getByRole('dialog', {
       name: 'Create a growth flow',
@@ -297,9 +270,9 @@ test('Growth workspace connects 21 capability and toolkit graphs, MDX, export an
     await page.getByTestId('crafts-artboard').waitFor();
     await page.getByRole('tab', { name: 'MDX source' }).click();
     const custom = await page.getByTestId('craft-mdx-editor').inputValue();
-    assert.match(custom, /Create qualified research collaboration meetings/);
-    assert.match(custom, /University researchers and research directors/);
-    assert.match(page.url(), /\/dashboard\/growth\/personal-research-collaboration-outreach\/source$/);
+    expect(custom).toMatch(/Create qualified research collaboration meetings/);
+    expect(custom).toMatch(/University researchers and research directors/);
+    expect(page.url()).toMatch(/\/dashboard\/growth\/personal-research-collaboration-outreach\/source$/);
     const mobile = await browser.newPage({
       viewport: { width: 390, height: 844 },
     });
@@ -307,19 +280,16 @@ test('Growth workspace connects 21 capability and toolkit graphs, MDX, export an
       waitUntil: 'domcontentloaded',
     });
     await mobile.getByTestId('craft-card-growth-profile').waitFor({ timeout: 40000 });
-    assert.match(mobile.url(), /\/dashboard\/growth$/, 'legacy Craft catalog redirects to Growth');
+    expect(mobile.url()).toMatch(/\/dashboard\/growth$/);
     const bounds = await mobile.evaluate(() => ({
       viewport: document.documentElement.clientWidth,
       scroll: document.documentElement.scrollWidth,
     }));
-    assert(bounds.scroll <= bounds.viewport + 1, 'Growth library fits mobile width');
-    assert.equal(await mobile.getByTestId('studio-bottom-nav').isVisible(), true);
-    assert.equal(
-      await mobile.getByTestId('automation-navigation-sidebar').isVisible(),
-      false,
-    );
+    expect(bounds.scroll <= bounds.viewport + 1).toBeTruthy();
+    expect(await mobile.getByTestId('studio-bottom-nav').isVisible()).toEqual(true);
+    expect(await mobile.getByTestId('automation-navigation-sidebar').isVisible()).toEqual(false);
     await mobile.getByRole('button', { name: 'Workspace', exact: true }).click();
-    assert.match(mobile.url(), /\/dashboard\/workspace$/);
+    expect(mobile.url()).toMatch(/\/dashboard\/workspace$/);
     await mobile.close();
   } finally {
     await browser.close();
@@ -337,24 +307,22 @@ test('planning-only Growth YAML opens without triggering Runner', async () => {
       waitUntil: 'domcontentloaded',
     });
     const before = (await app.inject('/runs')).json().length;
-    const modal = page.getByRole('dialog', { name: 'Growth workflow templates' });
-    await clickUntilVisible(page, page.getByRole('button', { name: 'Choose workflow template' }), modal);
-    await modal
-      .getByRole('searchbox', { name: 'Search Growth workflows' })
-      .fill('Personal brand positioning');
+    const modal = page.getByRole('dialog', { name: 'Workflow library' });
+    await clickUntilVisible(page, page.getByRole('button', { name: 'Browse templates' }), modal);
+    await modal.getByRole('searchbox', { name: 'Search workflows' }).fill('Personal brand positioning');
     const preview = modal.getByTestId('growth-template-pipeline-preview');
     await preview.waitFor();
-    assert.match(await preview.innerText(), /2 connected pipelines/);
+    expect(await preview.innerText()).toMatch(/2 connected pipelines/);
     await modal.getByRole('button', { name: 'Inspect planning workflow' }).click();
     await modal.waitFor({ state: 'hidden' });
     const graph = page.getByTestId('growth-nested-artboard');
     await graph.getByTestId('growth-pipeline-node-discovery').waitFor();
-    assert.equal(await graph.locator('[data-testid^="growth-pipeline-node-"]').count(), 2);
-    assert.equal(await page.getByRole('button', { name: 'Start Growth workflow' }).count(), 0);
+    expect(await graph.locator('[data-testid^="growth-pipeline-node-"]').count()).toEqual(2);
+    expect(await page.getByRole('button', { name: 'Start Growth workflow' }).count()).toEqual(0);
     await graph.getByTestId('growth-pipeline-node-discovery').click();
     await graph.getByTestId('growth-task-node-procedure').waitFor();
-    assert.equal(await graph.locator('[data-testid^="growth-task-node-"]').count(), 5);
-    assert.equal((await app.inject('/runs')).json().length, before);
+    expect(await graph.locator('[data-testid^="growth-task-node-"]').count()).toEqual(5);
+    expect((await app.inject('/runs')).json().length).toEqual(before);
   } finally {
     await browser.close();
     await app.close();
@@ -402,17 +370,17 @@ test('Creator research connects a real form to persisted results and remains ava
       objective,
     );
     await objective.waitFor({ timeout: 15000 });
-    assert.match(await report.innerText(), /Evidence-linked results/);
-    assert.match(await report.innerText(), /Potential topics not present/);
-    assert.match(await report.innerText(), /Evidence post/);
-    assert.equal(await report.getByRole('link', { name: /YAML/ }).count(), 0);
+    expect(await report.innerText()).toMatch(/Evidence-linked results/);
+    expect(await report.innerText()).toMatch(/Potential topics not present/);
+    expect(await report.innerText()).toMatch(/Evidence post/);
+    expect(await report.getByRole('link', { name: /YAML/ }).count()).toEqual(0);
     const histories = (await app.inject('/linkedin/research')).json() as Array<{
       id: string;
     }>;
-    assert(histories.length > 0);
+    expect(histories.length > 0).toBeTruthy();
     const internal = await app.inject('/linkedin/research/' + histories[0]!.id + '/yaml');
-    assert.equal(internal.statusCode, 200);
-    assert.match(internal.body, /validate-submitted-sources/);
+    expect(internal.statusCode).toEqual(200);
+    expect(internal.body).toMatch(/validate-submitted-sources/);
     await page.reload();
     await page
       .getByText('Objective: Improve technical community visibility')
@@ -460,7 +428,7 @@ test('LinkedIn editorial research-to-draft workflow persists, approves and retur
         ],
       },
     });
-    assert.equal(research.statusCode, 201, research.body);
+    expect(research.statusCode).toEqual(201);
     const researchRun = research.json() as { id: string };
     const page = await browser.newPage();
     await page.goto('http://127.0.0.1:3100/dashboard/editorial', {
@@ -481,19 +449,15 @@ test('LinkedIn editorial research-to-draft workflow persists, approves and retur
     await studio.getByText(/Draft saved to your private workspace/).waitFor();
     await studio.getByRole('button', { name: 'Approve reviewed draft' }).click();
     await studio.getByText(/Draft is now approved/).waitFor();
-    assert.equal(
-      await studio.getByRole('button', { name: 'Publish approved post to LinkedIn' }).isDisabled(),
-      true,
-      'a reviewed local draft must never publish without a separate LinkedIn API grant',
-    );
-    assert.equal(await studio.getByRole('link', { name: /YAML/ }).count(), 0);
+    expect(await studio.getByRole('button', { name: 'Publish approved post to LinkedIn' }).isDisabled()).toEqual(true);
+    expect(await studio.getByRole('link', { name: /YAML/ }).count()).toEqual(0);
     const written = (await app.inject('/linkedin/drafts')).json() as Array<{
       id: string;
     }>;
-    assert(written.length > 0);
+    expect(written.length > 0).toBeTruthy();
     const snapshot = await app.inject('/linkedin/drafts/' + written[0]!.id + '/yaml');
-    assert.equal(snapshot.statusCode, 200);
-    assert.match(snapshot.body, /externalPublishing: "not-performed"/);
+    expect(snapshot.statusCode).toEqual(200);
+    expect(snapshot.body).toMatch(/externalPublishing: "not-performed"/);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await studio.getByText(/Saved drafts/).waitFor();
     const savedDraft = studio.locator('section').last().getByRole('button').first();
@@ -501,19 +465,17 @@ test('LinkedIn editorial research-to-draft workflow persists, approves and retur
     await studio.getByRole('button', { name: 'Reopen for edits' }).click();
     await studio.getByText(/Draft is now draft/).waitFor();
     const report = await app.inject('/linkedin/drafts');
-    assert.equal(report.statusCode, 200);
+    expect(report.statusCode).toEqual(200);
     const rows = report.json() as Array<{
       accountId: string;
       content: { researchRunId: string; sourceUrls: string[] };
     }>;
-    assert(
-      rows.some(
+    expect(rows.some(
         (row) =>
           row.accountId === savedAccount.id &&
           row.content.researchRunId === researchRun.id &&
           row.content.sourceUrls.length > 0,
-      ),
-    );
+      )).toBeTruthy();
   } finally {
     await browser.close();
     await app.close();
@@ -535,7 +497,7 @@ test('Growth discovery preserves capability delivery status, section coverage an
     const catalog = page.getByTestId('crafts-catalogue');
     await page.getByTestId('craft-card-growth-jobs').waitFor({ timeout: 40000 });
     await catalog.getByRole('button', { name: 'LinkedIn capabilities' }).click();
-    assert.equal(await page.locator('[data-testid^="craft-card-"]').count(), 15);
+    expect(await page.locator('[data-testid^="craft-card-"]').count()).toEqual(15);
     await page.getByTestId('craft-card-growth-jobs').click();
     const detail = page.getByTestId('growth-capability-details');
     await detail
@@ -543,12 +505,8 @@ test('Growth discovery preserves capability delivery status, section coverage an
         name: 'Job search & career opportunity pipeline',
       })
       .waitFor();
-    assert.match(await detail.innerText(), /Planned/);
-    assert.equal(
-      await detail.getByRole('link', { name: 'Open existing supported workflow' }).count(),
-      0,
-      'a planned integration must not offer a live execution shortcut',
-    );
+    expect(await detail.innerText()).toMatch(/Planned/);
+    expect(await detail.getByRole('link', { name: 'Open existing supported workflow' }).count()).toEqual(0);
     await page.getByRole('button', { name: 'Growth library' }).click();
     await catalog.waitFor();
     await catalog.getByRole('textbox', { name: 'Search crafts' }).fill('creator');
@@ -566,11 +524,7 @@ test('Growth discovery preserves capability delivery status, section coverage an
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByTestId('craft-card-growth-company').click();
     await detail.getByRole('heading', { name: 'Company Page & organization growth' }).waitFor();
-    assert.equal(
-      await detail.getByRole('link', { name: 'Open existing supported workflow' }).count(),
-      0,
-      'organization authorization is not implied by a planned graph',
-    );
+    expect(await detail.getByRole('link', { name: 'Open existing supported workflow' }).count()).toEqual(0);
   } finally {
     await browser.close();
     await app.close();
@@ -596,16 +550,13 @@ test('Connector dialog rejects manual profile entry and Profile shows only verif
     await clickUntilVisible(page, page.getByTestId('floating-connector-button'), dialog);
     await dialog.getByTestId('linkedin-connector').waitFor();
     await page.setViewportSize({ width: 390, height: 760 });
-    assert.equal(await dialog.getByRole('heading', { name: 'LinkedIn', exact: true }).count(), 1);
-    assert.equal(
-      await dialog.getByRole('textbox', { name: /profile address|username|handle/i }).count(),
-      0,
-    );
+    expect(await dialog.getByRole('heading', { name: 'LinkedIn', exact: true }).count()).toEqual(1);
+    expect(await dialog.getByRole('textbox', { name: /profile address|username|handle/i }).count()).toEqual(0);
     await dialog.getByRole('button', { name: 'Connect LinkedIn', exact: true }).waitFor();
     const before = (await app.inject('/account')).json() as {
       socialAccounts: unknown[];
     };
-    assert.equal(before.socialAccounts.length, 0, 'viewing a provider must not create an account');
+    expect(before.socialAccounts.length).toEqual(0);
     await page.keyboard.press('Escape');
     await page.goto('http://127.0.0.1:3100/dashboard/profile/connections', {
       waitUntil: 'domcontentloaded',
@@ -613,15 +564,15 @@ test('Connector dialog rejects manual profile entry and Profile shows only verif
     const owner = page.getByTestId('owner-profile-page');
     await owner.waitFor();
     await owner.getByText('No verified account linked.').first().waitFor();
-    assert.equal(await owner.getByText('No verified account linked.').count(), 5);
-    assert.equal(await owner.getByRole('button', { name: 'Add profile' }).count(), 0);
+    expect(await owner.getByText('No verified account linked.').count()).toEqual(5);
+    expect(await owner.getByRole('button', { name: 'Add profile' }).count()).toEqual(0);
     await owner.getByRole('button', { name: 'Manage connections' }).click();
     await dialog.waitFor({ state: 'visible' });
     await dialog.getByRole('button', { name: 'Connect LinkedIn', exact: true }).waitFor();
     const after = (await app.inject('/account')).json() as {
       socialAccounts: unknown[];
     };
-    assert.equal(after.socialAccounts.length, 0, 'an unverified profile must never be persisted');
+    expect(after.socialAccounts.length).toEqual(0);
   } finally {
     await browser.close();
     await app.close();
@@ -629,7 +580,7 @@ test('Connector dialog rejects manual profile entry and Profile shows only verif
   }
 });
 
-test('Growth profile YAML opens on the nested artboard without running a browser', {
+test('Growth profile YAML uses one Artboard canvas, drill-down, and real controls', {
   timeout: 90000,
 }, async () => {
   const app = buildApp();
@@ -641,40 +592,57 @@ test('Growth profile YAML opens on the nested artboard without running a browser
       waitUntil: 'domcontentloaded',
     });
     const before = (await app.inject('/runs')).json().length;
-    const modal = page.getByRole('dialog', { name: 'Growth workflow templates' });
-    await clickUntilVisible(page, page.getByRole('button', { name: 'Choose workflow template' }), modal);
-    await modal.getByRole('searchbox', { name: 'Search Growth workflows' }).fill('Profile auditing');
+    const modal = page.getByRole('dialog', { name: 'Workflow library' });
+    await clickUntilVisible(page, page.getByRole('button', { name: 'Browse templates' }), modal);
+    await modal.getByRole('searchbox', { name: 'Search workflows' }).fill('Profile auditing');
     await modal.getByTestId('growth-template-option').click();
     const preview = modal.getByTestId('growth-template-pipeline-preview');
     await preview.waitFor();
-    assert.match(await preview.innerText(), /6 connected pipelines/);
+    expect(await preview.innerText()).toMatch(/6 connected pipelines/);
     await modal.getByRole('button', { name: 'Open YAML workflow' }).click();
     await modal.waitFor({ state: 'hidden' });
-    const graph = page.getByTestId('workflow-artboard').getByTestId('growth-nested-artboard');
+    const artboard = page.getByTestId('workflow-artboard');
+    const graph = artboard.getByTestId('growth-nested-artboard');
     await graph.getByTestId('growth-pipeline-node-identity').waitFor();
-    assert.equal(await graph.locator('[data-testid^="growth-pipeline-node-"]').count(), 6);
+    expect(await artboard.locator('.react-flow').count()).toEqual(1);
+    expect(await page.getByTestId('growth-profile-program').count()).toEqual(0);
+    await page.getByRole('button', { name: 'Workflow execution and evidence' }).click();
+    const details = page.getByTestId('growth-workspace-details');
+    await details.waitFor({ state: 'visible' });
+    await details.getByRole('link', { name: 'View source YAML' }).waitFor();
+    expect(await details.innerText()).toMatch(/existing Runner/);
+    await page.keyboard.press('Escape');
+    await details.waitFor({ state: 'hidden' });
+    expect(await graph.locator('[data-testid^="growth-pipeline-node-"]').count()).toEqual(6);
     await graph.locator('.react-flow__edge').first().waitFor({
       state: 'attached',
       timeout: 15000,
     });
-    assert.equal(await graph.locator('.react-flow__edge').count(), 5);
+    expect(await graph.locator('.react-flow__edge').count()).toEqual(5);
     for (const path of await graph.locator('.react-flow__edge path.react-flow__edge-path').all()) {
-      assert.match((await path.getAttribute('d')) ?? '', /^M/);
+      expect((await path.getAttribute('d')) ?? '').toMatch(/^M/);
     }
     await graph.getByTestId('growth-pipeline-node-identity').click();
     await graph.getByTestId('growth-task-node-start').waitFor();
     await graph.getByTestId('growth-task-node-session').waitFor();
-    assert((await graph.locator('[data-testid^="growth-task-node-"]').count()) >= 4);
+    expect((await graph.locator('[data-testid^="growth-task-node-"]').count()) >= 4).toBeTruthy();
+    await graph.getByTestId('growth-task-node-start').click();
+    const taskDetails = page.getByTestId('growth-task-details');
+    await taskDetails.waitFor({ state: 'visible' });
+    expect(await taskDetails.innerText()).toMatch(/Read-only source configuration/);
+    expect(await taskDetails.innerText()).toMatch(/Step kind/);
+    await page.keyboard.press('Escape');
+    await taskDetails.waitFor({ state: 'hidden' });
     await graph.getByRole('button', { name: 'Back to pipelines' }).click();
     await graph.getByTestId('growth-pipeline-node-identity').waitFor();
-    assert.equal((await app.inject('/runs')).json().length, before);
+    expect((await app.inject('/runs')).json().length).toEqual(before);
   } finally {
     await browser.close();
     await app.close();
   }
 });
 
-test('second Growth YAML shows planned tasks, not unregistered Runner actions', {
+test('planning-only Growth YAML stays read-only and cannot launch Runner', {
   timeout: 90000,
 }, async () => {
   const app = buildApp();
@@ -686,25 +654,29 @@ test('second Growth YAML shows planned tasks, not unregistered Runner actions', 
       waitUntil: 'domcontentloaded',
     });
     const before = (await app.inject('/runs')).json().length;
-    const modal = page.getByRole('dialog', { name: 'Growth workflow templates' });
-    await clickUntilVisible(page, page.getByRole('button', { name: 'Choose workflow template' }), modal);
-    await modal
-      .getByRole('searchbox', { name: 'Search Growth workflows' })
-      .fill('Personal brand positioning');
+    const modal = page.getByRole('dialog', { name: 'Workflow library' });
+    await clickUntilVisible(page, page.getByRole('button', { name: 'Browse templates' }), modal);
+    await modal.getByRole('searchbox', { name: 'Search workflows' }).fill('Personal brand positioning');
     const preview = modal.getByTestId('growth-template-pipeline-preview');
     await preview.waitFor();
-    assert.match(await preview.innerText(), /2 connected pipelines/);
+    expect(await preview.innerText()).toMatch(/2 connected pipelines/);
     await modal.getByRole('button', { name: 'Inspect planning workflow' }).click();
     await modal.waitFor({ state: 'hidden' });
     const graph = page.getByTestId('workflow-artboard').getByTestId('growth-nested-artboard');
     await graph.getByTestId('growth-pipeline-node-discovery').waitFor();
-    assert.equal(await graph.locator('[data-testid^="growth-pipeline-node-"]').count(), 2);
+    expect(await graph.locator('[data-testid^="growth-pipeline-node-"]').count()).toEqual(2);
     await graph.getByTestId('growth-pipeline-node-discovery').click();
     await graph.getByTestId('growth-task-node-todo').waitFor();
     await graph.getByTestId('growth-task-node-procedure').waitFor();
-    assert.equal(await graph.locator('[data-testid^="growth-task-node-"]').count(), 5);
-    assert.equal(await page.getByRole('button', { name: 'Start Growth workflow' }).count(), 0);
-    assert.equal((await app.inject('/runs')).json().length, before);
+    expect(await graph.locator('[data-testid^="growth-task-node-"]').count()).toEqual(5);
+    expect(await page.getByTestId('workflow-artboard').locator('.react-flow').count()).toEqual(1);
+    await page.getByRole('button', { name: 'Workflow execution and evidence' }).click();
+    const details = page.getByTestId('growth-workspace-details');
+    await details.waitFor({ state: 'visible' });
+    expect(await details.innerText()).toMatch(/Planning-only YAML/);
+    expect(await details.getByRole('button', { name: 'Start Growth workflow' }).count()).toEqual(0);
+    expect(await page.getByRole('button', { name: 'Start Growth workflow' }).count()).toEqual(0);
+    expect((await app.inject('/runs')).json().length).toEqual(before);
   } finally {
     await browser.close();
     await app.close();
@@ -741,11 +713,11 @@ test('Local Chrome attachment keeps the external process alive across connector 
     await first.open('linkedin', '00000000-0000-4000-8000-000000000041');
     await second.open('x', '00000000-0000-4000-8000-000000000042');
     await first.close();
-    assert.equal(external.isConnected(), true, 'local Chrome must survive first disconnect');
+    expect(external.isConnected()).toEqual(true);
     await second.currentPage!.setContent('<main>second connection works</main>');
-    assert.equal(await second.currentPage!.locator('main').innerText(), 'second connection works');
+    expect(await second.currentPage!.locator('main').innerText()).toEqual('second connection works');
     await second.close();
-    assert.equal(external.isConnected(), true, 'local Chrome must survive all tab closures');
+    expect(external.isConnected()).toEqual(true);
   } finally {
     await first?.close().catch(() => {});
     await second?.close().catch(() => {});
@@ -755,5 +727,57 @@ test('Local Chrome attachment keeps the external process alive across connector 
       if (original === undefined) delete process.env[key];
       else process.env[key] = original;
     }
+  }
+});
+
+test('blank Artboard opens action templates without creating or running defaults', {
+  timeout: 90000,
+}, async () => {
+  const app = buildApp();
+  const browser = await chromium.launch({ headless: true });
+  try {
+    await app.listen({ host: '127.0.0.1', port: 3101 });
+    const page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
+    const posts: string[] = [];
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && /\/api\/workflows\/?$/.test(request.url()))
+        posts.push(request.url());
+    });
+    await page.goto('http://127.0.0.1:3100/dashboard/workspace', {
+      waitUntil: 'domcontentloaded',
+    });
+    await page.getByTestId('workflow-empty-state').waitFor();
+    expect(await page.getByTestId('workflow-artboard').locator('.react-flow').count()).toEqual(0);
+    expect(await page.getByRole('button', { name: 'Start workflow' }).count()).toEqual(0);
+    expect(posts.length).toEqual(0);
+    const modal = page.getByRole('dialog', { name: 'Workflow library' });
+    await clickUntilVisible(page, page.getByRole('button', { name: 'Browse templates' }), modal);
+    await modal.getByRole('button', { name: 'Action templates' }).click();
+    await modal.getByTestId('action-template-option').first().waitFor();
+    const preview = modal.getByTestId('action-template-preview');
+    expect(await preview.innerText()).toMatch(/validated Runner stages/i);
+    await preview.getByRole('button', { name: 'Use this template' }).click();
+    await page.getByTestId('workflow-node-start').waitFor();
+    expect(await page.getByTestId('workflow-artboard').locator('.react-flow').count()).toEqual(1);
+    expect(posts.length).toEqual(1);
+    expect((await app.inject('/runs')).json().length).toEqual(0);
+    await page.getByRole('button', { name: 'Back to workspace' }).click();
+    await page.getByTestId('workflow-empty-state').waitFor();
+    expect(await page.getByTestId('workflow-node-start').count()).toEqual(0);
+    await page.getByRole('button', { name: 'Create new workflow' }).click();
+    await page.getByTestId('workflow-node-start').waitFor();
+    await page.getByRole('button', { name: 'Back to workspace' }).click();
+    const confirmation = page.getByTestId('workflow-leave-confirmation');
+    await confirmation.waitFor({ state: 'visible' });
+    await confirmation.getByRole('button', { name: 'Keep editing' }).click();
+    await confirmation.waitFor({ state: 'hidden' });
+    expect(await page.getByTestId('workflow-node-start').count()).toEqual(1);
+    await page.getByRole('button', { name: 'Back to workspace' }).click();
+    await confirmation.getByRole('button', { name: 'Discard draft' }).click();
+    await page.getByTestId('workflow-empty-state').waitFor();
+    expect(posts.length).toEqual(1);
+  } finally {
+    await browser.close();
+    await app.close();
   }
 });

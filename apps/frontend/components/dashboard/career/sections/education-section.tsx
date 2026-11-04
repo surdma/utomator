@@ -1,8 +1,8 @@
 'use client';
 
 import { Plus } from 'lucide-react';
-import type { CareerDocument } from '../types';
 import { classButton } from '../styles';
+import type { CareerDocument } from '../types';
 import SectionField from './section-field';
 
 export default function EducationSection({
@@ -12,7 +12,7 @@ export default function EducationSection({
   value: CareerDocument;
   update: <K extends keyof CareerDocument>(
     key: K,
-    next: CareerDocument[K]
+    next: CareerDocument[K],
   ) => void;
 }) {
   return (
@@ -26,11 +26,11 @@ export default function EducationSection({
             <strong className="text-sm">Qualification {i + 1}</strong>
             <button
               type="button"
-              className={classButton + ' text-rose-700'}
+              className={`${classButton} text-rose-700`}
               onClick={() =>
                 update(
                   'education',
-                  value.education.filter((_, j) => i !== j)
+                  value.education.filter((_, j) => i !== j),
                 )
               }
             >
@@ -45,8 +45,8 @@ export default function EducationSection({
               update(
                 'education',
                 value.education.map((x, j) =>
-                  i === j ? { ...x, institution: v } : x
-                )
+                  i === j ? { ...x, institution: v } : x,
+                ),
               )
             }
           />
@@ -58,8 +58,8 @@ export default function EducationSection({
               update(
                 'education',
                 value.education.map((x, j) =>
-                  i === j ? { ...x, degree: v } : x
-                )
+                  i === j ? { ...x, degree: v } : x,
+                ),
               )
             }
           />
@@ -68,7 +68,7 @@ export default function EducationSection({
       <button
         type="button"
         disabled={value.education.length >= 12}
-        className={classButton + ' self-start'}
+        className={`${classButton} self-start`}
         onClick={() =>
           update('education', [
             ...value.education,

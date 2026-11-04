@@ -60,7 +60,7 @@ export function pendingCommandLabel(command: ParsedCommand) {
 export function decideUtterance(
   value: string,
   source: UtteranceSource,
-  hasPending: boolean
+  hasPending: boolean,
 ): UtteranceDecision {
   const request = value.trim();
   if (!request) return { kind: 'ignore' };
@@ -92,7 +92,7 @@ export function decideUtterance(
 
 export function nextCommandState(
   pending: ParsedCommand | null,
-  decision: UtteranceDecision
+  decision: UtteranceDecision,
 ): {
   pending: ParsedCommand | null;
   stage: ParsedCommand | null;

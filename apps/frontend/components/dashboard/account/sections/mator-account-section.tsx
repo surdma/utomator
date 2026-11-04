@@ -9,19 +9,19 @@ import {
   MessageSquareText,
   Sparkles,
 } from 'lucide-react';
-import { useEffect, type RefObject } from 'react';
-import StudioDialog from '@/components/ui/studio-dialog';
-import { Hint } from '@/components/dashboard/account/account-hint';
-import { Notice } from '@/components/dashboard/account/account-notice';
+import { type RefObject, useEffect } from 'react';
 import {
   choiceLabel,
   senseCopy,
 } from '@/components/dashboard/account/account-format';
+import { Hint } from '@/components/dashboard/account/account-hint';
+import { Notice } from '@/components/dashboard/account/account-notice';
 import type {
   MatorModelOption,
   MatorSettingsMasked,
   MatorSettingsSavePatch,
 } from '@/components/mator/mator-api';
+import StudioDialog from '@/components/ui/studio-dialog';
 
 export function MatorAccountSection({
   matorLoading,
@@ -60,7 +60,7 @@ export function MatorAccountSection({
   onConfirmClearKeyChange: (value: boolean) => void;
   onPatchMator: (
     patch: MatorSettingsSavePatch,
-    options?: { clearDraft?: boolean; saved?: string }
+    options?: { clearDraft?: boolean; saved?: string },
   ) => void;
 }) {
   const keyReady = Boolean(mator?.groqKeyConfigured);
@@ -168,7 +168,7 @@ export function MatorAccountSection({
                     onClick={() =>
                       void onPatchMator(
                         { groqApiKey: keyDraft.trim() },
-                        { clearDraft: true, saved: 'API key saved.' }
+                        { clearDraft: true, saved: 'API key saved.' },
                       )
                     }
                     className="inline-flex min-h-11 cursor-pointer items-center rounded-xl bg-teal-500 px-4 text-sm font-semibold text-[#111a25] transition duration-200 hover:bg-teal-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none"
@@ -364,7 +364,7 @@ export function MatorAccountSection({
             onClick={() =>
               void onPatchMator(
                 { groqApiKey: null },
-                { clearDraft: true, saved: 'API key removed.' }
+                { clearDraft: true, saved: 'API key removed.' },
               )
             }
             className="inline-flex min-h-11 cursor-pointer items-center rounded-xl bg-rose-700 px-4 text-sm font-semibold text-white hover:bg-rose-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700 disabled:opacity-50"

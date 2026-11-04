@@ -1,14 +1,14 @@
 'use client';
 
-import Image from 'next/image';
 import {
   SlidersHorizontal,
   Sparkles,
   UserRound,
   Waypoints,
 } from 'lucide-react';
-import { portraitSrc } from '@/components/dashboard/account/account-format';
+import Image from 'next/image';
 import type { AccountSection } from '@/components/dashboard/account/account-format';
+import { portraitSrc } from '@/components/dashboard/account/account-format';
 import type { SocialAccount } from '@/components/dashboard/account/account-home';
 
 type ProfileSummary = {
@@ -48,7 +48,7 @@ export function AccountSectionNav({
         <div className="flex size-12 items-center justify-center overflow-hidden rounded-2xl bg-[#111a25] font-serif text-xl text-white">
           {portraitSrc(profile?.avatarUrl) ||
           portraitSrc(
-            socialAccounts.find((row) => portraitSrc(row.avatarUrl))?.avatarUrl
+            socialAccounts.find((row) => portraitSrc(row.avatarUrl))?.avatarUrl,
           ) ? (
             <Image
               unoptimized
@@ -56,7 +56,7 @@ export function AccountSectionNav({
                 (portraitSrc(profile?.avatarUrl) ||
                   portraitSrc(
                     socialAccounts.find((row) => portraitSrc(row.avatarUrl))
-                      ?.avatarUrl
+                      ?.avatarUrl,
                   )) ??
                 ''
               }

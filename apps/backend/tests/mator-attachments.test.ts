@@ -1,19 +1,19 @@
-import assert from 'node:assert/strict';
+
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import test from 'node:test';
-import { createConversation } from '../src/core/mator-conversations.js';
+import { test, expect } from 'vitest';
+import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
 import {
   getAttachmentFile,
   getAttachmentMeta,
-  validateMatorAsset,
   MATOR_ATTACHMENT_IMAGE_MAX_BYTES,
   MATOR_ATTACHMENTS_NAMESPACE,
   saveAttachment,
   upsertMarkers,
-} from '../src/core/mator-attachments.js';
-import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
+  validateMatorAsset,
+} from '../src/mator/mator-attachments.js';
+import { createConversation } from '../src/mator/mator-conversations.js';
 
 type Row = { version: number; value: unknown };
 class FakeDocuments implements DocumentStore {
@@ -63,22 +63,26 @@ test('saveAttachment roundtrips bytes and metadata via getAttachmentFile', async
     const docs = new FakeDocuments('local-owner');
     const conv = await createConversation(docs, 'wf-attachments');
     const bytes = Buffer.from('fake-png-bytes');
-    const saved = await saveAttachment(docs, {
-      conversationId: conv.id,
-      filename: 'screenshot.png',
-      mime: 'image/png',
-      bytes,
-    }, { root });
+    const saved = await saveAttachment(
+      docs,
+      {
+        conversationId: conv.id,
+        filename: 'screenshot.png',
+        mime: 'image/png',
+        bytes,
+      },
+      { root },
+    );
 
-    assert.equal(saved.kind, 'image');
-    assert.equal(saved.mime, 'image/png');
-    assert.equal(saved.size, bytes.length);
+    expect(saved.kind).toEqual('image');
+    expect(saved.mime).toEqual('image/png');
+    expect(saved.size).toEqual(bytes.length);
 
     const loaded = await getAttachmentFile(docs, saved.id, { root });
-    assert.deepEqual(loaded.bytes, bytes);
-    assert.equal(loaded.meta.conversationId, conv.id);
-    assert.equal(loaded.meta.filename, 'screenshot.png');
-    assert.ok(docs.rows.has(`${MATOR_ATTACHMENTS_NAMESPACE}:${saved.id}`));
+    expect(loaded.bytes).toEqual(bytes);
+    expect(loaded.meta.conversationId).toEqual(conv.id);
+    expect(loaded.meta.filename).toEqual('screenshot.png');
+    expect(docs.rows.has(`${MATOR_ATTACHMENTS_NAMESPACE}:${saved.id}`)).toBeTruthy();
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -89,23 +93,24 @@ test('upsertMarkers clamps x/y to [0,1] and requires text', async () => {
   try {
     const docs = new FakeDocuments('local-owner');
     const conv = await createConversation(docs, 'wf-markers');
-    const saved = await saveAttachment(docs, {
-      conversationId: conv.id,
-      filename: 'frame.jpg',
-      mime: 'image/jpeg',
-      bytes: Buffer.from([1, 2, 3]),
-    }, { root });
+    const saved = await saveAttachment(
+      docs,
+      {
+        conversationId: conv.id,
+        filename: 'frame.jpg',
+        mime: 'image/jpeg',
+        bytes: Buffer.from([1, 2, 3]),
+      },
+      { root },
+    );
 
     const updated = await upsertMarkers(docs, saved.id, [
       { id: 'm1', x: -0.25, y: 1.75, text: '  pin here  ' },
     ]);
-    assert.equal(updated.markers?.length, 1);
-    assert.deepEqual(updated.markers?.[0], { id: 'm1', x: 0, y: 1, text: 'pin here' });
+    expect(updated.markers?.length).toEqual(1);
+    expect(updated.markers?.[0]).toEqual({ id: 'm1', x: 0, y: 1, text: 'pin here' });
 
-    await assert.rejects(
-      () => upsertMarkers(docs, saved.id, [{ id: 'm2', x: 0.5, y: 0.5, text: '   ' }]),
-      /Marker text is required/,
-    );
+    await expect(() => upsertMarkers(docs, saved.id, [{ id: 'm2', x: 0.5, y: 0.5, text: '   ' }])).rejects.toThrow(/Marker text is required/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -116,28 +121,33 @@ test('upsertMarkers validates and persists review references', async () => {
   try {
     const docs = new FakeDocuments('local-owner');
     const conv = await createConversation(docs, 'wf-reviews');
-    const savedA = await saveAttachment(docs, {
-      conversationId: conv.id,
-      filename: 'one.png',
-      mime: 'image/png',
-      bytes: Buffer.from([1]),
-    }, { root });
-    const savedB = await saveAttachment(docs, {
-      conversationId: conv.id,
-      filename: 'two.png',
-      mime: 'image/png',
-      bytes: Buffer.from([2]),
-    }, { root });
+    const savedA = await saveAttachment(
+      docs,
+      {
+        conversationId: conv.id,
+        filename: 'one.png',
+        mime: 'image/png',
+        bytes: Buffer.from([1]),
+      },
+      { root },
+    );
+    const savedB = await saveAttachment(
+      docs,
+      {
+        conversationId: conv.id,
+        filename: 'two.png',
+        mime: 'image/png',
+        bytes: Buffer.from([2]),
+      },
+      { root },
+    );
     const reviewId = '123e4567-e89b-42d3-a456-426614174000';
 
-    await assert.rejects(
-      () => upsertMarkers(docs, savedA.id, [], 'not-a-review-id'),
-      /Invalid review reference/,
-    );
+    await expect(() => upsertMarkers(docs, savedA.id, [], 'not-a-review-id')).rejects.toThrow(/Invalid review reference/);
     const linked = await upsertMarkers(docs, savedA.id, [], reviewId);
-    assert.equal(linked.reviewId, reviewId);
+    expect(linked.reviewId).toEqual(reviewId);
     const unrelated = await getAttachmentMeta(docs, savedB.id);
-    assert.equal(unrelated.reviewId, undefined);
+    expect(unrelated.reviewId).toEqual(undefined);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -147,16 +157,17 @@ test('saveAttachment rejects unknown conversation', async () => {
   const root = await mkdtemp(join(tmpdir(), 'mator-attach-'));
   try {
     const docs = new FakeDocuments('local-owner');
-    await assert.rejects(
-      () =>
-        saveAttachment(docs, {
-          conversationId: '00000000-0000-4000-8000-000000000099',
-          filename: 'orphan.png',
-          mime: 'image/png',
-          bytes: Buffer.from('x'),
-        }, { root }),
-      /Conversation not found/,
-    );
+    await expect(() =>
+        saveAttachment(
+          docs,
+          {
+            conversationId: '00000000-0000-4000-8000-000000000099',
+            filename: 'orphan.png',
+            mime: 'image/png',
+            bytes: Buffer.from('x'),
+          },
+          { root },
+        )).rejects.toThrow(/Conversation not found/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -168,14 +179,18 @@ test('getAttachmentFile is scoped to document owner', async () => {
     const ownerA = new FakeDocuments('00000000-0000-4000-8000-0000000000aa');
     const ownerB = new FakeDocuments('00000000-0000-4000-8000-0000000000bb');
     const conv = await createConversation(ownerA, 'wf-owner-scope');
-    const saved = await saveAttachment(ownerA, {
-      conversationId: conv.id,
-      filename: 'secret.png',
-      mime: 'image/png',
-      bytes: Buffer.from('secret'),
-    }, { root });
+    const saved = await saveAttachment(
+      ownerA,
+      {
+        conversationId: conv.id,
+        filename: 'secret.png',
+        mime: 'image/png',
+        bytes: Buffer.from('secret'),
+      },
+      { root },
+    );
 
-    await assert.rejects(() => getAttachmentFile(ownerB, saved.id, { root }), /Attachment not found/);
+    await expect(() => getAttachmentFile(ownerB, saved.id, { root })).rejects.toThrow(/Attachment not found/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -187,16 +202,17 @@ test('saveAttachment rejects oversized images', async () => {
     const docs = new FakeDocuments('local-owner');
     const conv = await createConversation(docs, 'wf-oversize');
     const tooLarge = Buffer.alloc(MATOR_ATTACHMENT_IMAGE_MAX_BYTES + 1);
-    await assert.rejects(
-      () =>
-        saveAttachment(docs, {
-          conversationId: conv.id,
-          filename: 'huge.png',
-          mime: 'image/png',
-          bytes: tooLarge,
-        }, { root }),
-      /Attachment size limit exceeded/,
-    );
+    await expect(() =>
+        saveAttachment(
+          docs,
+          {
+            conversationId: conv.id,
+            filename: 'huge.png',
+            mime: 'image/png',
+            bytes: tooLarge,
+          },
+          { root },
+        )).rejects.toThrow(/Attachment size limit exceeded/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -211,7 +227,7 @@ test('supports raster images and TXT/README assets but rejects active or unsuppo
     ['README', 'application/octet-stream'],
     ['README.md', 'text/markdown'],
   ]) {
-    assert.doesNotThrow(() => validateMatorAsset(filename, mime));
+    expect(() => validateMatorAsset(filename, mime)).not.toThrow();
   }
   for (const [filename, mime] of [
     ['attack.svg', 'image/svg+xml'],
@@ -221,7 +237,7 @@ test('supports raster images and TXT/README assets but rejects active or unsuppo
     ['fake.png', 'text/html'],
     ['page.html', 'image/png'],
   ]) {
-    assert.throws(() => validateMatorAsset(filename, mime), /Unsupported attachment type/);
+    expect(() => validateMatorAsset(filename, mime)).toThrow(/Unsupported attachment type/);
   }
 });
 
@@ -238,12 +254,12 @@ test('attachment metadata is owner scoped and retains the original filename', as
         mime: 'text/markdown',
         bytes: Buffer.from('# Project'),
       },
-      { root }
+      { root },
     );
     const meta = await getAttachmentMeta(docs, result.id);
-    assert.equal(meta.filename, 'README.md');
-    assert.equal(meta.mime, 'text/markdown');
-    assert.equal(meta.conversationId, conv.id);
+    expect(meta.filename).toEqual('README.md');
+    expect(meta.mime).toEqual('text/markdown');
+    expect(meta.conversationId).toEqual(conv.id);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

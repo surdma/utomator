@@ -29,7 +29,7 @@ export default function WorkflowOutputDialog({
   const screenshots = events.filter(
     (item) =>
       item.kind === 'screenshot' &&
-      /^[a-zA-Z0-9_-]+\.png$/.test(item.details?.fileName ?? '')
+      /^[a-zA-Z0-9_-]+\.png$/.test(item.details?.fileName ?? ''),
   );
   const observation = [...events]
     .reverse()
@@ -39,7 +39,7 @@ export default function WorkflowOutputDialog({
         (item.details?.headline ||
           item.details?.bio ||
           item.details?.xName ||
-          item.details?.excerpt)
+          item.details?.excerpt),
     );
   return (
     <StudioDialog
@@ -141,19 +141,17 @@ export default function WorkflowOutputDialog({
                       type="button"
                       onClick={() => {
                         onDismiss();
-                        onEvidenceOpen(runId, item.details!.fileName!);
+                        onEvidenceOpen(runId, item.details?.fileName!);
                       }}
-                      aria-label={
-                        'Annotate output capture: ' + item.details!.fileName!
-                      }
+                      aria-label={`Annotate output capture: ${item.details?.fileName!}`}
                       className="block w-full text-left hover:opacity-90"
                     >
                       <Image
                         unoptimized
-                        src={evidenceRoot + item.details!.fileName!}
+                        src={evidenceRoot + item.details?.fileName!}
                         width={860}
                         height={540}
-                        alt={'Recorded screenshot: ' + item.message}
+                        alt={`Recorded screenshot: ${item.message}`}
                         className="h-auto w-full object-contain"
                       />
                     </button>
@@ -161,10 +159,10 @@ export default function WorkflowOutputDialog({
                     evidenceRoot && (
                       <Image
                         unoptimized
-                        src={evidenceRoot + item.details!.fileName!}
+                        src={evidenceRoot + item.details?.fileName!}
                         width={860}
                         height={540}
-                        alt={'Recorded screenshot: ' + item.message}
+                        alt={`Recorded screenshot: ${item.message}`}
                         className="h-auto w-full object-contain"
                       />
                     )

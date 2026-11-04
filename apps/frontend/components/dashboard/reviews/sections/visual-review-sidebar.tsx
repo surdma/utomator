@@ -1,7 +1,7 @@
 'use client';
 
-import type { Dispatch, SetStateAction } from 'react';
 import { Tag, Trash2 } from 'lucide-react';
+import type { Dispatch, SetStateAction } from 'react';
 import { VoiceMicButton } from '@/components/mator/mator-composer';
 import type {
   AnnotationAction,
@@ -47,13 +47,13 @@ export default function VisualReviewSidebar({
   allowedActions: AnnotationAction[];
   updateAnnotation: (
     next: VisualAnnotation,
-    kind: 'action' | 'comment'
+    kind: 'action' | 'comment',
   ) => void;
   setAnnotations: Dispatch<SetStateAction<VisualAnnotation[]>>;
   record: (
     kind: 'draw' | 'action' | 'comment' | 'remove' | 'undo' | 'tag',
     annotationId: string,
-    annotation?: VisualAnnotation | null
+    annotation?: VisualAnnotation | null,
   ) => void;
   removeSelected: () => void;
   commentVoice: {
@@ -126,7 +126,7 @@ export default function VisualReviewSidebar({
                     ...selected,
                     action: e.target.value as AnnotationAction,
                   },
-                  'action'
+                  'action',
                 )
               }
               className="mt-1.5 min-h-11 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs"
@@ -167,15 +167,15 @@ export default function VisualReviewSidebar({
                   prev.map((item) =>
                     item.id === selected.id
                       ? { ...item, comment: e.target.value }
-                      : item
-                  )
+                      : item,
+                  ),
                 )
               }
               onBlur={() =>
                 record(
                   'comment',
                   selected.id,
-                  annotations.find((item) => item.id === selected.id)
+                  annotations.find((item) => item.id === selected.id),
                 )
               }
               placeholder="Say what Mator should review here, or type it."

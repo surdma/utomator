@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useId, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { MapPin } from 'lucide-react';
+import { useCallback, useId, useRef, useState } from 'react';
 
 export type MatorCanvasMarker = {
   id: string;
@@ -61,7 +61,7 @@ export default function MatorAttachmentCanvas({
       onMarkersChange([...markers, next]);
       setSelectedId(next.id);
     },
-    [draftText, interactive, markers, onMarkersChange]
+    [draftText, interactive, markers, onMarkersChange],
   );
 
   return (

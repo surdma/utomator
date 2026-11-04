@@ -16,19 +16,19 @@ export function supportedFile(file: File) {
   return (
     images.includes(file.type) ||
     ((['.txt', '.md', '.markdown', '.readme'].some((ext) =>
-      name.endsWith(ext)
+      name.endsWith(ext),
     ) ||
       /^readme(?:\.[a-z0-9_-]+)?$/.test(name)) &&
       (!file.type ||
         ['text/plain', 'text/markdown', 'application/octet-stream'].includes(
-          file.type
+          file.type,
         )))
   );
 }
 
 export function iconButton(
   tone: 'default' | 'active' | 'danger',
-  extra?: string
+  extra?: string,
 ): string {
   return cn(
     'inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40',
@@ -36,7 +36,7 @@ export function iconButton(
       'text-slate-500 hover:bg-slate-100 hover:text-slate-800',
     tone === 'active' && 'bg-teal-700 text-white hover:bg-teal-600',
     tone === 'danger' && 'text-rose-600 hover:bg-rose-50',
-    extra
+    extra,
   );
 }
 

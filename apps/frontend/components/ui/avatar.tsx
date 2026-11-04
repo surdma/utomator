@@ -10,7 +10,7 @@ export function Avatar({
       data-slot="avatar"
       className={cn(
         'flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full select-none',
-        className
+        className,
       )}
       {...props}
     />
@@ -44,7 +44,7 @@ export function AvatarFallback({
       data-slot="avatar-fallback"
       className={cn(
         'flex size-full items-center justify-center text-[11px] font-bold',
-        className
+        className,
       )}
       {...props}
     />

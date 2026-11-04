@@ -22,7 +22,7 @@ export default function SectionField({
         <textarea
           rows={4}
           maxLength={maxLength}
-          className={classInput + ' resize-y leading-6'}
+          className={`${classInput} resize-y leading-6`}
           value={value}
           onChange={(e) => onChange(e.target.value)}
         />

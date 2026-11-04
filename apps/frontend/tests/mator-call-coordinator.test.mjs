@@ -1,12 +1,15 @@
-import assert from 'node:assert/strict';
-import { test } from 'node:test';
-import { MatorCallCoordinator } from '../components/mator/mator-call-coordinator.ts';
+
+import { test, expect } from 'vitest';
 import { resolveMatorCallTurn } from '../components/mator/mator-call-contract.ts';
+import { MatorCallCoordinator } from '../components/mator/mator-call-coordinator.ts';
 
 function deferred() {
   let resolve;
   let reject;
-  const promise = new Promise((ok, fail) => { resolve = ok; reject = fail; });
+  const promise = new Promise((ok, fail) => {
+    resolve = ok;
+    reject = fail;
+  });
   return { promise, resolve, reject };
 }
 async function until(predicate) {
@@ -14,13 +17,17 @@ async function until(predicate) {
     if (predicate()) return;
     await new Promise((resolve) => setImmediate(resolve));
   }
-  assert.fail('Expected call state was not reached');
+  throw new Error('Expected call state was not reached');
 }
 function createPorts(overrides = {}) {
   return {
     capture: async () => new Blob(['sound']),
     transcribe: async () => 'hello',
-    respond: async (text) => ({ reply: `Reply to ${text}`, requiresAttention: false, eventIds: ['1'] }),
+    respond: async (text) => ({
+      reply: `Reply to ${text}`,
+      requiresAttention: false,
+      eventIds: ['1'],
+    }),
     speak: async () => {},
     stopOutput: () => {},
     onState: () => {},
@@ -34,19 +41,32 @@ test('two turns are captured hands-free and playback completion gates next liste
   const heard = [];
   let captures = 0;
   let spoken = 0;
-  const call = new MatorCallCoordinator(createPorts({
-    capture: () => ++captures < 3 ? Promise.resolve(new Blob(['audio'])) : holdCapture.promise,
-    transcribe: async () => `turn ${captures}`,
-    respond: async (text) => ({ reply: `answer ${text}`, requiresAttention: false, eventIds: [`a${captures}`] }),
-    speak: (text) => { spoken++; heard.push(text); return spoken === 1 ? holdOutput.promise : Promise.resolve(); },
-  }));
-  assert.equal(captures, 0);
+  const call = new MatorCallCoordinator(
+    createPorts({
+      capture: () =>
+        ++captures < 3
+          ? Promise.resolve(new Blob(['audio']))
+          : holdCapture.promise,
+      transcribe: async () => `turn ${captures}`,
+      respond: async (text) => ({
+        reply: `answer ${text}`,
+        requiresAttention: false,
+        eventIds: [`a${captures}`],
+      }),
+      speak: (text) => {
+        spoken++;
+        heard.push(text);
+        return spoken === 1 ? holdOutput.promise : Promise.resolve();
+      },
+    }),
+  );
+  expect(captures).toEqual(0);
   call.start('workflow:conversation');
   await until(() => spoken === 1);
-  assert.equal(captures, 1);
+  expect(captures).toEqual(1);
   holdOutput.resolve();
   await until(() => captures === 3);
-  assert.deepEqual(heard, ['answer turn 1', 'answer turn 2']);
+  expect(heard).toEqual(['answer turn 1', 'answer turn 2']);
   call.end();
   holdCapture.resolve(null);
 });
@@ -54,33 +74,45 @@ test('two turns are captured hands-free and playback completion gates next liste
 test('late transcription cannot send to a different thread after hangup', async () => {
   const delay = deferred();
   let sends = 0;
-  const call = new MatorCallCoordinator(createPorts({
-    transcribe: () => delay.promise,
-    respond: async () => { sends++; return { reply: 'bad', requiresAttention: false, eventIds: [] }; },
-  }));
+  const call = new MatorCallCoordinator(
+    createPorts({
+      transcribe: () => delay.promise,
+      respond: async () => {
+        sends++;
+        return { reply: 'bad', requiresAttention: false, eventIds: [] };
+      },
+    }),
+  );
   call.start('workflow:thread-A');
   await until(() => call.phase === 'transcribing');
   call.changeScope('workflow:thread-B');
   delay.resolve('private content');
   await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(sends, 0);
-  assert.equal(call.phase, 'ended');
+  expect(sends).toEqual(0);
+  expect(call.phase).toEqual('ended');
 });
 
 test('microphone mute pauses recording, but manual pause is not undone by unmute', async () => {
   let count = 0;
   const stall = deferred();
-  const call = new MatorCallCoordinator(createPorts({ capture: () => { count++; return stall.promise; } }));
+  const call = new MatorCallCoordinator(
+    createPorts({
+      capture: () => {
+        count++;
+        return stall.promise;
+      },
+    }),
+  );
   call.start('workflow:thread');
   await until(() => count === 1);
   call.setMicMuted(true);
-  assert.equal(call.phase, 'paused');
+  expect(call.phase).toEqual('paused');
   call.setMicMuted(false);
   await until(() => count === 2);
   call.pause();
   call.setMicMuted(true);
   call.setMicMuted(false);
-  assert.equal(call.phase, 'paused');
+  expect(call.phase).toEqual('paused');
   call.end();
   stall.resolve(null);
 });
@@ -88,13 +120,18 @@ test('microphone mute pauses recording, but manual pause is not undone by unmute
 test('provider errors pause indefinitely until explicit retry', async () => {
   let count = 0;
   const stall = deferred();
-  const call = new MatorCallCoordinator(createPorts({
-    capture: () => ++count === 1 ? Promise.resolve(new Blob(['audio'])) : stall.promise,
-    transcribe: async () => { throw new Error('STT not ready'); },
-  }));
+  const call = new MatorCallCoordinator(
+    createPorts({
+      capture: () =>
+        ++count === 1 ? Promise.resolve(new Blob(['audio'])) : stall.promise,
+      transcribe: async () => {
+        throw new Error('STT not ready');
+      },
+    }),
+  );
   call.start('thread');
   await until(() => call.phase === 'error-paused');
-  assert.equal(count, 1);
+  expect(count).toEqual(1);
   call.resume();
   await until(() => count === 2);
   call.end();
@@ -103,14 +140,25 @@ test('provider errors pause indefinitely until explicit retry', async () => {
 
 test('staged approval returns needs-attention instead of capturing again', async () => {
   let captures = 0;
-  const call = new MatorCallCoordinator(createPorts({
-    capture: async () => { captures++; return new Blob(['voice']); },
-    respond: async () => ({ reply: 'Please approve this change in chat', requiresAttention: true, eventIds: ['approval'] }),
-    speak: () => { assert.fail('Never speak action as if executed'); },
-  }));
+  const call = new MatorCallCoordinator(
+    createPorts({
+      capture: async () => {
+        captures++;
+        return new Blob(['voice']);
+      },
+      respond: async () => ({
+        reply: 'Please approve this change in chat',
+        requiresAttention: true,
+        eventIds: ['approval'],
+      }),
+      speak: () => {
+        throw new Error('Never speak action as if executed');
+      },
+    }),
+  );
   call.start('scope');
   await until(() => call.phase === 'needs-attention');
-  assert.equal(captures, 1);
+  expect(captures).toEqual(1);
   call.end();
 });
 
@@ -119,17 +167,25 @@ test('speaker mute stops current output without muting the microphone', async ()
   let captures = 0;
   const playing = deferred();
   const waiting = deferred();
-  const call = new MatorCallCoordinator(createPorts({
-    capture: () => ++captures === 1 ? Promise.resolve(new Blob(['voice'])) : waiting.promise,
-    speak: () => playing.promise,
-    stopOutput: () => { stopped++; playing.resolve(); },
-  }));
+  const call = new MatorCallCoordinator(
+    createPorts({
+      capture: () =>
+        ++captures === 1
+          ? Promise.resolve(new Blob(['voice']))
+          : waiting.promise,
+      speak: () => playing.promise,
+      stopOutput: () => {
+        stopped++;
+        playing.resolve();
+      },
+    }),
+  );
   call.start('scope');
   await until(() => call.phase === 'speaking');
   call.setSpeakerMuted(true);
   await until(() => captures === 2);
-  assert.ok(stopped >= 1);
-  assert.equal(call.micMuted, false);
+  expect(stopped >= 1).toBeTruthy();
+  expect(call.micMuted).toEqual(false);
   call.end();
   waiting.resolve(null);
 });
@@ -138,16 +194,19 @@ test('interrupt cancels output and immediately returns to listening', async () =
   const waiting = deferred();
   const playback = deferred();
   let count = 0;
-  const call = new MatorCallCoordinator(createPorts({
-    capture: () => ++count === 1 ? Promise.resolve(new Blob(['x'])) : waiting.promise,
-    speak: () => playback.promise,
-    stopOutput: () => playback.resolve(),
-  }));
+  const call = new MatorCallCoordinator(
+    createPorts({
+      capture: () =>
+        ++count === 1 ? Promise.resolve(new Blob(['x'])) : waiting.promise,
+      speak: () => playback.promise,
+      stopOutput: () => playback.resolve(),
+    }),
+  );
   call.start('thread');
   await until(() => call.phase === 'speaking');
   call.interrupt();
   await until(() => count === 2);
-  assert.equal(call.phase, 'listening');
+  expect(call.phase).toEqual('listening');
   call.end();
   waiting.resolve(null);
 });
@@ -156,29 +215,58 @@ test('call response only speaks the specific assistant message and honors staged
   const base = { conversationId: 'c', createdAt: '2026-11-02T00:00:00Z' };
   const happy = resolveMatorCallTurn([
     { ...base, id: 'u', role: 'user', kind: 'message', text: 'hello' },
-    { ...base, id: 'how', role: 'assistant', kind: 'how', text: 'internal guidance' },
+    {
+      ...base,
+      id: 'how',
+      role: 'assistant',
+      kind: 'how',
+      text: 'internal guidance',
+    },
     { ...base, id: 'a', role: 'assistant', kind: 'message', text: 'Hi there' },
   ]);
-  assert.deepEqual(happy, { reply: 'Hi there', requiresAttention: false, eventIds: ['u', 'how', 'a'] });
+  expect(happy).toEqual({
+    reply: 'Hi there',
+    requiresAttention: false,
+    eventIds: ['u', 'how', 'a'],
+  });
   const blocked = resolveMatorCallTurn([
-    { ...base, id: 's', role: 'assistant', kind: 'action', status: 'staged', text: 'publish' },
-    { ...base, id: 'a2', role: 'assistant', kind: 'message', text: 'Review it in chat' },
+    {
+      ...base,
+      id: 's',
+      role: 'assistant',
+      kind: 'action',
+      status: 'staged',
+      text: 'publish',
+    },
+    {
+      ...base,
+      id: 'a2',
+      role: 'assistant',
+      kind: 'message',
+      text: 'Review it in chat',
+    },
   ]);
-  assert.equal(blocked.requiresAttention, true);
-  const missing = resolveMatorCallTurn([{ ...base, id: 'u', role: 'user', kind: 'message', text: 'hello' }]);
-  assert.equal(missing.requiresAttention, true);
+  expect(blocked.requiresAttention).toEqual(true);
+  const missing = resolveMatorCallTurn([
+    { ...base, id: 'u', role: 'user', kind: 'message', text: 'hello' },
+  ]);
+  expect(missing.requiresAttention).toEqual(true);
 });
 
 test('no-speech capture returns without making a network request', async () => {
   let calls = 0;
   const waiting = deferred();
-  const call = new MatorCallCoordinator(createPorts({
-    capture: () => ++calls === 1 ? Promise.resolve(null) : waiting.promise,
-    transcribe: () => { assert.fail('No STT for empty turn'); },
-  }));
+  const call = new MatorCallCoordinator(
+    createPorts({
+      capture: () => (++calls === 1 ? Promise.resolve(null) : waiting.promise),
+      transcribe: () => {
+        throw new Error('No STT for empty turn');
+      },
+    }),
+  );
   call.start('thread');
   await new Promise((resolve) => setTimeout(resolve, 250));
-  assert.ok(calls >= 2);
+  expect(calls >= 2).toBeTruthy();
   call.end();
   waiting.resolve(null);
 });
@@ -186,17 +274,23 @@ test('no-speech capture returns without making a network request', async () => {
 test('transcribed words remain available if sending the AI call request fails', async () => {
   const transcripts = [];
   let error = '';
-  const call = new MatorCallCoordinator(createPorts({
-    capture: async () => new Blob(['spoken request']),
-    transcribe: async () => 'Keep my draft even after a provider error',
-    respond: async () => { throw new Error('secret provider stack from server'); },
-    onTranscript: (text) => transcripts.push(text),
-    onState: (state) => { if (state.phase === 'error-paused') error = state.detail; },
-  }));
+  const call = new MatorCallCoordinator(
+    createPorts({
+      capture: async () => new Blob(['spoken request']),
+      transcribe: async () => 'Keep my draft even after a provider error',
+      respond: async () => {
+        throw new Error('secret provider stack from server');
+      },
+      onTranscript: (text) => transcripts.push(text),
+      onState: (state) => {
+        if (state.phase === 'error-paused') error = state.detail;
+      },
+    }),
+  );
   call.start('workflow:thread');
   await until(() => call.phase === 'error-paused');
-  assert.deepEqual(transcripts, ['Keep my draft even after a provider error']);
-  assert.doesNotMatch(error, /secret provider stack/);
-  assert.match(error, /resume|retry/i);
+  expect(transcripts).toEqual(['Keep my draft even after a provider error']);
+  expect(error).not.toMatch(/secret provider stack/);
+  expect(error).toMatch(/resume|retry/i);
   call.end();
 });

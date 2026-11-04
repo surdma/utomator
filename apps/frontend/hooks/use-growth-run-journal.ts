@@ -27,14 +27,18 @@ export function useGrowthRunJournal(childRunId: string | null): {
       if (!active || inFlight) return;
       inFlight = true;
       try {
-        const entries = await fetchGrowthRunJournal(childRunId, controller.signal);
+        const entries = await fetchGrowthRunJournal(
+          childRunId,
+          controller.signal,
+        );
         if (active) setResult({ runId: childRunId, entries, error: '' });
       } catch (error) {
         if (active && !controller.signal.aborted) {
           setResult({
             runId: childRunId,
             entries: [],
-            error: error instanceof Error ? error.message : 'Journal unavailable',
+            error:
+              error instanceof Error ? error.message : 'Journal unavailable',
           });
         }
       } finally {

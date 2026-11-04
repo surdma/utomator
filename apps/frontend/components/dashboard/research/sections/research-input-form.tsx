@@ -1,7 +1,7 @@
 'use client';
 
-import type { Dispatch, FormEvent, SetStateAction } from 'react';
 import { ArrowRight, Plus, Trash2 } from 'lucide-react';
+import type { Dispatch, FormEvent, SetStateAction } from 'react';
 
 type Post = { url: string; text: string };
 type Creator = {
@@ -43,7 +43,7 @@ export default function ResearchInputForm({
     index: number,
     p: number,
     key: keyof Post,
-    value: string
+    value: string,
   ) => void;
   blank: () => Creator;
   saving: boolean;
@@ -103,7 +103,7 @@ export default function ResearchInputForm({
             {creators.length > 1 && (
               <button
                 type="button"
-                aria-label={'Remove creator ' + (i + 1)}
+                aria-label={`Remove creator ${i + 1}`}
                 onClick={() =>
                   setCreators((rows) => rows.filter((_, index) => index !== i))
                 }
@@ -158,7 +158,7 @@ export default function ResearchInputForm({
                 {creator.posts.length > 1 && (
                   <button
                     type="button"
-                    aria-label={'Remove post ' + (j + 1)}
+                    aria-label={`Remove post ${j + 1}`}
                     onClick={() =>
                       updateCreator(i, {
                         posts: creator.posts.filter((_, k) => k !== j),
@@ -188,7 +188,7 @@ export default function ResearchInputForm({
                   minLength={20}
                   maxLength={3000}
                   rows={3}
-                  className={field + ' resize-y'}
+                  className={`${field} resize-y`}
                   value={post.text}
                   onChange={(e) => updatePost(i, j, 'text', e.target.value)}
                 />

@@ -8,7 +8,7 @@ type CraftCommandResult =
 
 export async function executeCraftCommand(
   text: string,
-  selectedCraftId: string | null
+  selectedCraftId: string | null,
 ): Promise<CraftCommandResult> {
   const command = text
     .trim()
@@ -30,7 +30,7 @@ export async function executeCraftCommand(
   const opening = command.match(/^open\s+([a-z0-9-]+)$/i);
   if (opening) {
     const wanted = library.find((item) => item.slug === opening[1]);
-    if (!wanted) throw Error('No craft matches the slug ' + opening[1]);
+    if (!wanted) throw Error(`No craft matches the slug ${opening[1]}`);
     return {
       kind: 'open',
       id: wanted.id,
@@ -45,7 +45,7 @@ export async function executeCraftCommand(
   const chosen = library.find((item) => item.id === selectedCraftId);
   if (!chosen) throw Error('Select a craft in Crafts first.');
   const { expectedVersion, craft } = editCraftFromCommand(chosen, command);
-  const responseSave = await fetch(getApi('crafts/' + chosen.id), {
+  const responseSave = await fetch(getApi(`crafts/${chosen.id}`), {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ expectedVersion, craft }),

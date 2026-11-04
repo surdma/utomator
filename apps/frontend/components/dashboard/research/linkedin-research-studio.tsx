@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
-import ResearchStudioHeader from './sections/research-studio-header';
+import { type FormEvent, useEffect, useState } from 'react';
+import ResearchHistoryList from './sections/research-history-list';
 import ResearchInputForm from './sections/research-input-form';
 import ResearchReportPanel from './sections/research-report-panel';
-import ResearchHistoryList from './sections/research-history-list';
+import ResearchStudioHeader from './sections/research-studio-header';
 
 type Post = { url: string; text: string };
 type Creator = {
@@ -75,14 +75,14 @@ export default function LinkedInResearchStudio() {
   const updateCreator = (index: number, patch: Partial<Creator>) =>
     setCreators((rows) =>
       rows.map((creator, i) =>
-        index === i ? { ...creator, ...patch } : creator
-      )
+        index === i ? { ...creator, ...patch } : creator,
+      ),
     );
   const updatePost = (
     index: number,
     p: number,
     key: keyof Post,
-    value: string
+    value: string,
   ) =>
     setCreators((rows) =>
       rows.map((creator, i) =>
@@ -91,10 +91,10 @@ export default function LinkedInResearchStudio() {
           : {
               ...creator,
               posts: creator.posts.map((post, j) =>
-                p === j ? { ...post, [key]: value } : post
+                p === j ? { ...post, [key]: value } : post,
               ),
-            }
-      )
+            },
+      ),
     );
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

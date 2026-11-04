@@ -1,8 +1,8 @@
 'use client';
 
 import { ArrowUpFromLine, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/automate-card';
 import type { ChangeEvent } from 'react';
+import { Button } from '@/components/ui/automate-card';
 
 type Props = {
   capabilityCount: number;

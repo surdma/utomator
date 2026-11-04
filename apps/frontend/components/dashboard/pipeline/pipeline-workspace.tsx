@@ -1,28 +1,33 @@
 'use client';
 
-import { type ComponentType, type Dispatch, type SetStateAction } from 'react';
 import { useReducedMotion } from 'framer-motion';
-import PipelineRunSetupForm from './workspace/pipeline-run-setup-form';
-import FloatingWorkflowControls from './workspace/floating-workflow-controls';
+import type { ComponentType, Dispatch, SetStateAction } from 'react';
+import type { Connector } from '../connections/connector-onboarding';
+import WorkflowEmptyState from '../workflows/editor/workflow-empty-state';
 import WorkflowPlanEditor, {
   type WorkflowPlan,
 } from '../workflows/workflow-plan-editor';
-import type { Connector } from '../connections/connector-onboarding';
-import { type Platform, type Workflow } from './workflow-catalog';
 import { getApi } from './api-client';
 import type { DashboardPane } from './dashboard-route';
 import type { Run, Event as RunEvent } from './run-models';
 import type { WorkflowRecord } from './use-workflow-workspace';
+import type { Platform, Workflow } from './workflow-catalog';
+import FloatingWorkflowControls from './workspace/floating-workflow-controls';
+import PipelineRunSetupForm from './workspace/pipeline-run-setup-form';
 
 type Props = {
   pane: DashboardPane;
   workflowPlan: WorkflowPlan;
   templatePlans: WorkflowPlan[];
   selectedGrowthTemplateId: string | null;
+  workspaceOpen: boolean;
+  savedWorkflows: WorkflowRecord[];
+  beginNewWorkflow: () => void;
+  selectSavedWorkflow: (id: string | null) => void;
+  closeWorkspace: () => void;
   connectorReady: boolean;
   activeConnector: Connector | null;
   applyGrowthTemplate: (id: string) => Promise<void>;
-  setSelectedGrowthTemplateId: Dispatch<SetStateAction<string | null>>;
   chooseAction: (action: string) => void;
   platform: Platform;
   action: string;
@@ -65,10 +70,14 @@ export default function PipelineWorkspace({
   workflowPlan,
   templatePlans,
   selectedGrowthTemplateId,
+  workspaceOpen,
+  savedWorkflows,
+  beginNewWorkflow,
+  selectSavedWorkflow,
+  closeWorkspace,
   connectorReady,
   activeConnector,
   applyGrowthTemplate,
-  setSelectedGrowthTemplateId,
   chooseAction,
   platform,
   action,
@@ -108,15 +117,28 @@ export default function PipelineWorkspace({
   const reduceMotion = useReducedMotion();
   return (
     <>
-      {pane === 'workspace' && (
-        <>
+      {pane === 'workspace' &&
+        (!workspaceOpen ? (
+          <WorkflowEmptyState
+            platform={platform}
+            templates={templatePlans}
+            savedWorkflows={savedWorkflows}
+            connected={connectorReady}
+            busy={busy}
+            error={runFormError}
+            onNew={beginNewWorkflow}
+            onOpenSaved={selectSavedWorkflow}
+            onApplyTemplate={applyTemplate}
+            onApplyYaml={applyGrowthTemplate}
+          />
+        ) : (
           <WorkflowPlanEditor
             plan={workflowPlan}
             templates={templatePlans}
             growthTemplateId={selectedGrowthTemplateId}
             growthAccountId={connectorReady ? activeConnector?.id : undefined}
             onGrowthTemplateApply={applyGrowthTemplate}
-            onClearGrowth={() => setSelectedGrowthTemplateId(null)}
+            onClearGrowth={closeWorkspace}
             onGrowthActionSelect={chooseAction}
             connected={
               activeConnector?.platform === 'linkedin' &&
@@ -154,7 +176,7 @@ export default function PipelineWorkspace({
             onSave={saveWorkflowPlan}
             runError={runFormError}
             evidenceRoot={
-              active ? getApi('runs/' + active.id + '/evidence/') : undefined
+              active ? getApi(`runs/${active.id}/evidence/`) : undefined
             }
             onEvidenceOpen={annotateCapture}
           >
@@ -176,11 +198,11 @@ export default function PipelineWorkspace({
               platformLabel={platformLabel}
             />
           </WorkflowPlanEditor>
-        </>
-      )}
+        ))}
       {pane === 'workspace' && (
         <FloatingWorkflowControls
           selectedGrowthTemplateId={selectedGrowthTemplateId}
+          workspaceOpen={workspaceOpen}
           active={active}
           platform={platform}
           action={action}

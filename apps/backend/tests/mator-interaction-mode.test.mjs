@@ -1,19 +1,22 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
-import { parseMatorInteractionMode, mayAutoApproveMatorAction } from '../src/core/mator-interaction-mode.ts';
+
+import { test, expect } from 'vitest';
+import {
+  mayAutoApproveMatorAction,
+  parseMatorInteractionMode,
+} from '../src/mator/mator-interaction-mode.ts';
 
 test('legacy text messages retain global approval policy', () => {
-  assert.equal(parseMatorInteractionMode(undefined), 'text');
-  assert.equal(mayAutoApproveMatorAction(true, 'text'), true);
-  assert.equal(mayAutoApproveMatorAction(false, 'text'), false);
+  expect(parseMatorInteractionMode(undefined)).toEqual('text');
+  expect(mayAutoApproveMatorAction(true, 'text')).toEqual(true);
+  expect(mayAutoApproveMatorAction(false, 'text')).toEqual(false);
 });
 test('AI Call always stages even when autoApprove is on', () => {
-  assert.equal(parseMatorInteractionMode('ai_call'), 'ai_call');
-  assert.equal(mayAutoApproveMatorAction(true, 'ai_call'), false);
-  assert.equal(mayAutoApproveMatorAction(false, 'ai_call'), false);
+  expect(parseMatorInteractionMode('ai_call')).toEqual('ai_call');
+  expect(mayAutoApproveMatorAction(true, 'ai_call')).toEqual(false);
+  expect(mayAutoApproveMatorAction(false, 'ai_call')).toEqual(false);
 });
 test('unknown/invalid call mode is rejected, not silently treated as text', () => {
   for (const mode of ['call', 'AI_CALL', null, true, 0, {}]) {
-    assert.throws(() => parseMatorInteractionMode(mode), /interactionMode/);
+    expect(() => parseMatorInteractionMode(mode)).toThrow(/interactionMode/);
   }
 });

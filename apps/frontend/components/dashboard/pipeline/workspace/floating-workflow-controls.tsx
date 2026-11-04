@@ -1,14 +1,15 @@
 'use client';
 
-import { type ComponentType, type Dispatch, type SetStateAction } from 'react';
 import { Check, Pause, Play, Plus, Square } from 'lucide-react';
-import type { Platform } from '../workflow-catalog';
-import type { Run } from '../run-models';
+import type { ComponentType, Dispatch, SetStateAction } from 'react';
 import type { WorkflowPlan } from '../../workflows/workflow-plan-editor';
+import type { Run } from '../run-models';
 import type { WorkflowRecord } from '../use-workflow-workspace';
+import type { Platform } from '../workflow-catalog';
 
 type Props = {
   selectedGrowthTemplateId: string | null;
+  workspaceOpen: boolean;
   active: Run | null;
   platform: Platform;
   action: string;
@@ -31,6 +32,7 @@ type Props = {
 
 export default function FloatingWorkflowControls({
   selectedGrowthTemplateId,
+  workspaceOpen,
   active,
   platform,
   action,
@@ -55,7 +57,7 @@ export default function FloatingWorkflowControls({
       className="pointer-events-none fixed bottom-5 left-1/2 z-30 hidden -translate-x-1/2 items-center gap-2 rounded-full border border-white/30 bg-[#111e2b] p-1.5 shadow-2xl lg:flex"
       data-testid="floating-workflow-controls"
     >
-      {!selectedGrowthTemplateId && (
+      {(workspaceOpen || Boolean(active)) && !selectedGrowthTemplateId && (
         <WorkflowRunButton
           active={active}
           platform={platform}
@@ -77,14 +79,12 @@ export default function FloatingWorkflowControls({
       <button
         type="button"
         onClick={() => setConnectorOpenSignal((value) => value + 1)}
-        aria-label={
-          (connectorReady ? 'Manage ' : 'Connect ') + platformLabel + ' account'
-        }
+        aria-label={`${(connectorReady ? 'Manage ' : 'Connect ') + platformLabel} account`}
         aria-haspopup="dialog"
         title={
           connectorReady
-            ? platformLabel + ' connected · Manage or sync'
-            : 'Connect ' + platformLabel + ' account'
+            ? `${platformLabel} connected · Manage or sync`
+            : `Connect ${platformLabel} account`
         }
         data-testid="floating-connector-button"
         className="pointer-events-auto relative inline-flex size-12 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-400"

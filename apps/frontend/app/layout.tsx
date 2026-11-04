@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
-import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
+import Navbar from '@/components/navbar';
+
 const inter = Inter({
   variable: '--font-sans',
   subsets: ['latin'],
@@ -20,7 +21,7 @@ export const viewport: Viewport = {
 };
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+    process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
   ),
   title: {
     default: 'Utomator | Browser automation with human control',

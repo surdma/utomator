@@ -32,15 +32,17 @@ export default function WorkspaceModel() {
       </h2>
       <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
         Pipelines inside it are connected nodes. Open a pipeline to see the
-        tasks, steps, actions, and events that carry one part of the goal.
-        Every Growth YAML file uses this shape, so a new aim grows by adding
-        pipelines and registered Runner tasks.
+        tasks, steps, actions, and events that carry one part of the goal. Every
+        Growth YAML file uses this shape, so a new aim grows by adding pipelines
+        and registered Runner tasks.
       </p>
       <ul className="mt-3 grid gap-2 sm:grid-cols-3">
         {aims.map((aim) => (
           <li key={aim.name} className="rounded-xl bg-slate-50 px-3 py-3">
             <p className="text-sm font-semibold text-slate-950">{aim.name}</p>
-            <p className="mt-1 text-xs leading-5 text-slate-600">{aim.detail}</p>
+            <p className="mt-1 text-xs leading-5 text-slate-600">
+              {aim.detail}
+            </p>
           </li>
         ))}
       </ul>

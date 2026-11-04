@@ -27,7 +27,7 @@ export function Badge({
         'inline-flex shrink-0 items-center gap-1 rounded-full font-semibold whitespace-nowrap',
         size === 'xs' ? 'px-1.5 py-0 text-[10px]' : 'px-2 py-0.5 text-[11px]',
         tones[tone],
-        className
+        className,
       )}
       {...props}
     />

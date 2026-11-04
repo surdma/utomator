@@ -79,7 +79,7 @@ export default function IntelligenceActivityFeed({
                 <Activity className="size-4" />
               )}
               {item.source === 'chat' ? 'Your message' : 'Browser observation'}
-              {item.platform ? ' · ' + item.platform.toUpperCase() : ''}
+              {item.platform ? ` · ${item.platform.toUpperCase()}` : ''}
             </p>
             <p className="mt-3 text-sm leading-7 break-words whitespace-pre-wrap text-slate-800">
               {item.text}
@@ -87,7 +87,7 @@ export default function IntelligenceActivityFeed({
             <p className="mt-4 flex items-center gap-2 text-xs text-slate-500">
               <Clock3 className="size-3.5" />
               {new Date(item.time).toLocaleString()}
-              {item.runId ? ' · Run ' + item.runId.slice(0, 8) : ''}
+              {item.runId ? ` · Run ${item.runId.slice(0, 8)}` : ''}
             </p>
           </article>
         ))}

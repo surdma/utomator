@@ -22,7 +22,7 @@ export function Queue({ active, text = 'Sending…', className }: Props) {
       data-testid="mator-queue"
       className={cn(
         'flex items-center gap-2 px-4 pt-2 text-[11px] font-medium text-slate-500',
-        className
+        className,
       )}
     >
       <LoaderCircle

@@ -1,27 +1,15 @@
 'use client';
 
 import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-  type MouseEvent,
-} from 'react';
-import {
-  ReactFlow,
-  ReactFlowProvider,
   Background,
   BackgroundVariant,
   Controls,
-  useNodesState,
+  ReactFlow,
+  ReactFlowProvider,
   useEdgesState,
+  useNodesState,
   useReactFlow,
 } from '@xyflow/react';
-import StudioDialog from '@/components/ui/studio-dialog';
-import StageNode from './workflow-artboard-node';
-import WorkflowOutputDialog from './workflow-artboard-output-dialog';
-import WorkflowAnnotationDialog from './workflow-artboard-annotation-dialog';
 import {
   Activity,
   CircleDot,
@@ -30,21 +18,33 @@ import {
   LockKeyhole,
   Play,
 } from 'lucide-react';
+import {
+  type MouseEvent,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import StudioDialog from '@/components/ui/studio-dialog';
 import { WorkflowArtboardToolbar } from './artboard/workflow-artboard-toolbar';
-
+import WorkflowAnnotationDialog from './workflow-artboard-annotation-dialog';
 import {
   buildGraph,
   type CanvasEvent,
-  type TaggedAnnotationReview,
   type CanvasWorkflow,
   type Phase,
-  type StudioNode,
   type StudioEdge,
+  type StudioNode,
+  type TaggedAnnotationReview,
 } from './workflow-artboard-graph';
+import StageNode from './workflow-artboard-node';
+import WorkflowOutputDialog from './workflow-artboard-output-dialog';
+
 export type {
   CanvasEvent,
-  TaggedAnnotationReview,
   CanvasWorkflow,
+  TaggedAnnotationReview,
 } from './workflow-artboard-graph';
 
 type Popup = { kind: 'node' | 'edge'; id: string; x: number; y: number } | null;
@@ -105,14 +105,14 @@ function CanvasInner({
   const graph = useMemo(
     () =>
       buildGraph(action, actionLabel, state, events, taggedReviews.length > 0),
-    [action, actionLabel, state, events, taggedReviews.length]
+    [action, actionLabel, state, events, taggedReviews.length],
   );
   const { fitView } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState<StudioNode>(
-    graph.nodes
+    graph.nodes,
   );
   const [edges, setEdges, onEdgesChange] = useEdgesState<StudioEdge>(
-    graph.edges
+    graph.edges,
   );
   const [focused, setFocused] = useState<string | null>('inspect');
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
@@ -133,7 +133,7 @@ function CanvasInner({
     return () => cancelAnimationFrame(frame);
   }, [runId]);
   const [notice, setNotice] = useState(
-    'Select nodes or right-click a connection to inspect it.'
+    'Select nodes or right-click a connection to inspect it.',
   );
   useEffect(() => {
     // Apply graph telemetry after paint so interaction state is not updated during effect setup.
@@ -170,7 +170,7 @@ function CanvasInner({
       if (node.id !== 'finish' && node.id !== 'verify') onNodeFocus?.(node.id);
       setSelectedEdge(null);
       const container = (event.currentTarget as HTMLElement).closest(
-        '[data-workflow-canvas]'
+        '[data-workflow-canvas]',
       );
       const rect = container?.getBoundingClientRect();
       setPopup({
@@ -178,22 +178,22 @@ function CanvasInner({
         id: node.id,
         x: Math.min(
           Math.max(8, event.clientX - (rect?.left ?? 0)),
-          Math.max(8, (rect?.width ?? 300) - 215)
+          Math.max(8, (rect?.width ?? 300) - 215),
         ),
         y: Math.min(
           Math.max(8, event.clientY - (rect?.top ?? 0)),
-          Math.max(8, (rect?.height ?? 450) - 200)
+          Math.max(8, (rect?.height ?? 450) - 200),
         ),
       });
     },
-    [onNodeFocus]
+    [onNodeFocus],
   );
   const showEdgeMenu = useCallback((event: MouseEvent, edge: StudioEdge) => {
     event.preventDefault();
     setSelectedEdge(edge.id);
     setFocused(null);
     const container = (event.currentTarget as HTMLElement).closest(
-      '[data-workflow-canvas]'
+      '[data-workflow-canvas]',
     );
     const rect = container?.getBoundingClientRect();
     setPopup({
@@ -201,11 +201,11 @@ function CanvasInner({
       id: edge.id,
       x: Math.min(
         Math.max(8, event.clientX - (rect?.left ?? 0)),
-        Math.max(8, (rect?.width ?? 300) - 215)
+        Math.max(8, (rect?.width ?? 300) - 215),
       ),
       y: Math.min(
         Math.max(8, event.clientY - (rect?.top ?? 0)),
-        Math.max(8, (rect?.height ?? 450) - 200)
+        Math.max(8, (rect?.height ?? 450) - 200),
       ),
     });
   }, []);
@@ -331,13 +331,13 @@ function CanvasInner({
                           ? 'annotation'
                           : popup.id === 'action'
                             ? null
-                            : 'stage'
+                            : 'stage',
                     );
-                    setNotice('Inspecting ' + popup.id + ' stage');
+                    setNotice(`Inspecting ${popup.id} stage`);
                   } else {
                     setSelectedEdge(popup.id);
                     setInspector(true);
-                    setNotice('Active trace: ' + popup.id);
+                    setNotice(`Active trace: ${popup.id}`);
                   }
                   setPopup(null);
                 }}
@@ -353,7 +353,7 @@ function CanvasInner({
                     setFocused('action');
                     setInspector(true);
                     setPopup(null);
-                    setNotice('Action selected for review: ' + actionLabel);
+                    setNotice(`Action selected for review: ${actionLabel}`);
                   }}
                   className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-xs font-semibold hover:bg-teal-50 hover:text-teal-800"
                 >

@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useRef, useState, type ComponentType } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
   Activity,
@@ -12,12 +11,13 @@ import {
   PenLine,
   UserRound,
 } from 'lucide-react';
-import type { DashboardPane } from './dashboard-route';
-import { WorkflowRunButton } from './workspace/floating-workflow-controls';
-import type { Platform } from './workflow-catalog';
-import type { Run } from './run-models';
+import { type ComponentType, useEffect, useRef, useState } from 'react';
 import type { WorkflowPlan } from '../workflows/workflow-plan-editor';
+import type { DashboardPane } from './dashboard-route';
+import type { Run } from './run-models';
 import type { WorkflowRecord } from './use-workflow-workspace';
+import type { Platform } from './workflow-catalog';
+import { WorkflowRunButton } from './workspace/floating-workflow-controls';
 
 const items = [
   { id: 'workspace', label: 'Workspace', icon: Activity },
@@ -105,7 +105,7 @@ export default function DashboardBottomNav({
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
-  }, [activeIndex, showRun]);
+  }, [activeIndex]);
 
   function itemButton(item: (typeof items)[number], index: number) {
     const selected = current(pane, item.id);

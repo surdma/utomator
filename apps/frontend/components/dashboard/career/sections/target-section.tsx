@@ -10,7 +10,7 @@ export default function TargetSection({
   value: Resume;
   onMeta: (
     key: 'label' | 'targetRole' | 'targetCompany' | 'jobDescription',
-    value: string
+    value: string,
   ) => void;
 }) {
   return (

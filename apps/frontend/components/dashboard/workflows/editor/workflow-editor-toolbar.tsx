@@ -1,19 +1,28 @@
 'use client';
 
+import {
+  ArrowLeft,
+  LayoutTemplate,
+  ListChecks,
+  Plus,
+  Save,
+  Settings2,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
-import { ArrowLeft, LayoutTemplate, Plus, Save, Settings2 } from 'lucide-react';
 import type { WorkflowPlan } from '../workflow-types';
 
 type Props = {
   plan: WorkflowPlan;
   growthTemplateId?: string | null;
+  growthTitle?: string;
+  onOpenGrowthDetails?: () => void;
   connected: boolean;
   accountLabel?: string;
   busy: boolean;
   saving: boolean;
   dirty: boolean;
   onOpenTemplates: () => void;
-  onClearGrowth?: () => void;
+  onReturnToWorkspace?: () => void;
   onOpenAddStep: () => void;
   onSave: () => Promise<void>;
   onSaveError: (message: string) => void;
@@ -48,20 +57,22 @@ function RailButton({
 export function WorkflowEditorToolbar({
   plan,
   growthTemplateId,
+  growthTitle,
+  onOpenGrowthDetails,
   connected,
   accountLabel,
   busy,
   saving,
   dirty,
   onOpenTemplates,
-  onClearGrowth,
+  onReturnToWorkspace,
   onOpenAddStep,
   onSave,
   onSaveError,
   onOpenConfig,
 }: Props) {
   const title = growthTemplateId
-    ? 'Growth workflow'
+    ? growthTitle || 'Workflow'
     : plan.name || 'Untitled workflow';
   const taskLabel =
     plan.steps.length +
@@ -69,12 +80,12 @@ export function WorkflowEditorToolbar({
   const target =
     plan.platform === 'linkedin'
       ? connected
-        ? 'Runs on ' + (accountLabel || 'the selected LinkedIn account')
+        ? `Runs on ${accountLabel || 'the selected LinkedIn account'}`
         : 'Connect LinkedIn before you run'
       : 'A verified account is required to run';
   const detail = growthTemplateId
     ? 'Pipelines connected as nodes'
-    : 'One pipeline · ' + taskLabel + ' · ' + target;
+    : `One pipeline · ${taskLabel} · ${target}`;
   const detailClass = growthTemplateId
     ? 'text-slate-500'
     : plan.platform === 'linkedin' && connected
@@ -91,11 +102,11 @@ export function WorkflowEditorToolbar({
       <div className="pointer-events-auto flex max-w-xl min-w-0 items-center gap-1 rounded-2xl border border-white/80 bg-white/95 py-1 pr-1 pl-3 shadow-lg ring-1 shadow-slate-900/5 ring-slate-200/80 backdrop-blur-md">
         <h2
           className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight text-slate-950"
-          title={title + ' · ' + detail}
+          title={`${title} · ${detail}`}
           data-testid="workflow-run-readiness"
         >
           {title}
-          <span className={'font-normal ' + detailClass}>{' · ' + detail}</span>
+          <span className={`font-normal ${detailClass}`}>{` · ${detail}`}</span>
         </h2>
         {!growthTemplateId && (
           <button
@@ -118,14 +129,30 @@ export function WorkflowEditorToolbar({
           <LayoutTemplate className="size-4" />
         </RailButton>
         {growthTemplateId ? (
-          <RailButton
-            label="Action workflows"
-            onClick={() => onClearGrowth?.()}
-          >
-            <ArrowLeft className="size-4" />
-          </RailButton>
+          <>
+            <RailButton
+              label="Workflow execution and evidence"
+              onClick={() => onOpenGrowthDetails?.()}
+            >
+              <ListChecks className="size-4" />
+            </RailButton>
+            <RailButton
+              label="Back to workspace"
+              disabled={busy || saving}
+              onClick={() => onReturnToWorkspace?.()}
+            >
+              <ArrowLeft className="size-4" />
+            </RailButton>
+          </>
         ) : (
           <>
+            <RailButton
+              label="Back to workspace"
+              disabled={busy || saving}
+              onClick={() => onReturnToWorkspace?.()}
+            >
+              <ArrowLeft className="size-4" />
+            </RailButton>
             <RailButton
               label="Add workflow step"
               disabled={busy}
@@ -141,8 +168,8 @@ export function WorkflowEditorToolbar({
                   onSaveError(
                     error instanceof Error
                       ? error.message
-                      : 'Could not save workflow'
-                  )
+                      : 'Could not save workflow',
+                  ),
                 );
               }}
             >

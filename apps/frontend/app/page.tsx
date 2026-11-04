@@ -1,6 +1,6 @@
-import PageTransition from '@/components/page-transistion';
-import HeroText from '@/components/home/hero-text';
 import HeroButton from '@/components/home/hero-button';
+import HeroText from '@/components/home/hero-text';
+import PageTransition from '@/components/page-transistion';
 
 const steps = [
   {

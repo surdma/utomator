@@ -1,18 +1,18 @@
 'use client';
 
-import { useState, type ChangeEvent } from 'react';
 import { ArrowRight, Search, Target } from 'lucide-react';
-import { CraftCatalogHeader } from './catalog/craft-catalog-header';
-import { CraftCatalogCard } from './catalog/craft-catalog-card';
+import { type ChangeEvent, useState } from 'react';
 import { Button } from '@/components/ui/automate-card';
 import StudioDialog from '@/components/ui/studio-dialog';
+import { capabilityForSlug } from '../growth/growth-capability-details';
 import {
   growthCapabilities,
   growthJourneys,
 } from '../growth/linkedin-growth-capabilities';
-import { capabilityForSlug } from '../growth/growth-capability-details';
-import type { Category, Craft } from './crafts-library';
+import { CraftCatalogCard } from './catalog/craft-catalog-card';
+import { CraftCatalogHeader } from './catalog/craft-catalog-header';
 import { craftCategoryTitles } from './craft-category-titles';
+import type { Category, Craft } from './crafts-library';
 
 type Props = {
   crafts: Craft[];
@@ -78,7 +78,7 @@ export default function CraftCatalog(props: Props) {
     );
   });
   const available = growthCapabilities.filter(
-    (item) => item.status === 'partial'
+    (item) => item.status === 'partial',
   ).length;
   return (
     <div data-testid="crafts-catalogue" className="min-w-0 space-y-6">
@@ -101,7 +101,7 @@ export default function CraftCatalog(props: Props) {
         <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {growthJourneys.map((journey) => {
             const entry = crafts.find(
-              (craft) => craft.slug === 'growth-' + journey.sequence[0]
+              (craft) => craft.slug === `growth-${journey.sequence[0]}`,
             );
             return (
               <button
@@ -241,7 +241,6 @@ export default function CraftCatalog(props: Props) {
           <label className="block text-sm font-semibold">
             Flow title
             <input
-              autoFocus
               required
               aria-label="New craft name"
               value={newName}

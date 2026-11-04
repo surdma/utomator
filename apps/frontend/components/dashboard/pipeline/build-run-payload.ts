@@ -41,12 +41,11 @@ export function buildRunPayload({
     throw Error('Save workflow changes before starting this revision');
   }
   if (
-    !activeConnector ||
-    activeConnector.status !== 'connected' ||
+    activeConnector?.status !== 'connected' ||
     activeConnector.platform !== platform
   ) {
     throw Error(
-      'Select and verify the social account before starting a workflow'
+      'Select and verify the social account before starting a workflow',
     );
   }
 
@@ -65,7 +64,7 @@ export function buildRunPayload({
   if (action === 'audit-page') payload.pageUrl = selectedPage;
   for (const field of fields) {
     const value = form[field.key]?.trim();
-    if (field.required && !value) throw Error(field.label + ' is required');
+    if (field.required && !value) throw Error(`${field.label} is required`);
     if (value) {
       payload[field.key] = field.key === 'websiteIndex' ? Number(value) : value;
     }

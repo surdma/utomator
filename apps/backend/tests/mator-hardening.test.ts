@@ -1,18 +1,18 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
+
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { test, expect } from 'vitest';
 import Fastify from 'fastify';
-import { registerMatorRoutes } from '../src/core/mator-routes.js';
-import { createConversation } from '../src/core/mator-conversations.js';
-import { stageAction, type MatorActionPorts } from '../src/core/mator-actions.js';
-import { putMatorSettings } from '../src/core/mator-settings.js';
-import { MAX_MATOR_ACTIONS_PER_TURN } from '../src/core/mator-agent.js';
-import { defaultPlan, type WorkflowPlan } from '../src/core/workflow-plan.js';
-import type { WorkflowRecord } from '../src/core/workflow-registry.js';
 import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
+import { type MatorActionPorts, stageAction } from '../src/mator/mator-actions.js';
+import { MAX_MATOR_ACTIONS_PER_TURN } from '../src/mator/mator-agent.js';
+import { createConversation } from '../src/mator/mator-conversations.js';
+import { registerMatorRoutes } from '../src/mator/mator-routes.js';
+import { putMatorSettings } from '../src/mator/mator-settings.js';
+import { defaultPlan, type WorkflowPlan } from '../src/workflows/workflow-plan.js';
+import type { WorkflowRecord } from '../src/workflows/workflow-registry.js';
 
 const MASTER = Buffer.from(createHash('sha256').update('mator-hardening-test-master').digest());
 const hex = (buffer: Buffer) => buffer.toString('hex');
@@ -199,7 +199,7 @@ test('idempotent message replay returns same events and does not re-call Groq', 
         headers: { 'idempotency-key': key },
         payload: { text: 'ping' },
       });
-      assert.equal(first.statusCode, 200);
+      expect(first.statusCode).toEqual(200);
       const firstIds = (first.json().events as Array<{ id: string }>).map((e) => e.id);
 
       const second = await app.inject({
@@ -208,12 +208,9 @@ test('idempotent message replay returns same events and does not re-call Groq', 
         headers: { 'idempotency-key': key },
         payload: { text: 'ping' },
       });
-      assert.equal(second.statusCode, 200);
-      assert.equal(groqCalls, 2);
-      assert.deepEqual(
-        (second.json().events as Array<{ id: string }>).map((e) => e.id),
-        firstIds,
-      );
+      expect(second.statusCode).toEqual(200);
+      expect(groqCalls).toEqual(2);
+      expect((second.json().events as Array<{ id: string }>).map((e) => e.id)).toEqual(firstIds);
     } finally {
       await app.close();
     }
@@ -235,9 +232,9 @@ test('missing Groq key returns 400 with clear settings hint; invalid key yields 
         headers: { 'idempotency-key': randomUUID() },
         payload: { text: 'hello' },
       });
-      assert.equal(missing.statusCode, 400);
-      assert.match(missing.json().error, /groq/i);
-      assert.match(missing.json().error, /settings/i);
+      expect(missing.statusCode).toEqual(400);
+      expect(missing.json().error).toMatch(/groq/i);
+      expect(missing.json().error).toMatch(/settings/i);
     } finally {
       await appMissing.close();
     }
@@ -257,15 +254,12 @@ test('missing Groq key returns 400 with clear settings hint; invalid key yields 
         headers: { 'idempotency-key': randomUUID() },
         payload: { text: 'hello again' },
       });
-      assert.equal(invalid.statusCode, 200);
+      expect(invalid.statusCode).toEqual(200);
       const events = invalid.json().events as Array<{ status?: string; text?: string }>;
       const err = events.find((e) => e.status === 'error');
-      assert.ok(err, 'expected error event for invalid Groq key');
-      assert.match(err!.text ?? '', /groq|invalid|api key|settings/i);
-      assert.equal(
-        events.filter((e) => e.status === 'staged' || e.status === 'applied').length,
-        0,
-      );
+      expect(err).toBeTruthy();
+      expect(err!.text ?? '').toMatch(/groq|invalid|api key|settings/i);
+      expect(events.filter((e) => e.status === 'staged' || e.status === 'applied').length).toEqual(0);
     } finally {
       await appInvalid.close();
     }
@@ -294,35 +288,25 @@ test('action loop cap processes at most 3 model actions per turn', async () => {
         headers: { 'idempotency-key': randomUUID() },
         payload: { text: 'do five things' },
       });
-      assert.equal(res.statusCode, 200);
+      expect(res.statusCode).toEqual(200);
       const events = res.json().events as Array<{
         kind: string;
         status?: string;
         action?: { type?: string; reason?: string; text?: string };
         text?: string;
       }>;
-      const modelGuidance = events.filter(
-        (e) => e.kind === 'how' && /^explanation-/.test(e.text ?? ''),
-      );
-      assert.equal(modelGuidance.length, MAX_MATOR_ACTIONS_PER_TURN);
-      assert.deepEqual(
-        modelGuidance.map((event) => event.text),
-        ['explanation-1', 'explanation-2', 'explanation-3'],
-      );
-      assert.equal(
-        events.filter((event) => event.status === 'staged' || event.status === 'applied').length,
-        0,
-      );
-      assert.equal(workflow.live.revision, 1);
-      assert.ok(
-        events.some(
+      const modelGuidance = events.filter((e) => e.kind === 'how' && /^explanation-/.test(e.text ?? ''));
+      expect(modelGuidance.length).toEqual(MAX_MATOR_ACTIONS_PER_TURN);
+      expect(modelGuidance.map((event) => event.text)).toEqual(['explanation-1', 'explanation-2', 'explanation-3']);
+      expect(events.filter((event) => event.status === 'staged' || event.status === 'applied').length).toEqual(0);
+      expect(workflow.live.revision).toEqual(1);
+      expect(events.some(
           (e) =>
-            (e.action?.type === 'explain_how' && /3 actions|continue/i.test(e.action.text ?? e.text ?? '')) ||
+            (e.action?.type === 'explain_how' &&
+              /3 actions|continue/i.test(e.action.text ?? e.text ?? '')) ||
             /Stopped after 3 actions/i.test(e.text ?? '') ||
             (e.action?.type === 'explain_how' && /Stopped after 3/i.test(String(e.action))),
-        ),
-        'expected loop-cap explain_how stop signal',
-      );
+        )).toBeTruthy();
     } finally {
       await app.close();
     }
@@ -353,14 +337,11 @@ test('incomplete Groq finish_reason yields incomplete event (no staged actions)'
         headers: { 'idempotency-key': randomUUID() },
         payload: { text: 'long reply please' },
       });
-      assert.equal(res.statusCode, 200);
+      expect(res.statusCode).toEqual(200);
       const events = res.json().events as Array<{ status?: string; kind: string }>;
-      assert.ok(events.some((e) => e.status === 'incomplete'));
-      assert.equal(
-        events.filter((e) => e.kind === 'action' && (e.status === 'staged' || e.status === 'applied'))
-          .length,
-        0,
-      );
+      expect(events.some((e) => e.status === 'incomplete')).toBeTruthy();
+      expect(events.filter((e) => e.kind === 'action' && (e.status === 'staged' || e.status === 'applied'))
+          .length).toEqual(0);
     } finally {
       await app.close();
     }
@@ -389,7 +370,7 @@ test('dirty restore requires confirmDirty:true else 409', async () => {
       method: 'POST',
       url: `/mator/conversations/${conversation.id}/stage/${staged.id}/confirm`,
     });
-    assert.equal(applied.statusCode, 200);
+    expect(applied.statusCode).toEqual(200);
 
     await workflow.update(workflow.live.id, workflow.live.revision, {
       ...workflow.live.plan,
@@ -403,17 +384,17 @@ test('dirty restore requires confirmDirty:true else 409', async () => {
       url: `/mator/conversations/${conversation.id}/restore-pipeline`,
       payload: {},
     });
-    assert.equal(dirty.statusCode, 409);
-    assert.match(dirty.json().error, /dirty|confirmDirty/i);
-    assert.equal(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title, 'Live drifted');
+    expect(dirty.statusCode).toEqual(409);
+    expect(dirty.json().error).toMatch(/dirty|confirmDirty/i);
+    expect(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title).toEqual('Live drifted');
 
     const restored = await app.inject({
       method: 'POST',
       url: `/mator/conversations/${conversation.id}/restore-pipeline`,
       payload: { confirmDirty: true },
     });
-    assert.equal(restored.statusCode, 200);
-    assert.equal(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title, 'Bound title');
+    expect(restored.statusCode).toEqual(200);
+    expect(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title).toEqual('Bound title');
   } finally {
     await app.close();
   }
@@ -439,15 +420,15 @@ test('GET /mator/attachments/:id is owner-scoped (cross-owner 404)', async () =>
         data: Buffer.from('89504e470d0a1a0a', 'hex').toString('base64'),
       },
     });
-    assert.equal(upload.statusCode, 201);
+    expect(upload.statusCode).toEqual(201);
     attachmentId = upload.json().id as string;
 
     const ok = await appA.inject({
       method: 'GET',
       url: `/mator/attachments/${attachmentId}`,
     });
-    assert.equal(ok.statusCode, 200);
-    assert.equal(ok.headers['content-type'], 'image/png');
+    expect(ok.statusCode).toEqual(200);
+    expect(ok.headers['content-type']).toEqual('image/png');
   } finally {
     await appA.close();
   }
@@ -458,8 +439,8 @@ test('GET /mator/attachments/:id is owner-scoped (cross-owner 404)', async () =>
       method: 'GET',
       url: `/mator/attachments/${attachmentId}`,
     });
-    assert.equal(denied.statusCode, 404);
-    assert.match(denied.json().error, /not found/i);
+    expect(denied.statusCode).toEqual(404);
+    expect(denied.json().error).toMatch(/not found/i);
   } finally {
     await appB.close();
     await rm(root, { recursive: true, force: true });

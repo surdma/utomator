@@ -1,4 +1,5 @@
-import type { RunRequest } from './types.js';
+import { ACTIONS } from '../workflows/workflow-plan.js';
+import type { Action, RunRequest } from './types.js';
 
 export function profileUrlForHandle(platform: 'linkedin' | 'x', rawHandle: string): string {
   const handle = rawHandle.trim().replace(/^@/, '');
@@ -73,6 +74,92 @@ export function validatePostUrl(profileUrl: URL, postUrl: string): URL {
   return url;
 }
 
+export function validateEditProfileInput(input: RunRequest): void {
+  if (input.platform === 'linkedin' && !input.headline && !input.about)
+    throw new Error('Supply a headline or About text');
+  if (input.platform === 'x' && !input.bio && !input.location && !input.website)
+    throw new Error('Supply at least one X profile field');
+  if (input.headline && input.headline.length > 220)
+    throw new Error('LinkedIn headline exceeds 220 characters');
+  if (input.bio && input.bio.length > 160) throw new Error('X bio exceeds 160 characters');
+  if (input.website && (!input.website.startsWith('https://') || !URL.canParse(input.website)))
+    throw new Error('Website must be HTTPS');
+}
+
+export function validateAddSkillInput(input: RunRequest): void {
+  if (!input.skill?.trim()) throw new Error('Skill is required');
+}
+
+export function validateComposePostInput(input: RunRequest): void {
+  if (!input.postText?.trim()) throw new Error('Post text is required');
+  if ((input.postText?.length || 0) > 280) throw new Error('Post text exceeds 280 characters');
+}
+
+function validatePinOrDeletePostInput(input: RunRequest, profile: URL): void {
+  if (!input.postUrl) throw new Error('Exact post URL required');
+  validatePostUrl(profile, input.postUrl);
+}
+
+export function validateEditExperienceInput(input: RunRequest): void {
+  if (!input.positionId || !/^\d{3,20}$/.test(input.positionId) || !input.description?.trim())
+    throw new Error('Existing numeric position ID and description are required');
+  if (!!input.startMonth !== !!input.startYear)
+    throw new Error('Supply both start month and year, or neither');
+  if (
+    input.startMonth &&
+    !/^(January|February|March|April|May|June|July|August|September|October|November|December)$/.test(
+      input.startMonth,
+    )
+  )
+    throw new Error('Enter full calendar month');
+  if (input.startYear && !/^(19|20)\d{2}$/.test(input.startYear)) throw new Error('Invalid start year');
+}
+
+export function validateEditServicesInput(input: RunRequest): void {
+  if (!input.description?.trim()) throw new Error('Service description is required');
+}
+
+export function validateEditWebsiteInput(input: RunRequest): void {
+  if (!input.website || !/^https:\/\//.test(input.website) || !URL.canParse(input.website))
+    throw new Error('Website must be valid HTTPS');
+  if (
+    !Number.isInteger(input.websiteIndex ?? 0) ||
+    (input.websiteIndex ?? 0) < 0 ||
+    (input.websiteIndex ?? 0) > 9
+  )
+    throw new Error('Website index must be 0–9');
+}
+
+export function validateAddProjectInput(input: RunRequest): void {
+  if (!input.projectName?.trim() || !input.description?.trim())
+    throw new Error('Project name and description are required');
+}
+
+export function validateAddFeaturedInput(input: RunRequest): void {
+  if (!input.projectUrl || !input.featuredTitle?.trim())
+    throw new Error('Featured link and title are required');
+}
+
+export function validateUploadBannerInput(input: RunRequest): void {
+  if (!input.bannerPath?.trim()) throw new Error('Banner image path is required');
+}
+
+const actionValidators: Record<Action, (input: RunRequest, profile: URL) => void> = {
+  audit: () => {},
+  'audit-page': () => {},
+  'edit-profile': validateEditProfileInput,
+  'add-skill': validateAddSkillInput,
+  'edit-experience': validateEditExperienceInput,
+  'edit-website': validateEditWebsiteInput,
+  'edit-services': validateEditServicesInput,
+  'add-project': validateAddProjectInput,
+  'add-featured': validateAddFeaturedInput,
+  'compose-post': validateComposePostInput,
+  'pin-post': validatePinOrDeletePostInput,
+  'delete-post': validatePinOrDeletePostInput,
+  'upload-banner': validateUploadBannerInput,
+};
+
 export function validateRun(input: RunRequest): URL {
   const profile = validateProfileUrl(input.platform, input.profileUrl);
   if (input.action === 'audit-page') {
@@ -88,89 +175,13 @@ export function validateRun(input: RunRequest): URL {
   ) {
     throw new Error('Enter a login identifier and password, or disable automatic login');
   }
-  if (
-    input.platform === 'linkedin' &&
-    ![
-      'audit',
-      'audit-page',
-      'edit-profile',
-      'add-skill',
-      'edit-experience',
-      'edit-website',
-      'edit-services',
-      'add-project',
-      'add-featured',
-    ].includes(input.action)
-  ) {
-    throw new Error('This workflow is not supported on LinkedIn');
+  const platformActions = ACTIONS[input.platform];
+  if (!platformActions?.includes(input.action)) {
+    throw new Error(
+      `This workflow is not supported on ${input.platform === 'linkedin' ? 'LinkedIn' : 'X'}`,
+    );
   }
-  if (
-    input.platform === 'x' &&
-    ![
-      'audit',
-      'audit-page',
-      'edit-profile',
-      'compose-post',
-      'pin-post',
-      'delete-post',
-      'upload-banner',
-    ].includes(input.action)
-  ) {
-    throw new Error('This workflow is not supported on X');
-  }
-  if (input.action === 'edit-profile') {
-    if (input.platform === 'linkedin' && !input.headline && !input.about)
-      throw new Error('Supply a headline or About text');
-    if (input.platform === 'x' && !input.bio && !input.location && !input.website)
-      throw new Error('Supply at least one X profile field');
-    if (input.headline && input.headline.length > 220)
-      throw new Error('LinkedIn headline exceeds 220 characters');
-    if (input.bio && input.bio.length > 160) throw new Error('X bio exceeds 160 characters');
-    if (input.website && (!input.website.startsWith('https://') || !URL.canParse(input.website)))
-      throw new Error('Website must be HTTPS');
-  }
-  if (input.action === 'add-skill' && !input.skill?.trim()) throw new Error('Skill is required');
-  if (input.action === 'compose-post' && !input.postText?.trim())
-    throw new Error('Post text is required');
-  if (input.action === 'compose-post' && (input.postText?.length || 0) > 280)
-    throw new Error('Post text exceeds 280 characters');
-  if (input.action === 'pin-post' || input.action === 'delete-post') {
-    if (!input.postUrl) throw new Error('Exact post URL required');
-    validatePostUrl(profile, input.postUrl);
-  }
-  if (input.action === 'edit-experience') {
-    if (!input.positionId || !/^\d{3,20}$/.test(input.positionId) || !input.description?.trim())
-      throw new Error('Existing numeric position ID and description are required');
-    if (!!input.startMonth !== !!input.startYear)
-      throw new Error('Supply both start month and year, or neither');
-    if (
-      input.startMonth &&
-      !/^(January|February|March|April|May|June|July|August|September|October|November|December)$/.test(
-        input.startMonth,
-      )
-    )
-      throw new Error('Enter full calendar month');
-    if (input.startYear && !/^(19|20)\d{2}$/.test(input.startYear))
-      throw new Error('Invalid start year');
-  }
-  if (input.action === 'edit-services' && !input.description?.trim())
-    throw new Error('Service description is required');
-  if (input.action === 'edit-website') {
-    if (!input.website || !/^https:\/\//.test(input.website) || !URL.canParse(input.website))
-      throw new Error('Website must be valid HTTPS');
-    if (
-      !Number.isInteger(input.websiteIndex ?? 0) ||
-      (input.websiteIndex ?? 0) < 0 ||
-      (input.websiteIndex ?? 0) > 9
-    )
-      throw new Error('Website index must be 0–9');
-  }
-  if (input.action === 'add-project' && (!input.projectName?.trim() || !input.description?.trim()))
-    throw new Error('Project name and description are required');
-  if (input.action === 'add-featured' && (!input.projectUrl || !input.featuredTitle?.trim()))
-    throw new Error('Featured link and title are required');
-  if (input.action === 'upload-banner' && !input.bannerPath?.trim())
-    throw new Error('Banner image path is required');
+  actionValidators[input.action](input, profile);
   if (
     input.projectUrl &&
     (!URL.canParse(input.projectUrl) || new URL(input.projectUrl).protocol !== 'https:')

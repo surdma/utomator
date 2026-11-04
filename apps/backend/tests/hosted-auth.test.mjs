@@ -1,7 +1,7 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+
+import { createHash, generateKeyPairSync, sign } from 'node:crypto';
+import { test, expect } from 'vitest';
 import { createHostedAuth } from '../hosted/auth.mjs';
-import { generateKeyPairSync, sign, createHash } from 'node:crypto';
 
 const issuer = 'https://identity.example.test';
 const redirect = 'https://utomator.example.test/auth/callback';
@@ -47,12 +47,12 @@ const create = (overrides) => {
         };
       if (url.endsWith('/keys')) return { keys: [jwk] };
       if (url.endsWith('/token')) {
-        assert.equal(options.method, 'POST');
+        expect(options.method).toEqual('POST');
         const form = new URLSearchParams(options.body);
-        assert.equal(form.get('grant_type'), 'authorization_code');
-        assert.equal(form.get('client_id'), config.clientId);
-        assert.equal(form.get('redirect_uri'), redirect);
-        assert(form.get('code_verifier').length >= 43);
+        expect(form.get('grant_type')).toEqual('authorization_code');
+        expect(form.get('client_id')).toEqual(config.clientId);
+        expect(form.get('redirect_uri')).toEqual(redirect);
+        expect(form.get('code_verifier').length >= 43).toBeTruthy();
         return { id_token: signed(claims(overrides.nonce, overrides.claims)) };
       }
       throw Error(`Unexpected identity provider request: ${url}`);
@@ -68,11 +68,8 @@ const flow = async (auth) => {
   const payload = JSON.parse(
     Buffer.from(decodeURIComponent(body).split('.')[0], 'base64url').toString('utf8'),
   );
-  assert.equal(url.searchParams.get('code_challenge_method'), 'S256');
-  assert.equal(
-    url.searchParams.get('code_challenge'),
-    createHash('sha256').update(payload.verifier).digest('base64url'),
-  );
+  expect(url.searchParams.get('code_challenge_method')).toEqual('S256');
+  expect(url.searchParams.get('code_challenge')).toEqual(createHash('sha256').update(payload.verifier).digest('base64url'));
   return { url, cookie, payload };
 };
 
@@ -88,50 +85,36 @@ test('OIDC authorization-code login binds state, nonce, PKCE, JWT signature and 
     },
     first.cookie,
   );
-  assert.match(result.ownerId, /^[a-f0-9-]{36}$/);
-  assert.notEqual(result.ownerId, 'local-owner');
+  expect(result.ownerId).toMatch(/^[a-f0-9-]{36}$/);
+  expect(result.ownerId).not.toEqual('local-owner');
   const sessionCookie = result.cookies[0].split(';')[0];
   const session = verified.session(sessionCookie);
-  assert.equal(session.ownerId, result.ownerId);
-  assert.equal(session.sub, 'alice-subject');
-  assert.equal(verified.session(sessionCookie.replace(/.$/, 'x')), null);
-  assert.equal(verified.session(''), null);
+  expect(session.ownerId).toEqual(result.ownerId);
+  expect(session.sub).toEqual('alice-subject');
+  expect(verified.session(sessionCookie.replace(/.$/, 'x'))).toEqual(null);
+  expect(verified.session('')).toEqual(null);
   verified.revoke(sessionCookie);
-  assert.equal(
-    verified.session(sessionCookie),
-    null,
-    'logout invalidates even an unexpired copied cookie',
-  );
-  assert.match(result.cookies[0], /HttpOnly/);
-  assert.match(result.cookies[0], /Secure/);
-  assert.match(result.cookies[0], /SameSite=Lax/);
-  assert.equal(verified.requireOrigin('https://utomator.example.test'), true);
-  assert.equal(verified.requireOrigin('https://other.example.test'), false);
-  assert.equal(verified.ownerFromClaims(claims(first.payload.nonce)), result.ownerId);
-  assert.notEqual(
-    verified.ownerFromClaims(claims(first.payload.nonce, { sub: 'bob-subject' })),
-    result.ownerId,
-  );
+  expect(verified.session(sessionCookie)).toEqual(null);
+  expect(result.cookies[0]).toMatch(/HttpOnly/);
+  expect(result.cookies[0]).toMatch(/Secure/);
+  expect(result.cookies[0]).toMatch(/SameSite=Lax/);
+  expect(verified.requireOrigin('https://utomator.example.test')).toEqual(true);
+  expect(verified.requireOrigin('https://other.example.test')).toEqual(false);
+  expect(verified.ownerFromClaims(claims(first.payload.nonce))).toEqual(result.ownerId);
+  expect(verified.ownerFromClaims(claims(first.payload.nonce, { sub: 'bob-subject' }))).not.toEqual(result.ownerId);
   const rotated = createHostedAuth({
     ...config,
     sessionSecret: 'rotated-session-secret-at-least-32-bytes-1234',
   });
-  assert.equal(
-    rotated.ownerFromClaims(claims(first.payload.nonce)),
-    result.ownerId,
-    'rotating cookie keys must not orphan existing tenant records',
-  );
+  expect(rotated.ownerFromClaims(claims(first.payload.nonce))).toEqual(result.ownerId);
 });
 
 test('OIDC callback rejects altered state, missing cookie, expired nonce or incorrect signature', async () => {
   const auth = create({ nonce: 'incorrect' });
   const started = await flow(auth);
-  await assert.rejects(auth.callback({ state: 'changed', code: 'code' }, started.cookie), /state/);
-  await assert.rejects(auth.callback({ state: started.payload.state, code: 'code' }, ''), /state/);
-  await assert.rejects(
-    auth.callback({ state: started.payload.state, code: 'code' }, started.cookie),
-    /claims/,
-  );
+  await expect((auth.callback({ state: 'changed', code: 'code' }, started.cookie))).rejects.toThrow(/state/);
+  await expect((auth.callback({ state: started.payload.state, code: 'code' }, ''))).rejects.toThrow(/state/);
+  await expect((auth.callback({ state: started.payload.state, code: 'code' }, started.cookie))).rejects.toThrow(/claims/);
 });
 
 test('OIDC signed token rejects wrong audience, issuer, expired time and invalid algorithm', async () => {
@@ -147,18 +130,25 @@ test('OIDC signed token rejects wrong audience, issuer, expired time and invalid
     { azp: 'another' },
   ];
   for (const mismatch of cases)
-    await assert.rejects(auth.verifyIdToken(signed(claims(nonce, mismatch)), nonce));
-  await assert.rejects(auth.verifyIdToken('eyJhbGciOiJub25lIn0.eyJzdWIiOiJ4In0.', nonce));
+    await {
+let e;
+try { await (auth.verifyIdToken(signed(claims(nonce, mismatch)), nonce))(); } catch (caught) { e = caught; }
+expect(e).toBeDefined();
+expect(() => { throw e; }).toThrow();
+};
+  await {
+let e;
+try { await (auth.verifyIdToken('eyJhbGciOiJub25lIn0.eyJzdWIiOiJ4In0.', nonce))(); } catch (caught) { e = caught; }
+expect(e).toBeDefined();
+expect(() => { throw e; }).toThrow();
+};
   const token = signed(claims(nonce));
-  await assert.rejects(auth.verifyIdToken(`${token.slice(0, -2)}xx`, nonce), /signature/);
-  assert.equal((await auth.verifyIdToken(token, nonce)).sub, 'alice-subject');
+  await expect((auth.verifyIdToken(`${token.slice(0, -2)}xx`, nonce))).rejects.toThrow(/signature/);
+  expect((await auth.verifyIdToken(token, nonce)).sub).toEqual('alice-subject');
 });
 
 test('hosted authentication validates deployment configuration before serving traffic', () => {
-  assert.throws(() => createHostedAuth({ ...config, sessionSecret: 'short' }), /32/);
-  assert.throws(() => createHostedAuth({ ...config, issuer: 'http://localhost:9000' }), /HTTPS/);
-  assert.throws(
-    () => createHostedAuth({ ...config, redirectUri: 'http://localhost:3200/auth/callback' }),
-    /HTTPS/,
-  );
+  expect(() => createHostedAuth({ ...config, sessionSecret: 'short' })).toThrow(/32/);
+  expect(() => createHostedAuth({ ...config, issuer: 'http://localhost:9000' })).toThrow(/HTTPS/);
+  expect(() => createHostedAuth({ ...config, redirectUri: 'http://localhost:3200/auth/callback' })).toThrow(/HTTPS/);
 });
