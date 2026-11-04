@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ProfilePlanner, planningManifest } from '../src/core/profile-planner.js';
+import { ProfilePlanner, planningManifest } from '../src/profile/profile-planner.js';
 import { isApprovalFor, isEvidenceRecord } from '../src/runs/evidence-approval.js';
 import { loadIdentityTimeline } from '../src/profile/timeline.js';
 import type { CareerDocument } from '../src/profile/career-store.js';

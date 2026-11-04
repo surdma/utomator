@@ -4,11 +4,11 @@ import { resolve } from 'node:path';
 import Fastify from 'fastify';
 import { Runner } from './runs/runner.js';
 import { ConnectorService } from './connect/connectors.js';
-import { ActivityMemory } from './core/activity-memory.js';
+import { ActivityMemory } from './mator/activity-memory.js';
 import { CreatorResearchStore, researchYaml } from './linkedin/linkedin-creator-research.js';
 import { LinkedInEditorialStore, editorialYaml } from './linkedin/linkedin-editorial.js';
 import { LinkedInPublishingProvider, LinkedInProviderError } from './linkedin/linkedin-publisher.js';
-import { ProfilePlanner } from './core/profile-planner.js';
+import { ProfilePlanner } from './profile/profile-planner.js';
 import { WorkflowPlanStore } from './workflows/workflow-store.js';
 import {
   readGrowthProfileWorkflow,
@@ -28,14 +28,14 @@ import { CareerStore } from './profile/career-store.js';
 import { AccountStore } from './profile/account-store.js';
 import type { BrokerInput } from './browser/streaming-signin.js';
 import { loadAutomationPlaybook } from './profile/playbook.js';
-import { assessAudit } from './core/assessment.js';
+import { assessAudit } from './runs/assessment.js';
 import { loadIdentityTimeline } from './profile/timeline.js';
 import {
   VisualReviewStore,
   type VisualRegion,
   type VisualAnnotation,
   type AnnotationEditEvent,
-} from './core/visual-review.js';
+} from './runs/visual-review.js';
 import type { Platform } from './core/types.js';
 import type { RunRequest, StreamEvent } from './core/types.js';
 import { CraftLibrary, parseMdx, toMdx, craftArchive, type CraftInput } from './crafts/library.js';

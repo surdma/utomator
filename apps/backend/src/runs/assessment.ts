@@ -1,5 +1,5 @@
-import type { EventJournal } from './events.js';
-import type { RunSummary } from './types.js';
+import type { EventJournal } from '../core/events.js';
+import type { RunSummary } from '../core/types.js';
 
 export interface Comparison {
   field: string;

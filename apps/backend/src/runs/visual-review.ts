@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { profileUrlForHandle, validatePageScope } from './validate.js';
-import type { Platform } from './types.js';
+import { profileUrlForHandle, validatePageScope } from '../core/validate.js';
+import type { Platform } from '../core/types.js';
 
 export type VisualRegion = {
   x: number;

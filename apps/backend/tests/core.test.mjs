@@ -132,7 +132,7 @@ test('one-time credentials must be complete', () => {
 });
 
 test('audit assessment distinguishes observation from a proposal', async () => {
-  const { assessAudit } = await import('../src/core/assessment.ts');
+  const { assessAudit } = await import('../src/runs/assessment.ts');
   const events = new EventJournal();
   events.publish({
     runId: 'sample',
@@ -154,7 +154,7 @@ test('audit assessment distinguishes observation from a proposal', async () => {
   assert.match(report.notice, /not an error/);
 });
 test('audit assessment does not invent missing observations', async () => {
-  const { assessAudit } = await import('../src/core/assessment.ts');
+  const { assessAudit } = await import('../src/runs/assessment.ts');
   const events = new EventJournal();
   const report = assessAudit(
     events,

@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile, unlink, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import type { CareerDocument } from '../profile/career-store.js';
-import { validateProfileUrl } from './validate.js';
-import { loadIdentityTimeline } from '../profile/timeline.js';
+import type { CareerDocument } from './career-store.js';
+import { validateProfileUrl } from '../core/validate.js';
+import { loadIdentityTimeline } from './timeline.js';
 import {
   evidenceRecord,
   approvalDecision,

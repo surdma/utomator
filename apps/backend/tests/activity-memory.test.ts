@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ActivityMemory } from '../src/core/activity-memory.js';
+import { ActivityMemory } from '../src/mator/activity-memory.js';
 
 test('conversation memory stores user messages as chat evidence, never invented facts', async () => {
   const root = await mkdtemp(join(tmpdir(), 'utomator-memory-'));
