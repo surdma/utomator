@@ -26,10 +26,8 @@ export async function chmodmedJson(path: string, value: unknown): Promise<void> 
  */
 export class ConnectorRecordStore {
   private readonly store: BackedStore<Record<string, ConnectionRecord>>;
-  private documents?: DocumentStore;
 
   setDocuments(documents: DocumentStore): void {
-    this.documents = documents;
     this.store.setDocuments(documents);
   }
 
