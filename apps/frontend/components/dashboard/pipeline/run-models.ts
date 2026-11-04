@@ -38,6 +38,8 @@ export type Run = {
   state: State;
   createdAt: string;
   error?: string;
+  currentStepId?: string;
+  checkpoint?: { id: string; message: string };
 };
 export type Coverage = {
   id: string;

@@ -28,3 +28,26 @@ export function isTerminalRunStatus(event: RunEvent) {
       event.message.includes('Run finished'))
   );
 }
+
+/** Reconcile persisted JSONL and live SSE without foreign or conflicting identities. */
+export function reconcileRunJournal(
+  previous: RunEvent[],
+  archived: RunEvent[],
+  runId: string,
+): RunEvent[] {
+  const values = new Map<number, RunEvent>();
+  const conflicts = new Set<number>();
+  for (const event of [...previous, ...archived]) {
+    if (event.runId !== runId || !Number.isSafeInteger(event.id) || event.id < 1)
+      continue;
+    if (conflicts.has(event.id)) continue;
+    const earlier = values.get(event.id);
+    if (earlier && JSON.stringify(earlier) !== JSON.stringify(event)) {
+      values.delete(event.id);
+      conflicts.add(event.id);
+    } else if (!earlier) {
+      values.set(event.id, event);
+    }
+  }
+  return [...values.values()].sort((a, b) => a.id - b.id);
+}
