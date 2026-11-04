@@ -1,30 +1,31 @@
 import { chmod, mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { runtimePath } from '../core/paths.js';
-import type { RunRequest, StreamEvent } from '../core/types.js';
+import { image } from './steps/context.js';
+import type { WorkflowContext } from './steps/context.js';
+import { audit, auditSelectedPage } from './steps/audit.js';
 import {
   addLinkedInFeatured,
   addLinkedInProject,
   addLinkedInSkill,
-  audit as auditLinkedIn,
   editLinkedIn,
   editLinkedInExperience,
   editLinkedInServices,
   editLinkedInWebsite,
 } from './steps/linkedin.js';
-import type { WorkflowContext } from './steps/shared.js';
-import { observeAfterNavigation } from './steps/shared.js';
-import { auditSelectedPage, composeX, editX, mutateXPost, uploadXBanner } from './steps/x.js';
+import { composeX, editX, mutateXPost, uploadXBanner } from './steps/x.js';
 
-export type { WorkflowContext } from './steps/shared.js';
-export { observeAfterNavigation } from './steps/shared.js';
+// The step families moved to workflows/steps/*; these re-exports preserve the
+// public contract that runner.ts and the tests import from this module.
+export type { WorkflowContext } from './steps/context.js';
+export { observeAfterNavigation } from './steps/context.js';
 
 export async function execute(ctx: WorkflowContext): Promise<void> {
   ctx.emit('status', 'Browser session connected');
   await (async () => {
     switch (ctx.input.action) {
       case 'audit':
-        return auditLinkedIn(ctx);
+        return audit(ctx);
       case 'audit-page':
         return auditSelectedPage(ctx);
       case 'edit-profile':

@@ -9,7 +9,7 @@ import {
   one,
   save,
   type WorkflowContext,
-} from './shared.js';
+} from './context.js';
 
 export async function audit(ctx: WorkflowContext): Promise<void> {
   await navigate(ctx, ctx.profile.href);
@@ -114,6 +114,7 @@ export async function editLinkedIn(ctx: WorkflowContext): Promise<void> {
     if (afterApproval !== value) throw new Error('ABOUT_CHANGED_DURING_APPROVAL');
     await save(ctx);
     await navigate(ctx, ctx.profile.href);
+    // Reopen the known edit form to read the persisted value rather than a collapsed preview.
     await navigate(ctx, `${prefix}/edit/forms/summary/new/`);
     const reopened = await one(
       ctx.page.locator('.tiptap.ProseMirror[contenteditable="true"]'),
@@ -156,6 +157,7 @@ export async function addLinkedInSkill(ctx: WorkflowContext): Promise<void> {
   await ctx.approve(`Confirm LinkedIn's selected standardized skill: ${skill}`);
   await save(ctx);
   await navigate(ctx, `${prefix}/details/skills/`);
+  // Scroll to load long skill sections. No infinite loops.
   let found = false;
   for (let i = 0; i < 12; i++) {
     if ((await ctx.page.locator('main').innerText()).toLowerCase().includes(skill.toLowerCase())) {
@@ -309,6 +311,7 @@ export async function addLinkedInProject(ctx: WorkflowContext): Promise<void> {
   ) {
     throw new Error('PROJECT_PRE_SAVE_MISMATCH');
   }
+  // Link previews are asynchronous and can fail. Never silently save a project without its requested media.
   if (ctx.input.projectUrl) {
     await (await one(ctx.page.getByRole('button', { name: 'Add media' }), 'Add media')).click();
     await (await one(ctx.page.getByRole('menuitem', { name: 'Add a link' }), 'Add a link')).click();
@@ -369,6 +372,7 @@ export async function addLinkedInFeatured(ctx: WorkflowContext): Promise<void> {
   );
   await input.fill(ctx.input.projectUrl!);
   await (await one(ctx.page.getByRole('button', { name: 'Add', exact: true }), 'Add link')).click();
+  // Inspect the current dialog. If we cannot uniquely identify title, stop for a manual update.
   const named = ctx.page.getByRole('textbox', { name: /title/i });
   if ((await named.count()) !== 1) throw new Error('FEATURED_TITLE_SELECTOR_AMBIGUOUS');
   await named.fill(ctx.input.featuredTitle!);

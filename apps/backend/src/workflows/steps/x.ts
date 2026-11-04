@@ -1,21 +1,21 @@
 import type { Locator } from 'playwright';
-import type { RunRequest } from '../../core/types.js';
-import { validatePostUrl } from '../../core/validate.js';
 import {
   assertActive,
   ensureXOwner,
   image,
   navigate,
-  observeAfterNavigation,
   one,
   save,
   type WorkflowContext,
-} from './shared.js';
+} from './context.js';
+import { validatePostUrl } from '../../core/validate.js';
 
 export async function editX(ctx: WorkflowContext): Promise<void> {
   await ensureXOwner(ctx);
   await ctx.page.locator('[data-testid="editProfileButton"]').click();
   const dialog = await one(ctx.page.getByRole('dialog'), 'X profile dialog');
+  // Historical form read showed input[type=text] ordered name, location, website.
+  // Do not depend on that order for mutation; resolve by field metadata instead.
   const fields: Array<[string, string | undefined, Locator]> = [
     ['bio', ctx.input.bio, dialog.locator('textarea').first()],
     ['location', ctx.input.location, dialog.getByRole('textbox', { name: /location/i })],
@@ -71,6 +71,7 @@ export async function composeX(ctx: WorkflowContext): Promise<void> {
   assertActive(ctx);
   await (await one(button, 'X publish button')).click();
   await navigate(ctx, ctx.profile.href);
+  // Treat missing immediate timeline evidence as unverified, not success.
   if (!(await ctx.page.locator('article').allInnerTexts()).some((t) => t.includes(text)))
     throw new Error('POST_PUBLISH_NOT_VERIFIED');
   ctx.emit('result', 'X post appeared on the profile after publication');
@@ -114,6 +115,7 @@ export async function mutateXPost(ctx: WorkflowContext): Promise<void> {
         .innerText()
         .catch(() => '')
     ).toLowerCase();
+    // An empty article list may be a loading screen; only explicit confirmation counts.
     if (visible !== 0 || !/this post (was|has been) deleted/i.test(state)) {
       throw new Error('DELETE_POST_NOT_VERIFIED: no explicit deletion confirmation');
     }
@@ -164,37 +166,4 @@ export async function uploadXBanner(ctx: WorkflowContext): Promise<void> {
     .catch(() => null);
   if (!current || current === previous) throw new Error('X_BANNER_POST_SAVE_UNVERIFIED');
   ctx.emit('result', 'X banner changed after a fresh profile load');
-}
-
-export async function auditSelectedPage(ctx: WorkflowContext): Promise<void> {
-  const target = ctx.input.pageUrl;
-  if (!target) throw new Error('Choose a supported page scope before inspecting');
-  await navigate(ctx, target);
-  const data = await observeAfterNavigation(
-    ctx.page,
-    new URL(target),
-    async () =>
-      ctx.page.evaluate(() => ({
-        title: document.title,
-        url: location.href,
-        excerpt: (
-          (document.querySelector('main') as HTMLElement | null)?.innerText ||
-          document.body.innerText ||
-          ''
-        )
-          .replace(/\s+/g, ' ')
-          .slice(0, 3500),
-      })),
-    {
-      signal: ctx.signal,
-      onRetry: (attempt) =>
-        ctx.emit(
-          'step',
-          'Page navigated during inspection; retrying read-only read (' + attempt + '/2)',
-        ),
-    },
-  );
-  await image(ctx, 'audit-selected-page');
-  ctx.emit('audit', 'Selected page observed (read-only)', data);
-  ctx.emit('result', 'Scoped inspection saved. Review annotations before starting any change');
 }
