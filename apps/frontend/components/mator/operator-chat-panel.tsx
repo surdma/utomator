@@ -1125,10 +1125,9 @@ export default function OperatorChatPanel({
                   questions={[call.question.value]}
                   onUploadFile={onUploadClarifyFile}
                   onAnswerData={async (answers, ids) => {
-                    await call.answerVisual(
-                      answers[call.question?.value.name] ?? [],
-                      ids,
-                    );
+                    const name = call.question?.value.name;
+                    if (!name) return false;
+                    await call.answerVisual(answers[name] ?? [], ids);
                     return true;
                   }}
                 />

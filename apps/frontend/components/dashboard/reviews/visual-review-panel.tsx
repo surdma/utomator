@@ -197,29 +197,29 @@ export default function VisualReviewPanel({
     if (!gesture) return;
     const p = position(event) ?? gesture.end;
     const points =
-      tool === 'freehand' ? [...gesture.points, p].slice(0, 250) : undefined;
+      tool === 'freehand' ? [...gesture.points, p].slice(0, 250) : [];
+    if (tool === 'freehand' && points.length < 2) {
+      setGesture(null);
+      return;
+    }
     const box =
       tool === 'freehand'
         ? geometry(
             {
-              x: Math.min(...points?.map((q) => q.x)),
-              y: Math.min(...points?.map((q) => q.y)),
+              x: Math.min(...points.map((q) => q.x)),
+              y: Math.min(...points.map((q) => q.y)),
             },
             {
-              x: Math.max(...points?.map((q) => q.x)),
-              y: Math.max(...points?.map((q) => q.y)),
+              x: Math.max(...points.map((q) => q.x)),
+              y: Math.max(...points.map((q) => q.y)),
             },
           )
         : geometry(gesture.start, p);
-    if (tool === 'freehand' && points?.length < 2) {
-      setGesture(null);
-      return;
-    }
     const annotation: VisualAnnotation = {
       id: `mark-${Date.now().toString(36)}-${nextId.current++}`,
       shape: tool,
       ...box,
-      ...(points ? { points } : {}),
+      ...(tool === 'freehand' ? { points } : {}),
       action: 'inspect',
       comment: '',
     };

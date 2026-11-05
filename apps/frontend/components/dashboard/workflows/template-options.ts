@@ -33,7 +33,7 @@ export type GrowthTemplateCategory = (typeof growthTemplateCategories)[number];
 export function buildTemplateOptions(
   growthTemplates: GrowthTemplateSummary[],
 ): GrowthOption[] {
-  const lookup = new Map(
+  const lookup = new Map<string, (typeof growthCapabilities)[number]>(
     growthCapabilities.map((item) => [`linkedin-${item.id}`, item] as const),
   );
   return growthTemplates.map((template) => {
