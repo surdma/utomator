@@ -45,7 +45,7 @@ jobs:
         run: pnpm --filter @utomator/backend exec biome lint --error-on-warnings .
 
   frontend-format-and-lint:
-    name: Frontend formatting and ESLint
+    name: Frontend Biome formatting and lint
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -58,13 +58,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Verify frontend formatting
         id: frontend-format
-        run: >-
-          pnpm exec prettier --check
-          'apps/frontend/{app,components,lib,tests}/**/*.{js,jsx,mjs,ts,tsx,css,md,json}'
-          'apps/frontend/*.{js,mjs,ts,tsx,json}'
-      - name: Verify frontend ESLint, including warnings
+        run: pnpm --filter @utomator/frontend exec biome format --max-diagnostics=200 .
+      - name: Verify frontend Biome lint, including warnings
         if: ${{ !cancelled() && steps.frontend-format.outcome != 'skipped' }}
-        run: pnpm --filter @utomator/frontend exec eslint . --max-warnings 0
+        run: pnpm --filter @utomator/frontend exec biome lint --error-on-warnings .
 
   react-doctor:
     name: React Doctor
