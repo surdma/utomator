@@ -154,9 +154,9 @@ jobs:
           exit 1
       - name: Exercise executable and design-only Growth YAML in the original Artboard
         run: >-
-          pnpm --filter @utomator/backend exec node --import tsx --test
-          --test-name-pattern="Growth profile YAML uses one Artboard|planning-only Growth YAML stays read-only|blank Artboard opens action templates"
+          pnpm --filter @utomator/backend exec vitest run --config vitest.integration.config.ts
           tests/browser.integration.test.ts
+          -t "Growth profile YAML uses one Artboard|planning-only Growth YAML stays read-only|blank Artboard opens action templates"
         env:
           NODE_ENV: test
           HEADLESS: "true"

@@ -15,7 +15,7 @@
     "test": "vitest run",
     "test:unit": "vitest run",
     "test:feature": "vitest run",
-    "test:integration": "vitest run tests/*.integration.test.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts tests/*.integration.test.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:migrate": "drizzle-kit migrate",
