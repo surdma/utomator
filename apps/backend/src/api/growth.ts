@@ -5,6 +5,7 @@ import {
   readGrowthTemplate,
   readGrowthTemplateCatalog,
 } from '../engine/growth-profile.js';
+import type { GrowthTemplateStore, StoredGrowthTemplate } from '../engine/growth-template-store.js';
 import type { ProfileGrowthCoordinator } from '../engine/profile-growth-coordinator.js';
 
 /**
@@ -16,13 +17,19 @@ export function registerGrowthRoutes(
   app: FastifyInstance,
   growthProfileRuns: ProfileGrowthCoordinator,
   connectors: ConnectorService,
+  growthTemplates: GrowthTemplateStore,
+  /** Trusted server-side owner principal. */
+  ownerId: string,
 ) {
-  // Data-driven Growth template discovery. No dedicated page or controller per Growth.
-  app.get('/growth/templates', async (_request, reply) => {
+  // Data-driven Growth template discovery. Stored owner-scoped templates
+  // supplement the read-only file-backed YAML catalogue. No dedicated page
+  // or controller per Growth — templates are discovered dynamically.
+  app.get<{ Querystring: { ownerId?: string } }>('/growth/templates', async (_request, reply) => {
     try {
-      const catalog = await readGrowthTemplateCatalog();
-      return reply.header('Cache-Control', 'private, no-store').send(
-        catalog.map(({ program }) => ({
+      const fileCatalog = await readGrowthTemplateCatalog();
+      const stored = await growthTemplates.list();
+      const templates = [
+        ...fileCatalog.map(({ program }) => ({
           id: program.id,
           title: program.title,
           objective: program.objective,
@@ -30,10 +37,23 @@ export function registerGrowthRoutes(
           pipelineCount: program.stages.length,
           coverageCount: program.coverage.length,
           executable: program.kind !== 'GrowthBlueprintWorkflow',
+          source: 'file',
         })),
-      );
+        ...stored.map((template) => ({
+          id: template.id,
+          title: template.program.title,
+          objective: template.program.objective,
+          platform: 'linkedin',
+          pipelineCount: (template.program.stages as unknown[]).length,
+          coverageCount: (template.program.coverage as unknown[]).length,
+          executable: template.program.kind !== 'GrowthBlueprintWorkflow',
+          source: 'stored',
+          version: template.version,
+        })),
+      ];
+      return reply.header('Cache-Control', 'private, no-store').send(templates);
     } catch (error) {
-      app.log.error({ error }, 'Growth YAML template catalogue failed validation');
+      app.log.error({ error }, 'Growth template catalogue failed');
       return reply.code(500).send({ error: 'Growth templates unavailable' });
     }
   });
@@ -255,4 +275,55 @@ export function registerGrowthRoutes(
       }
     },
   );
+
+  // Owner-scoped Growth template CRUD. Stored templates supplement (never
+  // replace) the read-only file-backed YAML catalogue.
+  app.post<{ Body: StoredGrowthTemplate }>('/growth/templates', async (request, reply) => {
+    try {
+      const template = request.body;
+      if (!template.id || !template.yaml || !template.program)
+        return reply.code(400).send({ error: 'Template id, yaml and program are required' });
+      const version = await growthTemplates.put(template, 0);
+      return reply.code(201).send({ id: template.id, version });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Template create failed';
+      return reply.code(message.startsWith('Database document changed') ? 409 : 400).send({
+        error: message,
+      });
+    }
+  });
+
+  app.put<{ Params: { id: string }; Body: StoredGrowthTemplate }>(
+    '/growth/templates/:id',
+    async (request, reply) => {
+      try {
+        const template = { ...request.body, id: request.params.id };
+        const existing = await growthTemplates.get(request.params.id);
+        if (!existing) return reply.code(404).send({ error: 'Growth template not found' });
+        if (existing.ownerId !== ownerId)
+          return reply.code(403).send({ error: 'Template not accessible to this owner' });
+        const version = await growthTemplates.put(template, existing.version);
+        return reply.send({ id: template.id, version });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Template update failed';
+        return reply.code(message.startsWith('Database document changed') ? 409 : 400).send({
+          error: message,
+        });
+      }
+    },
+  );
+
+  app.delete<{ Params: { id: string } }>('/growth/templates/:id', async (request, reply) => {
+    try {
+      const existing = await growthTemplates.get(request.params.id);
+      if (!existing) return reply.code(404).send({ error: 'Growth template not found' });
+      if (existing.ownerId !== ownerId)
+        return reply.code(403).send({ error: 'Template not accessible to this owner' });
+      await growthTemplates.remove(request.params.id, existing.version);
+      return reply.send({ ok: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Template delete failed';
+      return reply.code(400).send({ error: message });
+    }
+  });
 }

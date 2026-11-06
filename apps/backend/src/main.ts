@@ -20,6 +20,7 @@ import {
   type DocumentStore,
   LOCAL_OWNER_ID,
 } from './db/documents.js';
+import { GrowthTemplateStore } from './engine/growth-template-store.js';
 import { ProfileGrowthCoordinator } from './engine/profile-growth-coordinator.js';
 import { CreatorResearchStore } from './linkedin/linkedin-creator-research.js';
 import { LinkedInEditorialStore } from './linkedin/linkedin-editorial.js';
@@ -100,6 +101,7 @@ export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?
   );
   const authoredSteps = new StepDefinitionStore();
   const growthProfileRuns = new ProfileGrowthCoordinator(runner);
+  const growthTemplates = new GrowthTemplateStore(undefined, ownerId);
   const craftLibrary = new CraftLibrary();
   const visual = new VisualReviewStore(async (runId, fileName, platform) => {
     const run = runner.get(runId);
@@ -116,6 +118,7 @@ export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?
     workflowPlans.setDocuments(database);
     workflowRegistry.setDocuments(database);
     growthProfileRuns.setDocuments(database);
+    growthTemplates.setDocuments(database);
     linkedInResearch.setDocuments(database);
     linkedInEditorial.setDocuments(database);
     linkedInPublisher.setDocuments(database);
@@ -198,7 +201,7 @@ export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?
     database: () => database,
   });
   registerProfilePlanRoutes(app, { profilePlanner, connectors, career });
-  registerGrowthRoutes(app, growthProfileRuns, connectors);
+  registerGrowthRoutes(app, growthProfileRuns, connectors, growthTemplates, ownerId);
   registerRunRoutes(app, runner, { connectors, workflowRegistry, authoredSteps }, ownerId);
 
   return app;
