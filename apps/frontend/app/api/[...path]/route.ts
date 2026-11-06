@@ -332,6 +332,9 @@ async function forward(req: NextRequest, params: Promise<{ path: string[] }>) {
                 'idempotency-key': req.headers.get('idempotency-key') as string,
               }
             : {}),
+          ...(req.headers.get('x-owner-id')
+            ? { 'x-owner-id': req.headers.get('x-owner-id') as string }
+            : {}),
         },
         body: body?.length ? body : undefined,
         cache: 'no-store',

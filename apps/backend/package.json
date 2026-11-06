@@ -7,7 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
     "start:hosted": "node hosted/server.mjs",
-    "test:hosted": "vitest run tests/hosted-auth.test.mjs tests/hosted-gateway.test.mjs tests/hosted-worker.test.mjs",
+    "test:hosted": "vitest run --config vitest.hosted.config.ts tests/hosted-auth.test.mjs tests/hosted-gateway.test.mjs tests/hosted-worker.test.mjs",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "biome lint --max-diagnostics=200 .",

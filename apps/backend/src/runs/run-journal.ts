@@ -26,7 +26,20 @@ export function parseRunJournal(
     throw new Error('Invalid journal cursor');
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1000)
     throw new Error('Invalid journal limit');
-  if (raw.length > 0 && !raw.endsWith('\n')) throw new Error('Corrupt run journal');
+  if (raw.length > 0 && !raw.endsWith('\n')) {
+    // A final unterminated segment. If it is not even valid JSON the write was
+    // torn mid-line: fail with an explicit history-incomplete state. A complete
+    // JSON value without the newline terminator is not valid JSONL and stays
+    // corrupt rather than being silently accepted.
+    const lastNewline = raw.lastIndexOf('\n');
+    const tail = lastNewline === -1 ? raw : raw.slice(lastNewline + 1);
+    try {
+      JSON.parse(tail);
+    } catch {
+      throw new Error('History incomplete: journal ends mid-line');
+    }
+    throw new Error('Corrupt run journal');
+  }
 
   const lines = raw.length ? raw.slice(0, -1).split('\n') : [];
   const events: PersistedRunEvent[] = [];

@@ -42,3 +42,9 @@ test('rejects invalid pagination before reading events', () => {
   expect(() => parseRunJournal('', 'r1', { since: 1.5 })).toThrow(/Invalid journal cursor/);
   expect(() => parseRunJournal('', 'r1', { limit: 0 })).toThrow(/Invalid journal limit/);
 });
+
+test('a journal ending mid-line fails with history incomplete, not corrupt JSON', () => {
+  const complete = serialize([entry(1), entry(2)]);
+  expect(() => parseRunJournal(`${complete}{"id":3`, 'r1')).toThrow(/History incomplete/);
+});
+

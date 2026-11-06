@@ -74,6 +74,7 @@ export class Runner {
       action: input.action,
       state: 'running',
       createdAt: new Date().toISOString(),
+      ...(input.ownerId ? { ownerId: input.ownerId } : {}),
       ...(input.workflowId
         ? {
             workflowId: input.workflowId,
@@ -124,23 +125,29 @@ export class Runner {
       }
     }
     const emit = (kind: StreamEvent['kind'], message: string, details?: unknown): void => {
-      const event = this.events.publish({
-        runId: summary.id,
-        kind,
-        message,
-        details,
-      });
-      // Each run keeps its own human-readable event journal. No secrets or
-      // session cookies are included in our event payloads.
+      const input = { runId: summary.id, kind, message, details };
+      // Allocate id/time now so the persisted record and the broadcast event
+      // agree. Persist to the durable journal first: an event that cannot be
+      // written must never be broadcast as a live successful task (publish
+      // before persist would expose unconfirmed progress to consumers).
+      const event = this.events.allocate(input);
       try {
         appendFileSync(logPath, `${JSON.stringify(event)}\n`, { mode: 0o600 });
       } catch (error) {
+        // Fail closed: retract the unwritten allocation and report the write
+        // failure without exposing the failed event as progress.
+        this.events.retract(event.id);
         this.events.publish({
           runId: summary.id,
           kind: 'error',
           message: `Log write failed: ${String(error)}`,
+          details: { stepId: summary.currentStepId },
         });
+        return;
       }
+      this.events.broadcast(event);
+      // Each run keeps its own human-readable event journal. No secrets or
+      // session cookies are included in our event payloads.
       this.archive.save(summary, archivedSteps);
     };
     this.active.emit = emit;
@@ -453,6 +460,7 @@ export class Runner {
     if (this.active?.summary.id !== id) return false;
     this.active.emit?.('status', 'Operator requested Stop; cancelling active run');
     this.active.controller.abort();
+    this.active = undefined;
     return true;
   }
 }

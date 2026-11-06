@@ -28,8 +28,7 @@ test('chat images offer the full YAML-driven annotation studio', () => {
   // Linked saved reviews expose the annotation YAML directly.
   expect(preview).toMatch(/data-testid="mator-annotation-yaml-link"/);
   expect(preview).toMatch(/reviewId/);
-  expect(preview).toMatch(/visual-reviews\/\s*\+?\s*reviewId|visual-reviews\/'\s*\+/,
-  );
+  expect(preview).toMatch(/visual-reviews\/\$\{reviewId\}/);
 });
 
 test('mator attachment canvas module exists', () => {
@@ -64,11 +63,11 @@ test('operator chat panel exposes required mator testids and chrome', () => {
     'the chat opens at the live edge',
   );
   assert.match(source, /orderedMatorEvents/);
-  assert.match(
-    source,
-    /getApi\(\s*'runs\/'/,
-    'screenshot evidence links the run API',
-  );
+    assert.match(
+      source,
+      /getApi\(['"\x60]runs\//,
+      'screenshot evidence links the run API',
+    );
   assert.doesNotMatch(source, /Groq capabilities/);
 });
 
