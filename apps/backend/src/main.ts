@@ -14,7 +14,12 @@ import { registerWorkflowRoutes } from './api/workflows.js';
 import { ConnectorService } from './connect/service.js';
 import { AuthBlockedError } from './core/errors.js';
 import { CraftLibrary } from './crafts/library.js';
-import { createDocumentStore, type DocumentStore } from './db/documents.js';
+import {
+  checkedOwnerId,
+  createDocumentStore,
+  type DocumentStore,
+  LOCAL_OWNER_ID,
+} from './db/documents.js';
 import { ProfileGrowthCoordinator } from './engine/profile-growth-coordinator.js';
 import { CreatorResearchStore } from './linkedin/linkedin-creator-research.js';
 import { LinkedInEditorialStore } from './linkedin/linkedin-editorial.js';
@@ -46,6 +51,11 @@ export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?
     },
     bodyLimit: 32 * 1024,
   });
+  // Trusted server-side owner principal. Derived from the deployment
+  // environment, never from a client-controlled header. Single-tenant local
+  // deployments default to LOCAL_OWNER_ID ('local-owner'); hosted workers use
+  // UTOMATOR_INTERNAL_OWNER_ID.
+  const ownerId = checkedOwnerId(process.env.UTOMATOR_INTERNAL_OWNER_ID ?? LOCAL_OWNER_ID);
   const accountStore = new AccountStore(options.socialWorkspaceRoot);
   const connectors = new ConnectorService(accountStore, undefined, options.socialWorkspaceRoot);
   let database: DocumentStore | undefined;
@@ -189,7 +199,7 @@ export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?
   });
   registerProfilePlanRoutes(app, { profilePlanner, connectors, career });
   registerGrowthRoutes(app, growthProfileRuns, connectors);
-  registerRunRoutes(app, runner, { connectors, workflowRegistry, authoredSteps });
+  registerRunRoutes(app, runner, { connectors, workflowRegistry, authoredSteps }, ownerId);
 
   return app;
 }

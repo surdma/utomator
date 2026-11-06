@@ -43,6 +43,7 @@ export class Runner {
     summary: RunSummary;
     controller: AbortController;
     pauseRequested: boolean;
+    journalFailed: boolean;
     resume?: () => void;
     emit?: (kind: StreamEvent['kind'], message: string, details?: unknown) => void;
   };
@@ -115,7 +116,7 @@ export class Runner {
     const archivedSteps = compiled?.steps.map((step) => step.source.id) ?? [];
     const compiledStepIds = compiled ? new Set(archivedSteps) : undefined;
     this.archive.save(summary, archivedSteps);
-    this.active = { summary, controller, pauseRequested: false };
+    this.active = { summary, controller, pauseRequested: false, journalFailed: false };
     this.history.set(summary.id, summary);
     if (this.history.size > 100) {
       const stale = this.history.keys().next().value;
@@ -125,25 +126,29 @@ export class Runner {
       }
     }
     const emit = (kind: StreamEvent['kind'], message: string, details?: unknown): void => {
+      const active = this.active;
       const input = { runId: summary.id, kind, message, details };
       // Allocate id/time now so the persisted record and the broadcast event
       // agree. Persist to the durable journal first: an event that cannot be
       // written must never be broadcast as a live successful task (publish
       // before persist would expose unconfirmed progress to consumers).
       const event = this.events.allocate(input);
+      if (active?.journalFailed) {
+        // The durable record is compromised. Broadcast in memory only so the
+        // UI still learns the terminal outcome, but never write (or retry
+        // writing) to a journal we can no longer trust.
+        this.events.broadcast(event);
+        return;
+      }
       try {
         appendFileSync(logPath, `${JSON.stringify(event)}\n`, { mode: 0o600 });
       } catch (error) {
-        // Fail closed: retract the unwritten allocation and report the write
-        // failure without exposing the failed event as progress.
+        // Fail closed: retract the unwritten allocation, mark the journal
+        // compromised, and stop execution rather than exposing unrecorded
+        // progress as a live successful task.
         this.events.retract(event.id);
-        this.events.publish({
-          runId: summary.id,
-          kind: 'error',
-          message: `Log write failed: ${String(error)}`,
-          details: { stepId: summary.currentStepId },
-        });
-        return;
+        if (active) active.journalFailed = true;
+        throw new Error(`Run journal write failed: ${String(error)}`);
       }
       this.events.broadcast(event);
       // Each run keeps its own human-readable event journal. No secrets or
@@ -151,10 +156,10 @@ export class Runner {
       this.archive.save(summary, archivedSteps);
     };
     this.active.emit = emit;
-    emit('status', 'Run queued for browser startup');
     const browser = new BrowserSession();
     void (async () => {
       try {
+        emit('status', 'Run queued for browser startup');
         const page = await browser.open(input.platform, input.accountId);
         // A historical DB verification is not evidence of a still-valid browser
         // login. Check the actual account before executing any workflow stage.
