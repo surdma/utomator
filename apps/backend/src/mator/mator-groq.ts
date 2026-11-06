@@ -107,6 +107,7 @@ type GroqCallOptions = {
   fetch?: typeof globalThis.fetch;
   signal?: AbortSignal;
   modelId?: string;
+  temperature?: number;
   reasoningEffort?: 'low' | 'medium' | 'high';
   voice?: string;
 };
@@ -160,7 +161,7 @@ export async function moderateUserText(
     const completion = await client.chat.completions.create(
       {
         model: GROQ_SAFEGUARD_MODEL,
-        temperature: 0,
+        temperature: options.temperature ?? 0,
         max_completion_tokens: 400,
         reasoning_effort: 'low',
         reasoning_format: 'parsed',
@@ -199,7 +200,7 @@ export async function completeMatorTurn(
       {
         model: modelId,
         messages,
-        temperature: 0.2,
+        temperature: options.temperature ?? 0.2,
         max_completion_tokens: 2048,
         top_p: 0.95,
         reasoning_effort: options.reasoningEffort ?? 'low',
@@ -242,7 +243,7 @@ export async function describeImage(
     const completion = await client.chat.completions.create(
       {
         model: options.modelId || GROQ_VISION_MODEL,
-        temperature: 0.2,
+        temperature: options.temperature ?? 0.2,
         max_completion_tokens: 512,
         reasoning_effort: 'none',
         messages: [
@@ -284,7 +285,7 @@ export async function transcribeAudio(
       model: options.modelId || GROQ_STT_MODEL,
       language: 'en',
       response_format: 'json',
-      temperature: 0,
+      temperature: options.temperature ?? 0,
       prompt: 'Utomator workflow commands, step titles, and pipeline edits.',
     },
     { signal: options.signal },

@@ -19,6 +19,7 @@ export type MatorSettings = {
   howTtsEnabled: boolean;
   moderationEnabled: boolean;
   modelId: string;
+  temperature: number;
   reasoningEffort: MatorReasoningEffort;
   visionModelId: string;
   sttModelId: string;
@@ -34,6 +35,7 @@ export type MatorSettingsPatch = Partial<
     | 'howTtsEnabled'
     | 'moderationEnabled'
     | 'modelId'
+    | 'temperature'
     | 'reasoningEffort'
     | 'visionModelId'
     | 'sttModelId'
@@ -51,6 +53,7 @@ const DEFAULTS: Omit<MatorSettings, 'groqKey'> = {
   howTtsEnabled: true,
   moderationEnabled: true,
   modelId: DEFAULT_MATOR_GROQ_MODEL_ID,
+  temperature: 0.2,
   reasoningEffort: 'low',
   visionModelId: DEFAULT_MATOR_VISION_MODEL_ID,
   sttModelId: DEFAULT_MATOR_STT_MODEL_ID,
@@ -85,6 +88,10 @@ function mergeSettings(stored: Partial<MatorSettings> | null | undefined): Mator
     howTtsEnabled: stored.howTtsEnabled ?? DEFAULTS.howTtsEnabled,
     moderationEnabled: stored.moderationEnabled ?? DEFAULTS.moderationEnabled,
     modelId: typeof stored.modelId === 'string' && stored.modelId ? stored.modelId : DEFAULTS.modelId,
+    temperature:
+      typeof stored.temperature === 'number' && Number.isFinite(stored.temperature)
+        ? stored.temperature
+        : DEFAULTS.temperature,
     reasoningEffort: EFFORTS.has(stored.reasoningEffort as MatorReasoningEffort)
       ? (stored.reasoningEffort as MatorReasoningEffort)
       : DEFAULTS.reasoningEffort,
@@ -110,6 +117,7 @@ export async function putMatorSettings(
     (await documents.get<MatorSettings>(MATOR_SETTINGS_NAMESPACE, MATOR_SETTINGS_KEY))?.value,
   );
   const modelId = patch.modelId ?? current.modelId;
+  const temperature = patch.temperature ?? current.temperature;
   const visionModelId = patch.visionModelId ?? current.visionModelId;
   const sttModelId = patch.sttModelId ?? current.sttModelId;
   const ttsModelId = patch.ttsModelId ?? current.ttsModelId;
@@ -127,6 +135,7 @@ export async function putMatorSettings(
     howTtsEnabled: patch.howTtsEnabled ?? current.howTtsEnabled,
     moderationEnabled: patch.moderationEnabled ?? current.moderationEnabled,
     modelId,
+    temperature,
     reasoningEffort,
     visionModelId,
     sttModelId,
