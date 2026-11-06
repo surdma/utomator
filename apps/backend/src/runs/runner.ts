@@ -76,6 +76,7 @@ export class Runner {
       state: 'running',
       createdAt: new Date().toISOString(),
       ...(input.ownerId ? { ownerId: input.ownerId } : {}),
+      ...(input.conversationId ? { conversationId: input.conversationId } : {}),
       ...(input.workflowId
         ? {
             workflowId: input.workflowId,
@@ -415,6 +416,11 @@ export class Runner {
   }
   list(): RunSummary[] {
     return [...this.history.values()].reverse();
+  }
+  listByConversation(conversationId: string): RunSummary[] {
+    return [...this.history.values()]
+      .filter((summary) => summary.conversationId === conversationId)
+      .reverse();
   }
 
   /** Centralized screenshot-evidence authorization: in-memory journal plus the

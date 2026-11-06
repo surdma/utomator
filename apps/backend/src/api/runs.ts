@@ -99,11 +99,14 @@ export function registerRunRoutes(
   ownerId: string,
 ) {
   const { connectors, workflowRegistry, authoredSteps } = stores;
-  app.get('/runs', async () => {
+  app.get<{ Querystring: { conversationId?: string } }>('/runs', async (request) => {
     // Only runs attributable to the trusted principal are listed. Legacy
     // ownerless runs (no ownerId stamped) are bound to the trusted principal
     // for read access; runs owned by another principal are never disclosed.
-    return runner.list().filter((run) => runIsAccessibleToOwner(run, ownerId));
+    let runs = runner.list().filter((run) => runIsAccessibleToOwner(run, ownerId));
+    if (request.query.conversationId)
+      runs = runs.filter((run) => run.conversationId === request.query.conversationId);
+    return runs;
   });
   app.get<{ Params: { id: string; file: string } }>(
     '/runs/:id/evidence/:file',

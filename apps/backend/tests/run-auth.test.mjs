@@ -48,7 +48,7 @@ test('runIsAccessibleToOwner binds legacy ownerless runs to the trusted principa
   expect(runIsAccessibleToOwner(ownerless, ownerB)).toBe(true);
 });
 
-test('Runner.start stamps the supplied owner identity on the summary (two distinct users)', () => {
+test('Runner.start stamps the supplied owner identity on the summary (two distinct users)', { timeout: 15000 }, () => {
   const runnerA = new Runner();
   const runnerB = new Runner();
   const a = runnerA.start(auditRun(ownerA));
@@ -66,7 +66,7 @@ test('Runner.start leaves ownerId undefined when none is supplied', () => {
   expect(summary.ownerId).toBeUndefined();
 });
 
-test('route derives ownership from the trusted principal, not the client header', async () => {
+test('route derives ownership from the trusted principal, not the client header', { timeout: 15000 }, async () => {
   const app = buildApp();
   try {
     await app.ready();

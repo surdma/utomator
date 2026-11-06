@@ -18,6 +18,7 @@ import {
   appendEvent,
   listConversations,
   MATOR_CONVERSATIONS_NAMESPACE,
+  setConversationRunId,
   type MatorConversation,
   type MatorEvent,
   type WorkflowConversationIndex,
@@ -174,7 +175,19 @@ export async function applyAction(
       break;
     }
     case 'run_step': {
-      run = await ports.runner.start(input.action.request);
+      run = await ports.runner.start({
+        ...input.action.request,
+        conversationId: input.conversationId,
+      });
+      // Persist the conversation↔run-attempt binding so switching
+      // conversations or reloading restores the exact pipeline attempt.
+      if (run?.id)
+        await setConversationRunId(
+          docs,
+          input.workflowId,
+          conversationId,
+          run.id,
+        );
       break;
     }
     case 'craft': {
