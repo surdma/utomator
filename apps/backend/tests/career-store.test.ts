@@ -1,9 +1,9 @@
-
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { test, expect } from 'vitest';
-import { CareerStore } from '../src/profile/career-store.js';
+import { expect, test } from 'vitest';
+import { CareerStore } from '../src/infrastructure/profile/career-store.js';
+import { removeTemp } from './support/remove-temp.js';
 
 const identity = {
   name: 'Example Candidate',
@@ -22,7 +22,7 @@ async function withStore(fn: (store: CareerStore, root: string) => Promise<void>
   try {
     await fn(new CareerStore(root), root);
   } finally {
-    await rm(root, { recursive: true, force: true });
+    await removeTemp(root);
   }
 }
 test('new workspace has no portfolio owner, résumé or username', async () => {
@@ -31,7 +31,7 @@ test('new workspace has no portfolio owner, résumé or username', async () => {
     expect(initial.resumes).toEqual([]);
     expect(initial.profile.name).toEqual('');
     expect(initial.profile.headline).toEqual('');
-    await expect((store.createResume(0))).rejects.toThrow(/Complete your career source/);
+    await expect(store.createResume(0)).rejects.toThrow(/Complete your career source/);
     const saved = await store.updateProfile(0, identity);
     expect(saved.profile.name).toEqual('Example Candidate');
     const reopened = await new CareerStore(root).get();
@@ -59,7 +59,7 @@ test('user-authored profile produces independently editable saved résumés', as
     expect(reloaded.resumes[0]?.label).toEqual('Tailored version');
     const removed = await store.deleteResume(4, duplicate.id);
     expect(removed.resumes.length).toEqual(1);
-    await expect((store.deleteResume(5, original.id))).rejects.toThrow(/at least one/);
+    await expect(store.deleteResume(5, original.id)).rejects.toThrow(/at least one/);
   });
 });
 test('career profile edits keep optimistic revision and field validation', async () => {
@@ -72,6 +72,8 @@ test('career profile edits keep optimistic revision and field validation', async
     expect(outcomes.filter((x) => x.status === 'fulfilled').length).toEqual(1);
     expect(outcomes.filter((x) => x.status === 'rejected').length).toEqual(1);
     expect(() => store.updateProfile(1, { ...identity, name: '' })).toThrow(/required/);
-    await expect((store.createResume(1, '00000000-0000-4000-8000-aaaaaaaaaaaa'))).rejects.toThrow(/not found/);
+    await expect(store.createResume(1, '00000000-0000-4000-8000-aaaaaaaaaaaa')).rejects.toThrow(
+      /not found/,
+    );
   });
 });

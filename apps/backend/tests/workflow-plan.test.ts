@@ -1,24 +1,27 @@
-
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { test, expect } from 'vitest';
-import { AccountStore } from '../src/profile/account-store.js';
-import { RunArchive } from '../src/runs/run-archive.js';
-import { parseStepDefinition, StepDefinitionStore } from '../src/workflows/step-definitions.js';
-import { loadStepForms, parseStepForms } from '../src/workflows/step-forms.js';
-import { defaultPlan, templates, validatePlan } from '../src/workflows/workflow-plan.js';
-import { WorkflowRegistry } from '../src/workflows/workflow-registry.js';
-import { WorkflowPlanStore } from '../src/workflows/workflow-store.js';
-import { compileWorkflow } from '../src/workflows/workflow-yaml.js';
+import { expect, test } from 'vitest';
+import { defaultPlan, templates, validatePlan } from '../src/domain/workflow-plan.js';
+import { AccountStore } from '../src/infrastructure/profile/account-store.js';
+import { RunArchive } from '../src/infrastructure/runs/run-archive.js';
+import {
+  parseStepDefinition,
+  StepDefinitionStore,
+} from '../src/infrastructure/workflows/step-definitions.js';
+import { loadStepForms, parseStepForms } from '../src/infrastructure/workflows/step-forms.js';
+import { WorkflowRegistry } from '../src/infrastructure/workflows/workflow-registry.js';
+import { WorkflowPlanStore } from '../src/infrastructure/workflows/workflow-store.js';
+import { compileWorkflow } from '../src/infrastructure/workflows/workflow-yaml.js';
+import { removeTemp } from './support/remove-temp.js';
 
 // Set test mode before dynamically importing the Fastify entry point.
 // Static ESM imports execute before assignments and would start a stray listener.
 process.env.NODE_ENV = 'test';
 const { buildApp } = await import('../src/main.js');
 
-import { BrowserSession } from '../src/browser/session.js';
+import { BrowserSession } from '../src/infrastructure/browser/session.js';
 
 test('YAML step forms expose only known, bounded editable fields', async () => {
   const forms = await loadStepForms();
@@ -39,7 +42,9 @@ test('YAML step forms expose only known, bounded editable fields', async () => {
   } finally {
     await responseApp.close();
   }
-  expect(() => parseStepForms('kind: "StepForms"\nforms:\n  start: "invalid"')).toThrow(/Unknown step form document/);
+  expect(() => parseStepForms('kind: "StepForms"\nforms:\n  start: "invalid"')).toThrow(
+    /Unknown step form document/,
+  );
 });
 
 test('template generators expose only executable actions for each platform', () => {
@@ -116,12 +121,13 @@ test('each validated node compiles to a deterministic, allowlisted YAML instruct
   expect(compiled.steps[2]?.digest.length).toEqual(64);
   expect(!compiled.yaml.includes('postText')).toBeTruthy();
   expect(() =>
-      compileWorkflow({
-        ...plan,
-        steps: plan.steps.map((item) =>
-          item.id === 'inspect' ? { ...item, kind: 'arbitrary-shell' as 'inspect' } : item,
-        ),
-      })).toThrow(/Invalid workflow step/);
+    compileWorkflow({
+      ...plan,
+      steps: plan.steps.map((item) =>
+        item.id === 'inspect' ? { ...item, kind: 'arbitrary-shell' as 'inspect' } : item,
+      ),
+    }),
+  ).toThrow(/Invalid workflow step/);
 });
 
 test('saved graphs, parameters and node positions survive reloading isolated workflow storage', async () => {
@@ -149,9 +155,11 @@ test('saved graphs, parameters and node positions survive reloading isolated wor
     expect(loaded.steps.find((s) => s.id === 'inspect')?.title).toEqual('Inspect verified account');
     const source = await readFile(join(dir, 'x-audit.json'), 'utf8');
     expect(source.includes('Inspect verified account')).toBeTruthy();
-    expect(() => validatePlan({ ...changed, parameters: { secret: 'password' } }, 'x', 'audit')).toThrow(/parameters/);
+    expect(() => validatePlan({ ...changed, parameters: { secret: 'password' } }, 'x', 'audit')).toThrow(
+      /parameters/,
+    );
   } finally {
-    await rm(dir, { recursive: true, force: true });
+    await removeTemp(dir);
   }
 });
 
@@ -191,8 +199,12 @@ test('Fastify exposes generator and saved defaults; malformed graph never starts
     expect(response.statusCode).toEqual(400);
     expect(response.body).toMatch(/Branching|connected/);
     expect((await app.inject('/runs')).json().length).toEqual(beforeRuns);
-    expect((await app.inject({ method: 'POST', url: '/runs/no-such-run/pause' })).statusCode).toEqual(409);
-    expect((await app.inject({ method: 'POST', url: '/runs/no-such-run/resume' })).statusCode).toEqual(409);
+    expect((await app.inject({ method: 'POST', url: '/runs/no-such-run/pause' })).statusCode).toEqual(
+      404,
+    );
+    expect((await app.inject({ method: 'POST', url: '/runs/no-such-run/resume' })).statusCode).toEqual(
+      404,
+    );
   } finally {
     await app.close();
   }
@@ -282,7 +294,9 @@ test('operator hold and stop nodes execute in the backend without clicking a web
     const entries = log.json() as Array<{
       details?: { stepId?: string; stage?: string };
     }>;
-    expect(!entries.some((item) => item.details?.stepId === 'action' && item.details.stage === 'started')).toBeTruthy();
+    expect(
+      !entries.some((item) => item.details?.stepId === 'action' && item.details.stage === 'started'),
+    ).toBeTruthy();
   } finally {
     await app.close();
     BrowserSession.prototype.open = originalOpen;
@@ -312,14 +326,14 @@ test('unique workflows preserve independent same-action configurations and immut
     expect(changed.revision).toEqual(2);
     expect((await registry.get(left.id, 1))?.plan.name).toEqual('Series A');
     expect((await registry.get(left.id, 2))?.plan.name).toEqual('Series A revision 2');
-    await expect((registry.update(left.id, 1, left.plan))).rejects.toThrow(/Version conflict/);
+    await expect(registry.update(left.id, 1, left.plan)).rejects.toThrow(/Version conflict/);
     const restarted = new WorkflowRegistry(join(dir, 'workflows'), join(dir, 'legacy'));
     expect((await restarted.get(left.id))?.plan.name).toEqual('Series A revision 2');
     expect((await restarted.get(right.id))?.plan.name).toEqual('Series B');
-    await expect((registry.get('../escape'))).rejects.toThrow(/Invalid workflow identifier/);
-    await expect((registry.create(left.plan, 'untrusted/path'))).rejects.toThrow(/template identifier/);
+    await expect(registry.get('../escape')).rejects.toThrow(/Invalid workflow identifier/);
+    await expect(registry.create(left.plan, 'untrusted/path')).rejects.toThrow(/template identifier/);
   } finally {
-    await rm(dir, { recursive: true, force: true });
+    await removeTemp(dir);
   }
 });
 
@@ -335,10 +349,12 @@ test('legacy platform/action workflow files import only once without modifying t
     const first = await registry.list();
     expect(first.length).toEqual(1);
     expect(first[0]?.plan.name).toEqual('Historical audit');
-    expect((await new WorkflowRegistry(join(dir, 'workflows'), join(dir, 'legacy')).list()).length).toEqual(1);
+    expect(
+      (await new WorkflowRegistry(join(dir, 'workflows'), join(dir, 'legacy')).list()).length,
+    ).toEqual(1);
     expect(await readFile(join(dir, 'legacy', 'x-audit.json'), 'utf8')).toEqual(bytes);
   } finally {
-    await rm(dir, { recursive: true, force: true });
+    await removeTemp(dir);
   }
 });
 
@@ -564,19 +580,23 @@ test('a run binds live observed data to a later note and stores immutable typed 
     expect(noteOutput.json().schema).toEqual('status/v1');
     expect((await app.inject(`/runs/${id}/steps/action/output`)).statusCode).toEqual(404);
     const journal = await app.inject(`/runs/${id}/logs`);
-    expect(journal
+    expect(
+      journal
         .json()
         .some(
           (event: { message: string; details?: { stepId?: string } }) =>
             event.message === 'Observed account profile with a public bio.' &&
             event.details?.stepId === 'note-excerpt',
-        )).toBeTruthy();
+        ),
+    ).toBeTruthy();
     const persisted = await readFile(
       join(process.cwd(), '.runtime', 'runs', id, 'inspect.output.json'),
       'utf8',
     );
     expect(JSON.parse(persisted).excerpt).toEqual(observation.json().excerpt);
-    expect((await app.inject(`/runs/${id}/steps/note-excerpt.yaml`)).body).toMatch(/schema: "page-observation\/v1"/);
+    expect((await app.inject(`/runs/${id}/steps/note-excerpt.yaml`)).body).toMatch(
+      /schema: "page-observation\/v1"/,
+    );
   } finally {
     await app.close();
     BrowserSession.prototype.open = originalOpen;
@@ -645,7 +665,9 @@ test('archived runs survive a new app instance with recorded YAML and typed outp
     const restored = await restarted.inject(`/runs/${id}`);
     expect(restored.statusCode).toEqual(200);
     expect(restored.json().state).toEqual('cancelled');
-    expect((await restarted.inject('/runs')).json().some((item: { id: string }) => item.id === id)).toBeTruthy();
+    expect(
+      (await restarted.inject('/runs')).json().some((item: { id: string }) => item.id === id),
+    ).toBeTruthy();
     const yaml = await restarted.inject(`/runs/${id}/workflow.yaml`);
     expect(yaml.statusCode).toEqual(200);
     const output = await restarted.inject(`/runs/${id}/steps/inspect/output`);
@@ -684,7 +706,7 @@ test('run archive marks interrupted sessions failed without reopening a browser'
     expect(restarted.readArtifact(id, '../escape')).toEqual(null);
     expect(restarted.readArtifact(id, 'action')).toEqual(null);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    await removeTemp(dir);
   }
 });
 
@@ -711,22 +733,28 @@ test('authored YAML is immutable, schema validated, and only selects allowlisted
     expect(parseStepDefinition(yaml(id, 1)).spec.operation).toEqual('record-event');
     await store.create(yaml(id, 1));
     await store.create(yaml(id, 2));
-    await expect((store.create(yaml(id, 1)))).rejects.toThrow(/EEXIST/);
+    await expect(store.create(yaml(id, 1))).rejects.toThrow(/EEXIST/);
     expect((await store.get(id, 1))?.metadata.version).toEqual(1);
     expect((await store.list()).length).toEqual(2);
     expect(() =>
-        parseStepDefinition(
-          yaml(id, 1).replace('operation: "record-event"', 'operation: "execute-shell"'),
-        )).toThrow(/Unregistered/);
-    expect(() => parseStepDefinition(yaml(id, 1).replace('  version: 1', '  version: 1\n  version: 2'))).toThrow(/Duplicate YAML/);
-    expect(() => parseStepDefinition(yaml(id, 1).replace('  id: "noteTest"', '  id: ../../escape'))).toThrow(/YAML scalar/);
+      parseStepDefinition(
+        yaml(id, 1).replace('operation: "record-event"', 'operation: "execute-shell"'),
+      ),
+    ).toThrow(/Unregistered/);
     expect(() =>
-        parseStepDefinition(
-          yaml(id, 1).replace('  outputs: "status/v1"', '  outputs: "action-event/v1"'),
-        )).toThrow(/Unregistered/);
-    expect(() => parseStepDefinition(`${yaml(id, 1)}  command: "bad"\n`)).toThrow(/Invalid YAML spec schema/);
+      parseStepDefinition(yaml(id, 1).replace('  version: 1', '  version: 1\n  version: 2')),
+    ).toThrow(/Duplicate YAML/);
+    expect(() =>
+      parseStepDefinition(yaml(id, 1).replace('  id: "noteTest"', '  id: ../../escape')),
+    ).toThrow(/YAML scalar/);
+    expect(() =>
+      parseStepDefinition(yaml(id, 1).replace('  outputs: "status/v1"', '  outputs: "action-event/v1"')),
+    ).toThrow(/Unregistered/);
+    expect(() => parseStepDefinition(`${yaml(id, 1)}  command: "bad"\n`)).toThrow(
+      /Invalid YAML spec schema/,
+    );
   } finally {
-    await rm(dir, { recursive: true, force: true });
+    await removeTemp(dir);
   }
 });
 
@@ -769,11 +797,17 @@ test('typed bindings accept earlier note messages and numeric delay durations, b
     links: steps.slice(1).map((step, i) => ({ source: steps[i]!.id, target: step.id })),
   };
   const compiled = compileWorkflow(plan);
-  expect(compiled.steps.find((step) => step.source.id === 'note-relay')?.document.spec.inputs.bindings
-      ?.message?.schema).toEqual('status/v1');
-  expect(compiled.steps.find((step) => step.source.id === 'delay-two')?.document.spec.inputs.bindings?.delayMs
-      ?.schema).toEqual('status/v1');
-  expect(compiled.steps.find((step) => step.source.id === 'delay-two')?.yaml ?? '').toMatch(/durationMs/);
+  expect(
+    compiled.steps.find((step) => step.source.id === 'note-relay')?.document.spec.inputs.bindings
+      ?.message?.schema,
+  ).toEqual('status/v1');
+  expect(
+    compiled.steps.find((step) => step.source.id === 'delay-two')?.document.spec.inputs.bindings?.delayMs
+      ?.schema,
+  ).toEqual('status/v1');
+  expect(compiled.steps.find((step) => step.source.id === 'delay-two')?.yaml ?? '').toMatch(
+    /durationMs/,
+  );
   const wrong = {
     ...plan,
     steps: steps.map((step) =>
@@ -853,13 +887,15 @@ test('saved YAML step definitions execute with pinned versions and expose step o
       payload: { yaml },
     });
     expect(created.statusCode).toEqual(201);
-    expect((
+    expect(
+      (
         await app.inject({
           method: 'POST',
           url: '/step-definitions',
           payload: { yaml },
         })
-      ).statusCode).toEqual(409);
+      ).statusCode,
+    ).toEqual(409);
     expect((await app.inject(`/step-definitions/${id}/versions/1`)).statusCode).toEqual(200);
     const base = defaultPlan('x', 'audit');
     const note = {
@@ -1006,7 +1042,9 @@ test('typed note-to-note and number-to-delay handoffs execute before a guarded p
       await new Promise((done) => setTimeout(done, 20));
     }
     expect(state).toEqual('cancelled');
-    expect((await app.inject(`/runs/${id}/steps/note-second/output`)).json().message).toEqual('Typed browser observation');
+    expect((await app.inject(`/runs/${id}/steps/note-second/output`)).json().message).toEqual(
+      'Typed browser observation',
+    );
     expect((await app.inject(`/runs/${id}/steps/delay-second/output`)).json().durationMs).toEqual(1);
     expect((await app.inject(`/runs/${id}/steps/action/output`)).statusCode).toEqual(404);
   } finally {
@@ -1034,10 +1072,16 @@ test('authored assessment definitions enforce a reviewed output contract', () =>
   const parsed = parseStepDefinition(yaml);
   expect(parsed.spec.config.expectedText).toEqual('public');
   expect(parsed.spec.outputs).toEqual('assessment/v1');
-  expect(() => parseStepDefinition(yaml.replace('assess-observation', 'execute-approved-action'))).toThrow(/Unregistered/);
+  expect(() =>
+    parseStepDefinition(yaml.replace('assess-observation', 'execute-approved-action')),
+  ).toThrow(/Unregistered/);
   expect(() => parseStepDefinition(yaml.replace('assessment/v1', 'status/v1'))).toThrow(/Unregistered/);
-  expect(() => parseStepDefinition(yaml.replace('expectedText: "public"', 'expectedText: " "'))).toThrow(/expectation/);
-  expect(() => parseStepDefinition(yaml.replace('    expectedText: "public"', '    script: "rm -rf"'))).toThrow(/schema/);
+  expect(() => parseStepDefinition(yaml.replace('expectedText: "public"', 'expectedText: " "'))).toThrow(
+    /expectation/,
+  );
+  expect(() =>
+    parseStepDefinition(yaml.replace('    expectedText: "public"', '    script: "rm -rf"')),
+  ).toThrow(/schema/);
 });
 
 test('typed assessment dataflow compiles across string and boolean outputs without provider bindings', () => {
@@ -1074,11 +1118,17 @@ test('typed assessment dataflow compiles across string and boolean outputs witho
     links: steps.slice(1).map((step, i) => ({ source: steps[i]!.id, target: step.id })),
   };
   const compiled = compileWorkflow(plan);
-  expect(compiled.steps.find((s) => s.source.id === 'assessment')?.document.spec.outputs.schema).toEqual('assessment/v1');
-  expect(compiled.steps.find((s) => s.source.id === 'assessment-again')?.document.spec.inputs.bindings
-      ?.expectedMatch?.schema).toEqual('assessment/v1');
-  expect(compiled.steps.find((s) => s.source.id === 'assessment-note')?.document.spec.inputs.bindings?.message
-      ?.schema).toEqual('assessment/v1');
+  expect(compiled.steps.find((s) => s.source.id === 'assessment')?.document.spec.outputs.schema).toEqual(
+    'assessment/v1',
+  );
+  expect(
+    compiled.steps.find((s) => s.source.id === 'assessment-again')?.document.spec.inputs.bindings
+      ?.expectedMatch?.schema,
+  ).toEqual('assessment/v1');
+  expect(
+    compiled.steps.find((s) => s.source.id === 'assessment-note')?.document.spec.inputs.bindings?.message
+      ?.schema,
+  ).toEqual('assessment/v1');
   const wrong = {
     ...plan,
     steps: steps.map((step) =>
@@ -1157,13 +1207,15 @@ test('authored observation assessments produce immutable typed outputs before gu
   let workflowId = '';
   try {
     await app.ready();
-    expect((
+    expect(
+      (
         await app.inject({
           method: 'POST',
           url: '/step-definitions',
           payload: { yaml },
         })
-      ).statusCode).toEqual(201);
+      ).statusCode,
+    ).toEqual(201);
     const base = defaultPlan('x', 'audit');
     const assess = {
       id: 'assess-authored',
@@ -1229,7 +1281,9 @@ test('authored observation assessments produce immutable typed outputs before gu
     expect(noteResult.statusCode).toEqual(200);
     expect(noteResult.json().message).toEqual(assessment.json().summary);
     expect((await app.inject(`/runs/${runId}/steps/action/output`)).statusCode).toEqual(404);
-    expect((await app.inject(`/runs/${runId}/steps/assess-authored.yaml`)).body).toMatch(/assessment\/v1/);
+    expect((await app.inject(`/runs/${runId}/steps/assess-authored.yaml`)).body).toMatch(
+      /assessment\/v1/,
+    );
     const bytes = await readFile(
       join(process.cwd(), '.runtime', 'runs', runId, 'assess-authored.output.json'),
       'utf8',
@@ -1278,9 +1332,15 @@ test('evidence and approval steps compile only with prior provenance-bound typed
     links: steps.slice(1).map((step, i) => ({ source: steps[i]!.id, target: step.id })),
   };
   const compiled = compileWorkflow(plan);
-  expect(compiled.steps.find((s) => s.source.id === 'evidence')?.document.spec.outputs.schema).toEqual('evidence/v1');
-  expect(compiled.steps.find((s) => s.source.id === 'approval-review')?.document.spec.policy.humanApproval).toEqual('required-at-evidence-step');
-  expect(compiled.steps.find((s) => s.source.id === 'approval-review')?.yaml ?? '').toMatch(/require-evidence-approval/);
+  expect(compiled.steps.find((s) => s.source.id === 'evidence')?.document.spec.outputs.schema).toEqual(
+    'evidence/v1',
+  );
+  expect(
+    compiled.steps.find((s) => s.source.id === 'approval-review')?.document.spec.policy.humanApproval,
+  ).toEqual('required-at-evidence-step');
+  expect(compiled.steps.find((s) => s.source.id === 'approval-review')?.yaml ?? '').toMatch(
+    /require-evidence-approval/,
+  );
   const invalid = {
     ...plan,
     steps: steps.map((item) =>
@@ -1317,19 +1377,20 @@ test('evidence and approval steps compile only with prior provenance-bound typed
   };
   expect(() => compileWorkflow(unbound)).toThrow(/Approval step requires/);
   expect(() =>
-      compileWorkflow({
-        ...plan,
-        steps: steps.map((item) =>
-          item.id === 'action'
-            ? {
-                ...item,
-                inputBindings: {
-                  evidence: { stepId: 'evidence', field: 'digest' as const },
-                },
-              }
-            : item,
-        ),
-      })).toThrow(/Unsupported workflow input binding/);
+    compileWorkflow({
+      ...plan,
+      steps: steps.map((item) =>
+        item.id === 'action'
+          ? {
+              ...item,
+              inputBindings: {
+                evidence: { stepId: 'evidence', field: 'digest' as const },
+              },
+            }
+          : item,
+      ),
+    }),
+  ).toThrow(/Unsupported workflow input binding/);
 });
 
 test('approval of immutable observed evidence is a real checkpoint and does not execute later provider steps', async () => {
@@ -1438,10 +1499,12 @@ test('approval of immutable observed evidence is a real checkpoint and does not 
       evidenceDigest: evidence.digest,
     });
     expect((await app.inject(`/runs/${id}/steps/action/output`)).statusCode).toEqual(404);
-    expect(await readFile(
+    expect(
+      await readFile(
         join(process.cwd(), '.runtime', 'runs', id, 'approve-evidence.output.json'),
         'utf8',
-      )).toMatch(/evidenceDigest/);
+      ),
+    ).toMatch(/evidenceDigest/);
   } finally {
     await app.close();
     BrowserSession.prototype.open = oldOpen;
@@ -1530,13 +1593,15 @@ test('rejecting an evidence approval blocks the run and leaves no approved outpu
     expect((await app.inject(`/runs/${id}`)).json().state).toEqual('blocked');
     expect((await app.inject(`/runs/${id}/steps/approval-check/output`)).statusCode).toEqual(404);
     expect((await app.inject(`/runs/${id}/steps/action/output`)).statusCode).toEqual(404);
-    expect((
+    expect(
+      (
         await app.inject({
           method: 'POST',
           url: `/runs/${id}/decision`,
           payload: { checkpointId: checkpoint, approved: true },
         })
-      ).statusCode).toEqual(409);
+      ).statusCode,
+    ).toEqual(409);
   } finally {
     await app.close();
     BrowserSession.prototype.open = oldOpen;
@@ -1606,12 +1671,14 @@ test('evidence capture rejects an off-profile redirect before any approval', asy
       kind: string;
       details?: { stepId?: string; stage?: string };
     }>;
-    expect(journal.some(
+    expect(
+      journal.some(
         (event) =>
           event.kind === 'step' &&
           event.details?.stepId === 'verify-origin' &&
           event.details?.stage === 'failed',
-      )).toBeTruthy();
+      ),
+    ).toBeTruthy();
   } finally {
     await app.close();
     BrowserSession.prototype.open = oldOpen;
@@ -1639,13 +1706,19 @@ test('LinkedIn templates compile into owner-approved evidence and read-back pipe
     }
   }
   const selected = plans.find((plan) => plan.action === 'audit-page')!;
-  expect(selected.steps.find((step) => step.kind === 'evidence')?.inputBindings?.observation?.stepId).toEqual('verify');
+  expect(
+    selected.steps.find((step) => step.kind === 'evidence')?.inputBindings?.observation?.stepId,
+  ).toEqual('verify');
   const mutation = plans.find((plan) => plan.action === 'edit-profile')!;
-  expect(mutation.steps.find((step) => step.kind === 'evidence')?.inputBindings?.observation?.stepId).toEqual('inspect');
+  expect(
+    mutation.steps.find((step) => step.kind === 'evidence')?.inputBindings?.observation?.stepId,
+  ).toEqual('inspect');
   const store = new WorkflowPlanStore(join(tmpdir(), `missing-linkedin-fixture-${randomUUID()}`));
   const loaded = await store.get('linkedin', 'edit-profile');
   expect(loaded.steps.length).toEqual(11);
-  expect(loaded.steps.find((step) => step.id === 'action')?.title).toEqual('Revise approved headline or About');
+  expect(loaded.steps.find((step) => step.id === 'action')?.title).toEqual(
+    'Revise approved headline or About',
+  );
 });
 
 test('LinkedIn template can be saved while disconnected, but execution requires the selected synced account', async () => {
@@ -1752,18 +1825,22 @@ test('every LinkedIn run revalidates the saved browser session and flags authent
       profileUrl: 'https://www.linkedin.com/in/verified-owner/',
     });
     const account = seeded.socialAccounts[0]!;
-    expect((
+    expect(
+      (
         await app.inject({
           method: 'POST',
           url: `/connectors/${account.id}/connect`,
         })
-      ).statusCode).toEqual(200);
-    expect((
+      ).statusCode,
+    ).toEqual(200);
+    expect(
+      (
         await app.inject({
           method: 'POST',
           url: `/connectors/${account.id}/sync`,
         })
-      ).json().status).toEqual('connected');
+      ).json().status,
+    ).toEqual('connected');
     signedIn = false; // The provider revoked the session after the earlier sync.
     const started = await app.inject({
       method: 'POST',
@@ -1791,9 +1868,11 @@ test('every LinkedIn run revalidates the saved browser session and flags authent
       kind: string;
       details?: { stepId?: string; stage?: string };
     }>;
-    expect(journal.some(
+    expect(
+      journal.some(
         (e) => e.kind === 'step' && e.details?.stepId === 'session' && e.details?.stage === 'failed',
-      )).toBeTruthy();
+      ),
+    ).toBeTruthy();
     const refreshed = (await app.inject('/connectors')).json() as Array<{
       id: string;
       status: string;
@@ -1803,6 +1882,6 @@ test('every LinkedIn run revalidates the saved browser session and flags authent
     await app.close();
     BrowserSession.prototype.open = oldOpen;
     BrowserSession.prototype.close = oldClose;
-    await rm(root, { recursive: true, force: true });
+    await removeTemp(root);
   }
 });

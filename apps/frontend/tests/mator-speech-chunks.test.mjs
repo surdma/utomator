@@ -1,14 +1,11 @@
-
-import { test, expect } from 'vitest';
+import { expect, test } from 'vitest';
 import {
   chunkMatorSpeech,
   playMatorSpeechChunks,
-} from '../components/mator/mator-speech-chunks.ts';
+} from '../modules/mator/components/mator-speech-chunks.ts';
 
 test('short speech and empty input', () => {
-  expect(chunkMatorSpeech('Pipeline started.')).toEqual([
-    'Pipeline started.',
-  ]);
+  expect(chunkMatorSpeech('Pipeline started.')).toEqual(['Pipeline started.']);
   expect(chunkMatorSpeech('   ')).toEqual([]);
 });
 test('long speech preserves words and provider limit', () => {
@@ -24,7 +21,9 @@ test('emoji not split into surrogate halves', () => {
   const emoji = '🏁'.repeat(121);
   const chunks = chunkMatorSpeech(emoji);
   expect(chunks.join('')).toEqual(emoji);
-  expect(chunks.every((s) => s.length <= 190 && !/[\uD800-\uDBFF]$/.test(s))).toBeTruthy();
+  expect(
+    chunks.every((s) => s.length <= 190 && !/[\uD800-\uDBFF]$/.test(s)),
+  ).toBeTruthy();
 });
 test('invalid limits are rejected', () => {
   for (const n of [0, 12, 201, 99.5])
@@ -47,7 +46,9 @@ test('Groq speech synthesis and playback run sequentially', async () => {
     isCancelled: () => false,
   });
   expect(order.length >= 4).toBeTruthy();
-  expect(order.every((x, i) => x === (i % 2 === 0 ? 'synth' : 'play'))).toBeTruthy();
+  expect(
+    order.every((x, i) => x === (i % 2 === 0 ? 'synth' : 'play')),
+  ).toBeTruthy();
 });
 test('Groq errors fall back only for unplayed text', async () => {
   const text = 'One sentence. '.repeat(45);

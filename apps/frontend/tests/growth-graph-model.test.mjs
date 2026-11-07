@@ -1,9 +1,8 @@
-
-import { test, expect } from 'vitest';
+import { expect, test } from 'vitest';
 import {
   buildGrowthGraph,
   getGrowthTaskStates,
-} from '../components/dashboard/growth/growth-graph-model.ts';
+} from '../modules/growth/components/growth-graph-model.ts';
 
 const stage = {
   id: 'audit',
@@ -51,7 +50,9 @@ test('pipeline graph preserves dependencies and real run state', () => {
   };
   const graph = buildGrowthGraph(program, run, null, [], undefined);
   expect(graph.nodes.map((node) => node.id)).toEqual(['audit', 'review']);
-  expect(graph.edges.map((edge) => [edge.source, edge.target, edge.animated])).toEqual([['audit', 'review', true]]);
+  expect(
+    graph.edges.map((edge) => [edge.source, edge.target, edge.animated]),
+  ).toEqual([['audit', 'review', true]]);
   expect(graph.nodes[0].data.state).toEqual('completed');
   expect(graph.nodes[1].data.state).toEqual('running');
 });
@@ -90,7 +91,9 @@ test('failed task comes from persisted journal and active Runner checkpoint', ()
   );
   expect(graph.nodes[1].data.state).toEqual('failed');
   expect(graph.nodes[1].data.failure).toEqual('Could not inspect');
-  expect(graph.edges.map((edge) => [edge.source, edge.target, edge.animated])).toEqual([['start', 'inspect', false]]);
+  expect(
+    graph.edges.map((edge) => [edge.source, edge.target, edge.animated]),
+  ).toEqual([['start', 'inspect', false]]);
 });
 
 test('missing run evidence stays waiting and cannot imply completion', () => {

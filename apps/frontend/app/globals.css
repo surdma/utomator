@@ -1,5 +1,5 @@
-@import 'tailwindcss';
-@import '@xyflow/react/dist/style.css';
+@import "tailwindcss";
+@import "@xyflow/react/dist/style.css";
 
 @theme {
   --color-light: #f5f7f8;
@@ -9,8 +9,12 @@
   --color-accent-violet: #8b5cf6;
   --color-accent-pink: #ec4899;
   --color-muted: #64748b;
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --radius-control: 12px;
+  --radius-card: 16px;
 }
 
 /* ── Smooth scrolling & base ─────────────────────── */
@@ -127,7 +131,7 @@ a {
   }
 
   .border-gradient::before {
-    content: '';
+    content: "";
     position: absolute;
     inset: 0;
     padding: 1px;
@@ -171,7 +175,7 @@ a {
 
 /* ── Noise texture overlay ───────────────────── */
 .noise::before {
-  content: '';
+  content: "";
   position: fixed;
   inset: 0;
   z-index: 9999;
@@ -228,7 +232,7 @@ a {
   outline-offset: 3px;
 }
 .site-action:disabled,
-.site-action[aria-disabled='true'] {
+.site-action[aria-disabled="true"] {
   opacity: 0.55;
   cursor: not-allowed;
   transform: none;
@@ -376,5 +380,19 @@ body:has([data-automate]) {
   .mator-shimmer {
     animation: none;
     background-image: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

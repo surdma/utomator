@@ -1,6 +1,213 @@
-<testsuites id="" name="" tests="1" failures="0" skipped="0" errors="0" time="57.014103000000006">
-<testsuite name="mator-groq.e2e.test.ts" timestamp="2026-10-30T15:47:03.429Z" hostname="connector-regression" tests="1" failures="0" skipped="0" time="46.955" errors="0">
-<testcase name="Mator Groq settings and chat › settings show free and paid models, and a chat turn reaches the backend" classname="mator-groq.e2e.test.ts" time="46.955">
+<testsuites id="" name="" tests="4" failures="1" skipped="0" errors="3" time="106.64209600000001">
+<testsuite name="frontend-quality.test.ts" timestamp="2026-11-07T14:08:42.619Z" hostname="desktop-chromium" tests="4" failures="1" skipped="0" time="326.439" errors="3">
+<testcase name="provider icons have one consistent size and no redundant status graphics" classname="frontend-quality.test.ts" time="81.56">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|artifacts\frontend-quality-provider--8e7ed-o-redundant-status-graphics-desktop-chromium\video.webm]]
+
+[[ATTACHMENT|artifacts\frontend-quality-provider--8e7ed-o-redundant-status-graphics-desktop-chromium\error-context.md]]
+
+[[ATTACHMENT|artifacts\frontend-quality-provider--8e7ed-o-redundant-status-graphics-desktop-chromium\trace.zip]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeVisible() failed" type="expect.toBeVisible">
+<![CDATA[  [desktop-chromium] › frontend-quality.test.ts:89:5 › provider icons have one consistent size and no redundant status graphics 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('dialog', { name: 'Connect your social accounts' })
+    Expected: visible
+    Timeout: 12000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByRole('dialog', { name: 'Connect your social accounts' }) with timeout 12000ms
+      - waiting for getByRole('dialog', { name: 'Connect your social accounts' })
+
+
+    Call Log:
+    - Test timeout of 45000ms exceeded
+
+       at support\connector-mocks.ts:71
+
+      69 |     if (!(await wizard.isVisible())) await trigger.click();
+      70 |     await expect(wizard).toBeVisible();
+    > 71 |   }).toPass({ timeout: 45_000 });
+         |      ^
+      72 |   return wizard;
+      73 | }
+      74 |
+        at openConnectorDialog (C:\Users\olaitan\Dev\utomator\apps\frontend\tests\support\connector-mocks.ts:71:6)
+        at C:\Users\olaitan\Dev\utomator\apps\frontend\tests\frontend-quality.test.ts:93:18
+
+    attachment #1: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\artifacts\frontend-quality-provider--8e7ed-o-redundant-status-graphics-desktop-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\artifacts\frontend-quality-provider--8e7ed-o-redundant-status-graphics-desktop-chromium\error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    ..\test-results\artifacts\frontend-quality-provider--8e7ed-o-redundant-status-graphics-desktop-chromium\trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ..\test-results\artifacts\frontend-quality-provider--8e7ed-o-redundant-status-graphics-desktop-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</failure>
+</testcase>
+<testcase name="dashboard navigation stays usable after extracting the shell" classname="frontend-quality.test.ts" time="79.042">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|artifacts\frontend-quality-dashboard-a44d3--after-extracting-the-shell-desktop-chromium\test-failed-1.png]]
+
+[[ATTACHMENT|artifacts\frontend-quality-dashboard-a44d3--after-extracting-the-shell-desktop-chromium\video.webm]]
+
+[[ATTACHMENT|artifacts\frontend-quality-dashboard-a44d3--after-extracting-the-shell-desktop-chromium\error-context.md]]
+
+[[ATTACHMENT|artifacts\frontend-quality-dashboard-a44d3--after-extracting-the-shell-desktop-chromium\trace.zip]]
+]]>
+</system-out>
+<error message="Test timeout of 45000ms exceeded." type="Error">
+<![CDATA[  [desktop-chromium] › frontend-quality.test.ts:293:5 › dashboard navigation stays usable after extracting the shell 
+
+    Test timeout of 45000ms exceeded.
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\artifacts\frontend-quality-dashboard-a44d3--after-extracting-the-shell-desktop-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\artifacts\frontend-quality-dashboard-a44d3--after-extracting-the-shell-desktop-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\artifacts\frontend-quality-dashboard-a44d3--after-extracting-the-shell-desktop-chromium\error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ..\test-results\artifacts\frontend-quality-dashboard-a44d3--after-extracting-the-shell-desktop-chromium\trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ..\test-results\artifacts\frontend-quality-dashboard-a44d3--after-extracting-the-shell-desktop-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</error>
+</testcase>
+<testcase name="Mator sends text, preserves failed drafts, and places the newest reply last" classname="frontend-quality.test.ts" time="83.485">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|artifacts\frontend-quality-Mator-sen-73ece-laces-the-newest-reply-last-desktop-chromium\test-failed-1.png]]
+
+[[ATTACHMENT|artifacts\frontend-quality-Mator-sen-73ece-laces-the-newest-reply-last-desktop-chromium\video.webm]]
+
+[[ATTACHMENT|artifacts\frontend-quality-Mator-sen-73ece-laces-the-newest-reply-last-desktop-chromium\error-context.md]]
+
+[[ATTACHMENT|artifacts\frontend-quality-Mator-sen-73ece-laces-the-newest-reply-last-desktop-chromium\trace.zip]]
+]]>
+</system-out>
+<error message="Test timeout of 45000ms exceeded." type="Error">
+<![CDATA[  [desktop-chromium] › frontend-quality.test.ts:675:5 › Mator sends text, preserves failed drafts, and places the newest reply last 
+
+    Test timeout of 45000ms exceeded.
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('mator-chat').getByText('Reply to: First question')
+    Expected: visible
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByTestId('mator-chat').getByText('Reply to: First question') with timeout 12000ms
+      - waiting for getByTestId('mator-chat').getByText('Reply to: First question')
+      - Test timeout of 45000ms exceeded.
+
+
+      795 |   await input.fill('First question');
+      796 |   await dock.getByTestId('mator-send').click();
+    > 797 |   await expect(dock.getByText('Reply to: First question')).toBeVisible();
+          |                                                            ^
+      798 |   expect(sent).toEqual(['First question']);
+      799 |
+      800 |   failNext = true;
+        at C:\Users\olaitan\Dev\utomator\apps\frontend\tests\frontend-quality.test.ts:797:60
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\artifacts\frontend-quality-Mator-sen-73ece-laces-the-newest-reply-last-desktop-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\artifacts\frontend-quality-Mator-sen-73ece-laces-the-newest-reply-last-desktop-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\artifacts\frontend-quality-Mator-sen-73ece-laces-the-newest-reply-last-desktop-chromium\error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ..\test-results\artifacts\frontend-quality-Mator-sen-73ece-laces-the-newest-reply-last-desktop-chromium\trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ..\test-results\artifacts\frontend-quality-Mator-sen-73ece-laces-the-newest-reply-last-desktop-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</error>
+</testcase>
+<testcase name="Mator creates a persisted workflow and accepts the first chat message" classname="frontend-quality.test.ts" time="82.352">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|artifacts\frontend-quality-Mator-cre-24176-epts-the-first-chat-message-desktop-chromium\test-failed-1.png]]
+
+[[ATTACHMENT|artifacts\frontend-quality-Mator-cre-24176-epts-the-first-chat-message-desktop-chromium\video.webm]]
+
+[[ATTACHMENT|artifacts\frontend-quality-Mator-cre-24176-epts-the-first-chat-message-desktop-chromium\error-context.md]]
+
+[[ATTACHMENT|artifacts\frontend-quality-Mator-cre-24176-epts-the-first-chat-message-desktop-chromium\trace.zip]]
+]]>
+</system-out>
+<error message="Test timeout of 45000ms exceeded." type="Error">
+<![CDATA[  [desktop-chromium] › frontend-quality.test.ts:1437:5 › Mator creates a persisted workflow and accepts the first chat message 
+
+    Test timeout of 45000ms exceeded.
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('mator-chat').getByText('Mator received the first message')
+    Expected: visible
+    Timeout: 12000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByTestId('mator-chat').getByText('Mator received the first message') with timeout 12000ms
+      - waiting for getByTestId('mator-chat').getByText('Mator received the first message')
+
+
+      1542 |   await expect(
+      1543 |     dock.getByText('Mator received the first message'),
+    > 1544 |   ).toBeVisible();
+           |     ^
+      1545 |   expect(created).toBe(true);
+      1546 |   expect(conversationCreated).toBe(true);
+      1547 |   expect(message).toBe('I need my first workflow');
+        at C:\Users\olaitan\Dev\utomator\apps\frontend\tests\frontend-quality.test.ts:1544:5
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\artifacts\frontend-quality-Mator-cre-24176-epts-the-first-chat-message-desktop-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\artifacts\frontend-quality-Mator-cre-24176-epts-the-first-chat-message-desktop-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\artifacts\frontend-quality-Mator-cre-24176-epts-the-first-chat-message-desktop-chromium\error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ..\test-results\artifacts\frontend-quality-Mator-cre-24176-epts-the-first-chat-message-desktop-chromium\trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ..\test-results\artifacts\frontend-quality-Mator-cre-24176-epts-the-first-chat-message-desktop-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</error>
 </testcase>
 </testsuite>
 </testsuites>

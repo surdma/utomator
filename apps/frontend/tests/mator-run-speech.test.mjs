@@ -1,9 +1,8 @@
-
-import { test, expect } from 'vitest';
+import { expect, test } from 'vitest';
 import {
   collectRunSpeechUpdates,
   summarizeRunEventForSpeech,
-} from '../components/mator/mator-run-speech.ts';
+} from '../modules/mator/components/mator-run-speech.ts';
 
 const runEvent = (id, kind, message, runId = 'run-1') => ({
   id,
@@ -29,11 +28,13 @@ test('speaks actual Runner start, step progress and completion', () => {
   expect(updates[0]).toMatch(/starting/);
   expect(updates[1]).toMatch(/Inspect profile evidence/);
   expect(updates[3]).toMatch(/verified/);
-  expect(collectRunSpeechUpdates(
+  expect(
+    collectRunSpeechUpdates(
       [runEvent(4, 'status', 'Run finished with verified steps')],
       'run-1',
       seen,
-    )).toEqual([]);
+    ),
+  ).toEqual([]);
 });
 test('never speaks raw error diagnostics', () => {
   for (const item of [
@@ -48,7 +49,8 @@ test('never speaks raw error diagnostics', () => {
 });
 test('unrelated runs and noisy events are silent', () => {
   const seen = new Set();
-  expect(collectRunSpeechUpdates(
+  expect(
+    collectRunSpeechUpdates(
       [
         runEvent(1, 'step', 'Started: Other run step', 'run-2'),
         runEvent(2, 'screenshot', 'Captured screenshot'),
@@ -56,12 +58,19 @@ test('unrelated runs and noisy events are silent', () => {
       ],
       'run-1',
       seen,
-    )).toEqual([]);
+    ),
+  ).toEqual([]);
 });
 test('approvals and input needs are short and accurate', () => {
-  expect(summarizeRunEventForSpeech(
+  expect(
+    summarizeRunEventForSpeech(
       runEvent(1, 'approval', 'Private approval reference'),
-    )).toMatch(/approval/);
-  expect(summarizeRunEventForSpeech(runEvent(2, 'input', 'Private input reference'))).toMatch(/more information/);
-  expect(summarizeRunEventForSpeech(runEvent(3, 'status', 'Run ended: cancelled'))).toMatch(/cancelled/);
+    ),
+  ).toMatch(/approval/);
+  expect(
+    summarizeRunEventForSpeech(runEvent(2, 'input', 'Private input reference')),
+  ).toMatch(/more information/);
+  expect(
+    summarizeRunEventForSpeech(runEvent(3, 'status', 'Run ended: cancelled')),
+  ).toMatch(/cancelled/);
 });

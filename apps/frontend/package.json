@@ -11,13 +11,12 @@
     "biome:check": "biome check .",
     "biome:fix": "biome check --write .",
     "biome:unsafe-fix": "biome check --write --unsafe .",
-    "doctor": "react-doctor . --verbose --diff",
-    "test": "vitest run",
-    "test:unit": "vitest run",
-    "test:feature": "vitest run",
+    "doctor": "npx react-doctor@latest",
+    "test": "vitest run --config vitest.unit.config.ts && vitest run --config vitest.feature.config.ts",
+    "test:unit": "vitest run --config vitest.unit.config.ts",
+    "test:feature": "vitest run --config vitest.feature.config.ts",
     "test:browser": "playwright test",
-    "test:ui": "playwright test tests/frontend-quality.test.ts",
-    "doctor": "npx react-doctor@latest"
+    "test:ui": "playwright test tests/frontend-quality.test.ts"
   },
   "dependencies": {
     "@react-pdf/renderer": "4.9.0",
@@ -44,6 +43,8 @@
     "postcss": "^8.5.8",
     "react-doctor": "^0.9.22",
     "tailwindcss": "^4.2.2",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.2",
+    "jsdom": "^26",
+    "vitest": "^3"
   }
 }

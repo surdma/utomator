@@ -332,6 +332,9 @@ async function forward(req: NextRequest, params: Promise<{ path: string[] }>) {
                 'idempotency-key': req.headers.get('idempotency-key') as string,
               }
             : {}),
+          ...(req.headers.get('x-owner-id')
+            ? { 'x-owner-id': req.headers.get('x-owner-id') as string }
+            : {}),
         },
         body: body?.length ? body : undefined,
         cache: 'no-store',
@@ -346,6 +349,15 @@ async function forward(req: NextRequest, params: Promise<{ path: string[] }>) {
     });
     if (target.startsWith('events/')) {
       headers.set('x-accel-buffering', 'no');
+    }
+    if (/^runs\/[0-9a-fA-F-]{36}\/logs$/.test(target)) {
+      for (const name of [
+        'x-run-journal-truncated',
+        'x-run-journal-has-more',
+      ]) {
+        const value = upstream.headers.get(name);
+        if (value !== null) headers.set(name, value);
+      }
     }
     return new Response(upstream.body, { status: upstream.status, headers });
   } catch {

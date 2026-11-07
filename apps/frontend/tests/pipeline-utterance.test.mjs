@@ -1,23 +1,34 @@
-
-import { test, expect } from 'vitest';
-import { explainCommand } from '../components/dashboard/pipeline/command-parser.ts';
+import { expect, test } from 'vitest';
+import { explainCommand } from '../modules/pipeline/components/command-parser.ts';
 import {
   decideUtterance,
   nextCommandState,
-} from '../components/dashboard/pipeline/utterance.ts';
+} from '../modules/pipeline/components/utterance.ts';
 
 test('natural phrases map onto the same four commands', () => {
   expect(explainCommand('check my profile')?.action).toEqual('audit');
   expect(explainCommand('review my LinkedIn.')?.action).toEqual('audit');
-  expect(explainCommand('change my headline to Clinical Systems Lead')?.fields
-      .headline).toEqual('Clinical Systems Lead');
-  expect(explainCommand('make my headline Clinical Systems Lead')?.fields.headline).toEqual('Clinical Systems Lead');
+  expect(
+    explainCommand('change my headline to Clinical Systems Lead')?.fields
+      .headline,
+  ).toEqual('Clinical Systems Lead');
+  expect(
+    explainCommand('make my headline Clinical Systems Lead')?.fields.headline,
+  ).toEqual('Clinical Systems Lead');
   expect(explainCommand('change my headline to')).toEqual(null);
   expect(explainCommand('change my headline to .')).toEqual(null);
-  expect(explainCommand('add a skill called React')?.fields.skill).toEqual('React');
-  expect(explainCommand('add the skill TypeScript')?.fields.skill).toEqual('TypeScript');
-  expect(explainCommand('draft a post about New research')?.fields.postText).toEqual('New research');
-  expect(explainCommand('write a post saying Hello team')?.fields.postText).toEqual('Hello team');
+  expect(explainCommand('add a skill called React')?.fields.skill).toEqual(
+    'React',
+  );
+  expect(explainCommand('add the skill TypeScript')?.fields.skill).toEqual(
+    'TypeScript',
+  );
+  expect(
+    explainCommand('draft a post about New research')?.fields.postText,
+  ).toEqual('New research');
+  expect(
+    explainCommand('write a post saying Hello team')?.fields.postText,
+  ).toEqual('Hello team');
   expect(explainCommand('launch everything')).toEqual(null);
   expect(explainCommand('add a skill called')).toEqual(null);
 });

@@ -1,11 +1,14 @@
-
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { test, expect } from 'vitest';
-import { editorialYaml, LinkedInEditorialStore } from '../src/linkedin/linkedin-editorial.js';
-import { AccountStore } from '../src/profile/account-store.js';
+import { expect, test } from 'vitest';
+import {
+  editorialYaml,
+  LinkedInEditorialStore,
+} from '../src/infrastructure/linkedin/linkedin-editorial.js';
+import { AccountStore } from '../src/infrastructure/profile/account-store.js';
+import { removeTemp } from './support/remove-temp.js';
 
 process.env.NODE_ENV = 'test';
 const { buildApp } = await import('../src/main.js');
@@ -49,9 +52,11 @@ test('Private LinkedIn editorial lifecycle persists and resets approval after re
     const created = await store.create(id, draft);
     expect(created.status).toEqual('draft');
     expect(created.history.length).toEqual(1);
-    expect((await new LinkedInEditorialStore(account, research, path).get(created.id))?.version).toEqual(1);
+    expect((await new LinkedInEditorialStore(account, research, path).get(created.id))?.version).toEqual(
+      1,
+    );
     expect((await store.list(id)).length).toEqual(1);
-    await expect((store.update(created.id, 2, draft))).rejects.toThrow(/version conflict/);
+    await expect(store.update(created.id, 2, draft)).rejects.toThrow(/version conflict/);
     const approved = await store.transition(created.id, 1, 'approve');
     expect(approved.status).toEqual('approved');
     const revised = await store.update(created.id, 2, {
@@ -62,17 +67,17 @@ test('Private LinkedIn editorial lifecycle persists and resets approval after re
     expect(revised.reviewedAt).toEqual(null);
     const archived = await store.transition(created.id, 3, 'archive');
     expect(archived.status).toEqual('archived');
-    await expect((store.update(created.id, 4, draft))).rejects.toThrow(/Restore/);
+    await expect(store.update(created.id, 4, draft)).rejects.toThrow(/Restore/);
     const restored = await store.transition(created.id, 4, 'restore');
     expect(restored.status).toEqual('draft');
-    await expect((store.transition(created.id, 5, 'delete'))).rejects.toThrow(/confirmation/);
+    await expect(store.transition(created.id, 5, 'delete')).rejects.toThrow(/confirmation/);
     const deleted = await store.transition(created.id, 5, 'delete', true);
     expect(deleted.status).toEqual('deleted');
     expect((await store.list(id)).length).toEqual(0);
     expect(editorialYaml(deleted)).toMatch(/externalPublishing: "not-performed"/);
     expect(editorialYaml(deleted)).toMatch(/contentSha256/);
   } finally {
-    await rm(path, { recursive: true, force: true });
+    await removeTemp(path);
   }
 });
 
@@ -80,17 +85,21 @@ test('Editorial input rejects unowned accounts, unrelated evidence, duplicate so
   const path = await mkdtemp(join(tmpdir(), 'utomator-editorial-'));
   try {
     const store = new LinkedInEditorialStore(account, research, path);
-    await expect((store.create(randomUUID(), draft))).rejects.toThrow(/not saved/);
-    await expect((store.create(id, { ...draft, body: 'short' }))).rejects.toThrow(/Draft body/);
-    await expect((store.create(id, { ...draft, sourceUrls: [reference, reference] }))).rejects.toThrow(/Duplicate/);
-    await expect((store.create(id, {
+    await expect(store.create(randomUUID(), draft)).rejects.toThrow(/not saved/);
+    await expect(store.create(id, { ...draft, body: 'short' })).rejects.toThrow(/Draft body/);
+    await expect(store.create(id, { ...draft, sourceUrls: [reference, reference] })).rejects.toThrow(
+      /Duplicate/,
+    );
+    await expect(
+      store.create(id, {
         ...draft,
         sourceUrls: ['https://other.example/report'],
-      }))).rejects.toThrow(/match/);
-    await expect((store.create(id, { ...draft, unexpected: true }))).rejects.toThrow(/Unknown/);
+      }),
+    ).rejects.toThrow(/match/);
+    await expect(store.create(id, { ...draft, unexpected: true })).rejects.toThrow(/Unknown/);
     expect((await store.list()).length).toEqual(0);
   } finally {
-    await rm(path, { recursive: true, force: true });
+    await removeTemp(path);
   }
 });
 
@@ -202,6 +211,6 @@ test('Fastify editorial API verifies saved account and supports versioned CRUD w
     expect(!remaining.some((row) => row.id === saved.id)).toBeTruthy();
   } finally {
     await app.close();
-    await rm(root, { recursive: true, force: true });
+    await removeTemp(root);
   }
 });

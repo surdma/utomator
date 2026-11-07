@@ -1,19 +1,18 @@
-
 import { createHash } from 'node:crypto';
-import { test, expect } from 'vitest';
-import type { RunRequest, RunSummary } from '../src/core/types.js';
-import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
-import type { MatorActionPorts, MatorWorkflowPort } from '../src/mator/mator-actions.js';
+import { expect, test } from 'vitest';
+import type { RunRequest, RunSummary } from '../src/domain/types.js';
+import { defaultPlan, type WorkflowPlan } from '../src/domain/workflow-plan.js';
+import type { DocumentRecord, DocumentStore } from '../src/infrastructure/db/documents.js';
+import type { MatorActionPorts, MatorWorkflowPort } from '../src/infrastructure/mator/mator-actions.js';
 import {
   GROQ_OPENAI_BASE_URL,
   MAX_MATOR_ACTIONS_PER_TURN,
   MatorConfigError,
   runMatorTurn,
-} from '../src/mator/mator-agent.js';
-import { createConversation, listEvents } from '../src/mator/mator-conversations.js';
-import { putMatorSettings } from '../src/mator/mator-settings.js';
-import { defaultPlan, type WorkflowPlan } from '../src/workflows/workflow-plan.js';
-import type { WorkflowRecord } from '../src/workflows/workflow-registry.js';
+} from '../src/infrastructure/mator/mator-agent.js';
+import { createConversation, listEvents } from '../src/infrastructure/mator/mator-conversations.js';
+import { putMatorSettings } from '../src/infrastructure/mator/mator-settings.js';
+import type { WorkflowRecord } from '../src/infrastructure/workflows/workflow-registry.js';
 
 const MASTER = Buffer.from(createHash('sha256').update('mator-agent-test-master').digest());
 const hex = (buffer: Buffer) => buffer.toString('hex');
@@ -180,7 +179,7 @@ test('runMatorTurn throws MatorConfigError when Groq key is missing', async () =
   const ports = portsFor(workflow);
   const conversation = await createConversation(docs, workflow.live.id, 'No key');
 
-  let e;
+  let e: unknown;
   try {
     await (() =>
       runMatorTurn(docs, ports, {
@@ -188,11 +187,15 @@ test('runMatorTurn throws MatorConfigError when Groq key is missing', async () =
         userText: 'edit inspect title',
         idempotencyKey: 'missing-key-1',
       }))();
-  } catch (caught) { e = caught; }
+  } catch (caught) {
+    e = caught;
+  }
   expect(e).toBeDefined();
-  expect(e instanceof MatorConfigError &&
-        e.code === 'MATOR_CONFIG' &&
-        /settings|groq|key/i.test(e.message + (e.hint ?? ''))).toBe(true);
+  expect(
+    e instanceof MatorConfigError &&
+      e.code === 'MATOR_CONFIG' &&
+      /settings|groq|key/i.test(e.message + (e.hint ?? '')),
+  ).toBe(true);
 });
 
 test('runMatorTurn parses Groq structured actions into staged events', async () => {
@@ -247,7 +250,9 @@ test('runMatorTurn parses Groq structured actions into staged events', async () 
       stepId: 'inspect',
       patch: { title: 'Inspect carefully' },
     });
-    expect(events.some((e) => e.kind === 'how' || (e.action as { type?: string })?.type === 'explain_how')).toBeTruthy();
+    expect(
+      events.some((e) => e.kind === 'how' || (e.action as { type?: string })?.type === 'explain_how'),
+    ).toBeTruthy();
     expect(workflow.live.revision).toEqual(beforeRevision);
   });
 });
@@ -330,9 +335,11 @@ test('runMatorTurn blocks prompt-injection before staging actions', async () => 
 
     expect(actionCalls).toEqual(0);
     expect(workflow.live.revision).toEqual(1);
-    expect(events.some(
+    expect(
+      events.some(
         (event) => event.status === 'error' && /content check|Blocked/i.test(event.text ?? ''),
-      )).toBeTruthy();
+      ),
+    ).toBeTruthy();
   });
 });
 
@@ -362,10 +369,14 @@ test('runMatorTurn caps action processing at 3 when model returns 5', async () =
       { fetch: fetchMock },
     );
 
-    expect(events.filter(
+    expect(
+      events.filter(
         (event) => event.kind === 'action' && (event.status === 'staged' || event.status === 'applied'),
-      ).length).toEqual(0);
-    expect(events.some((event) => event.kind === 'how' && /Stopped after 3 actions/i.test(event.text ?? ''))).toBeTruthy();
+      ).length,
+    ).toEqual(0);
+    expect(
+      events.some((event) => event.kind === 'how' && /Stopped after 3 actions/i.test(event.text ?? '')),
+    ).toBeTruthy();
   });
 });
 
@@ -432,11 +443,13 @@ test('runMatorTurn rejects hallucinated step ids before apply', async () => {
     );
 
     expect(workflow.live.revision).toEqual(beforeRevision);
-    expect(events.some(
+    expect(
+      events.some(
         (e) =>
           e.status === 'error' ||
           (typeof e.text === 'string' && /does-not-exist|unknown step/i.test(e.text)),
-      )).toBeTruthy();
+      ),
+    ).toBeTruthy();
     const applied = await listEvents(docs, conversation.id, {});
     expect(applied.filter((e) => e.status === 'applied').length).toEqual(0);
   });
@@ -467,8 +480,10 @@ test('runMatorTurn degraded mode does not invent actions when Groq is down', asy
       { fetch: fetchMock },
     );
 
-    expect(events.filter((e) => e.kind === 'action' && (e.status === 'staged' || e.status === 'applied'))
-        .length).toEqual(0);
+    expect(
+      events.filter((e) => e.kind === 'action' && (e.status === 'staged' || e.status === 'applied'))
+        .length,
+    ).toEqual(0);
     expect(events.some((e) => e.role === 'assistant' || e.role === 'system')).toBeTruthy();
   });
 });
@@ -495,7 +510,9 @@ test('informational answer and noop never create staged or applied events', asyn
       { fetch: fetchMock },
     );
     expect(events.some((event) => event.kind === 'how')).toBeTruthy();
-    expect(events.filter((event) => event.status === 'staged' || event.status === 'applied').length).toEqual(0);
+    expect(
+      events.filter((event) => event.status === 'staged' || event.status === 'applied').length,
+    ).toEqual(0);
     expect(workflow.live.revision).toEqual(1);
   });
 });
@@ -516,7 +533,9 @@ test('empty Groq action response cannot invent an applied mutation', async () =>
       },
       { fetch: async () => groqJsonResponse({ actions: [] }) },
     );
-    expect(events.some((event) => event.kind === 'message' && /No workflow changes/.test(event.text ?? ''))).toBeTruthy();
+    expect(
+      events.some((event) => event.kind === 'message' && /No workflow changes/.test(event.text ?? '')),
+    ).toBeTruthy();
     expect(events.filter((event) => event.kind === 'action').length).toEqual(0);
     expect(workflow.live.revision).toEqual(1);
   });

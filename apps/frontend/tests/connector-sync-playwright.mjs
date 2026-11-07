@@ -10,14 +10,18 @@ async function main() {
   let passed = 0;
   let failed = 0;
 
-  function expect(condition).toBeTruthy() {
-    if (condition) {
-      console.log(`  PASS: ${name}`);
-      passed++;
-    } else {
-      console.log(`  FAIL: ${name}`);
-      failed++;
-    }
+  function expect(condition) {
+    return {
+      toBeTruthy() {
+        if (condition) {
+          console.log('  PASS');
+          passed += 1;
+        } else {
+          console.log('  FAIL');
+          failed += 1;
+        }
+      },
+    };
   }
 
   try {

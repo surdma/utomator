@@ -1,9 +1,9 @@
-
 import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { test, expect } from 'vitest';
+import { expect, test } from 'vitest';
 import { TenantWorkerManager } from '../hosted/workers.mjs';
+import { removeTemp } from './support/remove-temp.js';
 
 const alice = '11111111-1111-4111-8111-111111111111';
 const bob = '22222222-2222-4222-8222-222222222222';
@@ -30,7 +30,7 @@ test('real per-owner Fastify workers isolate SQL, legacy files, memory and saved
     maxWorkers: 2,
   });
   try {
-    await expect((manager.start('local-owner'))).rejects.toThrow(/verified UUID/);
+    await expect(manager.start('local-owner')).rejects.toThrow(/verified UUID/);
     const [a, b] = await Promise.all([manager.start(alice), manager.start(bob)]);
     expect(a.port).not.toEqual(b.port);
     expect(a.child.pid).not.toEqual(b.child.pid);
@@ -115,6 +115,6 @@ test('real per-owner Fastify workers isolate SQL, legacy files, memory and saved
     expect((await json(b, '/account')).data.profile.displayName).toEqual('Bob Example');
   } finally {
     await manager.close();
-    await rm(temp, { recursive: true, force: true });
+    await removeTemp(temp);
   }
 });

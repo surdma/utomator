@@ -1,13 +1,13 @@
-
+import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { test, expect } from 'vitest';
-import assert from 'node:assert/strict';
+import { expect, test } from 'vitest';
 
 const root = resolve(import.meta.dirname, '..');
-const mator = (name) => resolve(root, 'components/mator', name);
+const mator = (name) => resolve(root, 'modules/mator/components', name);
 const ui = (name) => resolve(root, 'components/ui', name);
-const aiElements = (name) => resolve(root, 'components/mator/elements', name);
+const aiElements = (name) =>
+  resolve(root, 'modules/mator/components/elements', name);
 
 test('image thumbnail opens annotation studio on click', () => {
   const preview = readFileSync(mator('mator-attachment-preview.tsx'), 'utf8');
@@ -28,8 +28,7 @@ test('chat images offer the full YAML-driven annotation studio', () => {
   // Linked saved reviews expose the annotation YAML directly.
   expect(preview).toMatch(/data-testid="mator-annotation-yaml-link"/);
   expect(preview).toMatch(/reviewId/);
-  expect(preview).toMatch(/visual-reviews\/\s*\+?\s*reviewId|visual-reviews\/'\s*\+/,
-  );
+  expect(preview).toMatch(/visual-reviews\/\$\{reviewId\}/);
 });
 
 test('mator attachment canvas module exists', () => {
@@ -66,7 +65,7 @@ test('operator chat panel exposes required mator testids and chrome', () => {
   assert.match(source, /orderedMatorEvents/);
   assert.match(
     source,
-    /getApi\(\s*'runs\/'/,
+    /getApi\(['"\x60]runs\//,
     'screenshot evidence links the run API',
   );
   assert.doesNotMatch(source, /Groq capabilities/);
@@ -139,7 +138,7 @@ test('new chat displays suggestions instead of a permanent loading skeleton', ()
 test('model picker is connected to real chat settings and handles failures', () => {
   const panel = readFileSync(mator('operator-chat-panel.tsx'), 'utf8');
   const shell = readFileSync(
-    resolve(root, 'components/dashboard/dashboard-shell.tsx'),
+    resolve(root, 'modules/shell/components/dashboard-shell.tsx'),
     'utf8',
   );
   const settings = readFileSync(mator('mator-chat-settings.tsx'), 'utf8');
@@ -155,7 +154,7 @@ test('model picker is connected to real chat settings and handles failures', () 
 test('attachment upload failures remain visible in the composer', () => {
   const composer = readFileSync(mator('mator-composer.tsx'), 'utf8');
   const shell = readFileSync(
-    resolve(root, 'components/dashboard/dashboard-shell.tsx'),
+    resolve(root, 'modules/shell/components/dashboard-shell.tsx'),
     'utf8',
   );
   expect(composer).toMatch(/if \(!id\) throw Error/);
@@ -181,7 +180,7 @@ test('legacy local command approval stays available without duplicating Mator st
   const composer = readFileSync(mator('mator-composer.tsx'), 'utf8');
   const panel = readFileSync(mator('operator-chat-panel.tsx'), 'utf8');
   const shell = readFileSync(
-    resolve(root, 'components/dashboard/dashboard-shell.tsx'),
+    resolve(root, 'modules/shell/components/dashboard-shell.tsx'),
     'utf8',
   );
   expect(composer).toMatch(/data-testid="operator-pending-approval"/);
@@ -205,13 +204,15 @@ test('asset upload requires explicit send and multi-image names are metadata', (
 });
 test('text dictation stays in the draft and AI Call requires an explicit start', () => {
   const shell = readFileSync(
-    resolve(root, 'components/dashboard/dashboard-shell.tsx'),
+    resolve(root, 'modules/shell/components/dashboard-shell.tsx'),
     'utf8',
   );
   const composer = readFileSync(mator('mator-composer.tsx'), 'utf8');
   const listener = readFileSync(mator('mator-voice-listener.tsx'), 'utf8');
   expect(shell).toMatch(/if \(source === 'voice'\) \{/);
-  expect(shell).toMatch(/\[current\.trim\(\), request\]\.filter\(Boolean\)\.join\(' '\)/);
+  expect(shell).toMatch(
+    /\[current\.trim\(\), request\]\.filter\(Boolean\)\.join\(' '\)/,
+  );
   expect(shell).toMatch(/const aiCall = useMatorAiCall\(/);
   expect(composer).toMatch(/<MatorVoiceListener call=\{call\}/);
   expect(listener).toMatch(/data-testid="mator-call-start"/);

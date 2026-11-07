@@ -1,8 +1,7 @@
-
 import { createHash } from 'node:crypto';
-import { test, expect } from 'vitest';
 import type { Cookie } from 'playwright';
-import type { VaultPayload } from '../src/connect/session-vault.js';
+import { expect, test } from 'vitest';
+import type { VaultPayload } from '../src/infrastructure/connect/session-vault.js';
 import {
   decryptSession,
   deleteVault,
@@ -17,8 +16,8 @@ import {
   VAULT_NAMESPACE,
   VaultDecryptError,
   vaultKeyConfigured,
-} from '../src/connect/session-vault.js';
-import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
+} from '../src/infrastructure/connect/session-vault.js';
+import type { DocumentRecord, DocumentStore } from '../src/infrastructure/db/documents.js';
 
 const MASTER = Buffer.from(createHash('sha256').update('test-master').digest().slice(0, 32)).subarray(
   0,
@@ -100,11 +99,15 @@ const samplePayload = (): VaultPayload => ({
 test('vault key loading validates 64-hex and reports configurability', () => {
   expect(loadVaultMasterKey({})).toEqual(null);
   expect(vaultKeyConfigured({})).toEqual(false);
-  expect(loadVaultMasterKey({
+  expect(
+    loadVaultMasterKey({
       UTOMATOR_SESSION_ENCRYPTION_KEY: hex(MASTER),
-    })?.equals(MASTER)).toEqual(true);
+    })?.equals(MASTER),
+  ).toEqual(true);
   expect(vaultKeyConfigured({ UTOMATOR_SESSION_ENCRYPTION_KEY: hex(MASTER) })).toEqual(true);
-  expect(() => loadVaultMasterKey({ UTOMATOR_SESSION_ENCRYPTION_KEY: 'nothex' })).toThrow(/Invalid UTOMATOR_SESSION_ENCRYPTION_KEY/);
+  expect(() => loadVaultMasterKey({ UTOMATOR_SESSION_ENCRYPTION_KEY: 'nothex' })).toThrow(
+    /Invalid UTOMATOR_SESSION_ENCRYPTION_KEY/,
+  );
 });
 
 test('owner subkeys are deterministic, 32 bytes, and isolated per owner', () => {
@@ -137,32 +140,38 @@ test('payload shape validation rejects malformed captures', () => {
   const valid = samplePayload();
   expect(serializeVaultPayload(valid).startsWith('{"platform":"linkedin"')).toEqual(true);
   expect(() =>
-      serializeVaultPayload({
-        ...valid,
-        platform: 'instagram' as unknown as 'linkedin',
-      })).toThrow(/Unsupported vault platform/);
-  expect(() => serializeVaultPayload({ ...valid, cookies: null as unknown as Cookie[] })).toThrow(/no cookies/);
+    serializeVaultPayload({
+      ...valid,
+      platform: 'instagram' as unknown as 'linkedin',
+    }),
+  ).toThrow(/Unsupported vault platform/);
+  expect(() => serializeVaultPayload({ ...valid, cookies: null as unknown as Cookie[] })).toThrow(
+    /no cookies/,
+  );
   expect(() =>
-      serializeVaultPayload({
-        ...valid,
-        browserHints: {
-          ...valid.browserHints,
-          viewport: { width: 0, height: 850 },
-        },
-      })).toThrow(/hints are invalid/);
+    serializeVaultPayload({
+      ...valid,
+      browserHints: {
+        ...valid.browserHints,
+        viewport: { width: 0, height: 850 },
+      },
+    }),
+  ).toThrow(/hints are invalid/);
   expect(() =>
-      serializeVaultPayload({
-        ...valid,
-        originState: [{ origin: 'http://insecure.com', localStorage: [] }],
-      })).toThrow(/HTTPS origins/);
+    serializeVaultPayload({
+      ...valid,
+      originState: [{ origin: 'http://insecure.com', localStorage: [] }],
+    }),
+  ).toThrow(/HTTPS origins/);
   expect(() =>
-      serializeVaultPayload({
-        ...valid,
-        lastVerified: {
-          at: new Date().toISOString(),
-          method: 'api-required' as unknown as 'owner-control',
-        },
-      })).toThrow(/owner-control verification/);
+    serializeVaultPayload({
+      ...valid,
+      lastVerified: {
+        at: new Date().toISOString(),
+        method: 'api-required' as unknown as 'owner-control',
+      },
+    }),
+  ).toThrow(/owner-control verification/);
 });
 
 test('storage adapter roundtrips through the document store and deletes cleanly', async () => {

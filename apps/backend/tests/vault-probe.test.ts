@@ -1,11 +1,10 @@
-
-import { test, expect } from 'vitest';
 import type { Page } from 'playwright';
+import { expect, test } from 'vitest';
 import {
   classifyProviderAuth,
   seedOriginStorage,
   toVaultOriginState,
-} from '../src/browser/vault-probe.js';
+} from '../src/infrastructure/browser/vault-probe.js';
 
 const authed = (url: string, platform: 'linkedin' | 'x') => classifyProviderAuth(url, platform);
 
@@ -17,7 +16,9 @@ test('LinkedIn classification trusts only authenticated feed/profile URLs', () =
   // Bounces
   expect(authed('https://www.linkedin.com/authwall/protected?url=x', 'linkedin')).toEqual('auth-walled');
   expect(authed('https://authwall.linkedin.com/u/login', 'linkedin')).toEqual('auth-walled');
-  expect(authed('https://www.linkedin.com/login?session_redirect=/feed/', 'linkedin')).toEqual('auth-walled');
+  expect(authed('https://www.linkedin.com/login?session_redirect=/feed/', 'linkedin')).toEqual(
+    'auth-walled',
+  );
   expect(authed('https://www.linkedin.com/checkpoint/lg/login', 'linkedin')).toEqual('auth-walled');
   expect(authed('https://www.linkedin.com/uas/login/', 'linkedin')).toEqual('auth-walled');
   // Unknown provider subdomain is never trusted
@@ -88,10 +89,11 @@ test('seed origin navigation errors surface to the caller', async () => {
     close: async () => undefined,
   } as unknown as Page;
   await expect(() =>
-      seedOriginStorage(page, [
-        {
-          origin: 'https://www.linkedin.com',
-          localStorage: [{ name: 'x', value: 'y' }],
-        },
-      ])).rejects.toThrow(/ERR_TIMED_OUT/);
+    seedOriginStorage(page, [
+      {
+        origin: 'https://www.linkedin.com',
+        localStorage: [{ name: 'x', value: 'y' }],
+      },
+    ]),
+  ).rejects.toThrow(/ERR_TIMED_OUT/);
 });

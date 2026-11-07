@@ -1,6 +1,5 @@
-
-import { afterEach, test, expect } from 'vitest';
-import { executeCraftCommand } from '../components/dashboard/pipeline/craft-command-service.ts';
+import { afterEach, expect, test } from 'vitest';
+import { executeCraftCommand } from '../modules/pipeline/components/craft-command-service.ts';
 
 const originalFetch = globalThis.fetch;
 afterEach(() => {
@@ -78,9 +77,15 @@ test('craft updates use the selected ID and exact version', async () => {
 
 test('craft commands surface missing craft and API errors', async () => {
   globalThis.fetch = async () => Response.json([craft]);
-  await expect((executeCraftCommand('/craft open absent', null))).rejects.toThrow(/No craft matches/);
-  await expect((executeCraftCommand('/craft rename X', 'absent'))).rejects.toThrow(/Select a craft/);
+  await expect(executeCraftCommand('/craft open absent', null)).rejects.toThrow(
+    /No craft matches/,
+  );
+  await expect(
+    executeCraftCommand('/craft rename X', 'absent'),
+  ).rejects.toThrow(/Select a craft/);
   globalThis.fetch = async () =>
     Response.json({ error: 'Conflict' }, { status: 409 });
-  await expect((executeCraftCommand('/craft help', null))).rejects.toThrow(/Craft library is unavailable/);
+  await expect(executeCraftCommand('/craft help', null)).rejects.toThrow(
+    /Craft library is unavailable/,
+  );
 });

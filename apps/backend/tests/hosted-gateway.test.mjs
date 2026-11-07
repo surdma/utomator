@@ -1,7 +1,6 @@
-
 import { once } from 'node:events';
 import http from 'node:http';
-import { test, expect } from 'vitest';
+import { expect, test } from 'vitest';
 import { createHostedGateway } from '../hosted/server.mjs';
 
 async function server(handler) {

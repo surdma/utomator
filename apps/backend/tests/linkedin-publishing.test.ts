@@ -1,11 +1,11 @@
-
 import { randomBytes } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { test, expect } from 'vitest';
 import { createClient } from '@libsql/client';
-import { AccountStore } from '../src/profile/account-store.js';
+import { expect, test } from 'vitest';
+import { AccountStore } from '../src/infrastructure/profile/account-store.js';
+import { removeTemp } from './support/remove-temp.js';
 
 process.env.NODE_ENV = 'test';
 const { buildApp } = await import('../src/main.js');
@@ -124,7 +124,7 @@ async function cleanup(o: Awaited<ReturnType<typeof fixture>>) {
     await o.app.close();
   } finally {
     await o.client.close();
-    await rm(o.root, { recursive: true, force: true });
+    await removeTemp(o.root);
     for (const key of [
       'UTOMATOR_TEST_DATABASE',
       'DB_FILE_NAME',
@@ -168,12 +168,14 @@ test('OAuth consent -> member identity -> encrypted grant -> text publication ->
     expect(post.length).toEqual(1);
     const request = post[0]!.request;
     expect((request.headers as Record<string, string>)['Linkedin-Version']).toEqual(version);
-    expect((
+    expect(
+      (
         JSON.parse(String(request.body)) as {
           author: string;
           commentary: string;
         }
-      ).author).toEqual('urn:li:person:memberA123');
+      ).author,
+    ).toEqual('urn:li:person:memberA123');
     expect((JSON.parse(String(request.body)) as { commentary: string }).commentary).toEqual(text);
     const duplicate = await f.app.inject({
       method: 'POST',
@@ -191,7 +193,9 @@ test('OAuth consent -> member identity -> encrypted grant -> text publication ->
       payload: { accountId: f.accountId },
     });
     expect(disconnected.statusCode).toEqual(200);
-    expect((await f.app.inject(`/linkedin/oauth/status?accountId=${f.accountId}`)).json().connected).toEqual(false);
+    expect(
+      (await f.app.inject(`/linkedin/oauth/status?accountId=${f.accountId}`)).json().connected,
+    ).toEqual(false);
   } finally {
     await cleanup(f);
   }

@@ -1,19 +1,24 @@
-
-import { test, expect } from 'vitest';
+import { expect, test } from 'vitest';
 import {
   acquireCurrentVoiceStream,
   createVoiceDeliveryGate,
   readVoiceSupport,
-} from '../components/mator/voice-support.ts';
+} from '../modules/mator/components/voice-support.ts';
 
 test('voice support stays unavailable when speech recognition is missing', () => {
   expect(readVoiceSupport(undefined)).toEqual('unsupported');
   expect(readVoiceSupport({})).toEqual('unsupported');
-  expect(readVoiceSupport({ SpeechRecognition: function SpeechRecognition() {} })).toEqual('ready');
-  expect(readVoiceSupport({
+  expect(
+    readVoiceSupport({ SpeechRecognition: function SpeechRecognition() {} }),
+  ).toEqual('ready');
+  expect(
+    readVoiceSupport({
       webkitSpeechRecognition: function webkitSpeechRecognition() {},
-    })).toEqual('ready');
-  expect(readVoiceSupport({ SpeechRecognition: 'present' })).toEqual('unsupported');
+    }),
+  ).toEqual('ready');
+  expect(readVoiceSupport({ SpeechRecognition: 'present' })).toEqual(
+    'unsupported',
+  );
 });
 
 test('late microphone permission releases its tracks after cancellation', async () => {

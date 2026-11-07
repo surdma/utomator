@@ -1,16 +1,20 @@
-
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { test, expect } from 'vitest';
 import { createClient } from '@libsql/client';
-import { ConnectorService } from '../src/connect/service.js';
-import { checkedOwnerId, createDocumentStore, LOCAL_OWNER_ID } from '../src/db/documents.js';
-import { AccountStore } from '../src/profile/account-store.js';
-import { CareerStore } from '../src/profile/career-store.js';
-import { defaultPlan } from '../src/workflows/workflow-plan.js';
-import { WorkflowRegistry } from '../src/workflows/workflow-registry.js';
-import { WorkflowPlanStore } from '../src/workflows/workflow-store.js';
+import { expect, test } from 'vitest';
+import { defaultPlan } from '../src/domain/workflow-plan.js';
+import { ConnectorService } from '../src/infrastructure/connect/service.js';
+import {
+  checkedOwnerId,
+  createDocumentStore,
+  LOCAL_OWNER_ID,
+} from '../src/infrastructure/db/documents.js';
+import { AccountStore } from '../src/infrastructure/profile/account-store.js';
+import { CareerStore } from '../src/infrastructure/profile/career-store.js';
+import { WorkflowRegistry } from '../src/infrastructure/workflows/workflow-registry.js';
+import { WorkflowPlanStore } from '../src/infrastructure/workflows/workflow-store.js';
+import { removeTemp } from './support/remove-temp.js';
 
 const alice = '11111111-1111-4111-8111-111111111111';
 const bob = '22222222-2222-4222-8222-222222222222';
@@ -197,7 +201,7 @@ test('SQLite isolates account, career, connector and workflow documents across v
       );
       expect(await dbBob.get('connectors', 'sessions')).toEqual(null);
       expect(await dbBob.list('connectors')).toEqual([]);
-      await expect((dbBob.remove('connectors', 'sessions', 1))).rejects.toThrow(/changed/);
+      await expect(dbBob.remove('connectors', 'sessions', 1)).rejects.toThrow(/changed/);
 
       // Owner data is not a process-local map. A fresh DB client sees the right tenant.
       const reopened = await createDocumentStore({ DB_FILE_NAME: databasePath }, alice);
@@ -215,7 +219,7 @@ test('SQLite isolates account, career, connector and workflow documents across v
       await Promise.all([dbAlice.close(), dbBob.close()]);
     }
   } finally {
-    setup.close();
-    await rm(root, { recursive: true, force: true });
+    await setup.close();
+    await removeTemp(root);
   }
 });

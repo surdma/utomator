@@ -1,14 +1,12 @@
-
+import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { afterEach, test, expect } from 'vitest';
-import { patchMatorMarkers } from '../components/mator/mator-api.ts';
-import assert from 'node:assert/strict';
+import { afterEach, expect, test } from 'vitest';
+import { patchMatorMarkers } from '../modules/mator/components/mator-api.ts';
 
 const root = resolve(import.meta.dirname, '..');
-const mator = (name) => resolve(root, 'components/mator', name);
-const workflows = (name) =>
-  resolve(root, 'components/dashboard/workflows', name);
+const mator = (name) => resolve(root, 'modules/mator/components', name);
+const workflows = (name) => resolve(root, 'modules/workflows/components', name);
 
 const originalFetch = globalThis.fetch;
 afterEach(() => {
@@ -49,9 +47,7 @@ test('saving a review link PATCHes markers together with reviewId', async () => 
     [{ id: 'm1', x: 0.5, y: 0.5, text: 'here' }],
     '123e4567-e89b-42d3-a456-426614174000',
   );
-  expect(payload.markers).toEqual([
-    { id: 'm1', x: 0.5, y: 0.5, text: 'here' },
-  ]);
+  expect(payload.markers).toEqual([{ id: 'm1', x: 0.5, y: 0.5, text: 'here' }]);
   expect(payload.reviewId).toEqual('123e4567-e89b-42d3-a456-426614174000');
   expect(saved.reviewId).toEqual('123e4567-e89b-42d3-a456-426614174000');
 });
@@ -77,48 +73,62 @@ test('a failed review link rejects with the backend message (no fake success)', 
       status: 400,
       headers: { 'content-type': 'application/json' },
     });
-  await expect((patchMatorMarkers('att-1', [], '00000000-0000-4000-8000-000000000000'))).rejects.toThrow(/Review does not exist/);
+  await expect(
+    patchMatorMarkers('att-1', [], '00000000-0000-4000-8000-000000000000'),
+  ).rejects.toThrow(/Review does not exist/);
 });
 
 test('annotate flow resolves honestly: dismissed studio yields null', () => {
   const source = readFileSync(mator('use-visual-reviews.ts'), 'utf8');
   expect(source).toMatch(/annotateChatAsset[\s\S]*?new Promise/);
   expect(source).toMatch(/closeImageDraft[\s\S]*?resolve\(null\)/);
-  expect(source).toMatch(/saveVisualReview[\s\S]*?resolve\(\{ reviewId: json\.id \}\)/);
+  expect(source).toMatch(
+    /saveVisualReview[\s\S]*?resolve\(\{ reviewId: json\.id \}\)/,
+  );
 });
 
 test('sent attachments link the saved review through saveMarkers', () => {
   const panel = readFileSync(mator('operator-chat-panel.tsx'), 'utf8');
-  expect(panel).toMatch(/annotateAsset[\s\S]*?onSaveMarkers\(asset\.id, asset\.markers \?\? \[\], result\.reviewId\)/);
+  expect(panel).toMatch(
+    /annotateAsset[\s\S]*?onSaveMarkers\(asset\.id, asset\.markers \?\? \[\], result\.reviewId\)/,
+  );
   expect(panel).toMatch(/mator-annotate-attachment-error/);
-  expect(panel).toMatch(/Saved as review \$\{result\.reviewId\} but could not link to the chat message\. Re-open the annotation editor to retry\./);
+  expect(panel).toMatch(
+    /Saved as review \$\{result\.reviewId\} but could not link to the chat message\. Re-open the annotation editor to retry\./,
+  );
 });
 
 test('the shell awaits marker links instead of discarding them', () => {
   const shell = readFileSync(
-    resolve(root, 'components/dashboard/dashboard-shell.tsx'),
+    resolve(root, 'modules/shell/components/dashboard-shell.tsx'),
     'utf8',
   );
   expect(shell).not.toMatch(/void saveMarkers\(/);
-  expect(shell).toMatch(/return saveMarkers\(attachmentId, markers, reviewId\)/);
+  expect(shell).toMatch(
+    /return saveMarkers\(attachmentId, markers, reviewId\)/,
+  );
 });
 
 test('fetched chat images use the same size and type rules as uploads', () => {
   const shell = readFileSync(
-    resolve(root, 'components/dashboard/dashboard-shell.tsx'),
+    resolve(root, 'modules/shell/components/dashboard-shell.tsx'),
     'utf8',
   );
-  expect(shell).toMatch(/validateReviewImage\(\{\s*size: blob\.size,\s*type: blob\.type/);
+  expect(shell).toMatch(
+    /validateReviewImage\(\{\s*size: blob\.size,\s*type: blob\.type/,
+  );
 });
 
 test('chat annotation carries the typed draft into the review note', () => {
   const reviews = readFileSync(mator('use-visual-reviews.ts'), 'utf8');
   const panel = readFileSync(
-    resolve(root, 'components/dashboard/reviews/visual-review-panel.tsx'),
+    resolve(root, 'modules/reviews/components/visual-review-panel.tsx'),
     'utf8',
   );
   expect(reviews).toMatch(/draftNote: request\.note/);
-  expect(panel).toMatch(/note: source\.kind === 'upload' \? \(source\.draftNote \?\? ''\) : ''/);
+  expect(panel).toMatch(
+    /note: source\.kind === 'upload' \? \(source\.draftNote \?\? ''\) : ''/,
+  );
   expect(panel).toMatch(/kind: 'upload'/);
 });
 

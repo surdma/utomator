@@ -1,13 +1,13 @@
-
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { test, expect } from 'vitest';
+import { expect, test } from 'vitest';
 import {
   CreatorResearchStore,
   executeResearch,
   researchYaml,
-} from '../src/linkedin/linkedin-creator-research.js';
+} from '../src/infrastructure/linkedin/linkedin-creator-research.js';
+import { removeTemp } from './support/remove-temp.js';
 
 process.env.NODE_ENV = 'test';
 const { buildApp } = await import('../src/main.js');
@@ -42,7 +42,9 @@ test('LinkedIn creator research executes five typed steps with source-bound obse
   expect(run.sources[0]?.digest.length).toEqual(64);
   expect(run.output.profiles[0]?.topics.some((topic) => topic.word === 'technical')).toBeTruthy();
   expect(run.output.gaps.some((gap) => gap.topic === 'technical')).toBeTruthy();
-  expect(run.output.experiments[0]?.evidenceUrls.some((value) => value.includes('linkedin.com/posts'))).toBeTruthy();
+  expect(
+    run.output.experiments[0]?.evidenceUrls.some((value) => value.includes('linkedin.com/posts')),
+  ).toBeTruthy();
   expect(run.output.limitation).toMatch(/does not verify live LinkedIn pages/);
   const yaml = researchYaml(run);
   expect(yaml).toMatch(/CompletedLinkedInResearch/);
@@ -58,38 +60,62 @@ test('Creator research refuses unsafe input and invented URLs', () => {
     'https://www.linkedin.com.evil.test/in/sample-creator/',
   ]) {
     {
-let e;
-try { (() =>
-      executeResearch({
-        ...fixture,
-        creators: [{ ...creator, profileUrl: value }],
-      }))(); } catch (caught) { e = caught; }
-expect(e).toBeDefined();
-expect(() => { throw e; }).toThrow();
-};
+      let e: unknown;
+      try {
+        (() =>
+          executeResearch({
+            ...fixture,
+            creators: [{ ...creator, profileUrl: value }],
+          }))();
+      } catch (caught) {
+        e = caught;
+      }
+      expect(e).toBeDefined();
+      expect(() => {
+        throw e;
+      }).toThrow();
+    }
   }
   {
-let e;
-try { (() => executeResearch({ ...fixture, creators: [] }))(); } catch (caught) { e = caught; }
-expect(e).toBeDefined();
-expect(() => { throw e; }).toThrow();
-};
+    let e: unknown;
+    try {
+      (() => executeResearch({ ...fixture, creators: [] }))();
+    } catch (caught) {
+      e = caught;
+    }
+    expect(e).toBeDefined();
+    expect(() => {
+      throw e;
+    }).toThrow();
+  }
   {
-let e;
-try { (() => executeResearch({ ...fixture, creators: [{ ...creator, posts: [] }] }))(); } catch (caught) { e = caught; }
-expect(e).toBeDefined();
-expect(() => { throw e; }).toThrow();
-};
+    let e: unknown;
+    try {
+      (() => executeResearch({ ...fixture, creators: [{ ...creator, posts: [] }] }))();
+    } catch (caught) {
+      e = caught;
+    }
+    expect(e).toBeDefined();
+    expect(() => {
+      throw e;
+    }).toThrow();
+  }
   {
-let e;
-try { (() =>
-    executeResearch({
-      ...fixture,
-      creators: [{ ...creator, posts: [creator.posts[0], creator.posts[0]] }],
-    }))(); } catch (caught) { e = caught; }
-expect(e).toBeDefined();
-expect(() => { throw e; }).toThrow();
-};
+    let e: unknown;
+    try {
+      (() =>
+        executeResearch({
+          ...fixture,
+          creators: [{ ...creator, posts: [creator.posts[0], creator.posts[0]] }],
+        }))();
+    } catch (caught) {
+      e = caught;
+    }
+    expect(e).toBeDefined();
+    expect(() => {
+      throw e;
+    }).toThrow();
+  }
 });
 test('Research receipts persist and reload without relying on memory', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'utomator-research-'));
@@ -100,7 +126,7 @@ test('Research receipts persist and reload without relying on memory', async () 
     expect((await one.list()).length).toEqual(1);
     expect(await one.get('00000000-0000-0000-0000-000000000000')).toEqual(null);
   } finally {
-    await rm(directory, { recursive: true, force: true });
+    await removeTemp(directory);
   }
 });
 test('Fastify validates research and returns persisted report and YAML', async () => {

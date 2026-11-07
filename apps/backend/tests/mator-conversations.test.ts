@@ -1,6 +1,5 @@
-
-import { test, expect } from 'vitest';
-import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
+import { expect, test } from 'vitest';
+import type { DocumentRecord, DocumentStore } from '../src/infrastructure/db/documents.js';
 import {
   appendEvent,
   createConversation,
@@ -10,7 +9,7 @@ import {
   MATOR_CONVERSATIONS_NAMESPACE,
   MATOR_MESSAGES_NAMESPACE,
   setCurrentConversation,
-} from '../src/mator/mator-conversations.js';
+} from '../src/infrastructure/mator/mator-conversations.js';
 
 type Row = { version: number; value: unknown };
 class FakeDocuments implements DocumentStore {

@@ -1,20 +1,24 @@
-
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { test, expect } from 'vitest';
 import Fastify from 'fastify';
-import type { RunRequest, RunSummary } from '../src/core/types.js';
-import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
-import { type MatorActionPorts, stageAction, workflowRegistryPort } from '../src/mator/mator-actions.js';
-import { getAttachmentMeta } from '../src/mator/mator-attachments.js';
-import { createConversation, listEvents } from '../src/mator/mator-conversations.js';
-import { registerMatorRoutes } from '../src/mator/mator-routes.js';
-import { putMatorSettings } from '../src/mator/mator-settings.js';
-import { defaultPlan, type WorkflowPlan } from '../src/workflows/workflow-plan.js';
-import type { WorkflowRecord } from '../src/workflows/workflow-registry.js';
-import { WorkflowRegistry } from '../src/workflows/workflow-registry.js';
+import { expect, test } from 'vitest';
+import type { RunRequest, RunSummary } from '../src/domain/types.js';
+import { defaultPlan, type WorkflowPlan } from '../src/domain/workflow-plan.js';
+import type { DocumentRecord, DocumentStore } from '../src/infrastructure/db/documents.js';
+import {
+  type MatorActionPorts,
+  stageAction,
+  workflowRegistryPort,
+} from '../src/infrastructure/mator/mator-actions.js';
+import { getAttachmentMeta } from '../src/infrastructure/mator/mator-attachments.js';
+import { createConversation, listEvents } from '../src/infrastructure/mator/mator-conversations.js';
+import { putMatorSettings } from '../src/infrastructure/mator/mator-settings.js';
+import type { WorkflowRecord } from '../src/infrastructure/workflows/workflow-registry.js';
+import { WorkflowRegistry } from '../src/infrastructure/workflows/workflow-registry.js';
+import { registerMatorRoutes } from '../src/interface/http/mator-routes.js';
+import { removeTemp } from './support/remove-temp.js';
 
 const MASTER = Buffer.from(createHash('sha256').update('mator-routes-test-master').digest());
 const hex = (buffer: Buffer) => buffer.toString('hex');
@@ -268,7 +272,9 @@ test('idempotent message POST returns same events; stage confirm applies plan ed
     expect(first.statusCode).toEqual(200);
     const firstEvents = first.json().events as Array<{ id: string; status?: string }>;
     expect(firstEvents.some((e) => e.status === 'staged')).toBeTruthy();
-    expect(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title).toEqual('Inspect current page');
+    expect(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title).toEqual(
+      'Inspect current page',
+    );
 
     const second = await app.inject({
       method: 'POST',
@@ -278,7 +284,9 @@ test('idempotent message POST returns same events; stage confirm applies plan ed
     });
     expect(second.statusCode).toEqual(200);
     expect(groqCalls).toEqual(2);
-    expect((second.json().events as Array<{ id: string }>).map((e) => e.id)).toEqual(firstEvents.map((e) => e.id));
+    expect((second.json().events as Array<{ id: string }>).map((e) => e.id)).toEqual(
+      firstEvents.map((e) => e.id),
+    );
 
     const staged = firstEvents.find((e) => e.status === 'staged')!;
     const confirm = await app.inject({
@@ -329,8 +337,12 @@ test('POST messages with autoApprove applies action without staged-only outcome'
     expect(res.statusCode).toEqual(200);
     const events = res.json().events as Array<{ status?: string; kind: string }>;
     expect(events.some((e) => e.status === 'applied')).toBeTruthy();
-    expect(events.some((e) => e.status === 'staged') && events.some((e) => e.status === 'applied')).toBeTruthy();
-    expect(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title).toEqual('Inspect auto-applied');
+    expect(
+      events.some((e) => e.status === 'staged') && events.some((e) => e.status === 'applied'),
+    ).toBeTruthy();
+    expect(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title).toEqual(
+      'Inspect auto-applied',
+    );
   } finally {
     await app.close();
     if (previous === undefined) delete process.env.UTOMATOR_MATOR_ENCRYPTION_KEY;
@@ -541,7 +553,7 @@ test('attachment upload (base64 JSON) and marker patch', async () => {
     expect(markers.json().markers).toEqual([{ id: 'm1', x: 1, y: 0, text: 'here' }]);
   } finally {
     await app.close();
-    await rm(root, { recursive: true, force: true });
+    await removeTemp(root);
   }
 });
 
@@ -617,7 +629,7 @@ test('marker patch links, validates and rejects review references', async () => 
     expect(plain.json().reviewId).toEqual(reviewId);
   } finally {
     await app.close();
-    await rm(root, { recursive: true, force: true });
+    await removeTemp(root);
   }
 });
 
@@ -686,7 +698,9 @@ test('two staged decisions are bound to their own proposal and cannot be repeate
     expect(confirmSecond.statusCode).toEqual(200);
     expect(confirmSecond.json().event.resolvesEventId).toEqual(second.id);
     expect(confirmSecond.json().event.status).toEqual('applied');
-    expect(workflow.live.plan.steps.find((step) => step.id === 'inspect')?.title).toEqual('Second proposed edit');
+    expect(workflow.live.plan.steps.find((step) => step.id === 'inspect')?.title).toEqual(
+      'Second proposed edit',
+    );
     const repeated = await app.inject({
       method: 'POST',
       url: `/mator/conversations/${conversation.id}/stage/${second.id}/confirm`,

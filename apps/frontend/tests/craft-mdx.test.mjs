@@ -1,6 +1,5 @@
-
-import { test, expect } from 'vitest';
-import { renderMdx } from '../components/dashboard/crafts/craft-mdx.ts';
+import { expect, test } from 'vitest';
+import { renderMdx } from '../modules/crafts/components/craft-mdx.ts';
 
 test('craft source serialization preserves metadata and connected step links', () => {
   const source = renderMdx({

@@ -1,10 +1,10 @@
-
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { test, expect } from 'vitest';
-import type { RunRequest, RunSummary } from '../src/core/types.js';
-import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
+import { expect, test } from 'vitest';
+import type { RunRequest, RunSummary } from '../src/domain/types.js';
+import { defaultPlan, type WorkflowPlan } from '../src/domain/workflow-plan.js';
+import type { DocumentRecord, DocumentStore } from '../src/infrastructure/db/documents.js';
 import {
   applyAction,
   type MatorActionPorts,
@@ -14,16 +14,20 @@ import {
   parseMatorAction,
   restoreConversationPipeline,
   stageAction,
-} from '../src/mator/mator-actions.js';
-import { getAttachmentFile, getAttachmentMeta, saveAttachment } from '../src/mator/mator-attachments.js';
+} from '../src/infrastructure/mator/mator-actions.js';
+import {
+  getAttachmentFile,
+  getAttachmentMeta,
+  saveAttachment,
+} from '../src/infrastructure/mator/mator-attachments.js';
 import {
   createConversation,
   listConversations,
   listEvents,
   type MatorConversation,
-} from '../src/mator/mator-conversations.js';
-import { defaultPlan, type WorkflowPlan } from '../src/workflows/workflow-plan.js';
-import type { WorkflowRecord } from '../src/workflows/workflow-registry.js';
+} from '../src/infrastructure/mator/mator-conversations.js';
+import type { WorkflowRecord } from '../src/infrastructure/workflows/workflow-registry.js';
+import { removeTemp } from './support/remove-temp.js';
 
 type Row = { version: number; value: unknown };
 class FakeDocuments implements DocumentStore {
@@ -175,11 +179,15 @@ test('parseMatorAction accepts a clarify questionnaire', () => {
   if (action.type !== 'clarify') return;
   expect(action.questions[0]?.name).toEqual('tone');
   {
-let e;
-try { (() => parseMatorAction({ type: 'clarify', questions: [] }))(); } catch (caught) { e = caught; }
-expect(e).toBeDefined();
-expect(e instanceof MatorActionValidationError).toBe(true);
-};
+    let e: unknown;
+    try {
+      (() => parseMatorAction({ type: 'clarify', questions: [] }))();
+    } catch (caught) {
+      e = caught;
+    }
+    expect(e).toBeDefined();
+    expect(e instanceof MatorActionValidationError).toBe(true);
+  }
 });
 
 test('generated clarify recovers oversized choice sets without dropping a question', () => {
@@ -204,12 +212,17 @@ test('generated clarify recovers oversized choice sets without dropping a questi
     ],
   };
   {
-let e;
-try { (() => parseMatorAction(raw))(); } catch (caught) { e = caught; }
-expect(e).toBeDefined();
-expect(e instanceof MatorActionValidationError &&
-      e.message === 'Too many choices on questions[0]').toBe(true);
-};
+    let e: unknown;
+    try {
+      (() => parseMatorAction(raw))();
+    } catch (caught) {
+      e = caught;
+    }
+    expect(e).toBeDefined();
+    expect(
+      e instanceof MatorActionValidationError && e.message === 'Too many choices on questions[0]',
+    ).toBe(true);
+  }
   const recovered = parseGeneratedMatorAction(raw);
   expect(recovered.type).toEqual('clarify');
   if (recovered.type !== 'clarify') return;
@@ -224,36 +237,39 @@ expect(e instanceof MatorActionValidationError &&
 
 test('generated clarify recovery cannot bypass invalid action validation', () => {
   expect(() =>
-      parseGeneratedMatorAction({
-        type: 'clarify',
-        questions: [
-          {
-            name: 'file',
-            prompt: 'Choose a file',
-            inputType: 'file',
-            choices: Array.from({ length: 7 }, (_, index) => ({
-              value: String(index),
-              label: String(index),
-            })),
-          },
+    parseGeneratedMatorAction({
+      type: 'clarify',
+      questions: [
+        {
+          name: 'file',
+          prompt: 'Choose a file',
+          inputType: 'file',
+          choices: Array.from({ length: 7 }, (_, index) => ({
+            value: String(index),
+            label: String(index),
+          })),
+        },
+      ],
+    }),
+  ).toThrow(MatorActionValidationError);
+  expect(() =>
+    parseGeneratedMatorAction({
+      type: 'delete_everything',
+    }),
+  ).toThrow(MatorActionValidationError);
+  expect(() =>
+    parseGeneratedMatorAction({
+      type: 'clarify',
+      questions: Array.from({ length: 5 }, (_, index) => ({
+        name: 'q' + index,
+        prompt: 'Prompt',
+        choices: [
+          { value: 'a', label: 'A' },
+          { value: 'b', label: 'B' },
         ],
-      })).toThrow(MatorActionValidationError);
-  expect(() =>
-      parseGeneratedMatorAction({
-        type: 'delete_everything',
-      })).toThrow(MatorActionValidationError);
-  expect(() =>
-      parseGeneratedMatorAction({
-        type: 'clarify',
-        questions: Array.from({ length: 5 }, (_, index) => ({
-          name: 'q' + index,
-          prompt: 'Prompt',
-          choices: [
-            { value: 'a', label: 'A' },
-            { value: 'b', label: 'B' },
-          ],
-        })),
-      })).toThrow(MatorActionValidationError);
+      })),
+    }),
+  ).toThrow(MatorActionValidationError);
 });
 
 test('clarify validates URL and file answer types without inventing attachments', () => {
@@ -268,40 +284,50 @@ test('clarify validates URL and file answer types without inventing attachments'
   if (action.type !== 'clarify') return;
   expect(action.questions.map((q) => q.inputType)).toEqual(['url', 'file']);
   expect(() =>
-      parseMatorAction({
-        type: 'clarify',
-        questions: [{ name: 'bad', prompt: 'Invalid', inputType: 'html' }],
-      })).toThrow(MatorActionValidationError);
+    parseMatorAction({
+      type: 'clarify',
+      questions: [{ name: 'bad', prompt: 'Invalid', inputType: 'html' }],
+    }),
+  ).toThrow(MatorActionValidationError);
   expect(() =>
-      parseMatorAction({
-        type: 'clarify',
-        questions: [
-          {
-            name: 'bad',
-            prompt: 'Invalid',
-            inputType: 'file',
-            choices: [
-              { value: 'a', label: 'A' },
-              { value: 'b', label: 'B' },
-            ],
-          },
-        ],
-      })).toThrow(MatorActionValidationError);
+    parseMatorAction({
+      type: 'clarify',
+      questions: [
+        {
+          name: 'bad',
+          prompt: 'Invalid',
+          inputType: 'file',
+          choices: [
+            { value: 'a', label: 'A' },
+            { value: 'b', label: 'B' },
+          ],
+        },
+      ],
+    }),
+  ).toThrow(MatorActionValidationError);
 });
 
 test('parseMatorAction rejects unknown action type and invalid shape', () => {
   {
-let e;
-try { (() => parseMatorAction({ type: 'delete_universe' }))(); } catch (caught) { e = caught; }
-expect(e).toBeDefined();
-expect(e instanceof MatorActionValidationError).toBe(true);
-};
+    let e: unknown;
+    try {
+      (() => parseMatorAction({ type: 'delete_universe' }))();
+    } catch (caught) {
+      e = caught;
+    }
+    expect(e).toBeDefined();
+    expect(e instanceof MatorActionValidationError).toBe(true);
+  }
   {
-let e;
-try { (() => parseMatorAction({ type: 'edit_step' }))(); } catch (caught) { e = caught; }
-expect(e).toBeDefined();
-expect(e instanceof MatorActionValidationError).toBe(true);
-};
+    let e: unknown;
+    try {
+      (() => parseMatorAction({ type: 'edit_step' }))();
+    } catch (caught) {
+      e = caught;
+    }
+    expect(e).toBeDefined();
+    expect(e instanceof MatorActionValidationError).toBe(true);
+  }
 });
 
 test('apply/stage reject hallucinated step ids with typed validation error', async () => {
@@ -318,37 +344,41 @@ test('apply/stage reject hallucinated step ids with typed validation error', asy
   });
 
   {
-  let e;
-  try {
-    await (() =>
-      stageAction(docs, ports, {
-        workflowId: workflow.live.id,
-        conversationId: conversation.id,
-        action: bad,
-      }))();
-  } catch (caught) { e = caught; }
-  expect(e).toBeDefined();
-  expect(/does-not-exist|unknown step/i.test(e.message)).toBe(true);
+    let e: unknown;
+    try {
+      await (() =>
+        stageAction(docs, ports, {
+          workflowId: workflow.live.id,
+          conversationId: conversation.id,
+          action: bad,
+        }))();
+    } catch (caught) {
+      e = caught;
+    }
+    expect(e).toBeDefined();
+    expect(/does-not-exist|unknown step/i.test(e.message)).toBe(true);
   }
 
   {
-  let e;
-  try {
-    await (() =>
-      applyAction(
-        docs,
-        ports,
-        {
-          workflowId: workflow.live.id,
-          conversationId: conversation.id,
-          eventId: 'evt-missing-step',
-          action: bad,
-        },
-        { squash: false },
-      ))();
-  } catch (caught) { e = caught; }
-  expect(e).toBeDefined();
-  expect(e instanceof MatorActionValidationError).toBe(true);
+    let e: unknown;
+    try {
+      await (() =>
+        applyAction(
+          docs,
+          ports,
+          {
+            workflowId: workflow.live.id,
+            conversationId: conversation.id,
+            eventId: 'evt-missing-step',
+            action: bad,
+          },
+          { squash: false },
+        ))();
+    } catch (caught) {
+      e = caught;
+    }
+    expect(e).toBeDefined();
+    expect(e instanceof MatorActionValidationError).toBe(true);
   }
 });
 
@@ -387,7 +417,9 @@ test('apply edit_step without squash tags revision and updates boundRevisionId',
   );
 
   expect(workflow.live.revision).toEqual(beforeRevision + 1);
-  expect(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title).toEqual('Inspect more carefully');
+  expect(workflow.live.plan.steps.find((s) => s.id === 'inspect')?.title).toEqual(
+    'Inspect more carefully',
+  );
   expect(applied.record?.conversationId).toEqual(conversation.id);
   expect(applied.record?.eventId).toEqual(staged.id);
 
@@ -571,7 +603,7 @@ test('apply annotate_image upserts attachment markers', async () => {
     const loaded = await getAttachmentFile(docs, saved.id, { root });
     expect(loaded.meta.markers).toEqual([{ id: 'pin-1', x: 0.25, y: 0.75, text: 'look here' }]);
   } finally {
-    await rm(root, { recursive: true, force: true });
+    await removeTemp(root);
   }
 });
 
@@ -596,12 +628,13 @@ test('annotate_image parses and links optional review references', async () => {
 
     // A malformed reference never parses into an applicable action.
     expect(() =>
-        parseMatorAction({
-          type: 'annotate_image',
-          attachmentId: saved.id,
-          markers: [],
-          reviewId: '“quote”/inject',
-        })).toThrow(/Invalid action\.reviewId/);
+      parseMatorAction({
+        type: 'annotate_image',
+        attachmentId: saved.id,
+        markers: [],
+        reviewId: '“quote”/inject',
+      }),
+    ).toThrow(/Invalid action\.reviewId/);
 
     const action = parseMatorAction({
       type: 'annotate_image',
@@ -624,6 +657,6 @@ test('annotate_image parses and links optional review references', async () => {
     const meta = await getAttachmentMeta(docs, saved.id);
     expect(meta.reviewId).toEqual(reviewId);
   } finally {
-    await rm(root, { recursive: true, force: true });
+    await removeTemp(root);
   }
 });

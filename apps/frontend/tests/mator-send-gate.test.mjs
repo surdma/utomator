@@ -1,11 +1,10 @@
-
-import { test, expect } from 'vitest';
+import { expect, test } from 'vitest';
 import {
   beginMatorSend,
   createMatorSendGate,
   finishMatorSendFailure,
   finishMatorSendSuccess,
-} from '../components/mator/mator-send-gate.ts';
+} from '../modules/mator/components/mator-send-gate.ts';
 
 /**
  * Asserted double-send policy:

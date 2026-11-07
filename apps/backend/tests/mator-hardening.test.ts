@@ -1,18 +1,18 @@
-
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { test, expect } from 'vitest';
 import Fastify from 'fastify';
-import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
-import { type MatorActionPorts, stageAction } from '../src/mator/mator-actions.js';
-import { MAX_MATOR_ACTIONS_PER_TURN } from '../src/mator/mator-agent.js';
-import { createConversation } from '../src/mator/mator-conversations.js';
-import { registerMatorRoutes } from '../src/mator/mator-routes.js';
-import { putMatorSettings } from '../src/mator/mator-settings.js';
-import { defaultPlan, type WorkflowPlan } from '../src/workflows/workflow-plan.js';
-import type { WorkflowRecord } from '../src/workflows/workflow-registry.js';
+import { expect, test } from 'vitest';
+import { defaultPlan, type WorkflowPlan } from '../src/domain/workflow-plan.js';
+import type { DocumentRecord, DocumentStore } from '../src/infrastructure/db/documents.js';
+import { type MatorActionPorts, stageAction } from '../src/infrastructure/mator/mator-actions.js';
+import { MAX_MATOR_ACTIONS_PER_TURN } from '../src/infrastructure/mator/mator-agent.js';
+import { createConversation } from '../src/infrastructure/mator/mator-conversations.js';
+import { putMatorSettings } from '../src/infrastructure/mator/mator-settings.js';
+import type { WorkflowRecord } from '../src/infrastructure/workflows/workflow-registry.js';
+import { registerMatorRoutes } from '../src/interface/http/mator-routes.js';
+import { removeTemp } from './support/remove-temp.js';
 
 const MASTER = Buffer.from(createHash('sha256').update('mator-hardening-test-master').digest());
 const hex = (buffer: Buffer) => buffer.toString('hex');
@@ -297,16 +297,24 @@ test('action loop cap processes at most 3 model actions per turn', async () => {
       }>;
       const modelGuidance = events.filter((e) => e.kind === 'how' && /^explanation-/.test(e.text ?? ''));
       expect(modelGuidance.length).toEqual(MAX_MATOR_ACTIONS_PER_TURN);
-      expect(modelGuidance.map((event) => event.text)).toEqual(['explanation-1', 'explanation-2', 'explanation-3']);
-      expect(events.filter((event) => event.status === 'staged' || event.status === 'applied').length).toEqual(0);
+      expect(modelGuidance.map((event) => event.text)).toEqual([
+        'explanation-1',
+        'explanation-2',
+        'explanation-3',
+      ]);
+      expect(
+        events.filter((event) => event.status === 'staged' || event.status === 'applied').length,
+      ).toEqual(0);
       expect(workflow.live.revision).toEqual(1);
-      expect(events.some(
+      expect(
+        events.some(
           (e) =>
             (e.action?.type === 'explain_how' &&
               /3 actions|continue/i.test(e.action.text ?? e.text ?? '')) ||
             /Stopped after 3 actions/i.test(e.text ?? '') ||
             (e.action?.type === 'explain_how' && /Stopped after 3/i.test(String(e.action))),
-        )).toBeTruthy();
+        ),
+      ).toBeTruthy();
     } finally {
       await app.close();
     }
@@ -340,8 +348,10 @@ test('incomplete Groq finish_reason yields incomplete event (no staged actions)'
       expect(res.statusCode).toEqual(200);
       const events = res.json().events as Array<{ status?: string; kind: string }>;
       expect(events.some((e) => e.status === 'incomplete')).toBeTruthy();
-      expect(events.filter((e) => e.kind === 'action' && (e.status === 'staged' || e.status === 'applied'))
-          .length).toEqual(0);
+      expect(
+        events.filter((e) => e.kind === 'action' && (e.status === 'staged' || e.status === 'applied'))
+          .length,
+      ).toEqual(0);
     } finally {
       await app.close();
     }
@@ -443,6 +453,6 @@ test('GET /mator/attachments/:id is owner-scoped (cross-owner 404)', async () =>
     expect(denied.json().error).toMatch(/not found/i);
   } finally {
     await appB.close();
-    await rm(root, { recursive: true, force: true });
+    await removeTemp(root);
   }
 });

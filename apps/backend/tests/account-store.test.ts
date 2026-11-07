@@ -1,21 +1,21 @@
-
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { test, expect } from 'vitest';
+import { expect, test } from 'vitest';
 import {
   AccountStore,
   blankProfile,
   mergeEmptyProfile,
   parseSocialAccount,
-} from '../src/profile/account-store.js';
+} from '../src/infrastructure/profile/account-store.js';
+import { removeTemp } from './support/remove-temp.js';
 
 async function withStore(fn: (store: AccountStore, root: string) => Promise<void>) {
   const root = await mkdtemp(join(tmpdir(), 'account-store-'));
   try {
     await fn(new AccountStore(root), root);
   } finally {
-    await rm(root, { recursive: true, force: true });
+    await removeTemp(root);
   }
 }
 
@@ -54,18 +54,22 @@ test('one verified account per provider and linked identities persist', async ()
       profileUrl: 'https://www.linkedin.com/in/alice/',
     });
     expect(alice.revision).toEqual(changed.revision + 1);
-    await expect((store.linkVerifiedSocial('00000000-0000-4000-8000-000000000012', {
+    await expect(
+      store.linkVerifiedSocial('00000000-0000-4000-8000-000000000012', {
         platform: 'linkedin',
         label: 'Personal LinkedIn',
         handle: 'bob',
         profileUrl: 'https://www.linkedin.com/in/bob/',
-      }))).rejects.toThrow(/Only one linked account/);
-    await expect((store.addSocial(alice.revision, {
+      }),
+    ).rejects.toThrow(/Only one linked account/);
+    await expect(
+      store.addSocial(alice.revision, {
         platform: 'linkedin',
         label: 'Other LinkedIn',
         handle: 'bob',
         profileUrl: 'https://www.linkedin.com/in/bob/',
-      }))).rejects.toThrow(/Only one linked account/);
+      }),
+    ).rejects.toThrow(/Only one linked account/);
     const x = await store.linkVerifiedSocial('00000000-0000-4000-8000-000000000013', {
       platform: 'x',
       label: 'X profile',
@@ -74,12 +78,14 @@ test('one verified account per provider and linked identities persist', async ()
     });
     expect(x.socialAccounts.length).toEqual(2);
     expect((await new AccountStore(root).get()).socialAccounts.length).toEqual(2);
-    await expect((store.updateSocial(x.revision, x.socialAccounts[1]!.id, {
+    await expect(
+      store.updateSocial(x.revision, x.socialAccounts[1]!.id, {
         platform: 'linkedin',
         label: 'Other LinkedIn',
         handle: 'bob',
         profileUrl: 'https://www.linkedin.com/in/bob/',
-      }))).rejects.toThrow(/Only one linked account/);
+      }),
+    ).rejects.toThrow(/Only one linked account/);
     const removed = await store.removeSocial(x.revision, alice.socialAccounts[0]!.id);
     expect(removed.socialAccounts.length).toEqual(1);
   });
@@ -89,33 +95,37 @@ test('account revisions and provider identity checks reject conflicting updates'
   await withStore(async (store) => {
     const initial = await store.get();
     expect(() =>
-        parseSocialAccount({
-          platform: 'linkedin',
-          label: 'Wrong owner',
-          handle: 'alice',
-          profileUrl: 'https://linkedin.com/in/bob/',
-        })).toThrow(/handle must match/);
+      parseSocialAccount({
+        platform: 'linkedin',
+        label: 'Wrong owner',
+        handle: 'alice',
+        profileUrl: 'https://linkedin.com/in/bob/',
+      }),
+    ).toThrow(/handle must match/);
     expect(() =>
-        parseSocialAccount({
-          platform: 'linkedin',
-          label: 'Wrong path',
-          handle: 'alice',
-          profileUrl: 'https://linkedin.com/company/alice/',
-        })).toThrow(/LinkedIn profile/);
+      parseSocialAccount({
+        platform: 'linkedin',
+        label: 'Wrong path',
+        handle: 'alice',
+        profileUrl: 'https://linkedin.com/company/alice/',
+      }),
+    ).toThrow(/LinkedIn profile/);
     expect(() =>
-        parseSocialAccount({
-          platform: 'linkedin',
-          label: 'Query',
-          handle: 'alice',
-          profileUrl: 'https://linkedin.com/in/alice?next=/in/bob',
-        })).toThrow(/without credentials or parameters/);
+      parseSocialAccount({
+        platform: 'linkedin',
+        label: 'Query',
+        handle: 'alice',
+        profileUrl: 'https://linkedin.com/in/alice?next=/in/bob',
+      }),
+    ).toThrow(/without credentials or parameters/);
     expect(() =>
-        parseSocialAccount({
-          platform: 'instagram',
-          label: 'Wrong host',
-          handle: 'alice',
-          profileUrl: 'https://example.org/alice',
-        })).toThrow(/does not match/);
+      parseSocialAccount({
+        platform: 'instagram',
+        label: 'Wrong host',
+        handle: 'alice',
+        profileUrl: 'https://example.org/alice',
+      }),
+    ).toThrow(/does not match/);
     const full = {
       displayName: 'Test Owner',
       email: 'test@example.org',
@@ -128,7 +138,9 @@ test('account revisions and provider identity checks reject conflicting updates'
     ]);
     expect(results.filter((r) => r.status === 'fulfilled').length).toEqual(1);
     expect(results.filter((r) => r.status === 'rejected').length).toEqual(1);
-    await expect((store.removeSocial(1, '00000000-0000-4000-8000-000000009999'))).rejects.toThrow(/not found/);
+    await expect(store.removeSocial(1, '00000000-0000-4000-8000-000000009999')).rejects.toThrow(
+      /not found/,
+    );
   });
 });
 
@@ -147,20 +159,24 @@ test('manual account API write is not a valid linking mechanism', async () => {
         profileUrl: 'https://www.linkedin.com/in/attacker/',
       },
     };
-    expect((
+    expect(
+      (
         await app.inject({
           method: 'POST',
           url: '/account/social',
           payload: fake,
         })
-      ).statusCode).toEqual(405);
-    expect((
+      ).statusCode,
+    ).toEqual(405);
+    expect(
+      (
         await app.inject({
           method: 'PUT',
           url: '/account/social/00000000-0000-4000-8000-000000000000',
           payload: fake,
         })
-      ).statusCode).toEqual(405);
+      ).statusCode,
+    ).toEqual(405);
   } finally {
     await app.close();
   }

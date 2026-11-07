@@ -1,9 +1,8 @@
-
-import { test, expect } from 'vitest';
+import { expect, test } from 'vitest';
 import {
   mayAutoApproveMatorAction,
   parseMatorInteractionMode,
-} from '../src/mator/mator-interaction-mode.ts';
+} from '../src/infrastructure/mator/mator-interaction-mode.ts';
 
 test('legacy text messages retain global approval policy', () => {
   expect(parseMatorInteractionMode(undefined)).toEqual('text');
