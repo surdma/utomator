@@ -52,6 +52,7 @@ const validated = (namespace: string, key: string) => {
       'crafts',
       'craft-migrations',
       'growth-runs',
+      'growth-templates',
       'mator-settings',
       'mator-conversations',
       'mator-messages',

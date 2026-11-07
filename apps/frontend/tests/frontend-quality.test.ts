@@ -599,7 +599,8 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
     metrics,
     'Rendered chat bubbles and staged card must be present',
   ).not.toBeNull();
-  expect(metrics?.messageVisible).toBe(true);
+  if (!metrics) throw Error('Expected a measured Mator chat layout');
+  expect(metrics.messageVisible).toBe(true);
   expect(metrics?.shortWidth).toBeGreaterThan(55);
   expect(
     metrics?.userSideIsEnd,
@@ -659,6 +660,7 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
       : null;
   });
   expect(tail, 'the final confirmation should be measurable').not.toBeNull();
+  if (!tail) throw Error('Expected a measurable final confirmation');
   // Fractional browser layout may overlap the viewport edge by less than one device pixel.
   // Keep the strict 48px upper bound so an anchored-message whitespace regression still fails.
   expect(

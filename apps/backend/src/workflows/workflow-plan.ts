@@ -126,7 +126,11 @@ export function defaultPlan(platform: Platform, action: Action, name?: string): 
     version: 1,
     platform,
     action,
-    name: name || action.replaceAll('-', ' '),
+    name:
+      name ||
+      (action === 'audit' || action === 'audit-page'
+        ? 'Profile Optimization'
+        : action.replaceAll('-', ' ')),
     steps,
     links: steps.slice(1).map((step, i) => ({ source: steps[i]!.id, target: step.id })),
   };

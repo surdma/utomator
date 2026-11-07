@@ -478,7 +478,7 @@ export function registerMatorRoutes(app: FastifyInstance, deps: MatorRouteDeps):
             filename: typeof filename === 'string' && filename.trim() ? filename.trim() : 'speech.webm',
             mime,
           },
-          { fetch: deps.fetch, modelId: settings.sttModelId },
+          { fetch: deps.fetch, modelId: settings.sttModelId, temperature: settings.temperature },
         );
         return { text: transcript.text };
       } catch (error) {

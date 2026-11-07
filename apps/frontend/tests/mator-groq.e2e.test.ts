@@ -61,8 +61,8 @@ test.describe('Mator Groq settings and chat', () => {
         (event.text?.length ?? 0) > 0,
     );
     expect(assistant?.text).toBeTruthy();
-    await expect(page.getByTestId('mator-chat')).toContainText(
-      assistant?.text?.slice(0, 24),
-    );
+    const excerpt = assistant?.text?.slice(0, 24);
+    if (!excerpt) throw Error('Expected a non-empty assistant response');
+    await expect(page.getByTestId('mator-chat')).toContainText(excerpt);
   });
 });

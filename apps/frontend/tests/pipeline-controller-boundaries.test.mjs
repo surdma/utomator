@@ -23,7 +23,7 @@ test('pipeline coordinates dedicated controllers rather than owning run transpor
   expect(page).not.toMatch(/new EventSource\(/);
   expect(page).not.toMatch(/fetch\(getApi\('workflows'\)/);
   expect(page).not.toMatch(/function sendMessage\(/);
-  expect(monitor).toMatch(/EventSource\(getApi\('events\/'/);
+  expect(monitor).toMatch(/EventSource\(getApi\([`']events\//);
   expect(workspace).toMatch(/expectedRevision/);
   expect(chat).toMatch(/executeCraftCommand/);
   expect(visual).toMatch(/getApi\('visual-reviews'\)/);

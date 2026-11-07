@@ -33,7 +33,6 @@ export class VoiceActivityGate {
     this.elapsedMs += elapsed;
     if (level >= this.options.threshold) {
       if (this.firstVoiceAt === null) this.firstVoiceAt = this.elapsedMs;
-      this.lastVoiceAt = this.elapsedMs;
       this.spokenMs += elapsed;
       this.quietMs = 0;
     } else if (this.firstVoiceAt !== null) {

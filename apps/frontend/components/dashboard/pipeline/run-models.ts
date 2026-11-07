@@ -18,6 +18,9 @@ export type Event = {
   message: string;
   details?: {
     checkpointId?: string;
+    stepId?: string;
+    stage?: string;
+    reason?: string;
     fileName?: string;
     title?: string;
     headline?: string | null;
@@ -35,6 +38,8 @@ export type Run = {
   state: State;
   createdAt: string;
   error?: string;
+  currentStepId?: string;
+  checkpoint?: { id: string; message: string };
 };
 export type Coverage = {
   id: string;

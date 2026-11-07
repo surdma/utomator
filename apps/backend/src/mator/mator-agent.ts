@@ -344,7 +344,11 @@ export async function runMatorTurn(
   const live = await ports.workflows.get(workflowId);
   if (!live) throw Error('Workflow not found');
 
-  const groqOptions = { fetch: options.fetch, signal: options.signal };
+  const groqOptions = {
+    fetch: options.fetch,
+    signal: options.signal,
+    temperature: settings.temperature,
+  };
   if (settings.moderationEnabled && input.userText?.trim()) {
     const moderation = await moderateUserText(apiKey, input.userText, groqOptions);
     if (moderation.incomplete) {

@@ -14,7 +14,13 @@ import { registerWorkflowRoutes } from './api/workflows.js';
 import { ConnectorService } from './connect/service.js';
 import { AuthBlockedError } from './core/errors.js';
 import { CraftLibrary } from './crafts/library.js';
-import { createDocumentStore, type DocumentStore } from './db/documents.js';
+import {
+  checkedOwnerId,
+  createDocumentStore,
+  type DocumentStore,
+  LOCAL_OWNER_ID,
+} from './db/documents.js';
+import { GrowthTemplateStore } from './engine/growth-template-store.js';
 import { ProfileGrowthCoordinator } from './engine/profile-growth-coordinator.js';
 import { CreatorResearchStore } from './linkedin/linkedin-creator-research.js';
 import { LinkedInEditorialStore } from './linkedin/linkedin-editorial.js';
@@ -46,6 +52,11 @@ export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?
     },
     bodyLimit: 32 * 1024,
   });
+  // Trusted server-side owner principal. Derived from the deployment
+  // environment, never from a client-controlled header. Single-tenant local
+  // deployments default to LOCAL_OWNER_ID ('local-owner'); hosted workers use
+  // UTOMATOR_INTERNAL_OWNER_ID.
+  const ownerId = checkedOwnerId(process.env.UTOMATOR_INTERNAL_OWNER_ID ?? LOCAL_OWNER_ID);
   const accountStore = new AccountStore(options.socialWorkspaceRoot);
   const connectors = new ConnectorService(accountStore, undefined, options.socialWorkspaceRoot);
   let database: DocumentStore | undefined;
@@ -90,6 +101,7 @@ export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?
   );
   const authoredSteps = new StepDefinitionStore();
   const growthProfileRuns = new ProfileGrowthCoordinator(runner);
+  const growthTemplates = new GrowthTemplateStore(undefined, ownerId);
   const craftLibrary = new CraftLibrary();
   const visual = new VisualReviewStore(async (runId, fileName, platform) => {
     const run = runner.get(runId);
@@ -106,6 +118,7 @@ export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?
     workflowPlans.setDocuments(database);
     workflowRegistry.setDocuments(database);
     growthProfileRuns.setDocuments(database);
+    growthTemplates.setDocuments(database);
     linkedInResearch.setDocuments(database);
     linkedInEditorial.setDocuments(database);
     linkedInPublisher.setDocuments(database);
@@ -188,8 +201,8 @@ export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?
     database: () => database,
   });
   registerProfilePlanRoutes(app, { profilePlanner, connectors, career });
-  registerGrowthRoutes(app, growthProfileRuns, connectors);
-  registerRunRoutes(app, runner, { connectors, workflowRegistry, authoredSteps });
+  registerGrowthRoutes(app, growthProfileRuns, connectors, growthTemplates, ownerId);
+  registerRunRoutes(app, runner, { connectors, workflowRegistry, authoredSteps }, ownerId);
 
   return app;
 }

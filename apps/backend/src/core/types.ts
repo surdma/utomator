@@ -37,6 +37,8 @@ export interface RunRequest {
   profileUrl: string;
   pageUrl?: string;
   login?: LoginCredentials;
+  ownerId?: string;
+  conversationId?: string;
   headline?: string;
   about?: string;
   skill?: string;
@@ -70,6 +72,8 @@ export interface RunSummary {
   action: Action;
   state: RunState;
   createdAt: string;
+  ownerId?: string;
+  conversationId?: string;
   workflowId?: string;
   workflowRevision?: number;
   checkpoint?: { id: string; message: string };

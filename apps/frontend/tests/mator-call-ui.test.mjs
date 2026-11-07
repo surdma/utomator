@@ -40,6 +40,6 @@ test('call preference remains independent from an active call', () => {
   expect(hook).toMatch(/if \(!voiceOnly \|\| !scope\) end\(\)/);
   expect(hook).toMatch(/coordinatorRef\.current\?\.changeScope\(scope\)/);
   expect(hook).toMatch(/const active = state\.phase !== 'idle' && state\.phase !== 'ended'/);
-  expect(hook).toMatch(/transcribeMatorAudio\(audio,signal\)/);
-  expect(hook).toMatch(/sessionRef\.current\.speakAndCatch\(text,signal\)/);
+  expect(hook).toMatch(/transcribeMatorAudio\(audio,\s*signal\)/);
+  expect(hook).toMatch(/sessionRef\.current\.speakAndCatch\(text,\s*signal\)/);
 });

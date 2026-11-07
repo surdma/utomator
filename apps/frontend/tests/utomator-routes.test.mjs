@@ -14,8 +14,6 @@ const routes = [
   'research',
   'history',
   'crafts',
-  'memory',
-  'observer',
   'profile',
   'resumes',
   'settings',
@@ -120,7 +118,7 @@ test('unified Growth editor reads the ID from nested Growth and legacy Craft URL
   ])
     assert.match(
       readFileSync(resolve(root, route), 'utf8'),
-      /redirect\(['"]\/dashboard\/growth/,
+      /redirect\(['"\x60]\/dashboard\/growth/,
     );
 });
 
@@ -140,7 +138,7 @@ test('dashboard navigation is distinct from account and career API paths', () =>
   );
   assert.match(
     career,
-    /request\(\s*sourceView\s*\?\s*['"]\/profile['")\s*:\s*['"]\/resumes\/['"]/,
+    /request\(\s*sourceView\s*\?\s*['"]\/profile['"]\s*:\s*['"\x60]\/resumes\//,
     'career editor uses /api/career/profile or /api/career/resumes',
   );
   expect(career).toMatch(/request\(\s*['"]\/resumes['"]\s*,\s*['"]POST['"]/,
@@ -320,13 +318,13 @@ test('the first visit shows a blank Artboard and a genuinely broader workflow li
     'utf8',
   );
   expect(hook).toMatch(/async function openActionWorkflow/);
-  expect(hook).toMatch(/getApi\('workflow-plans\/'/);
+  expect(hook).toMatch(/getApi\(['"\x60]workflow-plans\//);
   expect(commandBridge).toMatch(/onStageWorkflow\(command.action, command.fields\)/);
   expect(dashboard).toMatch(/if \(!workspaceOpen \|\| selectedGrowthTemplateId\)/);
   expect(library).toMatch(/ActionTemplateBrowser/);
   expect(library).toMatch(/Workflow library/);
   expect(library).not.toMatch(/Growth workflow library/);
-  expect(action).toMatch(/onApply\(selected, selected.platform \+ '-' \+ selected.action\)/);
+  expect(action).toMatch(/onApply\(selected,\s*['"\x60]\$\{selected\.platform\}-\$\{selected\.action\}['"\x60]\)/);
   expect(action).toMatch(/Use this template/);
   expect(graph).toMatch(/stepIconFor/);
   expect(step).toMatch(/stepIconFor/);

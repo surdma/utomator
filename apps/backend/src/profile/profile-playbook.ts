@@ -118,7 +118,7 @@ const coverage: Coverage[] = [
   },
   {
     id: 'audit',
-    label: 'Profile audit',
+    label: 'Profile Optimization',
     platform: 'x',
     status: 'implemented',
     source: '.playwright-cli/x-audit.js',

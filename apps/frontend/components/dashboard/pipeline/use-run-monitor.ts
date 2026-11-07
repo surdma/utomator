@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiPost, getApi } from './api-client';
 import {
-  appendRunEvent,
   belongsToRun,
+  reconcileRunJournal,
   isPauseOrResume,
   isTerminalRunStatus,
 } from './run-event-utils';
@@ -36,6 +36,7 @@ export function useRunMonitor(
   const [inputReply, setInputReply] = useState('');
   const [currentRunId, setCurrentRunId] = useState<string | null>(null);
   const streamRef = useRef<EventSource | null>(null);
+  const journalRequestRef = useRef<AbortController | null>(null);
   const currentRunRef = useRef<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -53,7 +54,17 @@ export function useRunMonitor(
         setRuns(list);
         if (currentRunRef.current) {
           const matching = list.find((run) => run.id === currentRunRef.current);
-          if (matching) setActive(matching);
+          if (matching) {
+            setActive(matching);
+            if (['completed', 'blocked', 'failed', 'cancelled'].includes(matching.state))
+              setCheckpoint(null);
+            else if (matching.checkpoint && ['approval-needed', 'input-needed'].includes(matching.state))
+              setCheckpoint({
+                kind: matching.state === 'approval-needed' ? 'approval' : 'input',
+                id: matching.checkpoint.id,
+                message: matching.checkpoint.message,
+              });
+          }
         }
       }
       if (rules.ok) setPlaybook((await rules.json()) as Playbook);
@@ -83,6 +94,7 @@ export function useRunMonitor(
     return () => {
       clearInterval(timer);
       streamRef.current?.close();
+      journalRequestRef.current?.abort();
     };
   }, [refresh]);
   function connect(runId: string) {
@@ -102,7 +114,7 @@ export function useRunMonitor(
     const consume = (incoming: MessageEvent) => {
       const item = JSON.parse(incoming.data) as RunEvent;
       if (!belongsToRun(item, currentRunRef.current)) return;
-      setEvents((prev) => appendRunEvent(prev, item));
+      setEvents((prev) => reconcileRunJournal(prev, [item], item.runId));
       if (item.kind === 'approval' || item.kind === 'input') {
         setCheckpointError('');
         setCheckpoint({
@@ -123,6 +135,28 @@ export function useRunMonitor(
       setAvailable('offline');
     }; // EventSource retries automatically.
   }
+  async function hydrateRunJournal(runId: string) {
+    journalRequestRef.current?.abort();
+    const controller = new AbortController();
+    journalRequestRef.current = controller;
+    try {
+      const response = await fetch(getApi(`runs/${runId}/logs`), {
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      if (!response.ok) throw Error(`Runner journal unavailable (HTTP ${response.status})`);
+      const archived: unknown = await response.json();
+      if (!Array.isArray(archived)) throw Error('Invalid saved Runner journal');
+      if (controller.signal.aborted || currentRunRef.current !== runId) return;
+      setEvents((previous) => reconcileRunJournal(previous, archived as RunEvent[], runId));
+      if (response.headers?.get('x-run-journal-truncated') === 'true')
+        onRunError('Earlier Runner events were omitted. Execution history is incomplete.');
+    } catch (error) {
+      if (!controller.signal.aborted && currentRunRef.current === runId)
+        onRunError(error instanceof Error ? error.message : 'Runner journal unavailable');
+    }
+  }
+
   async function startMonitoredRun(
     payload: Record<string, unknown>,
     action: string,
@@ -151,7 +185,19 @@ export function useRunMonitor(
     setCurrentRunId(run.id);
     setActive(run);
     setEvents([]);
-    connect(run.id);
+    setCheckpoint(
+      run.checkpoint && ['approval-needed', 'input-needed'].includes(run.state)
+        ? {
+            kind: run.state === 'approval-needed' ? 'approval' : 'input',
+            id: run.checkpoint.id,
+            message: run.checkpoint.message,
+          }
+        : null,
+    );
+    streamRef.current?.close();
+    if (!['completed', 'blocked', 'failed', 'cancelled'].includes(run.state))
+      connect(run.id);
+    void hydrateRunJournal(run.id);
   }
   async function pauseRun() {
     if (!active) return;

@@ -15,6 +15,7 @@ export type MatorConversation = {
   updatedAt: string;
   lastMessageAt: string | null;
   boundRevisionId: string | null;
+  runId?: string;
 };
 
 export type MatorEvent = {
@@ -196,6 +197,39 @@ export async function setCurrentConversation(
       throw Error('Conversation not found for workflow');
     return { ...index, currentId: conversationId };
   });
+}
+
+/** Persist the conversation↔run-attempt binding so switching conversations or
+ * reloading restores the exact pipeline attempt instead of whichever run is
+ * currently selected in the workspace. */
+export async function setConversationRunId(
+  docs: DocumentStore,
+  workflowId: string,
+  conversationId: string,
+  runId: string | null,
+): Promise<void> {
+  await updateWorkflowIndex(docs, workflowId, (index) => {
+    if (!index.items.some((item) => item.id === conversationId))
+      throw Error('Conversation not found for workflow');
+    return {
+      ...index,
+      items: index.items.map((item) =>
+        item.id === conversationId
+          ? { ...item, runId: runId ?? undefined, updatedAt: new Date().toISOString() }
+          : item,
+      ),
+    };
+  });
+}
+
+/** Look up the Runner run attempt bound to a conversation, if any. */
+export async function getConversationRunId(
+  docs: DocumentStore,
+  conversationId: string,
+): Promise<string | null> {
+  const located = await findConversation(docs, conversationId);
+  if (!located) return null;
+  return located.conversation.runId ?? null;
 }
 
 export async function appendEvent(

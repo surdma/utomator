@@ -492,7 +492,7 @@ export default function MatorComposer({
             className="min-h-9 cursor-pointer rounded-full border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 transition-colors hover:border-teal-400 hover:bg-teal-50/60 hover:text-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
           >
             {startPrompt?.slice(0, 42)}
-            {startPrompt?.length > 42 ? '…' : ''}
+            {(startPrompt?.length ?? 0) > 42 ? '…' : ''}
           </button>
         </div>
       )}

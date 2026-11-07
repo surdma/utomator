@@ -16,6 +16,7 @@ import {
   compileWorkflow,
 } from '../workflows/workflow-yaml.js';
 import { ApprovalGate } from './approvals.js';
+import { checkpointEventDetails } from './checkpoint-event.js';
 import {
   type ApprovalDecision,
   approvalDecision,
@@ -42,6 +43,7 @@ export class Runner {
     summary: RunSummary;
     controller: AbortController;
     pauseRequested: boolean;
+    journalFailed: boolean;
     resume?: () => void;
     emit?: (kind: StreamEvent['kind'], message: string, details?: unknown) => void;
   };
@@ -73,6 +75,8 @@ export class Runner {
       action: input.action,
       state: 'running',
       createdAt: new Date().toISOString(),
+      ...(input.ownerId ? { ownerId: input.ownerId } : {}),
+      ...(input.conversationId ? { conversationId: input.conversationId } : {}),
       ...(input.workflowId
         ? {
             workflowId: input.workflowId,
@@ -111,8 +115,9 @@ export class Runner {
       this.compiled.set(summary.id, compiled);
     }
     const archivedSteps = compiled?.steps.map((step) => step.source.id) ?? [];
+    const compiledStepIds = compiled ? new Set(archivedSteps) : undefined;
     this.archive.save(summary, archivedSteps);
-    this.active = { summary, controller, pauseRequested: false };
+    this.active = { summary, controller, pauseRequested: false, journalFailed: false };
     this.history.set(summary.id, summary);
     if (this.history.size > 100) {
       const stale = this.history.keys().next().value;
@@ -122,30 +127,40 @@ export class Runner {
       }
     }
     const emit = (kind: StreamEvent['kind'], message: string, details?: unknown): void => {
-      const event = this.events.publish({
-        runId: summary.id,
-        kind,
-        message,
-        details,
-      });
-      // Each run keeps its own human-readable event journal. No secrets or
-      // session cookies are included in our event payloads.
+      const active = this.active;
+      const input = { runId: summary.id, kind, message, details };
+      // Allocate id/time now so the persisted record and the broadcast event
+      // agree. Persist to the durable journal first: an event that cannot be
+      // written must never be broadcast as a live successful task (publish
+      // before persist would expose unconfirmed progress to consumers).
+      const event = this.events.allocate(input);
+      if (active?.journalFailed) {
+        // The durable record is compromised. Broadcast in memory only so the
+        // UI still learns the terminal outcome, but never write (or retry
+        // writing) to a journal we can no longer trust.
+        this.events.broadcast(event);
+        return;
+      }
       try {
         appendFileSync(logPath, `${JSON.stringify(event)}\n`, { mode: 0o600 });
       } catch (error) {
-        this.events.publish({
-          runId: summary.id,
-          kind: 'error',
-          message: `Log write failed: ${String(error)}`,
-        });
+        // Fail closed: retract the unwritten allocation, mark the journal
+        // compromised, and stop execution rather than exposing unrecorded
+        // progress as a live successful task.
+        this.events.retract(event.id);
+        if (active) active.journalFailed = true;
+        throw new Error(`Run journal write failed: ${String(error)}`);
       }
+      this.events.broadcast(event);
+      // Each run keeps its own human-readable event journal. No secrets or
+      // session cookies are included in our event payloads.
       this.archive.save(summary, archivedSteps);
     };
     this.active.emit = emit;
-    emit('status', 'Run queued for browser startup');
     const browser = new BrowserSession();
     void (async () => {
       try {
+        emit('status', 'Run queued for browser startup');
         const page = await browser.open(input.platform, input.accountId);
         // A historical DB verification is not evidence of a still-valid browser
         // login. Check the actual account before executing any workflow stage.
@@ -184,7 +199,11 @@ export class Runner {
               summary.id,
               (checkpointId) => {
                 summary.checkpoint = { id: checkpointId, message };
-                emit('input', message, { checkpointId });
+                emit(
+                  'input',
+                  message,
+                  checkpointEventDetails(checkpointId, summary.currentStepId, compiledStepIds),
+                );
               },
               controller.signal,
             );
@@ -200,7 +219,11 @@ export class Runner {
               summary.id,
               (checkpointId) => {
                 summary.checkpoint = { id: checkpointId, message };
-                emit('approval', message, { checkpointId });
+                emit(
+                  'approval',
+                  message,
+                  checkpointEventDetails(checkpointId, summary.currentStepId, compiledStepIds),
+                );
               },
               controller.signal,
             );
@@ -394,6 +417,11 @@ export class Runner {
   list(): RunSummary[] {
     return [...this.history.values()].reverse();
   }
+  listByConversation(conversationId: string): RunSummary[] {
+    return [...this.history.values()]
+      .filter((summary) => summary.conversationId === conversationId)
+      .reverse();
+  }
 
   /** Centralized screenshot-evidence authorization: in-memory journal plus the
    * persisted run journal (for restored history after a restart). */
@@ -443,6 +471,7 @@ export class Runner {
     if (this.active?.summary.id !== id) return false;
     this.active.emit?.('status', 'Operator requested Stop; cancelling active run');
     this.active.controller.abort();
+    this.active = undefined;
     return true;
   }
 }

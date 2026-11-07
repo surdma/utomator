@@ -41,6 +41,7 @@ export type {
 } from './workflow-types';
 
 import { useGrowthRunJournal } from '../../../hooks/use-growth-run-journal';
+import { useGrowthExecutionProjection } from '../../../hooks/use-growth-execution-projection';
 import StudioDialog from '../../ui/studio-dialog';
 import { GrowthGraphNodeCard } from '../growth/artboard/growth-graph-node-card';
 import {
@@ -168,11 +169,22 @@ function EditorBody(props: Props) {
     growthTemplateId ?? null,
     growthAccountId,
   );
-  const growthProgram = growth.program;
   const growthRun = growth.run;
+  // A past execution must display its pinned YAML plans, not a newer library revision.
+  const growthProgram =
+    growth.program && growthRun?.stages?.length
+      ? {
+          ...growth.program,
+          stages: growthRun.stages.map((stage) => ({
+            ...stage,
+            stepCount: stage.plan.steps.length,
+          })),
+        }
+      : growth.program;
   const growthStage =
     growthProgram?.stages.find((stage) => stage.id === growthPipelineId) ??
     null;
+  const { projection: growthProjection } = useGrowthExecutionProjection(growthRun);
   const liveGrowthPipeline = growthRun?.pipelineRuns.find(
     (item) => item.id === growthPipelineId,
   );
@@ -187,9 +199,10 @@ function EditorBody(props: Props) {
             growthStage,
             growthJournal,
             liveGrowthPipeline,
+            growthProjection,
           )
         : null,
-    [growthProgram, growthRun, growthStage, growthJournal, liveGrowthPipeline],
+    [growthProgram, growthRun, growthStage, growthJournal, liveGrowthPipeline, growthProjection],
   );
   const [outputOpen, setOutputOpen] = useState(false);
   const [editorError, setEditorError] = useState('');

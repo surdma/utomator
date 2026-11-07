@@ -2,12 +2,26 @@ import { readFile } from 'node:fs/promises';
 import type { FastifyInstance } from 'fastify';
 import type { ConnectorService } from '../connect/service.js';
 import { runtimePath } from '../core/paths.js';
-import type { RunRequest, StreamEvent } from '../core/types.js';
+import type { RunRequest, RunSummary, StreamEvent } from '../core/types.js';
 import { profileUrlForHandle } from '../core/validate.js';
 import { assessAudit } from '../runs/assessment.js';
+import { parseRunJournal } from '../runs/run-journal.js';
 import type { Runner } from '../runs/runner.js';
 import type { StepDefinitionStore } from '../workflows/step-definitions.js';
 import type { WorkflowRegistry } from '../workflows/workflow-registry.js';
+
+/**
+ * Access rule for owner-bound runs.
+ *
+ * New runs are stamped with the trusted server-side principal. Legacy runs
+ * that were recorded before ownership existed (ownerId === undefined) are
+ * deliberately bound to the deployment's trusted principal so they remain
+ * readable after this control is enabled. A run owned by another principal is
+ * never accessible.
+ */
+export function runIsAccessibleToOwner(run: RunSummary, ownerId: string): boolean {
+  return run.ownerId === undefined || run.ownerId === ownerId;
+}
 
 /** Run execution schema: platform/action scoped with bounded freeform inputs. */
 const runBodySchema = {
@@ -79,9 +93,21 @@ export function registerRunRoutes(
     workflowRegistry: WorkflowRegistry;
     authoredSteps: StepDefinitionStore;
   },
+  /** Trusted server-side owner principal. Derived from the deployment
+   * environment (`UTOMATOR_INTERNAL_OWNER_ID`, default `local-owner`), never
+   * from a client-controlled header. */
+  ownerId: string,
 ) {
   const { connectors, workflowRegistry, authoredSteps } = stores;
-  app.get('/runs', async () => runner.list());
+  app.get<{ Querystring: { conversationId?: string } }>('/runs', async (request) => {
+    // Only runs attributable to the trusted principal are listed. Legacy
+    // ownerless runs (no ownerId stamped) are bound to the trusted principal
+    // for read access; runs owned by another principal are never disclosed.
+    let runs = runner.list().filter((run) => runIsAccessibleToOwner(run, ownerId));
+    if (request.query.conversationId)
+      runs = runs.filter((run) => run.conversationId === request.query.conversationId);
+    return runs;
+  });
   app.get<{ Params: { id: string; file: string } }>(
     '/runs/:id/evidence/:file',
     async (request, reply) => {
@@ -89,7 +115,10 @@ export function registerRunRoutes(
       if (!/^[a-f0-9-]{36}$/.test(id) || !/^[a-zA-Z0-9_-]+\.png$/.test(file)) {
         return reply.code(404).send({ error: 'Evidence not found' });
       }
-      if (!runner.get(id)) return reply.code(404).send({ error: 'Evidence not found' });
+      const run = runner.get(id);
+      if (!run) return reply.code(404).send({ error: 'Evidence not found' });
+      if (run.ownerId !== undefined && run.ownerId !== ownerId)
+        return reply.code(403).send({ error: 'Run not accessible to this owner' });
       const captured = await runner.isScreenshotAuthorized(id, file);
       if (!captured) return reply.code(404).send({ error: 'Evidence not found' });
       try {
@@ -110,6 +139,8 @@ export function registerRunRoutes(
   app.get<{ Params: { id: string } }>('/runs/:id/assessment', async (request, reply) => {
     const run = runner.get(request.params.id);
     if (!run) return reply.code(404).send({ error: 'Run not found' });
+    if (!runIsAccessibleToOwner(run, ownerId))
+      return reply.code(403).send({ error: 'Run not accessible to this owner' });
     if (run.action !== 'audit')
       return reply.code(409).send({ error: 'Assessment requires an audit run' });
     if (runner.events.getSince(0, run.id).length === 0)
@@ -121,9 +152,16 @@ export function registerRunRoutes(
   });
   app.get<{ Params: { id: string } }>('/runs/:id', async (request, reply) => {
     const run = runner.get(request.params.id);
-    return run ?? reply.code(404).send({ error: 'Run not found' });
+    if (!run) return reply.code(404).send({ error: 'Run not found' });
+    if (!runIsAccessibleToOwner(run, ownerId))
+      return reply.code(403).send({ error: 'Run not accessible to this owner' });
+    return run;
   });
   app.get<{ Params: { id: string } }>('/runs/:id/workflow.yaml', async (request, reply) => {
+    const run = runner.get(request.params.id);
+    if (!run) return reply.code(404).send({ error: 'Run not found' });
+    if (!runIsAccessibleToOwner(run, ownerId))
+      return reply.code(403).send({ error: 'Run not accessible to this owner' });
     const yaml = runner.workflowYaml(request.params.id);
     if (!yaml) return reply.code(404).send({ error: 'Run YAML snapshot not found' });
     return reply
@@ -134,6 +172,10 @@ export function registerRunRoutes(
   app.get<{ Params: { id: string; stepId: string } }>(
     '/runs/:id/steps/:stepId.yaml',
     async (request, reply) => {
+      const run = runner.get(request.params.id);
+      if (!run) return reply.code(404).send({ error: 'Run not found' });
+      if (run.ownerId !== undefined && run.ownerId !== ownerId)
+        return reply.code(403).send({ error: 'Run not accessible to this owner' });
       const yaml = runner.workflowYaml(request.params.id, request.params.stepId);
       if (!yaml) return reply.code(404).send({ error: 'Run step YAML not found' });
       return reply
@@ -145,29 +187,56 @@ export function registerRunRoutes(
   app.get<{ Params: { id: string; stepId: string } }>(
     '/runs/:id/steps/:stepId/output',
     async (request, reply) => {
+      const run = runner.get(request.params.id);
+      if (!run) return reply.code(404).send({ error: 'Run not found' });
+      if (run.ownerId !== undefined && run.ownerId !== ownerId)
+        return reply.code(403).send({ error: 'Run not accessible to this owner' });
       const result = runner.stepOutput(request.params.id, request.params.stepId);
       return result
         ? reply.header('Cache-Control', 'private, no-store').send(result)
         : reply.code(404).send({ error: 'Step output not found or not yet completed' });
     },
   );
-  app.get<{ Params: { id: string } }>('/runs/:id/logs', async (request, reply) => {
-    if (!runner.get(request.params.id)) return reply.code(404).send({ error: 'Run not found' });
-    try {
-      const log = await readFile(runtimePath('runs', request.params.id + '.jsonl'), 'utf8');
-      return reply.header('Cache-Control', 'private, no-store').send(
-        log
-          .split('\n')
-          .filter(Boolean)
-          .slice(-1000)
-          .map((row) => JSON.parse(row) as StreamEvent),
-      );
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT')
-        return reply.code(404).send({ error: 'Journal unavailable' });
-      throw error;
-    }
-  });
+  app.get<{ Params: { id: string }; Querystring: { since?: string } }>(
+    '/runs/:id/logs',
+    async (request, reply) => {
+      const run = runner.get(request.params.id);
+      if (!run) return reply.code(404).send({ error: 'Run not found' });
+      if (run.ownerId !== undefined && run.ownerId !== ownerId)
+        return reply.code(403).send({ error: 'Run not accessible to this owner' });
+      const cursor = request.query?.since;
+      if (
+        cursor !== undefined &&
+        (!/^(0|[1-9][0-9]*)$/.test(cursor) || !Number.isSafeInteger(Number(cursor)))
+      )
+        return reply.code(400).send({ error: 'Invalid journal cursor' });
+      try {
+        const log = await readFile(runtimePath('runs', `${request.params.id}.jsonl`), 'utf8');
+        const page = parseRunJournal(
+          log,
+          request.params.id,
+          cursor === undefined ? {} : { since: Number(cursor) },
+        );
+        return reply
+          .header('Cache-Control', 'private, no-store')
+          .header('X-Run-Journal-Truncated', String(page.truncated))
+          .header('X-Run-Journal-Has-More', String(page.hasMore))
+          .send(page.events);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT')
+          return reply.code(404).send({ error: 'Journal unavailable' });
+        if (error instanceof Error && error.message.startsWith('History incomplete'))
+          return reply.code(409).send({
+            error:
+              'History incomplete: the durable journal ended mid-line; earlier events may be missing',
+          });
+        if (error instanceof Error && error.message === 'Corrupt run journal')
+          return reply.code(409).send({ error: 'Corrupt run journal' });
+        throw error;
+      }
+    },
+  );
+
   app.post<{ Body: RunRequest & { handle?: string } }>(
     '/runs',
     { schema: { body: runBodySchema } },
@@ -256,6 +325,7 @@ export function registerRunRoutes(
                 ...rest,
                 ...resolvedFields,
                 profileUrl: resolved,
+                ownerId,
                 workflow: record.plan,
                 workflowId: record.id,
                 workflowRevision: record.revision,
@@ -267,7 +337,9 @@ export function registerRunRoutes(
         if (rest.workflowRevision !== undefined)
           return reply.code(400).send({ error: 'Workflow ID required for revisioned execution' });
         const definitions = rest.workflow ? await authoredSteps.resolve(rest.workflow) : undefined;
-        return reply.code(202).send(runner.start({ ...rest, profileUrl: resolved }, definitions));
+        return reply
+          .code(202)
+          .send(runner.start({ ...rest, profileUrl: resolved, ownerId }, definitions));
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         return reply.code(message.startsWith('BUSY:') ? 409 : 400).send({ error: message });
@@ -293,6 +365,10 @@ export function registerRunRoutes(
       },
     },
     async (request, reply) => {
+      const run = runner.get(request.params.id);
+      if (!run) return reply.code(404).send({ error: 'Run not found' });
+      if (run.ownerId !== undefined && run.ownerId !== ownerId)
+        return reply.code(403).send({ error: 'Run not accessible to this owner' });
       const ok = runner.decide(request.params.id, request.body.checkpointId, request.body.approved);
       return ok ? { accepted: true } : reply.code(409).send({ error: 'No matching pending checkpoint' });
     },
@@ -316,6 +392,10 @@ export function registerRunRoutes(
       },
     },
     async (request, reply) => {
+      const run = runner.get(request.params.id);
+      if (!run) return reply.code(404).send({ error: 'Run not found' });
+      if (run.ownerId !== undefined && run.ownerId !== ownerId)
+        return reply.code(403).send({ error: 'Run not accessible to this owner' });
       const accepted = runner.answerText(
         request.params.id,
         request.body.checkpointId,
@@ -327,16 +407,28 @@ export function registerRunRoutes(
     },
   );
   app.post<{ Params: { id: string } }>('/runs/:id/pause', async (request, reply) => {
+    const run = runner.get(request.params.id);
+    if (!run) return reply.code(404).send({ error: 'Run not found' });
+    if (!runIsAccessibleToOwner(run, ownerId))
+      return reply.code(403).send({ error: 'Run not accessible to this owner' });
     return runner.pause(request.params.id)
       ? { accepted: true }
       : reply.code(409).send({ error: 'Run is not at a pausable state' });
   });
   app.post<{ Params: { id: string } }>('/runs/:id/resume', async (request, reply) => {
+    const run = runner.get(request.params.id);
+    if (!run) return reply.code(404).send({ error: 'Run not found' });
+    if (!runIsAccessibleToOwner(run, ownerId))
+      return reply.code(403).send({ error: 'Run not accessible to this owner' });
     return runner.resume(request.params.id)
       ? { accepted: true }
       : reply.code(409).send({ error: 'Run is not paused' });
   });
   app.post<{ Params: { id: string } }>('/runs/:id/cancel', async (request, reply) => {
+    const run = runner.get(request.params.id);
+    if (!run) return reply.code(404).send({ error: 'Run not found' });
+    if (!runIsAccessibleToOwner(run, ownerId))
+      return reply.code(403).send({ error: 'Run not accessible to this owner' });
     return runner.cancel(request.params.id)
       ? { accepted: true }
       : reply.code(409).send({ error: 'Run not active' });
@@ -344,7 +436,10 @@ export function registerRunRoutes(
 
   app.get<{ Params: { id: string } }>('/events/:id', async (request, reply) => {
     const runId = request.params.id;
-    if (!runner.get(runId)) return reply.code(404).send({ error: 'Run not found' });
+    const run = runner.get(runId);
+    if (!run) return reply.code(404).send({ error: 'Run not found' });
+    if (!runIsAccessibleToOwner(run, ownerId))
+      return reply.code(403).send({ error: 'Run not accessible to this owner' });
     if (runner.events.getSince(0, runId).length === 0)
       return reply.code(409).send({
         error: 'Archived run events are available through the persisted logs endpoint',

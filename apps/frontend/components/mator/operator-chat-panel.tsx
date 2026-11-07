@@ -54,6 +54,8 @@ import { useToast } from '@/components/ui/toast';
 import { AssistantAvatar } from './chat/mator-assistant-avatar';
 import { ReviewImage } from './chat/mator-review-image';
 import { TaskBlock } from './chat/mator-task-block';
+import { MatorPipelineExecution } from './chat/mator-pipeline-execution';
+import type { GrowthExecutionProjection } from '@/lib/growth-execution-projection';
 import { clarifyCount, threadWhen } from './chat/mator-thread-format';
 import { ThreadRow } from './chat/mator-thread-row';
 import { Checkpoint } from './elements/checkpoint';
@@ -110,6 +112,12 @@ type Props = {
   matorEvents?: MatorChatEvent[];
   conversations?: MatorConversationSummary[];
   conversationMeta?: MatorConversationSummary | null;
+  growthExecution?: GrowthExecutionProjection | null;
+  growthExecutionTitle?: string;
+  growthExecutionError?: string;
+  growthExecutionBusy?: boolean;
+  onGrowthDecision?: (runId: string, checkpointId: string, approved: boolean) => Promise<void>;
+  onGrowthInput?: (runId: string, checkpointId: string, value: string) => Promise<void>;
   loading?: boolean;
   modelId?: string | null;
   onModelChange?: (modelId: string) => Promise<unknown>;
@@ -188,6 +196,12 @@ export default function OperatorChatPanel({
   matorEvents = [],
   conversations = [],
   conversationMeta = null,
+  growthExecution = null,
+  growthExecutionTitle,
+  growthExecutionError,
+  growthExecutionBusy = false,
+  onGrowthDecision,
+  onGrowthInput,
   loading = false,
   modelId = null,
   onModelChange,
@@ -570,6 +584,17 @@ export default function OperatorChatPanel({
               {selectedCraftSlug}
             </button>
           </p>
+        )}
+
+        {growthExecution && (
+          <MatorPipelineExecution
+            execution={growthExecution}
+            title={growthExecutionTitle}
+            error={growthExecutionError}
+            busy={growthExecutionBusy}
+            onDecision={onGrowthDecision}
+            onInput={onGrowthInput}
+          />
         )}
 
         {/* ── Transcript ─────────────────────────────────────────────── */}
@@ -1100,10 +1125,9 @@ export default function OperatorChatPanel({
                   questions={[call.question.value]}
                   onUploadFile={onUploadClarifyFile}
                   onAnswerData={async (answers, ids) => {
-                    await call.answerVisual(
-                      answers[call.question?.value.name] ?? [],
-                      ids,
-                    );
+                    const name = call.question?.value.name;
+                    if (!name) return false;
+                    await call.answerVisual(answers[name] ?? [], ids);
                     return true;
                   }}
                 />

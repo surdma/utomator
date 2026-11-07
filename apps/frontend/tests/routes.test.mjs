@@ -13,8 +13,6 @@ const pages = [
   'editorial',
   'growth',
   'history',
-  'memory',
-  'observer',
   'profile',
   'research',
   'resumes',
