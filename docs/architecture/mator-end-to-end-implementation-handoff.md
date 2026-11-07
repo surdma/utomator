@@ -402,3 +402,30 @@ For each M-ID append: date; owner; verified baseline/root cause; exact files and
 **Updated M3 statuses:** M3.3 IMPLEMENTED (append-before-broadcast verified), M3.4 IMPLEMENTED (durable journal + history-incomplete + restart-replay metadata), M3.5 IMPLEMENTED (owner-scoped retrieval + mutating routes, sanitized errors, fail-closed unknown IDs, terminal semantics signed off), M3.6 IMPLEMENTED (shared projection driving Mator card + Growth artboard; projection unit-tested), M3.7 IMPLEMENTED (task-correlated trace). M3.8 (owner/tenant evidence-approval interaction) owner-scoped routes implemented but end-to-end approval flow not browser-verified → BLOCKED. M3.9–M3.12 BLOCKED (require real browser + dogfood).
 
 **Evidence-based next owner:** Backend + Security sign off on owner-scoped restart-replay and terminal semantics; Integration/Dogfood for real-browser gates. Keep PR #19 and #15 DRAFT. Do not commit generated artifacts (`playwright-report/`, `test-results/`, `.runtime/`, `local.db`, root `prompt.md`).
+
+### M3 re-baseline and CI triage — 2026-11-07 (HEAD `cf3e436`, then settings-contract fix)
+
+**Checkout:** `git fetch origin work/mator-m3-pipeline-journal-20261104` — local branch already matched origin (`0` ahead / `0` behind). Working tree clean. `pnpm install --frozen-lockfile` PASS (already up to date, 474ms). Gitignore covers `apps/frontend/playwright-report/`, `apps/frontend/test-results/`, `apps/backend/.runtime/`, and `local.db`. Node v24.19.0, pnpm 10.0.0. Six commits exist after the 2026-11-06 ledger HEAD `a469a0d` (`aa7ffbb` through `cf3e436`), including M3 ownership/journal/conversation identity plus M4/M5/M6 work that is already on this draft branch.
+
+**Baseline before this session's edit** (commands from the M3 plan, plus the live PR #19 jobs on `cf3e436`, run `42352192037` / `42352192112`):
+
+| Command / job | Result | Classification |
+|---|---|---|
+| `pnpm --filter @utomator/frontend test` | **182 passed / 0 failed** (41 files). Same count on CI "Verify migrated frontend routes". | Green. Earlier route-contract failures are no longer present. |
+| `pnpm --filter @utomator/backend test` (local Windows, full suite) | **194 passed / 15 failed** (34 files) | 14 failures are environmental: SQLite `EBUSY` unlink (`database-documents`, `tenant-isolation`, `linkedin-publishing`) and `buildApp()` exceeding 5s (`account-store`, `crafts`, `growth-profile-workflow`, `linkedin-creator-research`, `linkedin-publishing`, `profile-planner`, `server`, `workflow-plan` YAML forms). Isolated rerun of `a run binds live observed data…` **passes** (state `cancelled`). Under full-suite load that assertion saw `failed` — contention, not a stable M3 regression. Linux CI does not fail these. |
+| CI "Unit and Fastify route tests" | **208 passed / 1 failed** | **Real stale test, this branch (M4/M6), not inherited from #15.** `getMatorSettings returns defaults when document is missing` omitted `temperature: 0.2`, which `DEFAULTS` in `src/mator/mator-settings.ts` returns. Product default is intentional; the assertion was not updated. |
+| Backend/frontend Biome format | CI format steps completed (lint steps ran). | Format gate green. |
+| Backend Biome lint `--error-on-warnings` | **11 errors, 243 warnings** (361 diagnostics hidden by the reporter cap). | Whole-tree gate. Not fixed in this session. Loosening `--error-on-warnings` is refused. |
+| Frontend Biome lint `--error-on-warnings` | **96 errors, 47 warnings**. | Same whole-tree gate. Includes `noArrayIndexKey` in career sections and a test-only `noComponentHookFactories` hit in `voice-support.test.mjs`. |
+| React Doctor | **49/100, 0 errors, 155 warnings, blocking: warning**. | Not a functional M3 failure. Not cleared. |
+| Unified Artboard typecheck + real-browser integration | **PASS** on this HEAD (the 2026-11-05 failures are stale). | Green. |
+| Frontend responsive/a11y gate | **IN_PROGRESS** at triage time (job still running). | Not claimed. |
+| `test:hosted`, typecheck, build, Playwright 320/375/768/1024/1440, dogfood | Not re-run this session except as noted above. | Prior ledger claims for typecheck/build/hosted are not re-verified today. |
+
+**Ruling:** expect `temperature: 0.2` in the missing-document settings assertion — the default is already the server contract in `mator-settings.ts`, and CI fails only because the test object is short one field — if the default were wrong, Groq calls would still send 0.2 and this test would hide that.
+
+**Fix applied after the baseline:** `apps/backend/tests/mator-settings.test.ts` now expects `temperature: 0.2`. `pnpm exec vitest run tests/mator-settings.test.ts` → **4 passed / 0 failed**.
+
+**Statuses carried forward:** M3.3–M3.7 remain IMPLEMENTED on the commits after `a469a0d` (append-before-broadcast is in `runner.ts` `emit`; history-incomplete is in `run-journal.ts`; nested pipeline card is `mator-pipeline-execution.tsx`). M3.8–M3.12 stay BLOCKED. Biome warning gates and React Doctor stay BLOCKED. PR #19 and #15 stay draft.
+
+**Next owner:** Test Engineer for the in-flight responsive gate result; Frontend for a source-justified Biome/`noArrayIndexKey` pass that does not weaken `--error-on-warnings`; Integration/Dogfood for live browser sign-off. Do not treat this settings-test fix as milestone completion.
