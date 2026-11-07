@@ -202,8 +202,12 @@ test('Growth workspace connects 21 capability and toolkit graphs, MDX, export an
     const editor = page.getByTestId('craft-mdx-editor');
     await editor.waitFor();
     expect(page.url()).toMatch(/\/dashboard\/growth\/default-growth-profile\/source$/);
-    expect(await editor.inputValue()).toMatch(/Review photo framing);
-    expect(await editor.inputValue()).toMatch(/Additional section extractors);
+    expect(await editor.inputValue()).toMatch(
+      /Review photo framing, banner hierarchy, name and pronunciation accuracy/,
+    );
+    expect(await editor.inputValue()).toMatch(
+      /Additional section extractors, real field-by-field audit rubric/,
+    );
     await page.getByRole('button', { name: 'Clone to my crafts' }).click();
     await page.getByText('Created your private craft variation.').waitFor();
     await page.getByRole('tab', { name: 'Visual flow' }).click();

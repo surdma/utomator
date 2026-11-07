@@ -191,8 +191,8 @@ test('Fastify exposes generator and saved defaults; malformed graph never starts
     expect(response.statusCode).toEqual(400);
     expect(response.body).toMatch(/Branching|connected/);
     expect((await app.inject('/runs')).json().length).toEqual(beforeRuns);
-    expect((await app.inject({ method: 'POST', url: '/runs/no-such-run/pause' })).statusCode).toEqual(409);
-    expect((await app.inject({ method: 'POST', url: '/runs/no-such-run/resume' })).statusCode).toEqual(409);
+    expect((await app.inject({ method: 'POST', url: '/runs/no-such-run/pause' })).statusCode).toEqual(404);
+    expect((await app.inject({ method: 'POST', url: '/runs/no-such-run/resume' })).statusCode).toEqual(404);
   } finally {
     await app.close();
   }
