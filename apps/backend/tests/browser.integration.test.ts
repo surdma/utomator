@@ -1,11 +1,11 @@
-
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { test, expect } from 'vitest';
 import type { Locator, Page } from 'playwright';
 import { chromium } from 'playwright';
-import { AccountStore } from '../src/profile/account-store.js';
+import { expect, test } from 'vitest';
+import { AccountStore } from '../src/infrastructure/profile/account-store.js';
+import { removeTemp } from './support/remove-temp.js';
 
 process.env.NODE_ENV = 'test';
 process.env.UTOMATOR_TEST_DATABASE = 'true';
@@ -96,7 +96,9 @@ async function exercise(mode: 'audit' | 'audit-race' | 'reject') {
     const preview = templates.getByTestId('growth-template-pipeline-preview');
     await preview.waitFor();
     expect(await preview.innerText()).toMatch(/6 connected pipelines/);
-    expect(await templates.getByRole('button', { name: 'Open YAML workflow' }).isDisabled()).toEqual(false);
+    expect(await templates.getByRole('button', { name: 'Open YAML workflow' }).isDisabled()).toEqual(
+      false,
+    );
     await templates
       .getByRole('combobox', { name: 'Filter workflow availability' })
       .selectOption('design');
@@ -104,7 +106,9 @@ async function exercise(mode: 'audit' | 'audit-race' | 'reject') {
       .getByRole('searchbox', { name: 'Search workflows' })
       .fill('Personal brand positioning');
     await preview.getByText('Evidence and preparation').waitFor();
-    expect(await templates.getByRole('button', { name: 'Inspect planning workflow' }).isDisabled()).toEqual(false);
+    expect(
+      await templates.getByRole('button', { name: 'Inspect planning workflow' }).isDisabled(),
+    ).toEqual(false);
     expect((await app.inject('/runs')).json().length).toEqual(templateRunsBefore);
     await templates.getByRole('button', { name: 'Close Workflow library' }).click();
     await templates.waitFor({ state: 'hidden' });
@@ -236,8 +240,12 @@ test('Growth workspace connects 21 capability and toolkit graphs, MDX, export an
     }>;
     const personal = library.find((entry) => entry.slug === 'growth-profile-copy');
     expect(personal).toBeTruthy();
-    expect(personal.links.some((edge) => edge.source === 'scope' && edge.target === 'outcome')).toBeTruthy();
-    expect(!personal.links.some((edge) => edge.source === 'scope' && edge.target === 'evidence')).toBeTruthy();
+    expect(
+      personal.links.some((edge) => edge.source === 'scope' && edge.target === 'outcome'),
+    ).toBeTruthy();
+    expect(
+      !personal.links.some((edge) => edge.source === 'scope' && edge.target === 'evidence'),
+    ).toBeTruthy();
     await page.getByRole('tab', { name: 'Visual flow' }).click();
     await page.locator('.react-flow__edge').first().waitFor();
     const downloadPromise = page.waitForEvent('download');
@@ -250,7 +258,9 @@ test('Growth workspace connects 21 capability and toolkit graphs, MDX, export an
     const updated = (await app.inject('/crafts/' + personal.id)).json() as {
       links: Array<{ source: string; target: string }>;
     };
-    expect(!updated.links.some((edge) => edge.source === 'scope' && edge.target === 'outcome')).toBeTruthy();
+    expect(
+      !updated.links.some((edge) => edge.source === 'scope' && edge.target === 'outcome'),
+    ).toBeTruthy();
     const original = (await app.inject('/crafts/default-growth-profile')).json() as {
       steps: Array<{ title: string }>;
     };
@@ -453,7 +463,9 @@ test('LinkedIn editorial research-to-draft workflow persists, approves and retur
     await studio.getByText(/Draft saved to your private workspace/).waitFor();
     await studio.getByRole('button', { name: 'Approve reviewed draft' }).click();
     await studio.getByText(/Draft is now approved/).waitFor();
-    expect(await studio.getByRole('button', { name: 'Publish approved post to LinkedIn' }).isDisabled()).toEqual(true);
+    expect(
+      await studio.getByRole('button', { name: 'Publish approved post to LinkedIn' }).isDisabled(),
+    ).toEqual(true);
     expect(await studio.getByRole('link', { name: /YAML/ }).count()).toEqual(0);
     const written = (await app.inject('/linkedin/drafts')).json() as Array<{
       id: string;
@@ -474,16 +486,18 @@ test('LinkedIn editorial research-to-draft workflow persists, approves and retur
       accountId: string;
       content: { researchRunId: string; sourceUrls: string[] };
     }>;
-    expect(rows.some(
+    expect(
+      rows.some(
         (row) =>
           row.accountId === savedAccount.id &&
           row.content.researchRunId === researchRun.id &&
           row.content.sourceUrls.length > 0,
-      )).toBeTruthy();
+      ),
+    ).toBeTruthy();
   } finally {
     await browser.close();
     await app.close();
-    await rm(root, { recursive: true, force: true });
+    await removeTemp(root);
   }
 });
 
@@ -510,7 +524,9 @@ test('Growth discovery preserves capability delivery status, section coverage an
       })
       .waitFor();
     expect(await detail.innerText()).toMatch(/Planned/);
-    expect(await detail.getByRole('link', { name: 'Open existing supported workflow' }).count()).toEqual(0);
+    expect(await detail.getByRole('link', { name: 'Open existing supported workflow' }).count()).toEqual(
+      0,
+    );
     await page.getByRole('button', { name: 'Growth library' }).click();
     await catalog.waitFor();
     await catalog.getByRole('textbox', { name: 'Search crafts' }).fill('creator');
@@ -528,7 +544,9 @@ test('Growth discovery preserves capability delivery status, section coverage an
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByTestId('craft-card-growth-company').click();
     await detail.getByRole('heading', { name: 'Company Page & organization growth' }).waitFor();
-    expect(await detail.getByRole('link', { name: 'Open existing supported workflow' }).count()).toEqual(0);
+    expect(await detail.getByRole('link', { name: 'Open existing supported workflow' }).count()).toEqual(
+      0,
+    );
   } finally {
     await browser.close();
     await app.close();
@@ -555,7 +573,9 @@ test('Connector dialog rejects manual profile entry and Profile shows only verif
     await dialog.getByTestId('linkedin-connector').waitFor();
     await page.setViewportSize({ width: 390, height: 760 });
     expect(await dialog.getByRole('heading', { name: 'LinkedIn', exact: true }).count()).toEqual(1);
-    expect(await dialog.getByRole('textbox', { name: /profile address|username|handle/i }).count()).toEqual(0);
+    expect(
+      await dialog.getByRole('textbox', { name: /profile address|username|handle/i }).count(),
+    ).toEqual(0);
     await dialog.getByRole('button', { name: 'Connect LinkedIn', exact: true }).waitFor();
     const before = (await app.inject('/account')).json() as {
       socialAccounts: unknown[];
@@ -580,7 +600,7 @@ test('Connector dialog rejects manual profile entry and Profile shows only verif
   } finally {
     await browser.close();
     await app.close();
-    await rm(root, { recursive: true, force: true });
+    await removeTemp(root);
   }
 });
 
@@ -690,7 +710,7 @@ test('planning-only Growth YAML stays read-only and cannot launch Runner', {
 test('Local Chrome attachment keeps the external process alive across connector tab cleanup', {
   timeout: 45000,
 }, async () => {
-  const { BrowserSession } = await import('../src/browser/session.js');
+  const { BrowserSession } = await import('../src/infrastructure/browser/session.js');
   const port = 22000 + (process.pid % 14000);
   const external = await chromium.launch({
     headless: true,

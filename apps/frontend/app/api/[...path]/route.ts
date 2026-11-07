@@ -351,7 +351,10 @@ async function forward(req: NextRequest, params: Promise<{ path: string[] }>) {
       headers.set('x-accel-buffering', 'no');
     }
     if (/^runs\/[0-9a-fA-F-]{36}\/logs$/.test(target)) {
-      for (const name of ['x-run-journal-truncated', 'x-run-journal-has-more']) {
+      for (const name of [
+        'x-run-journal-truncated',
+        'x-run-journal-has-more',
+      ]) {
         const value = upstream.headers.get(name);
         if (value !== null) headers.set(name, value);
       }

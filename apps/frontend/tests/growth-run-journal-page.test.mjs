@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { fetchGrowthRunJournalPage } from '../lib/growth-run-journal.ts';
+import { fetchGrowthRunJournalPage } from '../modules/growth/model/growth-run-journal.ts';
 
 test('journal page includes explicit server history-truncation metadata', async () => {
   const previous = globalThis.fetch;
@@ -11,11 +11,15 @@ test('journal page includes explicit server history-truncation metadata', async 
       expect(options.signal).toBe(controller.signal);
       return {
         ok: true,
-        headers: { get: (key) => (key === 'x-run-journal-truncated' ? 'true' : null) },
+        headers: {
+          get: (key) => (key === 'x-run-journal-truncated' ? 'true' : null),
+        },
         json: async () => events,
       };
     };
-    expect(await fetchGrowthRunJournalPage('child/one', controller.signal)).toEqual({
+    expect(
+      await fetchGrowthRunJournalPage('child/one', controller.signal),
+    ).toEqual({
       entries: events,
       truncated: true,
     });

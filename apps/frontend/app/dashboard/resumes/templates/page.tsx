@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
-import DashboardShell from '@/components/dashboard/dashboard-shell';
+import DashboardShell from '@/modules/shell';
 
 export const metadata: Metadata = {
   title: 'Résumé templates | Utomator',

@@ -1,10 +1,9 @@
-
-import { afterEach, test, expect } from 'vitest';
+import { afterEach, expect, test } from 'vitest';
 import {
   fetchMatorSettings,
   matorSettingsUrl,
   saveMatorSettings,
-} from '../components/mator/mator-api.ts';
+} from '../modules/mator/components/mator-api.ts';
 
 const originalFetch = globalThis.fetch;
 afterEach(() => {
@@ -71,5 +70,7 @@ test('saveMatorSettings surfaces backend errors', async () => {
     new Response(JSON.stringify({ error: 'Groq API key cannot be empty' }), {
       status: 400,
     });
-  await expect((saveMatorSettings({ groqApiKey: '' }))).rejects.toThrow(/Groq API key cannot be empty/);
+  await expect(saveMatorSettings({ groqApiKey: '' })).rejects.toThrow(
+    /Groq API key cannot be empty/,
+  );
 });

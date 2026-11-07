@@ -1,7 +1,6 @@
-
-import { test, expect } from 'vitest';
-import { resolveMatorCallTurn } from '../components/mator/mator-call-contract.ts';
-import { MatorCallCoordinator } from '../components/mator/mator-call-coordinator.ts';
+import { expect, test } from 'vitest';
+import { resolveMatorCallTurn } from '../modules/mator/components/mator-call-contract.ts';
+import { MatorCallCoordinator } from '../modules/mator/components/mator-call-coordinator.ts';
 
 function deferred() {
   let resolve;

@@ -1,47 +1,47 @@
 import { timingSafeEqual } from 'node:crypto';
 import { resolve } from 'node:path';
 import Fastify from 'fastify';
-import { registerConnectorRoutes } from './api/connect.js';
-import { registerCraftRoutes } from './api/crafts.js';
-import { registerEditorialRoutes } from './api/editorial.js';
-import { registerGrowthRoutes } from './api/growth.js';
-import { registerIntelligenceRoutes } from './api/intelligence.js';
-import { registerProfilePlanRoutes } from './api/planning.js';
-import { registerProfileRoutes } from './api/profile.js';
-import { registerReviewRoutes } from './api/reviews.js';
-import { registerRunRoutes } from './api/runs.js';
-import { registerWorkflowRoutes } from './api/workflows.js';
-import { ConnectorService } from './connect/service.js';
-import { AuthBlockedError } from './core/errors.js';
-import { CraftLibrary } from './crafts/library.js';
+import { AuthBlockedError } from './domain/errors.js';
+import { ConnectorService } from './infrastructure/connect/service.js';
+import { CraftLibrary } from './infrastructure/crafts/library.js';
 import {
   checkedOwnerId,
   createDocumentStore,
   type DocumentStore,
   LOCAL_OWNER_ID,
-} from './db/documents.js';
-import { GrowthTemplateStore } from './engine/growth-template-store.js';
-import { ProfileGrowthCoordinator } from './engine/profile-growth-coordinator.js';
-import { CreatorResearchStore } from './linkedin/linkedin-creator-research.js';
-import { LinkedInEditorialStore } from './linkedin/linkedin-editorial.js';
-import { LinkedInPublishingProvider } from './linkedin/linkedin-publisher.js';
-import { workflowRegistryPort } from './mator/mator-actions.js';
-import { ActivityMemory } from './mator/mator-activity-memory.js';
-import { registerMatorRoutes } from './mator/mator-routes.js';
-import { AccountStore } from './profile/account-store.js';
-import { CareerStore } from './profile/career-store.js';
-import { ProfilePlanner } from './profile/profile-planner.js';
-import { Runner } from './runs/runner.js';
-import { VisualReviewStore } from './runs/visual-review.js';
-import { StepDefinitionStore } from './workflows/step-definitions.js';
-import { WorkflowRegistry } from './workflows/workflow-registry.js';
-import { WorkflowPlanStore } from './workflows/workflow-store.js';
+} from './infrastructure/db/documents.js';
+import { GrowthTemplateStore } from './infrastructure/growth/growth-template-store.js';
+import { ProfileGrowthCoordinator } from './infrastructure/growth/profile-growth-coordinator.js';
+import { CreatorResearchStore } from './infrastructure/linkedin/linkedin-creator-research.js';
+import { LinkedInEditorialStore } from './infrastructure/linkedin/linkedin-editorial.js';
+import { LinkedInPublishingProvider } from './infrastructure/linkedin/linkedin-publisher.js';
+import { workflowRegistryPort } from './infrastructure/mator/mator-actions.js';
+import { ActivityMemory } from './infrastructure/mator/mator-activity-memory.js';
+import { AccountStore } from './infrastructure/profile/account-store.js';
+import { CareerStore } from './infrastructure/profile/career-store.js';
+import { ProfilePlanner } from './infrastructure/profile/profile-planner.js';
+import { Runner } from './infrastructure/runs/runner.js';
+import { VisualReviewStore } from './infrastructure/runs/visual-review.js';
+import { StepDefinitionStore } from './infrastructure/workflows/step-definitions.js';
+import { WorkflowRegistry } from './infrastructure/workflows/workflow-registry.js';
+import { WorkflowPlanStore } from './infrastructure/workflows/workflow-store.js';
+import { registerConnectorRoutes } from './interface/http/connect.js';
+import { registerCraftRoutes } from './interface/http/crafts.js';
+import { registerEditorialRoutes } from './interface/http/editorial.js';
+import { registerGrowthRoutes } from './interface/http/growth.js';
+import { registerIntelligenceRoutes } from './interface/http/intelligence.js';
+import { registerMatorRoutes } from './interface/http/mator-routes.js';
+import { registerProfilePlanRoutes } from './interface/http/planning.js';
+import { registerProfileRoutes } from './interface/http/profile.js';
+import { registerReviewRoutes } from './interface/http/reviews.js';
+import { registerRunRoutes } from './interface/http/runs.js';
+import { registerWorkflowRoutes } from './interface/http/workflows.js';
 
 /**
  * HTTP composition root.
  *
  * All service construction and lifecycle wiring stays here so a restart keeps
- * the exact same wiring order; route registration lives in `src/api/*`, one
+ * the exact same wiring order; route registration lives in `src/interface/http`, one
  * register function per domain, each receiving its already-built deps.
  * The frontend proxy allowlist depends on the route strings unchanged.
  */

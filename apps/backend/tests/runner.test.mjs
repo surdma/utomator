@@ -1,5 +1,5 @@
 import { expect, test, vi } from 'vitest';
-import { Runner } from '../src/runs/runner.js';
+import { Runner } from '../src/infrastructure/runs/runner.js';
 
 vi.mock('node:fs', async () => {
   const actual = await vi.importActual('node:fs');

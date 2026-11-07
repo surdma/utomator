@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { fetchGrowthRunJournal } from '../lib/growth-run-journal.ts';
+import { fetchGrowthRunJournal } from '../modules/growth/model/growth-run-journal.ts';
 
 test('journal request uses the child run identifier, starts at cursor 0 and forwards cancellation', async () => {
   const previous = globalThis.fetch;

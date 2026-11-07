@@ -3,6 +3,7 @@ export const GithubIcon: React.FC<{ className: string }> = ({
   ...rest
 }) => (
   <svg
+    aria-hidden="true"
     xmlns="http://www.w3.org/2000/svg"
     width="1em"
     height="1em"
@@ -23,6 +24,7 @@ export const XIcon: React.FC<{ className: string }> = ({
   ...rest
 }) => (
   <svg
+    aria-hidden="true"
     xmlns="http://www.w3.org/2000/svg"
     width="1em"
     height="1em"
@@ -42,6 +44,7 @@ export const DevtoIcon: React.FC<{ className: string }> = ({
   ...rest
 }) => (
   <svg
+    aria-hidden="true"
     xmlns="http://www.w3.org/2000/svg"
     width="1em"
     height="1em"
@@ -61,6 +64,7 @@ export const TwitterIcon: React.FC<{ className: string }> = ({
   ...rest
 }) => (
   <svg
+    aria-hidden="true"
     xmlns="http://www.w3.org/2000/svg"
     width="1em"
     height="1em"
@@ -81,6 +85,7 @@ export const LinkedInIcon: React.FC<{ className: string }> = ({
   ...rest
 }) => (
   <svg
+    aria-hidden="true"
     xmlns="http://www.w3.org/2000/svg"
     width="1em"
     height="1em"
@@ -105,6 +110,7 @@ export const InstagramIcon: React.FC<{ className: string }> = ({
   ...rest
 }) => (
   <svg
+    aria-hidden="true"
     xmlns="http://www.w3.org/2000/svg"
     width="1em"
     height="1em"
@@ -136,6 +142,7 @@ export const PinterestIcon: React.FC<{ className: string }> = ({
   ...rest
 }) => (
   <svg
+    aria-hidden="true"
     xmlns="http://www.w3.org/2000/svg"
     width="1em"
     height="1em"
@@ -156,6 +163,7 @@ export const DribbbleIcon: React.FC<{ className: string }> = ({
   ...rest
 }) => (
   <svg
+    aria-hidden="true"
     xmlns="http://www.w3.org/2000/svg"
     width="1em"
     height="1em"
@@ -180,6 +188,7 @@ export const SunIcon: React.FC<{ className: string }> = ({
   ...rest
 }) => (
   <svg
+    aria-hidden="true"
     xmlns="http://www.w3.org/2000/svg"
     width="24"
     height="24"
@@ -361,6 +370,7 @@ export const MoonIcon: React.FC<{ className: string }> = ({
   ...rest
 }) => (
   <svg
+    aria-hidden="true"
     xmlns="http://www.w3.org/2000/svg"
     width="24"
     height="24"
@@ -520,6 +530,7 @@ export const CircularText: React.FC<{ className: string }> = ({
   ...rest
 }) => (
   <svg
+    aria-hidden="true"
     xmlns="http://www.w3.org/2000/svg"
     width="496"
     height="496"
@@ -537,6 +548,7 @@ export const LinkArrow: React.FC<{ className: string }> = ({
   ...rest
 }) => (
   <svg
+    aria-hidden="true"
     xmlns="http://www.w3.org/2000/svg"
     width={24}
     height={24}

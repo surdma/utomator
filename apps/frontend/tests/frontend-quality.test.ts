@@ -294,6 +294,7 @@ test('dashboard navigation stays usable after extracting the shell', async ({
   page,
 }) => {
   await page.goto('/dashboard/pipeline');
+  await page.getByRole('button', { name: 'Account menu' }).click();
   const history = page.getByRole('button', { name: 'Run history' });
   await expect(history).toBeVisible();
   await history.click();

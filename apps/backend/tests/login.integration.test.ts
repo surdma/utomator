@@ -1,7 +1,6 @@
-
-import { test, expect } from 'vitest';
 import { chromium } from 'playwright';
-import { attemptLogin } from '../src/browser/login.js';
+import { expect, test } from 'vitest';
+import { attemptLogin } from '../src/infrastructure/browser/login.js';
 
 test('LinkedIn fixture receives credentials with no logging or external request', async () => {
   const browser = await chromium.launch();
@@ -35,7 +34,8 @@ test('credentials are never used on an untrusted origin', async () => {
   try {
     const page = await browser.newPage();
     await page.goto('about:blank');
-    await expect((attemptLogin(
+    await expect(
+      attemptLogin(
         page,
         'linkedin',
         {
@@ -43,7 +43,8 @@ test('credentials are never used on an untrusted origin', async () => {
           password: 'not-real',
         },
         new AbortController().signal,
-      ))).rejects.toThrow(/official platform/);
+      ),
+    ).rejects.toThrow(/official platform/);
   } finally {
     await browser.close();
   }
@@ -66,7 +67,8 @@ test('X two-step fixture logs in without writing credentials to run history', as
       });
     });
     await page.goto('https://x.com/i/flow/login');
-    expect(await attemptLogin(
+    expect(
+      await attemptLogin(
         page,
         'x',
         {
@@ -74,7 +76,8 @@ test('X two-step fixture logs in without writing credentials to run history', as
           password: 'one-time-only',
         },
         new AbortController().signal,
-      )).toEqual(true);
+      ),
+    ).toEqual(true);
     expect(await page.locator('body').getAttribute('data-sent')).toEqual('yes');
   } finally {
     await browser.close();

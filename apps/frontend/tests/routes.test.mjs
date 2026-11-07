@@ -1,8 +1,7 @@
-
+import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { test, expect } from 'vitest';
-import assert from 'node:assert/strict';
+import { expect, test } from 'vitest';
 
 const root = new URL('../', import.meta.url);
 const read = (path) => readFile(new URL(path, root), 'utf8');
@@ -22,7 +21,9 @@ test('the marketing root is separate and every operator page is nested under das
   expect(existsSync(new URL('app/page.tsx', root))).toBeTruthy();
   expect(existsSync(new URL('app/dashboard/page.tsx', root))).toBeTruthy();
   for (const route of pages)
-    expect(existsSync(new URL(`app/dashboard/${route}/page.tsx`, root))).toBeTruthy();
+    expect(
+      existsSync(new URL(`app/dashboard/${route}/page.tsx`, root)),
+    ).toBeTruthy();
   for (const route of [
     'workspace',
     'library',
@@ -39,17 +40,31 @@ test('the marketing root is separate and every operator page is nested under das
     '%5Fautomate',
   ])
     expect(!existsSync(new URL(`app/${route}`, root))).toBeTruthy();
-  expect(existsSync(new URL('app/dashboard/crafts/[craftId]/source/page.tsx', root))).toBeTruthy();
-  expect(existsSync(new URL('app/dashboard/growth/[craftId]/page.tsx', root))).toBeTruthy();
-  expect(existsSync(new URL('app/growth/default-growth-profile/page.tsx', root))).toBeTruthy();
-  expect(existsSync(new URL('app/dashboard/growth/[craftId]/source/page.tsx', root))).toBeTruthy();
-  expect(existsSync(new URL('app/dashboard/resumes/[resumeId]/page.tsx', root))).toBeTruthy();
+  expect(
+    existsSync(new URL('app/dashboard/crafts/[craftId]/source/page.tsx', root)),
+  ).toBeTruthy();
+  expect(
+    existsSync(new URL('app/dashboard/growth/[craftId]/page.tsx', root)),
+  ).toBeTruthy();
+  expect(
+    existsSync(new URL('app/growth/default-growth-profile/page.tsx', root)),
+  ).toBeTruthy();
+  expect(
+    existsSync(new URL('app/dashboard/growth/[craftId]/source/page.tsx', root)),
+  ).toBeTruthy();
+  expect(
+    existsSync(new URL('app/dashboard/resumes/[resumeId]/page.tsx', root)),
+  ).toBeTruthy();
   assert.match(
     await read('app/dashboard/page.tsx'),
     /redirect\(['"]\/dashboard\/workspace['"]\)/,
   );
-  expect(await read('components/dashboard/dashboard-shell.tsx')).toMatch(/DashboardShell/);
-  expect(await read('components/home/hero-button.tsx')).toMatch(/href="\/dashboard\/workspace"/);
+  expect(await read('modules/shell/components/dashboard-shell.tsx')).toMatch(
+    /DashboardShell/,
+  );
+  expect(await read('components/home/hero-button.tsx')).toMatch(
+    /href="\/dashboard\/workspace"/,
+  );
 });
 test('API proxy remains loopback-only and craft endpoints are allowlisted', async () => {
   const api = await read('app/api/[...path]/route.ts');

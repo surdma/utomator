@@ -1,10 +1,9 @@
-
-import { test, expect } from 'vitest';
+import { expect, test } from 'vitest';
 import {
   bestEchoCorrelation,
   NearEndGate,
   normalizedCorrelation,
-} from '../components/mator/mator-call-near-end.ts';
+} from '../modules/mator/components/mator-call-near-end.ts';
 
 test('echo-correlated speaker playback does not trigger a near-end barge', () => {
   const g = new NearEndGate({ minSpeechMs: 180 });

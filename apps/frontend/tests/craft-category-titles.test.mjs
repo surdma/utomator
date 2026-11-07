@@ -1,6 +1,5 @@
-
-import { test, expect } from 'vitest';
-import { craftCategoryTitles } from '../components/dashboard/crafts/craft-category-titles.ts';
+import { expect, test } from 'vitest';
+import { craftCategoryTitles } from '../modules/crafts/components/craft-category-titles.ts';
 
 test('Craft categories retain the six named catalogue sections', () => {
   expect(craftCategoryTitles).toEqual({

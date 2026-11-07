@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { checkpointEventDetails } from '../src/runs/checkpoint-event.js';
+import { checkpointEventDetails } from '../src/infrastructure/runs/checkpoint-event.js';
 
 test('compiled YAML task receives the exact checkpoint identity', () => {
   const compiledIds = new Set(['start', 'inspect', 'ownerApproval']);

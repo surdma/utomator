@@ -1,5 +1,4 @@
-
-import { test, expect } from 'vitest';
+import { expect, test } from 'vitest';
 import {
   eventsToConversation,
   findIncompleteEvent,
@@ -12,7 +11,7 @@ import {
   shouldRenderMatorEvent,
   shouldSpeakHow,
   stageResolution,
-} from '../components/mator/mator-chat-state.ts';
+} from '../modules/mator/components/mator-chat-state.ts';
 
 const base = {
   conversationId: 'c1',
@@ -134,7 +133,8 @@ test('findPendingStage clears after applied or rejected', () => {
     action: { type: 'edit_step' },
   };
   expect(findPendingStage([staged])?.id).toEqual('s1');
-  expect(findPendingStage([
+  expect(
+    findPendingStage([
       staged,
       {
         ...base,
@@ -144,8 +144,10 @@ test('findPendingStage clears after applied or rejected', () => {
         status: 'applied',
         action: { type: 'edit_step' },
       },
-    ])).toEqual(null);
-  expect(findPendingStage([
+    ]),
+  ).toEqual(null);
+  expect(
+    findPendingStage([
       staged,
       {
         ...base,
@@ -155,7 +157,8 @@ test('findPendingStage clears after applied or rejected', () => {
         status: 'rejected',
         action: { type: 'edit_step' },
       },
-    ])).toEqual(null);
+    ]),
+  ).toEqual(null);
 });
 
 test('findIncompleteEvent clears after later assistant success', () => {
@@ -168,7 +171,8 @@ test('findIncompleteEvent clears after later assistant success', () => {
     text: 'cut off',
   };
   expect(findIncompleteEvent([incomplete])?.id).toEqual('i1');
-  expect(findIncompleteEvent([
+  expect(
+    findIncompleteEvent([
       incomplete,
       {
         ...base,
@@ -184,8 +188,10 @@ test('findIncompleteEvent clears after later assistant success', () => {
         kind: 'how',
         text: 'Resumed and finished.',
       },
-    ])).toEqual(null);
-  expect(findIncompleteEvent([
+    ]),
+  ).toEqual(null);
+  expect(
+    findIncompleteEvent([
       incomplete,
       {
         ...base,
@@ -194,11 +200,13 @@ test('findIncompleteEvent clears after later assistant success', () => {
         kind: 'message',
         text: 'All done.',
       },
-    ])).toEqual(null);
+    ]),
+  ).toEqual(null);
 });
 
 test('shouldSpeakHow only for assistant how when enabled; never user', () => {
-  expect(shouldSpeakHow(
+  expect(
+    shouldSpeakHow(
       {
         ...base,
         id: 'h',
@@ -207,8 +215,10 @@ test('shouldSpeakHow only for assistant how when enabled; never user', () => {
         text: 'Guidance',
       },
       true,
-    )).toEqual(true);
-  expect(shouldSpeakHow(
+    ),
+  ).toEqual(true);
+  expect(
+    shouldSpeakHow(
       {
         ...base,
         id: 'h',
@@ -217,8 +227,10 @@ test('shouldSpeakHow only for assistant how when enabled; never user', () => {
         text: 'Guidance',
       },
       false,
-    )).toEqual(false);
-  expect(shouldSpeakHow(
+    ),
+  ).toEqual(false);
+  expect(
+    shouldSpeakHow(
       {
         ...base,
         id: 'u',
@@ -227,7 +239,8 @@ test('shouldSpeakHow only for assistant how when enabled; never user', () => {
         text: 'hello',
       },
       true,
-    )).toEqual(false);
+    ),
+  ).toEqual(false);
 });
 
 test('open clarify stays until the user answers', () => {
@@ -253,7 +266,8 @@ test('open clarify stays until the user answers', () => {
   };
   expect(findOpenClarify([clarify])?.id).toEqual('q');
   expect(readClarifyQuestions(clarify.action)?.[0]?.name).toEqual('tone');
-  expect(findOpenClarify([
+  expect(
+    findOpenClarify([
       clarify,
       {
         ...base,
@@ -263,10 +277,13 @@ test('open clarify stays until the user answers', () => {
         text: 'Which tone? Direct',
         createdAt: '2026-10-30T10:00:01.000Z',
       },
-    ])).toEqual(null);
+    ]),
+  ).toEqual(null);
   const form = new FormData();
   form.append('tone', 'Direct');
-  expect(formatClarifyReply(readClarifyQuestions(clarify.action), form)).toEqual('Which tone? Direct');
+  expect(
+    formatClarifyReply(readClarifyQuestions(clarify.action), form),
+  ).toEqual('Which tone? Direct');
 });
 
 test('typed URL and file clarify questions survive decoding', () => {
@@ -291,7 +308,9 @@ test('typed URL and file clarify questions survive decoding', () => {
   const form = new FormData();
   form.set('website', 'https://example.com/');
   form.set('attachment', 'capture.png');
-  expect(formatClarifyReply(questions, form)).toEqual('Which website? https://example.com/\nAttach a screenshot capture.png');
+  expect(formatClarifyReply(questions, form)).toEqual(
+    'Which website? https://example.com/\nAttach a screenshot capture.png',
+  );
 });
 
 test('two outstanding staged proposals keep independent approval state', () => {
@@ -404,9 +423,11 @@ test('informational and historic no-op actions never become fake confirmation ca
     text: 'Here is an explanation.',
   };
   const records = [stage, decision, noop, how];
-  expect(records
+  expect(
+    records
       .filter((event) => shouldRenderMatorEvent(records, event))
-      .map((event) => event.id)).toEqual(['stage-1', 'how-1']);
+      .map((event) => event.id),
+  ).toEqual(['stage-1', 'how-1']);
   expect(stageResolution(records, 'stage-1')).toEqual('applied');
   expect(findPendingStage(records)).toEqual(null);
   const orphan = { ...decision, id: 'orphan', resolvesEventId: 'not-found' };
@@ -440,8 +461,10 @@ test('historic unlinked decision is shown once while unrelated events are retain
     text: 'Try reviewing the proposal.',
   };
   const records = [stage, applied, oldExplanation];
-  expect(records
+  expect(
+    records
       .filter((event) => shouldRenderMatorEvent(records, event))
-      .map((event) => event.id)).toEqual(['stage-old', 'old-how']);
+      .map((event) => event.id),
+  ).toEqual(['stage-old', 'old-how']);
   expect(findPendingStage(records)).toEqual(null);
 });

@@ -1,6 +1,5 @@
-
 import { createHash, generateKeyPairSync, sign } from 'node:crypto';
-import { test, expect } from 'vitest';
+import { expect, test } from 'vitest';
 import { createHostedAuth } from '../hosted/auth.mjs';
 
 const issuer = 'https://identity.example.test';
@@ -69,7 +68,9 @@ const flow = async (auth) => {
     Buffer.from(decodeURIComponent(body).split('.')[0], 'base64url').toString('utf8'),
   );
   expect(url.searchParams.get('code_challenge_method')).toEqual('S256');
-  expect(url.searchParams.get('code_challenge')).toEqual(createHash('sha256').update(payload.verifier).digest('base64url'));
+  expect(url.searchParams.get('code_challenge')).toEqual(
+    createHash('sha256').update(payload.verifier).digest('base64url'),
+  );
   return { url, cookie, payload };
 };
 
@@ -101,7 +102,9 @@ test('OIDC authorization-code login binds state, nonce, PKCE, JWT signature and 
   expect(verified.requireOrigin('https://utomator.example.test')).toEqual(true);
   expect(verified.requireOrigin('https://other.example.test')).toEqual(false);
   expect(verified.ownerFromClaims(claims(first.payload.nonce))).toEqual(result.ownerId);
-  expect(verified.ownerFromClaims(claims(first.payload.nonce, { sub: 'bob-subject' }))).not.toEqual(result.ownerId);
+  expect(verified.ownerFromClaims(claims(first.payload.nonce, { sub: 'bob-subject' }))).not.toEqual(
+    result.ownerId,
+  );
   const rotated = createHostedAuth({
     ...config,
     sessionSecret: 'rotated-session-secret-at-least-32-bytes-1234',
@@ -112,9 +115,15 @@ test('OIDC authorization-code login binds state, nonce, PKCE, JWT signature and 
 test('OIDC callback rejects altered state, missing cookie, expired nonce or incorrect signature', async () => {
   const auth = create({ nonce: 'incorrect' });
   const started = await flow(auth);
-  await expect((auth.callback({ state: 'changed', code: 'code' }, started.cookie))).rejects.toThrow(/state/);
-  await expect((auth.callback({ state: started.payload.state, code: 'code' }, ''))).rejects.toThrow(/state/);
-  await expect((auth.callback({ state: started.payload.state, code: 'code' }, started.cookie))).rejects.toThrow(/claims/);
+  await expect(auth.callback({ state: 'changed', code: 'code' }, started.cookie)).rejects.toThrow(
+    /state/,
+  );
+  await expect(auth.callback({ state: started.payload.state, code: 'code' }, '')).rejects.toThrow(
+    /state/,
+  );
+  await expect(
+    auth.callback({ state: started.payload.state, code: 'code' }, started.cookie),
+  ).rejects.toThrow(/claims/);
 });
 
 test('OIDC signed token rejects wrong audience, issuer, expired time and invalid algorithm', async () => {
@@ -132,7 +141,7 @@ test('OIDC signed token rejects wrong audience, issuer, expired time and invalid
   for (const mismatch of cases) {
     let e;
     try {
-      await (auth.verifyIdToken(signed(claims(nonce, mismatch)), nonce))();
+      await auth.verifyIdToken(signed(claims(nonce, mismatch)), nonce)();
     } catch (caught) {
       e = caught;
     }
@@ -143,7 +152,7 @@ test('OIDC signed token rejects wrong audience, issuer, expired time and invalid
   }
   let e;
   try {
-    await (auth.verifyIdToken('eyJhbGciOiJub25lIn0.eyJzdWIiOiJ4In0.', nonce))();
+    await auth.verifyIdToken('eyJhbGciOiJub25lIn0.eyJzdWIiOiJ4In0.', nonce)();
   } catch (caught) {
     e = caught;
   }
@@ -152,12 +161,14 @@ test('OIDC signed token rejects wrong audience, issuer, expired time and invalid
     throw e;
   }).toThrow();
   const token = signed(claims(nonce));
-  await expect((auth.verifyIdToken(`${token.slice(0, -2)}xx`, nonce))).rejects.toThrow(/signature/);
+  await expect(auth.verifyIdToken(`${token.slice(0, -2)}xx`, nonce)).rejects.toThrow(/signature/);
   expect((await auth.verifyIdToken(token, nonce)).sub).toEqual('alice-subject');
 });
 
 test('hosted authentication validates deployment configuration before serving traffic', () => {
   expect(() => createHostedAuth({ ...config, sessionSecret: 'short' })).toThrow(/32/);
   expect(() => createHostedAuth({ ...config, issuer: 'http://localhost:9000' })).toThrow(/HTTPS/);
-  expect(() => createHostedAuth({ ...config, redirectUri: 'http://localhost:3200/auth/callback' })).toThrow(/HTTPS/);
+  expect(() =>
+    createHostedAuth({ ...config, redirectUri: 'http://localhost:3200/auth/callback' }),
+  ).toThrow(/HTTPS/);
 });

@@ -1,9 +1,8 @@
-
-import { test, expect } from 'vitest';
+import { expect, test } from 'vitest';
 import {
   sampleRms,
   VoiceActivityGate,
-} from '../components/mator/mator-call-capture.ts';
+} from '../modules/mator/components/mator-call-capture.ts';
 
 test('silence is never treated as a voice upload', () => {
   const g = new VoiceActivityGate();
@@ -43,5 +42,7 @@ test('maximum turn duration closes a long continuous utterance', () => {
 
 test('sample RMS reports audio energy without relying on browser globals', () => {
   expect(sampleRms(new Float32Array([0, 0, 0]))).toEqual(0);
-  expect(Math.abs(sampleRms(new Float32Array([1, -1, 1, -1])) - 1) < 1e-10).toBeTruthy();
+  expect(
+    Math.abs(sampleRms(new Float32Array([1, -1, 1, -1])) - 1) < 1e-10,
+  ).toBeTruthy();
 });

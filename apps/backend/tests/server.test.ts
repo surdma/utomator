@@ -1,7 +1,6 @@
-
 import { rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { test, expect } from 'vitest';
+import { expect, test } from 'vitest';
 
 // Import after setting NODE_ENV so the module never starts a real listening socket.
 process.env.NODE_ENV = 'test';

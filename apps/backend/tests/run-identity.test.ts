@@ -1,21 +1,21 @@
 import { randomUUID } from 'node:crypto';
-import { test, expect } from 'vitest';
-import type { RunRequest, RunSummary } from '../src/core/types.js';
-import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
+import { expect, test } from 'vitest';
+import type { RunRequest, RunSummary } from '../src/domain/types.js';
+import { defaultPlan, type WorkflowPlan } from '../src/domain/workflow-plan.js';
+import type { DocumentRecord, DocumentStore } from '../src/infrastructure/db/documents.js';
 import {
   applyAction,
   type MatorActionPorts,
   type MatorWorkflowPort,
-} from '../src/mator/mator-actions.js';
+} from '../src/infrastructure/mator/mator-actions.js';
 import {
   createConversation,
   getConversationRunId,
   listConversations,
   setConversationRunId,
-} from '../src/mator/mator-conversations.js';
-import { defaultPlan, type WorkflowPlan } from '../src/workflows/workflow-plan.js';
-import type { WorkflowRecord } from '../src/workflows/workflow-registry.js';
-import { Runner } from '../src/runs/runner.js';
+} from '../src/infrastructure/mator/mator-conversations.js';
+import { Runner } from '../src/infrastructure/runs/runner.js';
+import type { WorkflowRecord } from '../src/infrastructure/workflows/workflow-registry.js';
 
 type Row = { version: number; value: unknown };
 class FakeDocuments implements DocumentStore {
@@ -117,22 +117,27 @@ test('run_step stamps conversationId on the run and binds conversation→run', a
     },
   };
 
-  const result = await applyAction(docs, ports, {
-    workflowId,
-    conversationId: conv.id,
-    eventId: 'evt-1',
-    action: {
-      type: 'run_step',
-      stepId: 'action',
-      request: {
-        platform: 'x',
-        action: 'audit',
-        profileUrl: 'https://x.com/surdma',
-        workflowId,
-        workflowRevision: 1,
+  const result = await applyAction(
+    docs,
+    ports,
+    {
+      workflowId,
+      conversationId: conv.id,
+      eventId: 'evt-1',
+      action: {
+        type: 'run_step',
+        stepId: 'action',
+        request: {
+          platform: 'x',
+          action: 'audit',
+          profileUrl: 'https://x.com/surdma',
+          workflowId,
+          workflowRevision: 1,
+        },
       },
     },
-  }, { squash: false });
+    { squash: false },
+  );
 
   expect(captured).toHaveLength(1);
   expect(captured[0]!.conversationId).toBe(conv.id);
@@ -182,26 +187,33 @@ test('run_step always binds conversation→run via applyAction input', async () 
   };
 
   // The source request omits conversationId, but applyAction injects it.
-  await applyAction(docs, ports, {
-    workflowId,
-    conversationId: conv.id,
-    eventId: 'evt-2',
-    action: {
-      type: 'run_step',
-      request: {
-        platform: 'x',
-        action: 'audit',
-        profileUrl: 'https://x.com/surdma',
+  await applyAction(
+    docs,
+    ports,
+    {
+      workflowId,
+      conversationId: conv.id,
+      eventId: 'evt-2',
+      action: {
+        type: 'run_step',
+        request: {
+          platform: 'x',
+          action: 'audit',
+          profileUrl: 'https://x.com/surdma',
+        },
       },
     },
-  }, { squash: false });
+    { squash: false },
+  );
 
   expect(captured).toHaveLength(1);
   expect(captured[0]!.conversationId).toBe(conv.id);
   expect(await getConversationRunId(docs, conv.id)).toBe('run-always-bound');
 });
 
-test('Runner.listByConversation returns only runs bound to that conversation', { timeout: 15000 }, () => {
+test('Runner.listByConversation returns only runs bound to that conversation', {
+  timeout: 15000,
+}, () => {
   const runner = new Runner();
   const a: RunSummary = {
     id: `run-alpha-${randomUUID()}`,

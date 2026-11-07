@@ -10,13 +10,13 @@ export default defineConfig(
   connection
     ? {
         dialect: 'postgresql',
-        schema: './src/db/schema-postgres.ts',
+        schema: './src/infrastructure/db/schema-postgres.ts',
         out: './drizzle/postgres',
         dbCredentials: { url: connection },
       }
     : {
         dialect: 'sqlite',
-        schema: './src/db/schema-sqlite.ts',
+        schema: './src/infrastructure/db/schema-sqlite.ts',
         out: './drizzle/sqlite',
         dbCredentials: { url: sqlite },
       }

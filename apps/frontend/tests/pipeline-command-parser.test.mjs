@@ -1,12 +1,17 @@
-
-import { test, expect } from 'vitest';
-import { explainCommand } from '../components/dashboard/pipeline/command-parser.ts';
-import { workflows } from '../components/dashboard/pipeline/workflow-catalog.ts';
+import { expect, test } from 'vitest';
+import { explainCommand } from '../modules/pipeline/components/command-parser.ts';
+import { workflows } from '../modules/pipeline/components/workflow-catalog.ts';
 
 test('workflow catalogue keeps supported audited and approved operations', () => {
-  expect(workflows.linkedin.some((workflow) => workflow.id === 'audit')).toBeTruthy();
-  expect(workflows.linkedin.some((workflow) => workflow.id === 'edit-profile')).toBeTruthy();
-  expect(workflows.x.some((workflow) => workflow.id === 'compose-post')).toBeTruthy();
+  expect(
+    workflows.linkedin.some((workflow) => workflow.id === 'audit'),
+  ).toBeTruthy();
+  expect(
+    workflows.linkedin.some((workflow) => workflow.id === 'edit-profile'),
+  ).toBeTruthy();
+  expect(
+    workflows.x.some((workflow) => workflow.id === 'compose-post'),
+  ).toBeTruthy();
 });
 
 test('command parser prepares an audit without launching it', () => {

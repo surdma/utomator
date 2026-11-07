@@ -1,10 +1,10 @@
-
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { test, expect } from 'vitest';
 import { chromium } from 'playwright';
-import { BrowserSession } from '../src/browser/session.js';
+import { expect, test } from 'vitest';
+import { BrowserSession } from '../src/infrastructure/browser/session.js';
+import { removeTemp } from './support/remove-temp.js';
 
 test('CDP reuse shares login cookies without closing existing Chrome tabs', {
   timeout: 45000,
@@ -73,7 +73,7 @@ test('CDP reuse shares login cookies without closing existing Chrome tabs', {
     if (previousOwner === undefined) delete process.env.UTOMATOR_INTERNAL_OWNER_ID;
     else process.env.UTOMATOR_INTERNAL_OWNER_ID = previousOwner;
     await chrome?.close();
-    await rm(directory, { recursive: true, force: true });
+    await removeTemp(directory);
   }
 });
 

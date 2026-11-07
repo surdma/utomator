@@ -1,22 +1,28 @@
-
-import { test, expect } from 'vitest';
+import { expect, test } from 'vitest';
 import {
   defaultWorkflowPlan,
   newWorkflowDraft,
-} from '../components/dashboard/pipeline/default-workflow-plan.ts';
+} from '../modules/pipeline/components/default-workflow-plan.ts';
 
 test('default profile audit has its original connected execution sequence', () => {
   const plan = defaultWorkflowPlan();
   expect(plan.platform).toEqual('linkedin');
   expect(plan.action).toEqual('audit');
-  expect(plan.steps.map((step) => step.id)).toEqual(['start', 'session', 'inspect', 'action', 'verify', 'finish']);
+  expect(plan.steps.map((step) => step.id)).toEqual([
+    'start',
+    'session',
+    'inspect',
+    'action',
+    'verify',
+    'finish',
+  ]);
   expect(plan.links.map((link) => [link.source, link.target])).toEqual([
-      ['start', 'session'],
-      ['session', 'inspect'],
-      ['inspect', 'action'],
-      ['action', 'verify'],
-      ['verify', 'finish'],
-    ]);
+    ['start', 'session'],
+    ['session', 'inspect'],
+    ['inspect', 'action'],
+    ['action', 'verify'],
+    ['verify', 'finish'],
+  ]);
 });
 
 test('separate workspace initializations do not share mutable plan arrays', () => {
@@ -36,12 +42,17 @@ test('a new user-created workflow has only the four validated protected steps', 
     expect(draft.platform).toEqual(platform);
     expect(draft.action).toEqual('audit');
     expect(draft.name).toEqual('Untitled workflow');
-    expect(draft.steps.map((step) => step.id)).toEqual(['start', 'session', 'action', 'finish']);
+    expect(draft.steps.map((step) => step.id)).toEqual([
+      'start',
+      'session',
+      'action',
+      'finish',
+    ]);
     expect(draft.links.map((link) => [link.source, link.target])).toEqual([
-        ['start', 'session'],
-        ['session', 'action'],
-        ['action', 'finish'],
-      ]);
+      ['start', 'session'],
+      ['session', 'action'],
+      ['action', 'finish'],
+    ]);
     const other = newWorkflowDraft(platform);
     expect(draft).not.toBe(other);
     expect(draft.steps).not.toBe(other.steps);

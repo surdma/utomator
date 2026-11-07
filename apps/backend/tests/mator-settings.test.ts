@@ -1,14 +1,13 @@
-
 import { createHash } from 'node:crypto';
-import { test, expect } from 'vitest';
-import type { DocumentRecord, DocumentStore } from '../src/db/documents.js';
+import { expect, test } from 'vitest';
+import type { DocumentRecord, DocumentStore } from '../src/infrastructure/db/documents.js';
 import {
   decryptSecret,
   encryptSecret,
   loadMatorMasterKey,
   MatorDecryptError,
   matorEncryptionConfigured,
-} from '../src/mator/mator-crypto.js';
+} from '../src/infrastructure/mator/mator-crypto.js';
 import {
   DEFAULT_MATOR_GROQ_MODEL_ID,
   getMatorSettings,
@@ -16,7 +15,7 @@ import {
   MATOR_SETTINGS_KEY,
   MATOR_SETTINGS_NAMESPACE,
   putMatorSettings,
-} from '../src/mator/mator-settings.js';
+} from '../src/infrastructure/mator/mator-settings.js';
 
 const MASTER = Buffer.from(createHash('sha256').update('mator-test-master').digest());
 const hex = (buffer: Buffer) => buffer.toString('hex');
@@ -67,7 +66,9 @@ class FakeDocuments implements DocumentStore {
 test('mator master key prefers UTOMATOR_MATOR_ENCRYPTION_KEY and validates hex', () => {
   expect(matorEncryptionConfigured(envWithKey())).toEqual(true);
   expect(loadMatorMasterKey(envWithKey())).toEqual(MASTER);
-  expect(() => loadMatorMasterKey({ UTOMATOR_MATOR_ENCRYPTION_KEY: 'bad' })).toThrow(/Invalid UTOMATOR_MATOR_ENCRYPTION_KEY/);
+  expect(() => loadMatorMasterKey({ UTOMATOR_MATOR_ENCRYPTION_KEY: 'bad' })).toThrow(
+    /Invalid UTOMATOR_MATOR_ENCRYPTION_KEY/,
+  );
 });
 
 test('encryptSecret roundtrips and isolates owners', () => {

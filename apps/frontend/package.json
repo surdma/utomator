@@ -12,9 +12,9 @@
     "biome:fix": "biome check --write .",
     "biome:unsafe-fix": "biome check --write --unsafe .",
     "doctor": "npx react-doctor@latest",
-    "test": "vitest run",
-    "test:unit": "vitest run",
-    "test:feature": "vitest run",
+    "test": "vitest run --config vitest.unit.config.ts && vitest run --config vitest.feature.config.ts",
+    "test:unit": "vitest run --config vitest.unit.config.ts",
+    "test:feature": "vitest run --config vitest.feature.config.ts",
     "test:browser": "playwright test",
     "test:ui": "playwright test tests/frontend-quality.test.ts"
   },

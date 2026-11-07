@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { reconcileRunJournal } from '../components/dashboard/pipeline/run-event-utils.ts';
+import { reconcileRunJournal } from '../modules/pipeline/components/run-event-utils.ts';
 
 const event = (id, runId = 'r1', stage = 'started') => ({
   id,
@@ -11,7 +11,11 @@ const event = (id, runId = 'r1', stage = 'started') => ({
 });
 
 test('persisted replay and SSE merge by numeric ID without duplicate history', () => {
-  const result = reconcileRunJournal([event(3)], [event(1), event(2), event(3)], 'r1');
+  const result = reconcileRunJournal(
+    [event(3)],
+    [event(1), event(2), event(3)],
+    'r1',
+  );
   expect(result.map((item) => item.id)).toEqual([1, 2, 3]);
 });
 
@@ -25,5 +29,7 @@ test('selection never incorporates another run or malformed event ID', () => {
 });
 
 test('conflicting event IDs cannot restore fabricated task completion', () => {
-  expect(reconcileRunJournal([event(1)], [event(1, 'r1', 'completed')], 'r1')).toEqual([]);
+  expect(
+    reconcileRunJournal([event(1)], [event(1, 'r1', 'completed')], 'r1'),
+  ).toEqual([]);
 });

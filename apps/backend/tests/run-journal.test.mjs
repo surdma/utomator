@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { parseRunJournal } from '../src/runs/run-journal.js';
+import { parseRunJournal } from '../src/infrastructure/runs/run-journal.js';
 
 const entry = (id, runId = 'r1', kind = 'step') => ({
   id,
@@ -47,4 +47,3 @@ test('a journal ending mid-line fails with history incomplete, not corrupt JSON'
   const complete = serialize([entry(1), entry(2)]);
   expect(() => parseRunJournal(`${complete}{"id":3`, 'r1')).toThrow(/History incomplete/);
 });
-

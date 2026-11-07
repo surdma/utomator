@@ -1,12 +1,12 @@
-
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { test, expect } from 'vitest';
 import type { Page } from 'playwright';
-import { BrowserSession } from '../src/browser/session.js';
-import { ConnectorService } from '../src/connect/service.js';
-import { AccountStore } from '../src/profile/account-store.js';
+import { expect, test } from 'vitest';
+import { BrowserSession } from '../src/infrastructure/browser/session.js';
+import { ConnectorService } from '../src/infrastructure/connect/service.js';
+import { AccountStore } from '../src/infrastructure/profile/account-store.js';
+import { removeTemp } from './support/remove-temp.js';
 
 async function registerAccounts(store: AccountStore) {
   const first = await store.addSocial(0, {
@@ -63,25 +63,35 @@ test('connector verifies browser ownership, isolates accounts and requires recon
     expect((await connectors.list()).find((a) => a.id === owner.id)?.status).toEqual('disconnected');
     // Instagram/GitHub/Dev.to remain queued for official API connectors.
     expect((await connectors.list()).find((a) => a.id === apiOnly.id)?.status).toEqual('api-required');
-    await expect((connectors.begin(apiOnly.id))).rejects.toThrow(/official API connector/);
-    await expect((connectors.requireConnected(owner.id, 'linkedin', owner.profileUrl))).rejects.toThrow(/not verified/);
+    await expect(connectors.begin(apiOnly.id)).rejects.toThrow(/official API connector/);
+    await expect(connectors.requireConnected(owner.id, 'linkedin', owner.profileUrl)).rejects.toThrow(
+      /not verified/,
+    );
     await connectors.begin(owner.id);
     expect((await connectors.list()).find((a) => a.id === owner.id)?.status).toEqual('sign-in-open');
     const checked = await connectors.sync(owner.id);
     expect(checked.status).toEqual('connected');
     await connectors.requireConnected(owner.id, 'linkedin', owner.profileUrl);
     await connectors.requireConnected(owner.id, 'linkedin');
-    await expect((connectors.requireConnected(owner.id, 'linkedin', 'https://www.linkedin.com/in/not-owner/'))).rejects.toThrow(/does not match/);
-    await expect((connectors.requireConnected(owner.id, 'x', owner.profileUrl))).rejects.toThrow(/does not match/);
-    expect((await new ConnectorService(accountStore, () => browser, root).list()).find(
+    await expect(
+      connectors.requireConnected(owner.id, 'linkedin', 'https://www.linkedin.com/in/not-owner/'),
+    ).rejects.toThrow(/does not match/);
+    await expect(connectors.requireConnected(owner.id, 'x', owner.profileUrl)).rejects.toThrow(
+      /does not match/,
+    );
+    expect(
+      (await new ConnectorService(accountStore, () => browser, root).list()).find(
         (a) => a.id === owner.id,
-      )?.status).toEqual('connected');
+      )?.status,
+    ).toEqual('connected');
     ownPage = false;
     expect((await connectors.sync(owner.id)).status).toEqual('reconnect-required');
     // An incomplete login must leave the same browser open for MFA/retry.
     expect(browser.currentPage).toBeTruthy();
     expect((await connectors.list()).find((a) => a.id === owner.id)?.status).toEqual('sign-in-open');
-    await expect((connectors.requireConnected(owner.id, 'linkedin', owner.profileUrl))).rejects.toThrow(/not verified/);
+    await expect(connectors.requireConnected(owner.id, 'linkedin', owner.profileUrl)).rejects.toThrow(
+      /not verified/,
+    );
     // Closing the sign-in tab must allow another Connect action to reopen it.
     let reopened = 0;
     const oldOpen = browser.open.bind(browser);
@@ -99,7 +109,7 @@ test('connector verifies browser ownership, isolates accounts and requires recon
     expect(browser.currentPage).toEqual(undefined);
     expect((await connectors.list()).find((a) => a.id === owner.id)?.status).toEqual('disconnected');
   } finally {
-    await rm(root, { recursive: true, force: true });
+    await removeTemp(root);
   }
 });
 
@@ -150,7 +160,7 @@ test('LinkedIn timeouts retain the sign-in window and prior verification', async
     const restored = new ConnectorService(accounts, () => browser, root);
     expect((await restored.list()).find((row) => row.id === account.id)?.status).toEqual('connected');
   } finally {
-    await rm(root, { recursive: true, force: true });
+    await removeTemp(root);
   }
 });
 
@@ -199,16 +209,18 @@ test('X connector verifies ownership through the owner-only Edit profile control
     expect((await service.list()).find((row) => row.id === xAccount.id)?.status).toEqual('connected');
     await service.requireConnected(xAccount.id, 'x');
     await service.requireConnected(xAccount.id, 'x', xAccount.profileUrl);
-    await expect((service.requireConnected(xAccount.id, 'x', 'https://x.com/not-the-owner/'))).rejects.toThrow(/does not match/);
+    await expect(
+      service.requireConnected(xAccount.id, 'x', 'https://x.com/not-the-owner/'),
+    ).rejects.toThrow(/does not match/);
     // A new service instance reads the persisted record: state survives restarts.
     const restored = new ConnectorService(store, () => browser, root);
     expect((await restored.list()).find((row) => row.id === xAccount.id)?.status).toEqual('connected');
     await service.disconnect(xAccount.id);
     expect(browser.currentPage).toEqual(undefined);
     expect((await service.list()).find((row) => row.id === xAccount.id)?.status).toEqual('disconnected');
-    await expect((service.requireConnected(xAccount.id, 'x'))).rejects.toThrow(/not verified/);
+    await expect(service.requireConnected(xAccount.id, 'x')).rejects.toThrow(/not verified/);
   } finally {
-    await rm(root, { recursive: true, force: true });
+    await removeTemp(root);
   }
 });
 
@@ -260,12 +272,14 @@ test('browser-sign-in discovers a new LinkedIn identity without a typed profile'
     expect(saved.length).toEqual(1);
     expect(saved[0]?.handle).toEqual('verified-owner');
     expect(saved[0]?.id).toEqual(started.accountId);
-    expect((await service.list()).find((row) => row.id === started.accountId)?.status).toEqual('connected');
-    await expect((service.start('linkedin'))).rejects.toThrow(/already exists/);
+    expect((await service.list()).find((row) => row.id === started.accountId)?.status).toEqual(
+      'connected',
+    );
+    await expect(service.start('linkedin')).rejects.toThrow(/already exists/);
     await service.disconnect(started.accountId);
-    await expect((service.sync(started.accountId))).rejects.toThrow(/Connect before requesting sync/);
+    await expect(service.sync(started.accountId)).rejects.toThrow(/Connect before requesting sync/);
   } finally {
-    await rm(root, { recursive: true, force: true });
+    await removeTemp(root);
   }
 });
 
@@ -279,17 +293,19 @@ test('one account per platform prevents a second LinkedIn profile', async () => 
       handle: 'alice',
       profileUrl: 'https://www.linkedin.com/in/alice/',
     });
-    await expect((store.addSocial(a.revision, {
+    await expect(
+      store.addSocial(a.revision, {
         platform: 'linkedin',
         label: 'Bob',
         handle: 'bob',
         profileUrl: 'https://www.linkedin.com/in/bob/',
-      }))).rejects.toThrow(/Only one linked account/);
+      }),
+    ).rejects.toThrow(/Only one linked account/);
     const service = new ConnectorService(store, undefined, root);
-    await expect((service.start('linkedin'))).rejects.toThrow(/already exists/);
-    await expect((service.start('github'))).rejects.toThrow(/Official API connector not configured/);
+    await expect(service.start('linkedin')).rejects.toThrow(/already exists/);
+    await expect(service.start('github')).rejects.toThrow(/Official API connector not configured/);
   } finally {
-    await rm(root, { recursive: true, force: true });
+    await removeTemp(root);
   }
 });
 
@@ -304,10 +320,12 @@ test('disconnected saved account cannot sync until Connect', async () => {
       profileUrl: 'https://www.linkedin.com/in/owner/',
     });
     const service = new ConnectorService(store, undefined, root);
-    await expect((service.sync(state.socialAccounts[0]!.id))).rejects.toThrow(/Connect before requesting sync/);
-    await expect((service.start('linkedin'))).rejects.toThrow(/already exists/);
+    await expect(service.sync(state.socialAccounts[0]!.id)).rejects.toThrow(
+      /Connect before requesting sync/,
+    );
+    await expect(service.start('linkedin')).rejects.toThrow(/already exists/);
   } finally {
-    await rm(root, { recursive: true, force: true });
+    await removeTemp(root);
   }
 });
 
@@ -363,7 +381,7 @@ test('automatic connection checks leave an unfinished provider challenge unchang
     expect((await service.check(started.accountId)).status).toEqual('connected');
     expect((await store.get()).socialAccounts.length).toEqual(1);
   } finally {
-    await rm(root, { recursive: true, force: true });
+    await removeTemp(root);
   }
 });
 
@@ -445,6 +463,6 @@ test('reconnection polling does not interrupt an existing account MFA challenge'
     expect((await service.check(row.id)).status).toEqual('connected');
     expect((await service.list()).find((x) => x.id === row.id)?.status).toEqual('connected');
   } finally {
-    await rm(root, { recursive: true, force: true });
+    await removeTemp(root);
   }
 });

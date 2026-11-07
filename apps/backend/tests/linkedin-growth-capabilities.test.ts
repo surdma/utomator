@@ -1,12 +1,11 @@
-
 import { readFile } from 'node:fs/promises';
-import { test, expect } from 'vitest';
+import { expect, test } from 'vitest';
 import {
   growthCapabilities,
   growthGuardrails,
   growthJourneys,
   profileSections,
-} from '../../frontend/components/dashboard/growth/linkedin-growth-capabilities.js';
+} from '../../frontend/modules/growth/components/linkedin-growth-capabilities.js';
 
 test('LinkedIn scope registry preserves all product modules without pretending full delivery', () => {
   expect(growthCapabilities.length).toEqual(15);
@@ -18,9 +17,10 @@ test('LinkedIn scope registry preserves all product modules without pretending f
     expect(['research', 'execution', 'measurement'].includes(item.pillar)).toBeTruthy();
     expect(['partial', 'planned'].includes(item.status)).toBeTruthy();
     expect(item.actions.length >= 5).toBeTruthy();
-    expect(item.summary.length > 20 && item.availableNow.length > 20 && item.requires.length > 20).toBeTruthy();
-    if (item.status === 'planned')
-      expect(item.route).toEqual(undefined);
+    expect(
+      item.summary.length > 20 && item.availableNow.length > 20 && item.requires.length > 20,
+    ).toBeTruthy();
+    if (item.status === 'planned') expect(item.route).toEqual(undefined);
   }
 });
 test('Working scope links only to actual local profile, research or editorial surfaces', () => {
@@ -28,7 +28,9 @@ test('Working scope links only to actual local profile, research or editorial su
   expect(partial.map((x) => x.id)).toEqual(['profile', 'competitors', 'content', 'branding']);
   for (const module of partial) {
     expect(module.route?.startsWith('/')).toBeTruthy();
-    expect(['/dashboard/profile', '/dashboard/research', '/dashboard/editorial'].includes(module.route)).toBeTruthy();
+    expect(
+      ['/dashboard/profile', '/dashboard/research', '/dashboard/editorial'].includes(module.route),
+    ).toBeTruthy();
   }
   expect(growthCapabilities.find((x) => x.id === 'jobs')?.status).toEqual('planned');
   expect(growthCapabilities.find((x) => x.id === 'company')?.status).toEqual('planned');

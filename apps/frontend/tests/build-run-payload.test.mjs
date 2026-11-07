@@ -1,6 +1,5 @@
-
-import { test, expect } from 'vitest';
-import { buildRunPayload } from '../components/dashboard/pipeline/build-run-payload.ts';
+import { expect, test } from 'vitest';
+import { buildRunPayload } from '../modules/pipeline/components/build-run-payload.ts';
 
 const base = () => ({
   loadingWorkflow: false,
@@ -29,28 +28,35 @@ const base = () => ({
 });
 
 test('run payload requires a verified matching account', () => {
-  expect(() => buildRunPayload({ ...base(), activeConnector: null })).toThrow(/Select and verify/);
+  expect(() => buildRunPayload({ ...base(), activeConnector: null })).toThrow(
+    /Select and verify/,
+  );
   expect(() =>
-      buildRunPayload({
-        ...base(),
-        activeConnector: { ...base().activeConnector, platform: 'x' },
-      })).toThrow(/Select and verify/);
+    buildRunPayload({
+      ...base(),
+      activeConnector: { ...base().activeConnector, platform: 'x' },
+    }),
+  ).toThrow(/Select and verify/);
 });
 
 test('run payload blocks stale workflow revisions', () => {
-  expect(() => buildRunPayload({ ...base(), loadingWorkflow: true })).toThrow(/not finished loading/);
+  expect(() => buildRunPayload({ ...base(), loadingWorkflow: true })).toThrow(
+    /not finished loading/,
+  );
   expect(() =>
-      buildRunPayload({
-        ...base(),
-        activeWorkflow: { id: 'saved', revision: 4 },
-        planDirty: true,
-      })).toThrow(/Save workflow changes/);
+    buildRunPayload({
+      ...base(),
+      activeWorkflow: { id: 'saved', revision: 4 },
+      planDirty: true,
+    }),
+  ).toThrow(/Save workflow changes/);
   expect(() =>
-      buildRunPayload({
-        ...base(),
-        activeWorkflow: { id: 'saved', revision: 4 },
-        formDirty: true,
-      })).toThrow(/Save workflow changes/);
+    buildRunPayload({
+      ...base(),
+      activeWorkflow: { id: 'saved', revision: 4 },
+      formDirty: true,
+    }),
+  ).toThrow(/Save workflow changes/);
 });
 
 test('run payload retains field validation and page scope', () => {

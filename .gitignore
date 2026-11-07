@@ -275,3 +275,4 @@ automation(linkedin)/pnpm-lock.yaml
 /apps/frontend/.trae
 /apps/frontend/.turbo
 /apps/backend/.env
+/prompt.txt

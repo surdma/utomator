@@ -15,7 +15,8 @@
       "app/**",
       "components/**",
       "lib/**",
-      "hooks/**"
+      "hooks/**",
+      "modules/**"
     ]
   },
   "formatter": {
@@ -65,6 +66,11 @@
       "arrowParentheses": "always"
     },
     "globals": ["React", "describe", "it", "expect", "jest"]
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
   },
   "json": {
     "parser": {

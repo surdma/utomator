@@ -1,11 +1,10 @@
-
-import { test, expect } from 'vitest';
 import { chromium, type Page } from 'playwright';
+import { expect, test } from 'vitest';
 
 process.env.NODE_ENV = 'test';
 const [{ buildApp }, { BrowserSession }] = await Promise.all([
   import('../src/main.js'),
-  import('../src/browser/session.js'),
+  import('../src/infrastructure/browser/session.js'),
 ]);
 
 async function awaitRun(

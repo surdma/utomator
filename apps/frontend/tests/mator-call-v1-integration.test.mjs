@@ -1,6 +1,5 @@
-
-import { test, expect } from 'vitest';
-import { MatorCallCoordinator } from '../components/mator/mator-call-coordinator.ts';
+import { expect, test } from 'vitest';
+import { MatorCallCoordinator } from '../modules/mator/components/mator-call-coordinator.ts';
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 async function until(pred) {

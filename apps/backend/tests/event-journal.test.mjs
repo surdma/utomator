@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { EventJournal } from '../src/core/events.js';
+import { EventJournal } from '../src/domain/events.js';
 
 const input = (runId = 'r1', kind = 'step', message = 'm') => ({
   runId,

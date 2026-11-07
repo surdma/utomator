@@ -1,11 +1,13 @@
-
-import { test, expect } from 'vitest';
+import { expect, test } from 'vitest';
 
 // Set the test environment before loading the Fastify app, matching other route tests.
 process.env.NODE_ENV = 'test';
 const { buildApp } = await import('../src/main.js');
 
-import { compileGrowthProfileYaml, readGrowthProfileWorkflow } from '../src/engine/growth-profile.js';
+import {
+  compileGrowthProfileYaml,
+  readGrowthProfileWorkflow,
+} from '../src/infrastructure/growth/growth-profile.js';
 
 test('Profile YAML retains nine requirements, twenty evidence targets and compiled registered actions', async () => {
   const { program } = await readGrowthProfileWorkflow();
@@ -14,18 +16,26 @@ test('Profile YAML retains nine requirements, twenty evidence targets and compil
   expect(program.coverage.length).toEqual(20);
   expect(program.pipelines.length).toEqual(9);
   expect(program.coverage.every((item) => item.status === 'requires-independent-evidence')).toBeTruthy();
-  expect(program.pipelines.every(
+  expect(
+    program.pipelines.every(
       (item) =>
         item.source === 'registered-workflow-plan' &&
         item.requiresConnectedAccount &&
         item.stepCount >= 4,
-    )).toBeTruthy();
+    ),
+  ).toBeTruthy();
 });
 test('Unknown operations, duplicated evidence targets and unknown YAML keys fail closed', async () => {
   const { yaml } = await readGrowthProfileWorkflow();
-  expect(() => compileGrowthProfileYaml(yaml.replace('"add-featured"', '"delete-post"'))).toThrow(/missing/);
-  expect(() => compileGrowthProfileYaml(yaml.replace('"Profile verification"', '"Profile photo"'))).toThrow(/missing/);
-  expect(() => compileGrowthProfileYaml(yaml.replace('  objective:', '  unsupported: "yes"\n  objective:'))).toThrow(/Invalid Growth profile YAML spec/);
+  expect(() => compileGrowthProfileYaml(yaml.replace('"add-featured"', '"delete-post"'))).toThrow(
+    /missing/,
+  );
+  expect(() =>
+    compileGrowthProfileYaml(yaml.replace('"Profile verification"', '"Profile photo"')),
+  ).toThrow(/missing/);
+  expect(() =>
+    compileGrowthProfileYaml(yaml.replace('  objective:', '  unsupported: "yes"\n  objective:')),
+  ).toThrow(/Invalid Growth profile YAML spec/);
   expect(() => compileGrowthProfileYaml(yaml + '\nspec:\n')).toThrow(/Duplicate YAML key/);
 });
 test('Read-only YAML and compiled program endpoints do not create a run', async () => {
@@ -48,11 +58,11 @@ test('Read-only YAML and compiled program endpoints do not create a run', async 
 });
 
 import { randomUUID } from 'node:crypto';
-import type { RunRequest, RunSummary } from '../src/core/types.js';
-import { validateRun } from '../src/core/validate.js';
-import { ProfileGrowthCoordinator } from '../src/engine/profile-growth-coordinator.js';
-import type { Runner } from '../src/runs/runner.js';
-import { compileWorkflow } from '../src/workflows/workflow-yaml.js';
+import type { RunRequest, RunSummary } from '../src/domain/types.js';
+import { validateRun } from '../src/domain/validate.js';
+import { ProfileGrowthCoordinator } from '../src/infrastructure/growth/profile-growth-coordinator.js';
+import type { Runner } from '../src/infrastructure/runs/runner.js';
+import { compileWorkflow } from '../src/infrastructure/workflows/workflow-yaml.js';
 
 test('six dependent pipelines reuse validated Runner WorkflowPlans and record independent missing coverage', async () => {
   const runs = new Map<string, { summary: RunSummary; input: RunRequest }>();
@@ -101,16 +111,20 @@ test('six dependent pipelines reuse validated Runner WorkflowPlans and record in
   expect(started.coverage.length).toEqual(20);
   expect(started.counts.missing).toEqual(20);
   expect(started.canAdvance).toEqual(true);
-  await expect((coordinator.supplyEvidence(started.id, {
+  await expect(
+    coordinator.supplyEvidence(started.id, {
       sectionId: 'headline',
       text: 'Not in the active identity stage',
-    }))).rejects.toThrow(/current stage/);
+    }),
+  ).rejects.toThrow(/current stage/);
   const afterEvidence = await coordinator.supplyEvidence(started.id, {
     sectionId: 'profilePhoto',
     text: 'Owner reports a current professional photograph.',
   });
   expect(afterEvidence.counts.ownerSupplied).toEqual(1);
-  expect(afterEvidence.coverage.find((item) => item.id === 'profilePhoto')?.status).toEqual('owner-supplied-unverified');
+  expect(afterEvidence.coverage.find((item) => item.id === 'profilePhoto')?.status).toEqual(
+    'owner-supplied-unverified',
+  );
   let stage = afterEvidence;
   for (let step = 0; step < 6; step++) {
     stage = await coordinator.advance(started.id);
@@ -122,7 +136,7 @@ test('six dependent pipelines reuse validated Runner WorkflowPlans and record in
   expect(stage.status).toEqual('completed-with-gaps');
   expect(stage.counts.missing).toEqual(19);
   expect(stage.counts.independentlyProviderVerified).toEqual(0);
-  await expect((coordinator.advance(started.id))).rejects.toThrow(/finalized/);
+  await expect(coordinator.advance(started.id)).rejects.toThrow(/finalized/);
 });
 
 test('unverified Growth run cannot advance, and no valid account means no browser launch', async () => {
@@ -152,13 +166,15 @@ test('unverified Growth run cannot advance, and no valid account means no browse
     },
   } as unknown as Runner;
   const coordinator = new ProfileGrowthCoordinator(runner);
-  await expect((coordinator.start('bad-identity', 'https://www.linkedin.com/in/owner/'))).rejects.toThrow(/Verified LinkedIn account ID/);
+  await expect(coordinator.start('bad-identity', 'https://www.linkedin.com/in/owner/')).rejects.toThrow(
+    /Verified LinkedIn account ID/,
+  );
   expect(starts).toEqual(0);
   const result = await coordinator.start(
     'c63e8078-644d-4a2a-80bd-7cba9eaa0e1b',
     'https://www.linkedin.com/in/verified-owner/',
   );
-  await expect((coordinator.advance(result.id))).rejects.toThrow(/not completed/);
+  await expect(coordinator.advance(result.id)).rejects.toThrow(/not completed/);
   expect(starts).toEqual(1);
 });
 
@@ -184,12 +200,17 @@ test('Growth composite API requires a genuine linked account, not arbitrary prof
   }
 });
 
-import { readGrowthTemplate, readGrowthTemplateCatalog } from '../src/engine/growth-profile.js';
+import {
+  readGrowthTemplate,
+  readGrowthTemplateCatalog,
+} from '../src/infrastructure/growth/growth-profile.js';
 
 test('all YAML Growth templates share the same discoverable manifest contract', async () => {
   const catalog = await readGrowthTemplateCatalog();
   expect(catalog.length >= 1).toBeTruthy();
-  expect(catalog.find((item) => item.program.id === 'linkedin-profile')?.program.stages.length).toEqual(6);
+  expect(catalog.find((item) => item.program.id === 'linkedin-profile')?.program.stages.length).toEqual(
+    6,
+  );
   expect((await readGrowthTemplate('linkedin-profile'))?.program.id).toEqual('linkedin-profile');
   expect(await readGrowthTemplate('missing-template')).toEqual(null);
   const { yaml } = await readGrowthProfileWorkflow();
@@ -200,12 +221,14 @@ test('all YAML Growth templates share the same discoverable manifest contract', 
   );
   expect(another.id).toEqual('linkedin-competitors');
   expect(another.pipelines.length).toEqual(8);
-  expect(another.stages.every(
+  expect(
+    another.stages.every(
       (stage) =>
         stage.plan.steps[0]?.kind === 'start' &&
         stage.plan.steps[1]?.kind === 'session' &&
         stage.plan.links.length > 0,
-    )).toBeTruthy();
+    ),
+  ).toBeTruthy();
 });
 
 test('YAML Growth template API exposes the entire task graph and rejects unsupported runs', async () => {
@@ -218,7 +241,9 @@ test('YAML Growth template API exposes the entire task graph and rejects unsuppo
     const detail = await app.inject('/growth/templates/linkedin-profile');
     expect(detail.statusCode).toEqual(200);
     expect(detail.json().stages.length).toEqual(6);
-    expect(detail.json().stages.every((item: { plan: { steps: unknown[] } }) => item.plan.steps.length >= 4)).toBeTruthy();
+    expect(
+      detail.json().stages.every((item: { plan: { steps: unknown[] } }) => item.plan.steps.length >= 4),
+    ).toBeTruthy();
     expect((await app.inject('/growth/templates/linkedin-profile/yaml')).statusCode).toEqual(200);
     expect((await app.inject('/growth/templates/no-such-workflow')).statusCode).toEqual(404);
     const rejected = await app.inject({
@@ -273,7 +298,7 @@ test('composite runner reports failed pipelines and the exact failed child task'
   expect(run.pipelineRuns[0]?.state).toEqual('failed');
   expect(run.pipelineRuns[0]?.currentStepId).toEqual('inspect');
   expect(run.pipelineRuns[0]?.error ?? '').toMatch(/inspection failed/);
-  await expect((coordinator.advance(run.id))).rejects.toThrow(/not completed/);
+  await expect(coordinator.advance(run.id)).rejects.toThrow(/not completed/);
   expect(run.pipelineRuns[1]?.state).toEqual('waiting');
 });
 
@@ -317,7 +342,7 @@ test('completed child waits for Runner browser cleanup before the next pipeline'
   expect(started.currentChild?.state).toEqual('completed');
   expect(started.releasePending).toEqual(true);
   expect(started.canAdvance).toEqual(false);
-  await expect((coordinator.advance(started.id))).rejects.toThrow(/browser session is still closing/);
+  await expect(coordinator.advance(started.id)).rejects.toThrow(/browser session is still closing/);
   expect(starts).toEqual(1);
   expect((await coordinator.get(started.id))?.activeIndex).toEqual(0);
   idle = true;
@@ -338,9 +363,10 @@ test('a second Growth YAML is discovered and compiled as one guarded pipeline', 
   expect(second.program.stages[0]?.plan.steps[1]?.kind).toEqual('session');
   expect(second.program.stages[0]!.plan.links.length >= 4).toBeTruthy();
   expect(() =>
-      compileGrowthProfileYaml(
-        second.yaml.replace('      action: "audit"', '      action: "edit-profile"'),
-      )).toThrow(/Invalid or unsafe Growth pipeline stage configuration/);
+    compileGrowthProfileYaml(
+      second.yaml.replace('      action: "audit"', '      action: "edit-profile"'),
+    ),
+  ).toThrow(/Invalid or unsafe Growth pipeline stage configuration/);
   const app = buildApp();
   try {
     await app.ready();
@@ -414,7 +440,9 @@ test('Growth template library exposes exactly 21 YAML workflows with connected t
   expect(new Set(templates.map((item) => item.program.id)).size).toEqual(21);
   for (const { program } of templates) {
     expect(program.stages.length >= 1).toBeTruthy();
-    expect(program.stages.every((stage) => stage.plan.links.length === stage.plan.steps.length - 1)).toBeTruthy();
+    expect(
+      program.stages.every((stage) => stage.plan.links.length === stage.plan.steps.length - 1),
+    ).toBeTruthy();
     expect(program.stages.every((stage) => stage.plan.steps.length >= 5)).toBeTruthy();
   }
   const blueprints = templates.filter((item) => item.program.kind === 'GrowthBlueprintWorkflow');
@@ -423,11 +451,13 @@ test('Growth template library exposes exactly 21 YAML workflows with connected t
     expect(program.executable).toEqual(false);
     expect(program.stages.map((stage) => stage.id)).toEqual(['discovery', 'review']);
     expect(program.stages.every((stage) => stage.action === 'manual')).toBeTruthy();
-    expect(program.stages.every((stage) =>
+    expect(
+      program.stages.every((stage) =>
         ['todo', 'procedure', 'action', 'event', 'verify'].every((id) =>
           stage.plan.steps.some((step) => step.id === id),
         ),
-      )).toBeTruthy();
+      ),
+    ).toBeTruthy();
   }
 });
 

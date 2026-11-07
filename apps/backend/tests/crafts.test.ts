@@ -1,16 +1,21 @@
-
 import { randomUUID } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { test, expect } from 'vitest';
 import { createClient } from '@libsql/client';
+import { expect, test } from 'vitest';
 import {
   growthCapabilities,
   profileSections,
-} from '../../frontend/components/dashboard/growth/linkedin-growth-capabilities.js';
-import { type Craft, CraftLibrary, craftArchive, parseMdx, toMdx } from '../src/crafts/library.js';
-import { createDocumentStore } from '../src/db/documents.js';
+} from '../../frontend/modules/growth/components/linkedin-growth-capabilities.js';
+import {
+  type Craft,
+  CraftLibrary,
+  craftArchive,
+  parseMdx,
+  toMdx,
+} from '../src/infrastructure/crafts/library.js';
+import { createDocumentStore } from '../src/infrastructure/db/documents.js';
 
 const root = await mkdtemp(join(tmpdir(), 'utomator-crafts-'));
 const databaseFile = `file:${join(root, 'crafts.db')}`;
@@ -96,8 +101,7 @@ test('predefined crafts are database-backed and immutable; clones and MDX edits 
       expect(flow.steps.length).toEqual(5);
       expect(flow.links.length).toEqual(4);
       const source = toMdx(flow);
-      for (const action of capability.actions)
-        expect(source.includes(action)).toBeTruthy();
+      for (const action of capability.actions) expect(source.includes(action)).toBeTruthy();
       expect(source.includes(capability.availableNow)).toBeTruthy();
       expect(source.includes(capability.requires)).toBeTruthy();
       expect(parseMdx(source, flow).steps).toEqual(flow.steps);
@@ -106,8 +110,7 @@ test('predefined crafts are database-backed and immutable; clones and MDX edits 
       expect(response.statusCode).toEqual(200);
       expect(response.body).toEqual(source);
       if (capability.id === 'profile')
-        for (const section of profileSections)
-          expect(source.includes(section)).toBeTruthy();
+        for (const section of profileSections) expect(source.includes(section)).toBeTruthy();
     }
     const originalDefaults = [
       'personal-brand-positioning',
@@ -197,13 +200,15 @@ test('predefined crafts are database-backed and immutable; clones and MDX edits 
       await second.close();
     }
     expect((await app.inject('/skills')).statusCode).toEqual(404);
-    expect((
+    expect(
+      (
         await app.inject({
           method: 'DELETE',
           url: `/crafts/${now.id}`,
           payload: { expectedVersion: 3 },
         })
-      ).statusCode).toEqual(200);
+      ).statusCode,
+    ).toEqual(200);
     expect((await app.inject(`/crafts/${now.id}`)).statusCode).toEqual(404);
   } finally {
     await app.close();
@@ -215,16 +220,21 @@ test('MDX graph conversion rejects malformed input and preserves portable archiv
   expect(parseMdx(mdx).steps.length).toEqual(3);
   const old = mdx.replaceAll('<CraftNode', '<SkillNode');
   expect(parseMdx(old).links).toEqual(parseMdx(mdx).links);
-  expect(() => parseMdx(mdx.replace(`name: ${request.slug}`, 'name: ../../escape'))).toThrow(/frontmatter/);
-  expect(() => parseMdx(mdx.replace('Review source facts.', '## Step: fake | Fake'))).toThrow(/Invalid MDX/);
+  expect(() => parseMdx(mdx.replace(`name: ${request.slug}`, 'name: ../../escape'))).toThrow(
+    /frontmatter/,
+  );
+  expect(() => parseMdx(mdx.replace('Review source facts.', '## Step: fake | Fake'))).toThrow(
+    /Invalid MDX/,
+  );
   expect(() =>
-      toMdx({
-        ...request,
-        links: [
-          { id: 'research-to-draft', source: 'research', target: 'draft' },
-          { id: 'draft-to-research', source: 'draft', target: 'research' },
-        ],
-      })).toThrow(/cycle/);
+    toMdx({
+      ...request,
+      links: [
+        { id: 'research-to-draft', source: 'research', target: 'draft' },
+        { id: 'draft-to-research', source: 'draft', target: 'research' },
+      ],
+    }),
+  ).toThrow(/cycle/);
 });
 
 test('tenant identities isolate personal crafts but expose the same read-only defaults', async () => {
@@ -250,7 +260,9 @@ test('tenant identities isolate personal crafts but expose the same read-only de
     expect(clone.scope).toEqual('personal');
     expect(await two.get(clone.id)).toEqual(undefined);
     await expect(() => two.update(first.id, request, 1)).rejects.toThrow(/not found/);
-    await expect(() => one.remove('default-personal-brand-positioning', baseA!.version)).rejects.toThrow(/read-only/);
+    await expect(() => one.remove('default-personal-brand-positioning', baseA!.version)).rejects.toThrow(
+      /read-only/,
+    );
   } finally {
     await a.close();
     await b.close();
@@ -279,12 +291,18 @@ test('legacy JSON migrates once as private crafts without replacing predefined c
     await library.initialize();
     const initial = await library.list();
     expect(initial.some((c) => c.slug === baseline.slug && c.scope === 'personal')).toBeTruthy();
-    expect(initial.some((c) => c.slug === 'content-series-planning-imported' && c.scope === 'personal')).toBeTruthy();
-    expect(initial.some((c) => c.slug === 'content-series-planning' && c.scope === 'default')).toBeTruthy();
+    expect(
+      initial.some((c) => c.slug === 'content-series-planning-imported' && c.scope === 'personal'),
+    ).toBeTruthy();
+    expect(
+      initial.some((c) => c.slug === 'content-series-planning' && c.scope === 'default'),
+    ).toBeTruthy();
     const count = initial.length;
     await library.initialize();
     expect((await library.list()).length).toEqual(count);
-    expect((await store.get<{ result: string }>('craft-migrations', 'legacy-json-v1'))?.value?.result).toEqual('imported');
+    expect(
+      (await store.get<{ result: string }>('craft-migrations', 'legacy-json-v1'))?.value?.result,
+    ).toEqual('imported');
   } finally {
     await store.close();
   }

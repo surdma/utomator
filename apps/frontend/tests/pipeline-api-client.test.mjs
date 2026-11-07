@@ -1,9 +1,5 @@
-
-import { afterEach, test, expect } from 'vitest';
-import {
-  apiPost,
-  getApi,
-} from '../components/dashboard/pipeline/api-client.ts';
+import { afterEach, expect, test } from 'vitest';
+import { apiPost, getApi } from '../modules/pipeline/components/api-client.ts';
 
 const originalFetch = globalThis.fetch;
 afterEach(() => {
@@ -33,5 +29,7 @@ test('dashboard mutations preserve backend error messages', async () => {
     new Response(JSON.stringify({ error: 'Approval is required' }), {
       status: 409,
     });
-  await expect((apiPost('runs/abc/approve'))).rejects.toThrow(/Approval is required/);
+  await expect(apiPost('runs/abc/approve')).rejects.toThrow(
+    /Approval is required/,
+  );
 });

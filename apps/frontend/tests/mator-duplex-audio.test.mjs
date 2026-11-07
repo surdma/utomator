@@ -1,9 +1,8 @@
-
-import { test, expect } from 'vitest';
+import { expect, test } from 'vitest';
 import {
   MatorDuplexAudio,
   pcmToWav,
-} from '../components/mator/mator-duplex-audio.ts';
+} from '../modules/mator/components/mator-duplex-audio.ts';
 
 test('PCM WAV encoder creates real mono PCM headers and samples', async () => {
   const wav = pcmToWav([Float32Array.from([0, 0.5, -0.5])], 16000);
