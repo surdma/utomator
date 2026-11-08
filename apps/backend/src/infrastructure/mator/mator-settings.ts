@@ -89,7 +89,10 @@ function mergeSettings(stored: Partial<MatorSettings> | null | undefined): Mator
     moderationEnabled: stored.moderationEnabled ?? DEFAULTS.moderationEnabled,
     modelId: typeof stored.modelId === 'string' && stored.modelId ? stored.modelId : DEFAULTS.modelId,
     temperature:
-      typeof stored.temperature === 'number' && Number.isFinite(stored.temperature)
+      typeof stored.temperature === 'number' &&
+      Number.isFinite(stored.temperature) &&
+      stored.temperature >= 0 &&
+      stored.temperature <= 2
         ? stored.temperature
         : DEFAULTS.temperature,
     reasoningEffort: EFFORTS.has(stored.reasoningEffort as MatorReasoningEffort)
@@ -118,6 +121,8 @@ export async function putMatorSettings(
   );
   const modelId = patch.modelId ?? current.modelId;
   const temperature = patch.temperature ?? current.temperature;
+  if (!Number.isFinite(temperature) || temperature < 0 || temperature > 2)
+    throw Error('Temperature must be a finite number between 0 and 2');
   const visionModelId = patch.visionModelId ?? current.visionModelId;
   const sttModelId = patch.sttModelId ?? current.sttModelId;
   const ttsModelId = patch.ttsModelId ?? current.ttsModelId;

@@ -38,6 +38,7 @@ export default function MatorChatSettings({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<MatorSettingsMasked | null>(null);
+  const [temperatureDraft, setTemperatureDraft] = useState<number | null>(null);
   const [models, setModels] = useState<MatorModelOption[]>([]);
   const [error, setError] = useState('');
   const toast = useToast();
@@ -51,6 +52,7 @@ export default function MatorChatSettings({
         fetchMatorModels(),
       ]);
       setSettings(loadedSettings);
+      setTemperatureDraft(loadedSettings.temperature ?? 0.2);
       setModels(loadedModels.models.filter((model) => model.role === 'chat'));
     } catch (cause) {
       setError(
@@ -67,6 +69,7 @@ export default function MatorChatSettings({
       try {
         const saved = await saveMatorSettings(change);
         setSettings(saved);
+        setTemperatureDraft(saved.temperature ?? 0.2);
         onSettingsSaved?.(saved);
         toast('Chat settings saved', 'success');
       } catch (cause) {
@@ -86,6 +89,9 @@ export default function MatorChatSettings({
   useEffect(() => {
     if (open) void load();
   }, [open, load]);
+
+  const currentTemperature = settings?.temperature ?? 0.2;
+  const temperature = temperatureDraft ?? currentTemperature;
 
   return (
     <Popover
@@ -171,6 +177,47 @@ export default function MatorChatSettings({
                   }
                 />
               </div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
+                  Response temperature
+                </p>
+                <Badge tone="outline" size="xs">
+                  {temperature.toFixed(1)}
+                </Badge>
+              </div>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Lower values keep answers focused; higher values allow more variety.
+              </p>
+              <div className="mt-2">
+                <Slider
+                  value={temperature}
+                  min={0}
+                  max={2}
+                  step={0.1}
+                  disabled={saving}
+                  aria-label="Response temperature"
+                  aria-valuetext={temperature.toFixed(1)}
+                  onValueChange={setTemperatureDraft}
+                />
+              </div>
+              <button
+                type="button"
+                data-testid="mator-save-temperature"
+                disabled={
+                  saving ||
+                  temperature === currentTemperature
+                }
+                onClick={() =>
+                  void patch({
+                    temperature,
+                  })
+                }
+                className="mt-2 min-h-10 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Save temperature
+              </button>
             </div>
             <div className="flex flex-col divide-y divide-slate-100">
               <SettingsRow

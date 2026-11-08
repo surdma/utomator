@@ -74,3 +74,17 @@ test('saveMatorSettings surfaces backend errors', async () => {
     /Groq API key cannot be empty/,
   );
 });
+
+test('saveMatorSettings sends chosen temperature and returns persisted value', async () => {
+  globalThis.fetch = async (url, options) => {
+    expect(url).toEqual('/api/mator/settings');
+    expect(options.method).toEqual('PUT');
+    expect(JSON.parse(options.body)).toEqual({ temperature: 0.7 });
+    return new Response(
+      JSON.stringify({ temperature: 0.7, modelId: 'openai/gpt-oss-20b' }),
+      { status: 200 },
+    );
+  };
+  const settings = await saveMatorSettings({ temperature: 0.7 });
+  expect(settings.temperature).toBe(0.7);
+});
