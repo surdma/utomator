@@ -21,7 +21,7 @@ import { WorkflowRunButton } from './workspace/floating-workflow-controls';
 
 const items = [
   { id: 'workspace', label: 'Workspace', icon: Activity },
-  { id: 'history', label: 'Run history', icon: History },
+  { id: 'history', label: 'History', icon: History },
   { id: 'profile', label: 'Account', icon: UserRound },
   { id: 'resumes', label: 'Résumés', icon: FileText },
   { id: 'memory', label: 'Intelligence', icon: NotebookPen },
