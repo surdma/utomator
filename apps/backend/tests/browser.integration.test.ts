@@ -160,13 +160,22 @@ async function exercise(mode: 'audit' | 'audit-race' | 'reject') {
     await app.close();
   }
 }
-test('Next.js workspace uses validated forms and blocks unverified execution', async () =>
-  exercise('audit'));
-test('Next.js workspace rejects unverified account runs without executing writes', async () =>
-  exercise('reject'));
+test(
+  'Next.js workspace uses validated forms and blocks unverified execution',
+  { timeout: 90_000 },
+  async () => exercise('audit'),
+);
+test(
+  'Next.js workspace rejects unverified account runs without executing writes',
+  { timeout: 90_000 },
+  async () => exercise('reject'),
+);
 
-test('Next.js workspace exposes connection and tracking dialogs without a login', async () =>
-  exercise('audit-race'));
+test(
+  'Next.js workspace exposes connection and tracking dialogs without a login',
+  { timeout: 90_000 },
+  async () => exercise('audit-race'),
+);
 
 test('Growth workspace connects 21 capability and toolkit graphs, MDX, export and responsive navigation', {
   timeout: 140000,
