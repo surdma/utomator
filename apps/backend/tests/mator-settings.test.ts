@@ -111,9 +111,7 @@ test('getMatorSettings returns defaults when document is missing', async () => {
 test('temperature accepts finite values from 0 to 2 and persists the chosen value', async () => {
   const docs = new FakeDocuments('local-owner');
   for (const temperature of [-0.1, 2.1, Number.NaN, Number.POSITIVE_INFINITY]) {
-    await expect(
-      putMatorSettings(docs, { temperature }, 0),
-    ).rejects.toThrow(/Temperature/);
+    await expect(putMatorSettings(docs, { temperature }, 0)).rejects.toThrow(/Temperature/);
   }
   const revision = await putMatorSettings(docs, { temperature: 0.7 }, 0);
   expect(revision).toBe(1);

@@ -139,13 +139,13 @@ test('OIDC signed token rejects wrong audience, issuer, expired time and invalid
     [{ azp: 'another' }, /authorized party/],
   ];
   for (const [mismatch, expectedMessage] of cases) {
-    await expect(
-      auth.verifyIdToken(signed(claims(nonce, mismatch)), nonce),
-    ).rejects.toThrow(expectedMessage);
+    await expect(auth.verifyIdToken(signed(claims(nonce, mismatch)), nonce)).rejects.toThrow(
+      expectedMessage,
+    );
   }
-  await expect(
-    auth.verifyIdToken('eyJhbGciOiJub25lIn0.eyJzdWIiOiJ4In0.', nonce),
-  ).rejects.toThrow(/signing algorithm or header/);
+  await expect(auth.verifyIdToken('eyJhbGciOiJub25lIn0.eyJzdWIiOiJ4In0.', nonce)).rejects.toThrow(
+    /signing algorithm or header/,
+  );
   const token = signed(claims(nonce));
   await expect(auth.verifyIdToken(`${token.slice(0, -2)}xx`, nonce)).rejects.toThrow(/signature/);
   expect((await auth.verifyIdToken(token, nonce)).sub).toEqual('alice-subject');

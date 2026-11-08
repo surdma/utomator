@@ -188,7 +188,8 @@ export default function MatorChatSettings({
                 </Badge>
               </div>
               <p className="mt-1 text-xs leading-5 text-slate-500">
-                Lower values keep answers focused; higher values allow more variety.
+                Lower values keep answers focused; higher values allow more
+                variety.
               </p>
               <div className="mt-2">
                 <Slider
@@ -205,10 +206,7 @@ export default function MatorChatSettings({
               <button
                 type="button"
                 data-testid="mator-save-temperature"
-                disabled={
-                  saving ||
-                  temperature === currentTemperature
-                }
+                disabled={saving || temperature === currentTemperature}
                 onClick={() =>
                   void patch({
                     temperature,
