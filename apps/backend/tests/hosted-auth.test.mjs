@@ -130,36 +130,22 @@ test('OIDC signed token rejects wrong audience, issuer, expired time and invalid
   const auth = create({});
   const nonce = 'nonce-for-test';
   const cases = [
-    { aud: 'different-client' },
-    { iss: 'https://other.example.test' },
-    { exp: now() - 1 },
-    { nbf: now() + 1000 },
-    { iat: now() + 1000 },
-    { aud: ['utomator-hosted-client', 'another'], azp: 'another' },
-    { azp: 'another' },
+    [{ aud: 'different-client' }, /audience or issuer/],
+    [{ iss: 'https://other.example.test' }, /audience or issuer/],
+    [{ exp: now() - 1 }, /claims invalid or expired/],
+    [{ nbf: now() + 1000 }, /claims invalid or expired/],
+    [{ iat: now() + 1000 }, /claims invalid or expired/],
+    [{ aud: ['utomator-hosted-client', 'another'], azp: 'another' }, /authorized party/],
+    [{ azp: 'another' }, /authorized party/],
   ];
-  for (const mismatch of cases) {
-    let e;
-    try {
-      await auth.verifyIdToken(signed(claims(nonce, mismatch)), nonce)();
-    } catch (caught) {
-      e = caught;
-    }
-    expect(e).toBeDefined();
-    expect(() => {
-      throw e;
-    }).toThrow();
+  for (const [mismatch, expectedMessage] of cases) {
+    await expect(
+      auth.verifyIdToken(signed(claims(nonce, mismatch)), nonce),
+    ).rejects.toThrow(expectedMessage);
   }
-  let e;
-  try {
-    await auth.verifyIdToken('eyJhbGciOiJub25lIn0.eyJzdWIiOiJ4In0.', nonce)();
-  } catch (caught) {
-    e = caught;
-  }
-  expect(e).toBeDefined();
-  expect(() => {
-    throw e;
-  }).toThrow();
+  await expect(
+    auth.verifyIdToken('eyJhbGciOiJub25lIn0.eyJzdWIiOiJ4In0.', nonce),
+  ).rejects.toThrow(/signing algorithm or header/);
   const token = signed(claims(nonce));
   await expect(auth.verifyIdToken(`${token.slice(0, -2)}xx`, nonce)).rejects.toThrow(/signature/);
   expect((await auth.verifyIdToken(token, nonce)).sub).toEqual('alice-subject');
