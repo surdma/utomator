@@ -1460,7 +1460,7 @@ test('Mator creates a persisted workflow and accepts the first chat message', as
     },
   };
   let created = false;
-  let conversationCreated = false;
+  let conversationCreateCount = 0;
   let message = '';
   await page.route('**/api/workflows', (route) => {
     if (route.request().method() === 'POST') {
@@ -1477,9 +1477,9 @@ test('Mator creates a persisted workflow and accepts the first chat message', as
       body: JSON.stringify(created ? [record] : []),
     });
   });
-  await page.route('**/api/mator/workflows/*/conversations', (route) => {
+  await page.route('**/api/mator/workflows/*/conversations', async (route) => {
     if (route.request().method() === 'POST') {
-      conversationCreated = true;
+      conversationCreateCount++;
       return route.fulfill({
         status: 201,
         contentType: 'application/json',
@@ -1494,6 +1494,8 @@ test('Mator creates a persisted workflow and accepts the first chat message', as
         }),
       });
     }
+    // A delayed stale read reproduces the first-send/auto-refresh race.
+    await new Promise((resolve) => setTimeout(resolve, 120));
     return route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -1543,7 +1545,7 @@ test('Mator creates a persisted workflow and accepts the first chat message', as
     dock.getByText('Mator received the first message'),
   ).toBeVisible();
   expect(created).toBe(true);
-  expect(conversationCreated).toBe(true);
+  expect(conversationCreateCount).toBe(1);
   expect(message).toBe('I need my first workflow');
 });
 
