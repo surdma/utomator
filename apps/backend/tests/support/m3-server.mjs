@@ -1,3 +1,4 @@
+import { copyFile } from 'node:fs/promises';
 import { createClient } from '@libsql/client';
 import { buildApp } from '../../src/main.ts';
 
@@ -5,6 +6,7 @@ import { buildApp } from '../../src/main.ts';
 if (process.env.NODE_ENV !== 'test' || process.env.UTOMATOR_TEST_DATABASE !== 'true') {
   throw new Error('The M3 fixture server requires an isolated test database');
 }
+await copyFile(new URL('../../step-forms.yaml', import.meta.url), 'step-forms.yaml');
 const database = createClient({ url: process.env.DB_FILE_NAME });
 await database.execute(`CREATE TABLE IF NOT EXISTS utomator_documents (
   owner_id TEXT NOT NULL,

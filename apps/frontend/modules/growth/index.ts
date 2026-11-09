@@ -22,6 +22,7 @@ export {
 export { default as GrowthRunControls } from './components/run-controls';
 export type { GrowthExecutionView } from './hooks/use-growth-execution-projection';
 export { useGrowthExecutionProjection } from './hooks/use-growth-execution-projection';
+export { useGrowthGraphNodes } from './hooks/use-growth-graph-nodes';
 export { useGrowthRunJournal } from './hooks/use-growth-run-journal';
 export type {
   GrowthExecutionProjection,

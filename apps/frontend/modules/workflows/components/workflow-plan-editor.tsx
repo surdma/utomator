@@ -48,6 +48,7 @@ import {
   type GrowthWorkflowState,
   GrowthWorkspaceDialogs,
   useGrowthExecutionProjection,
+  useGrowthGraphNodes,
   useGrowthProfileWorkflow,
 } from '@/modules/growth';
 import StudioDialog from '../../../components/ui/studio-dialog';
@@ -177,16 +178,19 @@ function EditorBody(props: Props) {
   const growth = growthState ?? localGrowth;
   const growthRun = growth.run;
   // A past execution must display its pinned YAML plans, not a newer library revision.
-  const growthProgram =
-    growth.program && growthRun?.stages?.length
-      ? {
-          ...growth.program,
-          stages: growthRun.stages.map((stage) => ({
-            ...stage,
-            stepCount: stage.plan.steps.length,
-          })),
-        }
-      : growth.program;
+  const growthProgram = useMemo(
+    () =>
+      growth.program && growthRun?.stages?.length
+        ? {
+            ...growth.program,
+            stages: growthRun.stages.map((stage) => ({
+              ...stage,
+              stepCount: stage.plan.steps.length,
+            })),
+          }
+        : growth.program,
+    [growth.program, growthRun?.stages],
+  );
   const growthStage =
     growthProgram?.stages.find((stage) => stage.id === growthPipelineId) ??
     null;
@@ -210,6 +214,14 @@ function EditorBody(props: Props) {
         : null,
     [growthProgram, growthRun, growthStage, growthProjection],
   );
+  const growthViewKey = [
+    'growth',
+    growthTemplateId,
+    growthPipelineId ?? 'overview',
+    growthProgram ? 'loaded' : 'loading',
+  ].join('/');
+  const { nodes: growthNodes, onNodesChange: onGrowthNodesChange } =
+    useGrowthGraphNodes(growthViewKey, growthGraph?.nodes);
   const [outputOpen, setOutputOpen] = useState(false);
   const [editorError, setEditorError] = useState('');
   const [stepForms, setStepForms] = useState<
@@ -463,21 +475,14 @@ function EditorBody(props: Props) {
           data-testid={growthTemplateId ? 'growth-nested-artboard' : undefined}
         >
           <ReactFlow<ArtboardNode, Edge>
-            key={
-              growthTemplateId
-                ? [
-                    'growth',
-                    growthTemplateId,
-                    growthPipelineId ?? 'overview',
-                    growthProgram ? 'loaded' : 'loading',
-                  ].join('/')
-                : 'workflow'
-            }
+            key={growthTemplateId ? growthViewKey : 'workflow'}
             data-testid={growthTemplateId ? 'growth-workflow-graph' : undefined}
-            nodes={growthTemplateId ? (growthGraph?.nodes ?? []) : nodes}
+            nodes={growthTemplateId ? growthNodes : nodes}
             edges={growthTemplateId ? (growthGraph?.edges ?? []) : data.edges}
             nodeTypes={nodeTypes}
-            onNodesChange={growthTemplateId ? undefined : onNodesChange}
+            onNodesChange={
+              growthTemplateId ? onGrowthNodesChange : onNodesChange
+            }
             nodesDraggable={!growthTemplateId && canEdit}
             nodesConnectable={!growthTemplateId && canEdit}
             edgesReconnectable={false}

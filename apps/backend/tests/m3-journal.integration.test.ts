@@ -254,6 +254,7 @@ test('M3 real Runner, Fastify and Next preserve journal truth across approval, c
       if (!response.ok) throw Error(`${path}: ${response.status} ${JSON.stringify(value)}`);
       return value as T;
     };
+    expect(await api('/step-forms')).toMatchObject({ start: { fields: expect.any(Array) } });
     const connected = await api<{ accountId: string }>('/connectors/start', { platform: 'linkedin' });
     expect(await api(`/connectors/${connected.accountId}/sync`, {})).toMatchObject({
       status: 'connected',
@@ -278,6 +279,15 @@ test('M3 real Runner, Fastify and Next preserve journal truth across approval, c
     page = await browser.newPage();
     const ui = page;
     page.on('pageerror', (error) => browserErrors.push(String(error)));
+    page.on('console', (message) => {
+      if (message.type() === 'error') browserErrors.push(`Console: ${message.text()}`);
+    });
+    page.on('response', (response) => {
+      const url = new URL(response.url());
+      if (url.origin === origin && url.pathname.startsWith('/api/') && response.status() >= 500) {
+        browserErrors.push(`HTTP ${response.status()}: ${url.pathname}`);
+      }
+    });
     await page.goto(`${origin}/dashboard/workspace`);
     await openGrowth(page);
     await page.getByRole('button', { name: 'Workflow execution and evidence' }).click();
@@ -357,6 +367,7 @@ test('M3 real Runner, Fastify and Next preserve journal truth across approval, c
     expect(screenshotFile).toBeTruthy();
     expect((await fetch(`${origin}/api/runs/${childId}/evidence/${screenshotFile}`)).status).toBe(200);
     const assertViews = async () => {
+      await ui.getByTestId('growth-pipeline-node-identity').waitFor({ state: 'visible' });
       await until(
         () => textOf(ui.getByTestId('growth-pipeline-node-identity')),
         (value) => /completed/i.test(value),
@@ -367,6 +378,7 @@ test('M3 real Runner, Fastify and Next preserve journal truth across approval, c
         (value) => /Completed/.test(value) && /11\/11 recorded/.test(value),
         'matching Mator completion',
       );
+      await pipelineSummaries.first().scrollIntoViewIfNeeded();
       expect(await textOf(mator)).not.toContain('Journal unavailable or incomplete');
     };
     await assertViews();
@@ -432,6 +444,7 @@ test('M3 real Runner, Fastify and Next preserve journal truth across approval, c
     );
     expect(cancelled.growth?.stageId).toBe('positioning');
     await page.keyboard.press('Escape');
+    await ui.getByTestId('growth-pipeline-node-positioning').waitFor({ state: 'visible' });
     await until(
       () => textOf(ui.getByTestId('growth-pipeline-node-positioning')),
       (value) => /cancelled/i.test(value),
@@ -442,6 +455,7 @@ test('M3 real Runner, Fastify and Next preserve journal truth across approval, c
       (value) => /Cancelled/.test(value),
       'cancelled Mator',
     );
+    await pipelineSummaries.nth(1).scrollIntoViewIfNeeded();
     await page.screenshot({ path: join(evidenceRoot, '04-cancelled-stage.png'), fullPage: true });
     expect(browserErrors).toEqual([]);
     await writeFile(
