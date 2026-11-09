@@ -301,6 +301,7 @@ test('M3 real Runner, Fastify and Next preserve journal truth across approval, c
     await page.keyboard.press('Escape');
     await details.waitFor({ state: 'hidden' });
     const mator = page.getByTestId('mator-pipeline-execution');
+    const pipelineSummaries = mator.locator(':scope > div > details > summary');
     await mator.getByRole('button', { name: 'Approve', exact: true }).click();
     await until(
       () => api<RunSummary>(`/runs/${childId}`),
@@ -362,7 +363,7 @@ test('M3 real Runner, Fastify and Next preserve journal truth across approval, c
         'completed Artboard',
       );
       await until(
-        () => textOf(mator.locator('details').first().locator('summary')),
+        () => textOf(pipelineSummaries.first()),
         (value) => /Completed/.test(value) && /11\/11 recorded/.test(value),
         'matching Mator completion',
       );
@@ -437,7 +438,7 @@ test('M3 real Runner, Fastify and Next preserve journal truth across approval, c
       'cancelled Artboard',
     );
     await until(
-      () => textOf(mator.locator('details').nth(1).locator('summary')),
+      () => textOf(pipelineSummaries.nth(1)),
       (value) => /Cancelled/.test(value),
       'cancelled Mator',
     );
