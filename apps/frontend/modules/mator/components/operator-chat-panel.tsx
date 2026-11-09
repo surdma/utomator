@@ -439,7 +439,7 @@ export default function OperatorChatPanel({
         className="flex min-h-0 flex-1 flex-col overflow-hidden border-slate-200/80 bg-white shadow-none"
       >
         {/* ── Soft context row: thread pill · settings · hide ─────────── */}
-        <div className="flex shrink-0 items-center gap-1 border-b border-slate-100 px-2.5 pt-2.5 pb-2">
+        <div className="relative z-20 flex shrink-0 items-center gap-1 border-b border-slate-100 px-2.5 pt-2.5 pb-2">
           <Popover
             open={threadOpen}
             onOpenChange={setThreadOpen}

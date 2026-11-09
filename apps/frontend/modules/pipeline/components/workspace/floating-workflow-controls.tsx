@@ -54,27 +54,29 @@ export default function FloatingWorkflowControls({
 }: Props) {
   return (
     <div
-      className="pointer-events-none fixed bottom-5 left-1/2 z-30 hidden -translate-x-1/2 items-center gap-2 rounded-full border border-white/30 bg-[#111e2b] p-1.5 shadow-2xl lg:flex"
+      className="pointer-events-none fixed right-4 bottom-24 z-30 flex items-center gap-2 rounded-full border border-white/30 bg-[#111e2b] p-1.5 shadow-2xl lg:right-auto lg:bottom-5 lg:left-1/2 lg:-translate-x-1/2"
       data-testid="floating-workflow-controls"
     >
       {(workspaceOpen || Boolean(active)) && !selectedGrowthTemplateId && (
-        <WorkflowRunButton
-          active={active}
-          platform={platform}
-          action={action}
-          busy={busy}
-          available={available}
-          connectorReady={connectorReady}
-          loadingWorkflow={loadingWorkflow}
-          workflowPlan={workflowPlan}
-          activeWorkflow={activeWorkflow}
-          planDirty={planDirty}
-          formDirty={formDirty}
-          resumeRun={resumeRun}
-          pauseRun={pauseRun}
-          launchRun={launchRun}
-          cancelRun={cancelRun}
-        />
+        <span className="hidden lg:contents">
+          <WorkflowRunButton
+            active={active}
+            platform={platform}
+            action={action}
+            busy={busy}
+            available={available}
+            connectorReady={connectorReady}
+            loadingWorkflow={loadingWorkflow}
+            workflowPlan={workflowPlan}
+            activeWorkflow={activeWorkflow}
+            planDirty={planDirty}
+            formDirty={formDirty}
+            resumeRun={resumeRun}
+            pauseRun={pauseRun}
+            launchRun={launchRun}
+            cancelRun={cancelRun}
+          />
+        </span>
       )}
       <button
         type="button"

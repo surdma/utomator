@@ -179,6 +179,7 @@ test('GET settings masks key; PUT never echoes raw groqApiKey', async () => {
     expect(empty.json().squashPipelineHistory).toEqual(false);
     expect(empty.json().howTtsEnabled).toEqual(true);
     expect(empty.json().modelName).toEqual('GPT-OSS 20B');
+    expect(empty.json().temperature).toEqual(0.2);
     expect(empty.json().modelTier).toEqual('free');
     expect(empty.json().modelLabel).toMatch(/reasoning/i);
     expect('groqApiKey' in empty.json()).toEqual(false);
@@ -187,15 +188,26 @@ test('GET settings masks key; PUT never echoes raw groqApiKey', async () => {
     const put = await app.inject({
       method: 'PUT',
       url: '/mator/settings',
-      payload: { groqApiKey: 'gsk_secret_should_not_echo', autoApprove: true },
+      payload: { groqApiKey: 'gsk_secret_should_not_echo', autoApprove: true, temperature: 0.7 },
     });
     expect(put.statusCode).toEqual(200);
     expect(put.json().groqKeyConfigured).toEqual(true);
     expect(put.json().autoApprove).toEqual(true);
+    expect(put.json().temperature).toEqual(0.7);
     expect(JSON.stringify(put.json()).includes('gsk_secret_should_not_echo')).toEqual(false);
 
     const get = await app.inject({ method: 'GET', url: '/mator/settings' });
     expect(get.json().groqKeyConfigured).toEqual(true);
+    expect(get.json().temperature).toEqual(0.7);
+    const invalid = await app.inject({
+      method: 'PUT',
+      url: '/mator/settings',
+      payload: { temperature: 3 },
+    });
+    expect(invalid.statusCode).toEqual(400);
+    expect(invalid.json().error).toMatch(/Temperature/);
+    const afterInvalid = await app.inject({ method: 'GET', url: '/mator/settings' });
+    expect(afterInvalid.json().temperature).toEqual(0.7);
     expect(JSON.stringify(get.json()).includes('gsk_secret_should_not_echo')).toEqual(false);
   } finally {
     await app.close();

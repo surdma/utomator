@@ -97,6 +97,7 @@ export function useMatorChat({
   ensureWorkflowIdRef.current = ensureWorkflowId;
   const lastSendPayloadRef = useRef<string | null>(null);
   const refreshEpoch = useRef(0);
+  const skipInitialRefreshRef = useRef<string | null>(null);
 
   useEffect(() => {
     onSpeakHowRef.current = onSpeakHow;
@@ -159,6 +160,9 @@ export function useMatorChat({
       setLoading(false);
       return;
     }
+    // An initial send can create a workflow and conversation while React
+    // schedules a history refresh. Do not let that older read erase its reply.
+    if (inFlightRef.current) return;
     setLoading(true);
     setError(null);
     try {
@@ -166,14 +170,14 @@ export function useMatorChat({
         listMatorConversations(workflowId),
         fetchMatorSettings().catch(() => null),
       ]);
-      if (epoch !== refreshEpoch.current) return;
+      if (epoch !== refreshEpoch.current || inFlightRef.current) return;
       if (masked) setSettings(masked);
 
       let currentId = listed.currentId;
       let items = listed.items;
       if (!currentId) {
         const created = await createMatorConversation(workflowId);
-        if (epoch !== refreshEpoch.current) return;
+        if (epoch !== refreshEpoch.current || inFlightRef.current) return;
         currentId = created.id;
         items = [created, ...items.filter((item) => item.id !== created.id)];
       }
@@ -181,11 +185,11 @@ export function useMatorChat({
       const meta = items.find((item) => item.id === currentId) ?? null;
       setConversationMeta(meta);
       const loaded = await fetchMatorEvents(currentId);
-      if (epoch !== refreshEpoch.current) return;
+      if (epoch !== refreshEpoch.current || inFlightRef.current) return;
       setEvents(loaded);
       setLocalNotices([]);
     } catch (err) {
-      if (epoch !== refreshEpoch.current) return;
+      if (epoch !== refreshEpoch.current || inFlightRef.current) return;
       setError(err instanceof Error ? err.message : 'Unable to load chat');
     } finally {
       if (epoch === refreshEpoch.current) setLoading(false);
@@ -193,8 +197,15 @@ export function useMatorChat({
   }, [workflowId]);
 
   useEffect(() => {
+    // The first send already owns the conversation it just created. Loading
+    // it again from an older history response would discard the new turn.
+    if (workflowId && skipInitialRefreshRef.current === workflowId) {
+      skipInitialRefreshRef.current = null;
+      return;
+    }
+    skipInitialRefreshRef.current = null;
     void refresh();
-  }, [refresh]);
+  }, [refresh, workflowId]);
 
   const conversation = useMemo(
     () => eventsToConversation(events, localNotices),
@@ -262,52 +273,57 @@ export function useMatorChat({
     async (text?: string, attachmentIds?: string[]) => {
       const request = (text ?? message).trim();
       const ids = attachmentIds?.filter(Boolean) ?? [];
-      if (!request && ids.length === 0) return;
-      let conversationId = conversationIdRef.current;
-      if (!conversationId) {
-        const readyWorkflowId =
-          workflowId ?? (await ensureWorkflowIdRef.current?.()) ?? null;
-        if (readyWorkflowId) {
-          const listed = await listMatorConversations(readyWorkflowId);
-          const current =
-            listed.items.find((item) => item.id === listed.currentId) ??
-            listed.items[0] ??
-            (await createMatorConversation(readyWorkflowId));
-          conversationIdRef.current = current.id;
-          setConversationMeta(current);
-          setConversations((items) => [
-            current,
-            ...items.filter((item) => item.id !== current.id),
-          ]);
-          conversationId = current.id;
-        }
-      }
-      if (!conversationId) {
-        setError(
-          'Chat is not ready. Wait for the workflow conversation to load, then retry.',
-        );
-        if (text !== undefined) setMessage(request);
-        return false;
-      }
+      if (!request && ids.length === 0) return false;
+      if (inFlightRef.current) return false;
 
-      // Only retry the same idempotency key when the payload is unchanged.
-      const payloadSignature = JSON.stringify({ request, ids });
-      if (
-        sendGateRef.current.idempotencyKey &&
-        lastSendPayloadRef.current !== payloadSignature
-      ) {
-        sendGateRef.current = createMatorSendGate();
-      }
-      const started = beginMatorSend(sendGateRef.current, newIdempotencyKey);
-      if (!started) return false;
-      sendGateRef.current = started.next;
-      lastSendPayloadRef.current = payloadSignature;
+      // Reserve the send before any async workflow/conversation creation.
+      // Otherwise two clicks can create competing threads, and a refresh
+      // started during the first send can overwrite the returned events.
       inFlightRef.current = true;
+      refreshEpoch.current++;
       setPending(true);
+      setLoading(false);
       setError(null);
-      if (text === undefined) setMessage('');
-
       try {
+        let conversationId = conversationIdRef.current;
+        if (!conversationId) {
+          const readyWorkflowId =
+            workflowId ?? (await ensureWorkflowIdRef.current?.()) ?? null;
+          if (readyWorkflowId) {
+            const listed = await listMatorConversations(readyWorkflowId);
+            const current =
+              listed.items.find((item) => item.id === listed.currentId) ??
+              listed.items[0] ??
+              (await createMatorConversation(readyWorkflowId));
+            if (!workflowId) skipInitialRefreshRef.current = readyWorkflowId;
+            conversationIdRef.current = current.id;
+            setConversationMeta(current);
+            setConversations((items) => [
+              current,
+              ...items.filter((item) => item.id !== current.id),
+            ]);
+            conversationId = current.id;
+          }
+        }
+        if (!conversationId)
+          throw Error(
+            'Chat is not ready. Wait for the workflow conversation to load, then retry.',
+          );
+
+        // Only retry the same idempotency key when the payload is unchanged.
+        const payloadSignature = JSON.stringify({ request, ids });
+        if (
+          sendGateRef.current.idempotencyKey &&
+          lastSendPayloadRef.current !== payloadSignature
+        ) {
+          sendGateRef.current = createMatorSendGate();
+        }
+        const started = beginMatorSend(sendGateRef.current, newIdempotencyKey);
+        if (!started) return false;
+        sendGateRef.current = started.next;
+        lastSendPayloadRef.current = payloadSignature;
+        if (text === undefined) setMessage('');
+
         const result = await postMatorMessage(
           conversationId,
           {
@@ -325,7 +341,8 @@ export function useMatorChat({
         }
         return true;
       } catch (err) {
-        sendGateRef.current = finishMatorSendFailure(sendGateRef.current);
+        if (sendGateRef.current.inFlight)
+          sendGateRef.current = finishMatorSendFailure(sendGateRef.current);
         setMessage((current) => (current.trim() ? current : request));
         setError(err instanceof Error ? err.message : 'Unable to send message');
         return false;
@@ -334,7 +351,7 @@ export function useMatorChat({
         setPending(false);
       }
     },
-    [message, speakNewHow],
+    [message, speakNewHow, workflowId],
   );
 
   // Call requests reuse the exact Mator event stream and the same send gate,

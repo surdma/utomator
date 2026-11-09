@@ -108,6 +108,16 @@ test('getMatorSettings returns defaults when document is missing', async () => {
   expect(isGroqKeyConfigured(settings)).toEqual(false);
 });
 
+test('temperature accepts finite values from 0 to 2 and persists the chosen value', async () => {
+  const docs = new FakeDocuments('local-owner');
+  for (const temperature of [-0.1, 2.1, Number.NaN, Number.POSITIVE_INFINITY]) {
+    await expect(putMatorSettings(docs, { temperature }, 0)).rejects.toThrow(/Temperature/);
+  }
+  const revision = await putMatorSettings(docs, { temperature: 0.7 }, 0);
+  expect(revision).toBe(1);
+  expect((await getMatorSettings(docs)).temperature).toBe(0.7);
+});
+
 test('putMatorSettings stores encrypted groq key envelope, never plaintext', async () => {
   const previous = process.env.UTOMATOR_MATOR_ENCRYPTION_KEY;
   process.env.UTOMATOR_MATOR_ENCRYPTION_KEY = hex(MASTER);

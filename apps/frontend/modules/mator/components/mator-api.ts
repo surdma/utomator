@@ -24,6 +24,7 @@ export type MatorSettingsMasked = {
   howTtsEnabled: boolean;
   moderationEnabled: boolean;
   modelId: string;
+  temperature: number;
   modelName: string;
   modelLabel: string;
   modelTier: MatorModelTier;
@@ -42,6 +43,7 @@ export type MatorSettingsSavePatch = {
   howTtsEnabled?: boolean;
   moderationEnabled?: boolean;
   modelId?: string;
+  temperature?: number;
   reasoningEffort?: 'low' | 'medium' | 'high';
   visionModelId?: string;
   sttModelId?: string;

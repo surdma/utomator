@@ -134,6 +134,7 @@ function maskedSettings(settings: MatorSettings) {
     howTtsEnabled: settings.howTtsEnabled,
     moderationEnabled: settings.moderationEnabled,
     modelId: settings.modelId,
+    temperature: settings.temperature,
     modelName: chat?.name ?? settings.modelId,
     modelLabel: chat?.label ?? 'Chat',
     modelTier: chat?.tier ?? 'paid',
@@ -203,6 +204,11 @@ export function registerMatorRoutes(app: FastifyInstance, deps: MatorRouteDeps):
       if (typeof body.howTtsEnabled === 'boolean') patch.howTtsEnabled = body.howTtsEnabled;
       if (typeof body.moderationEnabled === 'boolean') patch.moderationEnabled = body.moderationEnabled;
       if (typeof body.modelId === 'string') patch.modelId = body.modelId;
+      if ('temperature' in body) {
+        if (typeof body.temperature !== 'number')
+          throw Error('Temperature must be a finite number between 0 and 2');
+        patch.temperature = body.temperature;
+      }
       if (
         body.reasoningEffort === 'low' ||
         body.reasoningEffort === 'medium' ||

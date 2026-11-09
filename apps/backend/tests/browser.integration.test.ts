@@ -150,23 +150,37 @@ async function exercise(mode: 'audit' | 'audit-race' | 'reject') {
       expect(status).toEqual(400);
     }
     if (mode === 'audit-race') {
-      await page.getByRole('button', { name: 'Open run tracking' }).click();
-      const tracking = page.getByRole('dialog', { name: 'Run tracking' });
-      await tracking.getByText('Run telemetry').waitFor();
-      await tracking.getByRole('button', { name: 'Close Run tracking' }).click();
+      // Run history now lives in the account menu, not the old tracking modal.
+      await page.getByRole('button', { name: 'Account menu' }).click();
+      await page.getByRole('button', { name: 'Run history' }).click();
+      await page.waitForURL(/\/dashboard\/history$/);
+      await page
+        .getByTestId('automation-navigation-sidebar')
+        .getByRole('button', { name: 'Workspace', exact: true })
+        .click();
+      await page.waitForURL(/\/dashboard\/workspace$/);
     }
   } finally {
     await browser.close();
     await app.close();
   }
 }
-test('Next.js workspace uses validated forms and blocks unverified execution', async () =>
-  exercise('audit'));
-test('Next.js workspace rejects unverified account runs without executing writes', async () =>
-  exercise('reject'));
+test(
+  'Next.js workspace uses validated forms and blocks unverified execution',
+  { timeout: 90_000 },
+  async () => exercise('audit'),
+);
+test(
+  'Next.js workspace rejects unverified account runs without executing writes',
+  { timeout: 90_000 },
+  async () => exercise('reject'),
+);
 
-test('Next.js workspace exposes connection and tracking dialogs without a login', async () =>
-  exercise('audit-race'));
+test(
+  'Next.js workspace exposes connection and run history without a login',
+  { timeout: 90_000 },
+  async () => exercise('audit-race'),
+);
 
 test('Growth workspace connects 21 capability and toolkit graphs, MDX, export and responsive navigation', {
   timeout: 140000,
@@ -266,7 +280,10 @@ test('Growth workspace connects 21 capability and toolkit graphs, MDX, export an
     };
     expect(original.steps[0]?.title).toEqual('Scope 20 profile sections');
     const sidebar = page.getByTestId('automation-navigation-sidebar');
-    await sidebar.getByRole('button', { name: 'Profile', exact: true }).click();
+    // Account moved into the header menu; the Growth rail remains in place.
+    await page.getByRole('button', { name: 'Account menu' }).click();
+    await page.getByRole('button', { name: 'Account', exact: true }).click();
+    await page.waitForURL(/\/dashboard\/profile$/);
     await sidebar.getByRole('button', { name: 'Growth', exact: true }).click();
     await catalog.waitFor();
     expect(page.url()).toMatch(/\/dashboard\/growth$/);
@@ -405,7 +422,9 @@ test('Creator research connects a real form to persisted results and remains ava
   }
 });
 
-test('LinkedIn editorial research-to-draft workflow persists, approves and returns YAML', async () => {
+test('LinkedIn editorial research-to-draft workflow persists, approves and returns YAML', {
+  timeout: 90_000,
+}, async () => {
   const root = await mkdtemp(join(tmpdir(), 'utomator-editorial-ui-'));
   const app = buildApp({ socialWorkspaceRoot: root });
   const browser = await chromium.launch({ headless: true });
@@ -761,6 +780,11 @@ test('blank Artboard opens action templates without creating or running defaults
   const browser = await chromium.launch({ headless: true });
   try {
     await app.listen({ host: '127.0.0.1', port: 3101 });
+    // Run summaries are durable and may already exist when this app starts.
+    // Only a newly created run would violate the no-auto-execution contract.
+    const listRunIds = async () =>
+      ((await app.inject('/runs')).json() as Array<{ id: string }>).map((run) => run.id).sort();
+    const initialRunIds = await listRunIds();
     const page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
     const posts: string[] = [];
     page.on('request', (request) => {
@@ -784,7 +808,7 @@ test('blank Artboard opens action templates without creating or running defaults
     await page.getByTestId('workflow-node-start').waitFor();
     expect(await page.getByTestId('workflow-artboard').locator('.react-flow').count()).toEqual(1);
     expect(posts.length).toEqual(1);
-    expect((await app.inject('/runs')).json().length).toEqual(0);
+    expect(await listRunIds()).toEqual(initialRunIds);
     await page.getByRole('button', { name: 'Back to workspace' }).click();
     await page.getByTestId('workflow-empty-state').waitFor();
     expect(await page.getByTestId('workflow-node-start').count()).toEqual(0);

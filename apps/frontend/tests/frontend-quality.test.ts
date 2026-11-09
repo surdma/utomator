@@ -254,6 +254,42 @@ test('WCAG A and AA checks cover unlinked, unavailable, and connected provider s
   await assertAxe(page, info, 'unlinked');
 });
 
+test('network selection retains accessible contrast throughout state changes', async ({
+  page,
+}, info) => {
+  await installConnectorApi(page, []);
+  const dialog = await openConnectorDialog(page);
+  const choices = dialog.locator('[aria-label="Social networks"] button');
+  await expect(choices).toHaveCount(2);
+
+  // Text and background must change together, not animate through a
+  // low-contrast intermediate pair. Border feedback can still transition.
+  const properties = await choices.evaluateAll((buttons) =>
+    buttons.map((button) =>
+      getComputedStyle(button)
+        .transitionProperty.split(',')
+        .map((property) => property.trim()),
+    ),
+  );
+  for (const transitions of properties) {
+    expect(transitions).not.toContain('all');
+    expect(transitions).not.toContain('color');
+    expect(transitions).not.toContain('background-color');
+  }
+
+  const x = dialog.getByRole('button', { name: 'X', exact: true });
+  const linkedin = dialog.getByRole('button', {
+    name: 'LinkedIn',
+    exact: true,
+  });
+  await x.click();
+  await expect(x).toHaveAttribute('aria-pressed', 'true');
+  await assertAxe(page, info, 'network-switched-to-x');
+  await linkedin.click();
+  await expect(linkedin).toHaveAttribute('aria-pressed', 'true');
+  await assertAxe(page, info, 'network-switched-to-linkedin');
+});
+
 test('network errors are shown as recoverable feedback', async ({
   page,
 }, info) => {
@@ -656,7 +692,9 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
           gap:
             element.getBoundingClientRect().bottom -
             lastCard.getBoundingClientRect().bottom,
-          pixelTolerance: 1 / window.devicePixelRatio,
+          // DOMRect boundaries are rounded to fractional CSS pixels.
+          // Permit 0.5px quantization without masking visible overlap.
+          pixelTolerance: Math.max(1 / window.devicePixelRatio, 0.5),
         }
       : null;
   });
@@ -1460,7 +1498,7 @@ test('Mator creates a persisted workflow and accepts the first chat message', as
     },
   };
   let created = false;
-  let conversationCreated = false;
+  let conversationCreateCount = 0;
   let message = '';
   await page.route('**/api/workflows', (route) => {
     if (route.request().method() === 'POST') {
@@ -1477,9 +1515,9 @@ test('Mator creates a persisted workflow and accepts the first chat message', as
       body: JSON.stringify(created ? [record] : []),
     });
   });
-  await page.route('**/api/mator/workflows/*/conversations', (route) => {
+  await page.route('**/api/mator/workflows/*/conversations', async (route) => {
     if (route.request().method() === 'POST') {
-      conversationCreated = true;
+      conversationCreateCount++;
       return route.fulfill({
         status: 201,
         contentType: 'application/json',
@@ -1494,6 +1532,8 @@ test('Mator creates a persisted workflow and accepts the first chat message', as
         }),
       });
     }
+    // A delayed stale read reproduces the first-send/auto-refresh race.
+    await new Promise((resolve) => setTimeout(resolve, 120));
     return route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -1543,7 +1583,7 @@ test('Mator creates a persisted workflow and accepts the first chat message', as
     dock.getByText('Mator received the first message'),
   ).toBeVisible();
   expect(created).toBe(true);
-  expect(conversationCreated).toBe(true);
+  expect(conversationCreateCount).toBe(1);
   expect(message).toBe('I need my first workflow');
 });
 
