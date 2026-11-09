@@ -254,6 +254,42 @@ test('WCAG A and AA checks cover unlinked, unavailable, and connected provider s
   await assertAxe(page, info, 'unlinked');
 });
 
+test('network selection retains accessible contrast throughout state changes', async ({
+  page,
+}, info) => {
+  await installConnectorApi(page, []);
+  const dialog = await openConnectorDialog(page);
+  const choices = dialog.locator('[aria-label="Social networks"] button');
+  await expect(choices).toHaveCount(2);
+
+  // Text and background must change together, not animate through a
+  // low-contrast intermediate pair. Border feedback can still transition.
+  const properties = await choices.evaluateAll((buttons) =>
+    buttons.map((button) =>
+      getComputedStyle(button)
+        .transitionProperty.split(',')
+        .map((property) => property.trim()),
+    ),
+  );
+  for (const transitions of properties) {
+    expect(transitions).not.toContain('all');
+    expect(transitions).not.toContain('color');
+    expect(transitions).not.toContain('background-color');
+  }
+
+  const x = dialog.getByRole('button', { name: 'X', exact: true });
+  const linkedin = dialog.getByRole('button', {
+    name: 'LinkedIn',
+    exact: true,
+  });
+  await x.click();
+  await expect(x).toHaveAttribute('aria-pressed', 'true');
+  await assertAxe(page, info, 'network-switched-to-x');
+  await linkedin.click();
+  await expect(linkedin).toHaveAttribute('aria-pressed', 'true');
+  await assertAxe(page, info, 'network-switched-to-linkedin');
+});
+
 test('network errors are shown as recoverable feedback', async ({
   page,
 }, info) => {

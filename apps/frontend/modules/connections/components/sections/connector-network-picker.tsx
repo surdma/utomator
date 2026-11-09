@@ -46,7 +46,7 @@ export default function ConnectorNetworkPicker({
                 setMessage('');
               }}
               className={
-                'flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-xl border px-2.5 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 ' +
+                'flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-xl border px-2.5 py-2.5 text-sm font-semibold transition-[border-color] duration-[180ms] motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 ' +
                 (network === key
                   ? 'border-slate-950 bg-slate-950 text-white'
                   : 'border-slate-200 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50')
