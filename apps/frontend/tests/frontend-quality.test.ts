@@ -656,7 +656,9 @@ test('Mator renders persisted messages and staged cards without clipping narrow 
           gap:
             element.getBoundingClientRect().bottom -
             lastCard.getBoundingClientRect().bottom,
-          pixelTolerance: 1 / window.devicePixelRatio,
+          // DOMRect boundaries are rounded to fractional CSS pixels.
+          // Permit 0.5px quantization without masking visible overlap.
+          pixelTolerance: Math.max(1 / window.devicePixelRatio, 0.5),
         }
       : null;
   });

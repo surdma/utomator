@@ -783,9 +783,7 @@ test('blank Artboard opens action templates without creating or running defaults
     // Run summaries are durable and may already exist when this app starts.
     // Only a newly created run would violate the no-auto-execution contract.
     const listRunIds = async () =>
-      ((await app.inject('/runs')).json() as Array<{ id: string }>)
-        .map((run) => run.id)
-        .sort();
+      ((await app.inject('/runs')).json() as Array<{ id: string }>).map((run) => run.id).sort();
     const initialRunIds = await listRunIds();
     const page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
     const posts: string[] = [];
