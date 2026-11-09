@@ -7,14 +7,15 @@
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
     "start:hosted": "node hosted/server.mjs",
-    "test:hosted": "node --test tests/hosted-auth.test.mjs tests/hosted-gateway.test.mjs tests/hosted-worker.test.mjs",
+    "test:hosted": "vitest run --config vitest.hosted.config.ts tests/hosted-auth.test.mjs tests/hosted-gateway.test.mjs tests/hosted-worker.test.mjs",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "biome lint --max-diagnostics=200 .",
     "lint:fix": "biome check --write .",
-    "test": "node --import tsx --test tests/core.test.mjs tests/server.test.ts tests/profile-context.test.ts tests/crafts.test.ts tests/workflow-plan.test.ts tests/growth-profile-workflow.test.ts tests/profile-planner.test.ts tests/career-store.test.ts tests/account-store.test.ts tests/session-vault.test.ts tests/connector-session.test.ts tests/activity-memory.test.ts tests/linkedin-creator-research.test.ts tests/linkedin-editorial.test.ts tests/linkedin-publishing.test.ts tests/linkedin-growth-capabilities.test.ts tests/connected-expiry.test.ts tests/database-documents.test.ts tests/tenant-isolation.test.ts tests/mator-*.test.ts",
-    "test:core": "node --experimental-strip-types --test tests/*.test.mjs",
-    "test:integration": "node --import tsx --test tests/*.integration.test.ts",
+    "test": "vitest run --config vitest.unit.config.ts && vitest run --config vitest.feature.config.ts",
+    "test:unit": "vitest run --config vitest.unit.config.ts",
+    "test:feature": "vitest run --config vitest.feature.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts tests/*.integration.test.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:migrate": "drizzle-kit migrate",
@@ -37,7 +38,8 @@
     "@types/node": "^22.0.0",
     "add": "^2.0.9",
     "drizzle-kit": "1.0.0-rc.5",
-    "tsx": "^4.23.15"
+    "tsx": "^4.23.15",
+    "vitest": "^3"
   },
   "engines": {
     "node": ">=22"

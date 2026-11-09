@@ -1,7 +1,7 @@
 'use client';
 
-import { cn } from '@/lib/utils';
 import { MessageScroller as HeadlessMessageScroller } from '@shadcn/react/message-scroller';
+import { cn } from '@/lib/utils';
 
 /**
  * Styled parts over the @shadcn/react message-scroller engine:
@@ -13,7 +13,7 @@ export function MessageScrollerProvider(
   props: Omit<
     React.ComponentProps<typeof HeadlessMessageScroller.Provider>,
     'autoScroll'
-  > & { autoScroll?: boolean }
+  > & { autoScroll?: boolean },
 ) {
   return <HeadlessMessageScroller.Provider {...props} />;
 }
@@ -38,8 +38,8 @@ export function MessageScrollerViewport({
     <HeadlessMessageScroller.Viewport
       aria-label={props['aria-label'] ?? 'Messages'}
       className={cn(
-        'min-h-0 flex-1 overflow-y-auto overscroll-contain',
-        className
+        'flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain',
+        className,
       )}
       {...props}
     />
@@ -52,7 +52,10 @@ export function MessageScrollerContent({
 }: React.ComponentProps<typeof HeadlessMessageScroller.Content>) {
   return (
     <HeadlessMessageScroller.Content
-      className={cn('flex flex-col gap-5 px-4 py-3', className)}
+      className={cn(
+        'flex min-h-full flex-1 flex-col gap-5 px-4 py-3 [&>*:first-child]:mt-auto',
+        className,
+      )}
       {...props}
     />
   );
@@ -64,7 +67,7 @@ export function MessageScrollerItem({
 }: React.ComponentProps<typeof HeadlessMessageScroller.Item>) {
   return (
     <HeadlessMessageScroller.Item
-      className={cn('min-w-0', className)}
+      className={cn('min-w-0 w-full', className)}
       {...props}
     />
   );
@@ -82,7 +85,7 @@ export function MessageScrollerButton({
     <HeadlessMessageScroller.Button
       className={cn(
         'absolute right-4 bottom-3 z-10 inline-flex h-8 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-[11px] font-bold text-teal-800 shadow-md transition-opacity hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 data-[active=false]:hidden',
-        className
+        className,
       )}
       aria-label="Jump to latest message"
       {...props}

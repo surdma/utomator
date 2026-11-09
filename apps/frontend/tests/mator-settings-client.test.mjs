@@ -1,10 +1,9 @@
-import assert from 'node:assert/strict';
-import { afterEach, test } from 'node:test';
+import { afterEach, expect, test } from 'vitest';
 import {
   fetchMatorSettings,
   matorSettingsUrl,
   saveMatorSettings,
-} from '../components/dashboard/pipeline/mator-api.ts';
+} from '../modules/mator/components/mator-api.ts';
 
 const originalFetch = globalThis.fetch;
 afterEach(() => {
@@ -12,13 +11,13 @@ afterEach(() => {
 });
 
 test('mator settings use the same-origin API proxy path', () => {
-  assert.equal(matorSettingsUrl(), '/api/mator/settings');
+  expect(matorSettingsUrl()).toEqual('/api/mator/settings');
 });
 
 test('fetchMatorSettings returns masked settings from GET', async () => {
   globalThis.fetch = async (url, options) => {
-    assert.equal(url, '/api/mator/settings');
-    assert.equal(options.cache, 'no-store');
+    expect(url).toEqual('/api/mator/settings');
+    expect(options.cache).toEqual('no-store');
     return new Response(
       JSON.stringify({
         groqKeyConfigured: true,
@@ -27,10 +26,10 @@ test('fetchMatorSettings returns masked settings from GET', async () => {
         howTtsEnabled: true,
         modelId: 'openai/gpt-oss-20b',
       }),
-      { status: 200 }
+      { status: 200 },
     );
   };
-  assert.deepEqual(await fetchMatorSettings(), {
+  expect(await fetchMatorSettings()).toEqual({
     groqKeyConfigured: true,
     autoApprove: false,
     squashPipelineHistory: true,
@@ -41,9 +40,9 @@ test('fetchMatorSettings returns masked settings from GET', async () => {
 
 test('saveMatorSettings PUTs JSON and returns masked response without echoing key', async () => {
   globalThis.fetch = async (url, options) => {
-    assert.equal(url, '/api/mator/settings');
-    assert.equal(options.method, 'PUT');
-    assert.deepEqual(JSON.parse(options.body), {
+    expect(url).toEqual('/api/mator/settings');
+    expect(options.method).toEqual('PUT');
+    expect(JSON.parse(options.body)).toEqual({
       groqApiKey: 'gsk_secret',
       autoApprove: true,
     });
@@ -55,15 +54,15 @@ test('saveMatorSettings PUTs JSON and returns masked response without echoing ke
         howTtsEnabled: true,
         modelId: 'openai/gpt-oss-20b',
       }),
-      { status: 200 }
+      { status: 200 },
     );
   };
   const saved = await saveMatorSettings({
     groqApiKey: 'gsk_secret',
     autoApprove: true,
   });
-  assert.equal(saved.groqKeyConfigured, true);
-  assert.equal('groqApiKey' in saved, false);
+  expect(saved.groqKeyConfigured).toEqual(true);
+  expect('groqApiKey' in saved).toEqual(false);
 });
 
 test('saveMatorSettings surfaces backend errors', async () => {
@@ -71,8 +70,21 @@ test('saveMatorSettings surfaces backend errors', async () => {
     new Response(JSON.stringify({ error: 'Groq API key cannot be empty' }), {
       status: 400,
     });
-  await assert.rejects(
-    saveMatorSettings({ groqApiKey: '' }),
-    /Groq API key cannot be empty/
+  await expect(saveMatorSettings({ groqApiKey: '' })).rejects.toThrow(
+    /Groq API key cannot be empty/,
   );
+});
+
+test('saveMatorSettings sends chosen temperature and returns persisted value', async () => {
+  globalThis.fetch = async (url, options) => {
+    expect(url).toEqual('/api/mator/settings');
+    expect(options.method).toEqual('PUT');
+    expect(JSON.parse(options.body)).toEqual({ temperature: 0.7 });
+    return new Response(
+      JSON.stringify({ temperature: 0.7, modelId: 'openai/gpt-oss-20b' }),
+      { status: 200 },
+    );
+  };
+  const settings = await saveMatorSettings({ temperature: 0.7 });
+  expect(settings.temperature).toBe(0.7);
 });

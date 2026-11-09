@@ -1,11 +1,10 @@
-import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { expect, test } from 'vitest';
 import {
   appendRunEvent,
   belongsToRun,
   isPauseOrResume,
   isTerminalRunStatus,
-} from '../components/dashboard/pipeline/run-event-utils.ts';
+} from '../modules/pipeline/components/run-event-utils.ts';
 
 const runEvent = (kind, message, id = 1, runId = 'run-one') => ({
   id,
@@ -18,27 +17,28 @@ const runEvent = (kind, message, id = 1, runId = 'run-one') => ({
 test('replayed events are ignored without changing the previous array', () => {
   const first = runEvent('step', 'Inspect current page');
   const current = [first];
-  assert.equal(appendRunEvent(current, first), current);
-  assert.deepEqual(
-    appendRunEvent(current, runEvent('step', 'Verify page', 2)),
-    [first, runEvent('step', 'Verify page', 2)]
-  );
+  expect(appendRunEvent(current, first)).toEqual(current);
+  expect(appendRunEvent(current, runEvent('step', 'Verify page', 2))).toEqual([
+    first,
+    runEvent('step', 'Verify page', 2),
+  ]);
 });
 
 test('events from other executions cannot update the selected run', () => {
-  assert.equal(belongsToRun(runEvent('result', 'Done'), 'run-one'), true);
-  assert.equal(belongsToRun(runEvent('result', 'Done'), 'run-two'), false);
-  assert.equal(belongsToRun(runEvent('result', 'Done'), null), false);
+  expect(belongsToRun(runEvent('result', 'Done'), 'run-one')).toEqual(true);
+  expect(belongsToRun(runEvent('result', 'Done'), 'run-two')).toEqual(false);
+  expect(belongsToRun(runEvent('result', 'Done'), null)).toEqual(false);
 });
 
 test('only the existing status messages request a refresh', () => {
-  assert.equal(isPauseOrResume(runEvent('status', 'Run paused')), true);
-  assert.equal(isPauseOrResume(runEvent('status', 'Run resumed')), true);
-  assert.equal(isPauseOrResume(runEvent('step', 'Run paused')), false);
-  assert.equal(
+  expect(isPauseOrResume(runEvent('status', 'Run paused'))).toEqual(true);
+  expect(isPauseOrResume(runEvent('status', 'Run resumed'))).toEqual(true);
+  expect(isPauseOrResume(runEvent('step', 'Run paused'))).toEqual(false);
+  expect(
     isTerminalRunStatus(runEvent('status', 'Run ended: completed')),
-    true
+  ).toEqual(true);
+  expect(isTerminalRunStatus(runEvent('status', 'Run finished'))).toEqual(true);
+  expect(isTerminalRunStatus(runEvent('result', 'Run finished'))).toEqual(
+    false,
   );
-  assert.equal(isTerminalRunStatus(runEvent('status', 'Run finished')), true);
-  assert.equal(isTerminalRunStatus(runEvent('result', 'Run finished')), false);
 });

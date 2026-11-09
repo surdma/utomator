@@ -1,29 +1,34 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AccountStore } from '../src/profile/account-store.js';
-import { defaultPlan, templates, validatePlan } from '../src/core/workflow-plan.js';
-import { WorkflowPlanStore } from '../src/core/workflow-store.js';
-import { WorkflowRegistry } from '../src/core/workflow-registry.js';
-import { RunArchive } from '../src/core/run-archive.js';
-import { compileWorkflow } from '../src/core/workflow-yaml.js';
-import { parseStepDefinition, StepDefinitionStore } from '../src/core/step-definitions.js';
-import { loadStepForms, parseStepForms } from '../src/core/step-forms.js';
-import { randomUUID } from 'node:crypto';
+import { expect, test } from 'vitest';
+import { defaultPlan, templates, validatePlan } from '../src/domain/workflow-plan.js';
+import { AccountStore } from '../src/infrastructure/profile/account-store.js';
+import { RunArchive } from '../src/infrastructure/runs/run-archive.js';
+import {
+  parseStepDefinition,
+  StepDefinitionStore,
+} from '../src/infrastructure/workflows/step-definitions.js';
+import { loadStepForms, parseStepForms } from '../src/infrastructure/workflows/step-forms.js';
+import { WorkflowRegistry } from '../src/infrastructure/workflows/workflow-registry.js';
+import { WorkflowPlanStore } from '../src/infrastructure/workflows/workflow-store.js';
+import { compileWorkflow } from '../src/infrastructure/workflows/workflow-yaml.js';
+import { removeTemp } from './support/remove-temp.js';
+
 // Set test mode before dynamically importing the Fastify entry point.
 // Static ESM imports execute before assignments and would start a stray listener.
 process.env.NODE_ENV = 'test';
 const { buildApp } = await import('../src/main.js');
-import { BrowserSession } from '../src/browser/session.js';
+
+import { BrowserSession } from '../src/infrastructure/browser/session.js';
 
 test('YAML step forms expose only known, bounded editable fields', async () => {
   const forms = await loadStepForms();
-  assert.equal(forms.delay.fields[0]?.key, 'delayMs');
-  assert.equal(forms.delay.fields[0]?.max, 30000);
-  assert.equal(forms.note.fields[0]?.control, 'textarea');
-  assert.equal(forms.action.fields.length, 0);
+  expect(forms.delay.fields[0]?.key).toEqual('delayMs');
+  expect(forms.delay.fields[0]?.max).toEqual(30000);
+  expect(forms.note.fields[0]?.control).toEqual('textarea');
+  expect(forms.action.fields.length).toEqual(0);
   const responseApp = buildApp();
   try {
     await responseApp.ready();
@@ -31,14 +36,13 @@ test('YAML step forms expose only known, bounded editable fields', async () => {
       method: 'GET',
       url: '/step-forms',
     });
-    assert.equal(response.statusCode, 200, response.body);
+    expect(response.statusCode).toEqual(200);
     const data = response.json() as typeof forms;
-    assert.equal(data.note.fields[0]?.label, 'Journal message');
+    expect(data.note.fields[0]?.label).toEqual('Journal message');
   } finally {
     await responseApp.close();
   }
-  assert.throws(
-    () => parseStepForms('kind: "StepForms"\nforms:\n  start: "invalid"'),
+  expect(() => parseStepForms('kind: "StepForms"\nforms:\n  start: "invalid"')).toThrow(
     /Unknown step form document/,
   );
 });
@@ -46,14 +50,14 @@ test('YAML step forms expose only known, bounded editable fields', async () => {
 test('template generators expose only executable actions for each platform', () => {
   const x = templates('x');
   const linkedIn = templates('linkedin');
-  assert(x.some((plan) => plan.action === 'compose-post'));
-  assert(x.some((plan) => plan.action === 'delete-post'));
-  assert(!linkedIn.some((plan) => plan.action === 'compose-post'));
-  assert(linkedIn.some((plan) => plan.action === 'add-project'));
+  expect(x.some((plan) => plan.action === 'compose-post')).toBeTruthy();
+  expect(x.some((plan) => plan.action === 'delete-post')).toBeTruthy();
+  expect(!linkedIn.some((plan) => plan.action === 'compose-post')).toBeTruthy();
+  expect(linkedIn.some((plan) => plan.action === 'add-project')).toBeTruthy();
   for (const plan of [...x, ...linkedIn]) {
     const verified = validatePlan(plan, plan.platform, plan.action);
-    assert.equal(verified.steps.length, plan.steps.length);
-    assert.equal(verified.links.length, plan.steps.length - 1);
+    expect(verified.steps.length).toEqual(plan.steps.length);
+    expect(verified.links.length).toEqual(plan.steps.length - 1);
   }
 });
 
@@ -75,29 +79,29 @@ test('plan validates real reordered optional steps and rejects unsafe links', ()
       target: step.id,
     })),
   };
-  assert.equal(validatePlan(draft, 'x', 'audit').steps[3]?.id, 'note-1');
+  expect(validatePlan(draft, 'x', 'audit').steps[3]?.id).toEqual('note-1');
   const missing = {
     ...draft,
     steps: draft.steps.filter((s) => s.id !== 'session'),
   };
-  assert.throws(() => validatePlan(missing, 'x', 'audit'), /connected|Required/);
+  expect(() => validatePlan(missing, 'x', 'audit')).toThrow(/connected|Required/);
   const duplicate = {
     ...draft,
     links: [...draft.links.slice(0, -1), draft.links[0]!],
   };
-  assert.throws(() => validatePlan(duplicate, 'x', 'audit'), /Branching|connected/);
+  expect(() => validatePlan(duplicate, 'x', 'audit')).toThrow(/Branching|connected/);
   const foreign = { ...draft, platform: 'linkedin' as const };
-  assert.throws(() => validatePlan(foreign, 'x', 'audit'), /identity/);
+  expect(() => validatePlan(foreign, 'x', 'audit')).toThrow(/identity/);
   const overflow = {
     ...draft,
     steps: draft.steps.map((s) => (s.id === 'note-1' ? { ...s, message: 'x'.repeat(601) } : s)),
   };
-  assert.throws(() => validatePlan(overflow, 'x', 'audit'), /Invalid workflow step/);
+  expect(() => validatePlan(overflow, 'x', 'audit')).toThrow(/Invalid workflow step/);
   const unsafe = {
     ...draft,
     steps: draft.steps.map((s) => (s.id === 'note-1' ? { ...s, kind: 'script' as 'note' } : s)),
   };
-  assert.throws(() => validatePlan(unsafe, 'x', 'audit'), /Invalid workflow step/);
+  expect(() => validatePlan(unsafe, 'x', 'audit')).toThrow(/Invalid workflow step/);
 });
 
 test('each validated node compiles to a deterministic, allowlisted YAML instruction', () => {
@@ -105,34 +109,25 @@ test('each validated node compiles to a deterministic, allowlisted YAML instruct
   const step = plan.steps.find((item) => item.id === 'inspect')!;
   step.message = 'Observe: true\n  operation: malicious-command';
   const compiled = compileWorkflow(plan);
-  assert.equal(compiled.steps.length, 6);
-  assert.equal(compiled.steps[3]?.document.spec.operation, 'execute-approved-action');
-  assert.equal(compiled.steps[3]?.document.spec.policy.humanApproval, 'enforced-by-provider-handler');
-  assert.equal(compiled.steps[2]?.document.spec.outputs.schema, 'page-observation/v1');
-  assert.match(compiled.yaml, /kind: "SocialWorkflow"/);
-  assert.match(compiled.steps[2]?.yaml ?? '', /kind: "SocialStep"/);
-  assert.match(compiled.steps[2]?.yaml ?? '', /message: /);
-  assert(
-    !compiled.steps[2]?.yaml.includes('\n  operation: malicious-command\n'),
-    'step comments must never become YAML instruction keys',
-  );
-  assert.equal(
-    compiled.steps[2]?.yaml,
-    compileWorkflow(plan).steps[2]?.yaml,
-    'YAML content and hash must be stable for a frozen workflow definition',
-  );
-  assert.equal(compiled.steps[2]?.digest.length, 64);
-  assert(!compiled.yaml.includes('postText'), 'manifest should not include private action input values');
-  assert.throws(
-    () =>
-      compileWorkflow({
-        ...plan,
-        steps: plan.steps.map((item) =>
-          item.id === 'inspect' ? { ...item, kind: 'arbitrary-shell' as 'inspect' } : item,
-        ),
-      }),
-    /Invalid workflow step/,
-  );
+  expect(compiled.steps.length).toEqual(6);
+  expect(compiled.steps[3]?.document.spec.operation).toEqual('execute-approved-action');
+  expect(compiled.steps[3]?.document.spec.policy.humanApproval).toEqual('enforced-by-provider-handler');
+  expect(compiled.steps[2]?.document.spec.outputs.schema).toEqual('page-observation/v1');
+  expect(compiled.yaml).toMatch(/kind: "SocialWorkflow"/);
+  expect(compiled.steps[2]?.yaml ?? '').toMatch(/kind: "SocialStep"/);
+  expect(compiled.steps[2]?.yaml ?? '').toMatch(/message: /);
+  expect(!compiled.steps[2]?.yaml.includes('\n  operation: malicious-command\n')).toBeTruthy();
+  expect(compiled.steps[2]?.yaml).toEqual(compileWorkflow(plan).steps[2]?.yaml);
+  expect(compiled.steps[2]?.digest.length).toEqual(64);
+  expect(!compiled.yaml.includes('postText')).toBeTruthy();
+  expect(() =>
+    compileWorkflow({
+      ...plan,
+      steps: plan.steps.map((item) =>
+        item.id === 'inspect' ? { ...item, kind: 'arbitrary-shell' as 'inspect' } : item,
+      ),
+    }),
+  ).toThrow(/Invalid workflow step/);
 });
 
 test('saved graphs, parameters and node positions survive reloading isolated workflow storage', async () => {
@@ -155,17 +150,16 @@ test('saved graphs, parameters and node positions survive reloading isolated wor
     };
     await store.save('x', 'audit', changed);
     const loaded = await new WorkflowPlanStore(dir).get('x', 'audit');
-    assert.equal(loaded.parameters?.bio, 'reviewed-only');
-    assert.equal(loaded.steps.find((s) => s.id === 'inspect')?.position?.x, 670);
-    assert.equal(loaded.steps.find((s) => s.id === 'inspect')?.title, 'Inspect verified account');
+    expect(loaded.parameters?.bio).toEqual('reviewed-only');
+    expect(loaded.steps.find((s) => s.id === 'inspect')?.position?.x).toEqual(670);
+    expect(loaded.steps.find((s) => s.id === 'inspect')?.title).toEqual('Inspect verified account');
     const source = await readFile(join(dir, 'x-audit.json'), 'utf8');
-    assert(source.includes('Inspect verified account'));
-    assert.throws(
-      () => validatePlan({ ...changed, parameters: { secret: 'password' } }, 'x', 'audit'),
+    expect(source.includes('Inspect verified account')).toBeTruthy();
+    expect(() => validatePlan({ ...changed, parameters: { secret: 'password' } }, 'x', 'audit')).toThrow(
       /parameters/,
     );
   } finally {
-    await rm(dir, { recursive: true, force: true });
+    await removeTemp(dir);
   }
 });
 
@@ -174,19 +168,19 @@ test('Fastify exposes generator and saved defaults; malformed graph never starts
   try {
     await app.ready();
     const list = await app.inject('/workflow-templates/x');
-    assert.equal(list.statusCode, 200);
-    assert(list.json().some((plan: { action: string }) => plan.action === 'pin-post'));
+    expect(list.statusCode).toEqual(200);
+    expect(list.json().some((plan: { action: string }) => plan.action === 'pin-post')).toBeTruthy();
     const unknown = await app.inject('/workflow-templates/invalid');
-    assert.equal(unknown.statusCode, 400);
+    expect(unknown.statusCode).toEqual(400);
     const plan = defaultPlan('x', 'audit');
     const yaml = await app.inject('/workflow-plans/x/audit/yaml');
-    assert.equal(yaml.statusCode, 200);
-    assert.match(yaml.body, /kind: "SocialWorkflow"/);
-    assert.equal(yaml.headers['cache-control'], 'private, no-store');
+    expect(yaml.statusCode).toEqual(200);
+    expect(yaml.body).toMatch(/kind: "SocialWorkflow"/);
+    expect(yaml.headers['cache-control']).toEqual('private, no-store');
     const stepYaml = await app.inject('/workflow-plans/x/audit/steps/action/yaml');
-    assert.equal(stepYaml.statusCode, 200);
-    assert.match(stepYaml.body, /operation: "execute-approved-action"/);
-    assert.equal((await app.inject('/workflow-plans/x/audit/steps/unknown/yaml')).statusCode, 404);
+    expect(stepYaml.statusCode).toEqual(200);
+    expect(stepYaml.body).toMatch(/operation: "execute-approved-action"/);
+    expect((await app.inject('/workflow-plans/x/audit/steps/unknown/yaml')).statusCode).toEqual(404);
     const beforeRuns = (await app.inject('/runs')).json().length;
     const bad = {
       ...plan,
@@ -202,13 +196,14 @@ test('Fastify exposes generator and saved defaults; malformed graph never starts
         workflow: bad,
       },
     });
-    assert.equal(response.statusCode, 400);
-    assert.match(response.body, /Branching|connected/);
-    assert.equal((await app.inject('/runs')).json().length, beforeRuns);
-    assert.equal((await app.inject({ method: 'POST', url: '/runs/no-such-run/pause' })).statusCode, 409);
-    assert.equal(
-      (await app.inject({ method: 'POST', url: '/runs/no-such-run/resume' })).statusCode,
-      409,
+    expect(response.statusCode).toEqual(400);
+    expect(response.body).toMatch(/Branching|connected/);
+    expect((await app.inject('/runs')).json().length).toEqual(beforeRuns);
+    expect((await app.inject({ method: 'POST', url: '/runs/no-such-run/pause' })).statusCode).toEqual(
+      404,
+    );
+    expect((await app.inject({ method: 'POST', url: '/runs/no-such-run/resume' })).statusCode).toEqual(
+      404,
     );
   } finally {
     await app.close();
@@ -253,7 +248,7 @@ test('operator hold and stop nodes execute in the backend without clicking a web
         workflow: plan,
       },
     });
-    assert.equal(started.statusCode, 202, started.body);
+    expect(started.statusCode).toEqual(202);
     const id = started.json().id as string;
     let state = '';
     for (let i = 0; i < 120; i++) {
@@ -262,50 +257,46 @@ test('operator hold and stop nodes execute in the backend without clicking a web
       if (state === 'paused') break;
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
-    assert.equal(state, 'paused', 'backend pauses at the actual operator breakpoint');
+    expect(state).toEqual('paused');
     const manifest = await app.inject(`/runs/${id}/workflow.yaml`);
-    assert.equal(manifest.statusCode, 200);
-    assert.match(manifest.body, /document: "pause-before-action.yaml"/);
+    expect(manifest.statusCode).toEqual(200);
+    expect(manifest.body).toMatch(/document: "pause-before-action.yaml"/);
     const pausedYaml = await app.inject(`/runs/${id}/steps/pause-before-action.yaml`);
-    assert.equal(pausedYaml.statusCode, 200);
-    assert.match(pausedYaml.body, /operation: "await-operator"/);
+    expect(pausedYaml.statusCode).toEqual(200);
+    expect(pausedYaml.body).toMatch(/operation: "await-operator"/);
     const stoppedYaml = await app.inject(`/runs/${id}/steps/stop-before-action.yaml`);
-    assert.equal(stoppedYaml.statusCode, 200);
-    assert.match(stoppedYaml.body, /operation: "end-run"/);
+    expect(stoppedYaml.statusCode).toEqual(200);
+    expect(stoppedYaml.body).toMatch(/operation: "end-run"/);
     const diskStep = await readFile(
       join(process.cwd(), '.runtime', 'runs', id, 'stop-before-action.yaml'),
       'utf8',
     );
-    assert.equal(diskStep, stoppedYaml.body, 'run YAML must exist as a separate on-disk step document');
+    expect(diskStep).toEqual(stoppedYaml.body);
     plan.steps[2]!.title = 'Changed after the run started';
     const snapshotAgain = await app.inject(`/runs/${id}/steps/pause-before-action.yaml`);
-    assert.match(snapshotAgain.body, /Operator breakpoint/);
-    assert(
-      !snapshotAgain.body.includes('Changed after the run started'),
-      'historic step instructions cannot be rewritten by the editable source plan',
-    );
-    assert.equal((await app.inject(`/runs/${id}/steps/bogus.yaml`)).statusCode, 404);
+    expect(snapshotAgain.body).toMatch(/Operator breakpoint/);
+    expect(!snapshotAgain.body.includes('Changed after the run started')).toBeTruthy();
+    expect((await app.inject(`/runs/${id}/steps/bogus.yaml`)).statusCode).toEqual(404);
     const resumed = await app.inject({
       method: 'POST',
       url: `/runs/${id}/resume`,
     });
-    assert.equal(resumed.statusCode, 200, resumed.body);
+    expect(resumed.statusCode).toEqual(200);
     for (let i = 0; i < 120; i++) {
       state = (await app.inject(`/runs/${id}`)).json().state;
       if (state === 'cancelled' || state === 'failed' || state === 'completed') break;
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
-    assert.equal(state, 'cancelled', 'stop node terminates before the action');
+    expect(state).toEqual('cancelled');
     const log = await app.inject(`/runs/${id}/logs`);
-    assert.equal(log.statusCode, 200);
-    assert.match(log.body, /Quit safely/);
+    expect(log.statusCode).toEqual(200);
+    expect(log.body).toMatch(/Quit safely/);
     const entries = log.json() as Array<{
       details?: { stepId?: string; stage?: string };
     }>;
-    assert(
+    expect(
       !entries.some((item) => item.details?.stepId === 'action' && item.details.stage === 'started'),
-      'the Playwright action handler must never execute after a stop node',
-    );
+    ).toBeTruthy();
   } finally {
     await app.close();
     BrowserSession.prototype.open = originalOpen;
@@ -325,24 +316,24 @@ test('unique workflows preserve independent same-action configurations and immut
       { ...defaultPlan('x', 'compose-post'), name: 'Series B' },
       'x-engagement',
     );
-    assert.notEqual(left.id, right.id);
-    assert.equal((await registry.list()).length, 2);
-    assert.equal((await registry.get(right.id))?.plan.name, 'Series B');
+    expect(left.id).not.toEqual(right.id);
+    expect((await registry.list()).length).toEqual(2);
+    expect((await registry.get(right.id))?.plan.name).toEqual('Series B');
     const changed = await registry.update(left.id, 1, {
       ...left.plan,
       name: 'Series A revision 2',
     });
-    assert.equal(changed.revision, 2);
-    assert.equal((await registry.get(left.id, 1))?.plan.name, 'Series A');
-    assert.equal((await registry.get(left.id, 2))?.plan.name, 'Series A revision 2');
-    await assert.rejects(registry.update(left.id, 1, left.plan), /Version conflict/);
+    expect(changed.revision).toEqual(2);
+    expect((await registry.get(left.id, 1))?.plan.name).toEqual('Series A');
+    expect((await registry.get(left.id, 2))?.plan.name).toEqual('Series A revision 2');
+    await expect(registry.update(left.id, 1, left.plan)).rejects.toThrow(/Version conflict/);
     const restarted = new WorkflowRegistry(join(dir, 'workflows'), join(dir, 'legacy'));
-    assert.equal((await restarted.get(left.id))?.plan.name, 'Series A revision 2');
-    assert.equal((await restarted.get(right.id))?.plan.name, 'Series B');
-    await assert.rejects(registry.get('../escape'), /Invalid workflow identifier/);
-    await assert.rejects(registry.create(left.plan, 'untrusted/path'), /template identifier/);
+    expect((await restarted.get(left.id))?.plan.name).toEqual('Series A revision 2');
+    expect((await restarted.get(right.id))?.plan.name).toEqual('Series B');
+    await expect(registry.get('../escape')).rejects.toThrow(/Invalid workflow identifier/);
+    await expect(registry.create(left.plan, 'untrusted/path')).rejects.toThrow(/template identifier/);
   } finally {
-    await rm(dir, { recursive: true, force: true });
+    await removeTemp(dir);
   }
 });
 
@@ -356,15 +347,14 @@ test('legacy platform/action workflow files import only once without modifying t
     await writeFile(join(dir, 'legacy', 'x-audit.json'), bytes);
     const registry = new WorkflowRegistry(join(dir, 'workflows'), join(dir, 'legacy'));
     const first = await registry.list();
-    assert.equal(first.length, 1);
-    assert.equal(first[0]?.plan.name, 'Historical audit');
-    assert.equal(
+    expect(first.length).toEqual(1);
+    expect(first[0]?.plan.name).toEqual('Historical audit');
+    expect(
       (await new WorkflowRegistry(join(dir, 'workflows'), join(dir, 'legacy')).list()).length,
-      1,
-    );
-    assert.equal(await readFile(join(dir, 'legacy', 'x-audit.json'), 'utf8'), bytes);
+    ).toEqual(1);
+    expect(await readFile(join(dir, 'legacy', 'x-audit.json'), 'utf8')).toEqual(bytes);
   } finally {
-    await rm(dir, { recursive: true, force: true });
+    await removeTemp(dir);
   }
 });
 
@@ -383,19 +373,19 @@ test('revisioned workflow API creates separate records, rejects stale writes and
           plan: { ...plan, name },
         },
       });
-      assert.equal(response.statusCode, 201, response.body);
+      expect(response.statusCode).toEqual(201);
       const record = response.json() as { id: string; revision: number };
       ids.push(record.id);
       return record;
     };
     const a = await create('Audit A'),
       b = await create('Audit B');
-    assert.notEqual(a.id, b.id);
-    assert.equal((await app.inject(`/workflows/${a.id}`)).json().plan.name, 'Audit A');
-    assert.equal((await app.inject(`/workflows/${b.id}`)).json().plan.name, 'Audit B');
+    expect(a.id).not.toEqual(b.id);
+    expect((await app.inject(`/workflows/${a.id}`)).json().plan.name).toEqual('Audit A');
+    expect((await app.inject(`/workflows/${b.id}`)).json().plan.name).toEqual('Audit B');
     const yaml = await app.inject(`/workflows/${a.id}/yaml`);
-    assert.equal(yaml.statusCode, 200);
-    assert.match(yaml.body, /kind: "SocialWorkflow"/);
+    expect(yaml.statusCode).toEqual(200);
+    expect(yaml.body).toMatch(/kind: "SocialWorkflow"/);
     const update = await app.inject({
       method: 'PUT',
       url: `/workflows/${a.id}`,
@@ -404,9 +394,9 @@ test('revisioned workflow API creates separate records, rejects stale writes and
         plan: { ...plan, name: 'Audit A edited' },
       },
     });
-    assert.equal(update.statusCode, 200, update.body);
-    assert.equal(update.json().revision, 2);
-    assert.equal((await app.inject(`/workflows/${a.id}/revisions/1`)).json().plan.name, 'Audit A');
+    expect(update.statusCode).toEqual(200);
+    expect(update.json().revision).toEqual(2);
+    expect((await app.inject(`/workflows/${a.id}/revisions/1`)).json().plan.name).toEqual('Audit A');
     const stale = await app.inject({
       method: 'PUT',
       url: `/workflows/${a.id}`,
@@ -415,7 +405,7 @@ test('revisioned workflow API creates separate records, rejects stale writes and
         plan,
       },
     });
-    assert.equal(stale.statusCode, 409);
+    expect(stale.statusCode).toEqual(409);
     const invalid = await app.inject({
       method: 'POST',
       url: '/runs',
@@ -427,7 +417,7 @@ test('revisioned workflow API creates separate records, rejects stale writes and
         workflowRevision: 1,
       },
     });
-    assert.equal(invalid.statusCode, 400, 'saved workflow cannot execute against a different platform');
+    expect(invalid.statusCode).toEqual(400);
     const missing = await app.inject({
       method: 'POST',
       url: '/runs',
@@ -439,7 +429,7 @@ test('revisioned workflow API creates separate records, rejects stale writes and
         workflowRevision: 999,
       },
     });
-    assert.equal(missing.statusCode, 404);
+    expect(missing.statusCode).toEqual(404);
   } finally {
     await app.close();
     for (const id of ids) {
@@ -473,9 +463,9 @@ test('typed note binding compiles from a preceding browser observation and rejec
   };
   const compiled = compileWorkflow(plan);
   const result = compiled.steps.find((step) => step.source.id === 'note-observation')!;
-  assert.equal(result.document.spec.inputs.bindings?.message.stepId, 'inspect');
-  assert.equal(result.document.spec.inputs.bindings?.message.schema, 'page-observation/v1');
-  assert.match(result.yaml, /bindings:\n {6}message:\n {8}stepId: "inspect"/);
+  expect(result.document.spec.inputs.bindings?.message.stepId).toEqual('inspect');
+  expect(result.document.spec.inputs.bindings?.message.schema).toEqual('page-observation/v1');
+  expect(result.yaml).toMatch(/bindings:\n {6}message:\n {8}stepId: "inspect"/);
   const missing = {
     ...plan,
     steps: steps.map((step) =>
@@ -489,7 +479,7 @@ test('typed note binding compiles from a preceding browser observation and rejec
         : step,
     ),
   };
-  assert.throws(() => compileWorkflow(missing), /earlier page observation/);
+  expect(() => compileWorkflow(missing)).toThrow(/earlier page observation/);
   const future = {
     ...plan,
     steps: steps.map((step) =>
@@ -503,7 +493,7 @@ test('typed note binding compiles from a preceding browser observation and rejec
         : step,
     ),
   };
-  assert.throws(() => compileWorkflow(future), /earlier page observation/);
+  expect(() => compileWorkflow(future)).toThrow(/earlier page observation/);
   const unsupported = {
     ...plan,
     steps: steps.map((step) =>
@@ -517,7 +507,7 @@ test('typed note binding compiles from a preceding browser observation and rejec
         : step,
     ),
   };
-  assert.throws(() => compileWorkflow(unsupported), /Unsupported workflow input binding/);
+  expect(() => compileWorkflow(unsupported)).toThrow(/Unsupported workflow input binding/);
 });
 
 test('a run binds live observed data to a later note and stores immutable typed step outputs', async () => {
@@ -568,7 +558,7 @@ test('a run binds live observed data to a later note and stores immutable typed 
         workflow: plan,
       },
     });
-    assert.equal(started.statusCode, 202, started.body);
+    expect(started.statusCode).toEqual(202);
     const id = started.json().id as string;
     let state = '';
     for (let i = 0; i < 120; i++) {
@@ -576,21 +566,21 @@ test('a run binds live observed data to a later note and stores immutable typed 
       if (['cancelled', 'failed', 'completed'].includes(state)) break;
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
-    assert.equal(state, 'cancelled', 'stop prevents execution of the principal provider action');
+    expect(state).toEqual('cancelled');
     const observation = await app.inject(`/runs/${id}/steps/inspect/output`);
-    assert.equal(observation.statusCode, 200, observation.body);
-    assert.deepEqual(observation.json(), {
+    expect(observation.statusCode).toEqual(200);
+    expect(observation.json()).toEqual({
       stepId: 'inspect',
       schema: 'page-observation/v1',
       url: 'https://x.com/flow_test',
       excerpt: 'Observed account profile with a public bio.',
     });
     const noteOutput = await app.inject(`/runs/${id}/steps/note-excerpt/output`);
-    assert.equal(noteOutput.statusCode, 200);
-    assert.equal(noteOutput.json().schema, 'status/v1');
-    assert.equal((await app.inject(`/runs/${id}/steps/action/output`)).statusCode, 404);
+    expect(noteOutput.statusCode).toEqual(200);
+    expect(noteOutput.json().schema).toEqual('status/v1');
+    expect((await app.inject(`/runs/${id}/steps/action/output`)).statusCode).toEqual(404);
     const journal = await app.inject(`/runs/${id}/logs`);
-    assert(
+    expect(
       journal
         .json()
         .some(
@@ -598,14 +588,13 @@ test('a run binds live observed data to a later note and stores immutable typed 
             event.message === 'Observed account profile with a public bio.' &&
             event.details?.stepId === 'note-excerpt',
         ),
-    );
+    ).toBeTruthy();
     const persisted = await readFile(
       join(process.cwd(), '.runtime', 'runs', id, 'inspect.output.json'),
       'utf8',
     );
-    assert.equal(JSON.parse(persisted).excerpt, observation.json().excerpt);
-    assert.match(
-      (await app.inject(`/runs/${id}/steps/note-excerpt.yaml`)).body,
+    expect(JSON.parse(persisted).excerpt).toEqual(observation.json().excerpt);
+    expect((await app.inject(`/runs/${id}/steps/note-excerpt.yaml`)).body).toMatch(
       /schema: "page-observation\/v1"/,
     );
   } finally {
@@ -656,35 +645,37 @@ test('archived runs survive a new app instance with recorded YAML and typed outp
         workflow: plan,
       },
     });
-    assert.equal(response.statusCode, 202, response.body);
+    expect(response.statusCode).toEqual(202);
     id = response.json().id as string;
     for (let n = 0; n < 120; n++) {
       const state = (await app.inject(`/runs/${id}`)).json().state;
       if (state === 'cancelled') break;
       await new Promise((done) => setTimeout(done, 20));
     }
-    assert.equal((await app.inject(`/runs/${id}`)).json().state, 'cancelled');
+    expect((await app.inject(`/runs/${id}`)).json().state).toEqual('cancelled');
   } finally {
     await app.close();
     BrowserSession.prototype.open = originalOpen;
     BrowserSession.prototype.close = originalClose;
   }
-  assert(id, 'the completed run should have an identifier');
+  expect(id).toBeTruthy();
   const restarted = buildApp();
   try {
     await restarted.ready();
     const restored = await restarted.inject(`/runs/${id}`);
-    assert.equal(restored.statusCode, 200, restored.body);
-    assert.equal(restored.json().state, 'cancelled');
-    assert((await restarted.inject('/runs')).json().some((item: { id: string }) => item.id === id));
+    expect(restored.statusCode).toEqual(200);
+    expect(restored.json().state).toEqual('cancelled');
+    expect(
+      (await restarted.inject('/runs')).json().some((item: { id: string }) => item.id === id),
+    ).toBeTruthy();
     const yaml = await restarted.inject(`/runs/${id}/workflow.yaml`);
-    assert.equal(yaml.statusCode, 200, yaml.body);
+    expect(yaml.statusCode).toEqual(200);
     const output = await restarted.inject(`/runs/${id}/steps/inspect/output`);
-    assert.equal(output.statusCode, 200, output.body);
-    assert.equal(output.json().excerpt, 'Archived actual browser observation.');
-    assert.equal((await restarted.inject(`/runs/${id}/steps/action/output`)).statusCode, 404);
-    assert.equal((await restarted.inject(`/runs/${id}/logs`)).statusCode, 200);
-    assert.equal((await restarted.inject(`/runs/${id}/assessment`)).statusCode, 409);
+    expect(output.statusCode).toEqual(200);
+    expect(output.json().excerpt).toEqual('Archived actual browser observation.');
+    expect((await restarted.inject(`/runs/${id}/steps/action/output`)).statusCode).toEqual(404);
+    expect((await restarted.inject(`/runs/${id}/logs`)).statusCode).toEqual(200);
+    expect((await restarted.inject(`/runs/${id}/assessment`)).statusCode).toEqual(409);
   } finally {
     await restarted.close();
   }
@@ -709,13 +700,13 @@ test('run archive marks interrupted sessions failed without reopening a browser'
     );
     const restarted = new RunArchive(dir);
     const restored = restarted.restore();
-    assert.equal(restored[0]?.summary.state, 'failed');
-    assert.match(restored[0]?.summary.error ?? '', /interrupted by an automation engine restart/);
-    assert.equal(restored[0]?.summary.checkpoint, undefined);
-    assert.equal(restarted.readArtifact(id, '../escape'), null);
-    assert.equal(restarted.readArtifact(id, 'action'), null);
+    expect(restored[0]?.summary.state).toEqual('failed');
+    expect(restored[0]?.summary.error ?? '').toMatch(/interrupted by an automation engine restart/);
+    expect(restored[0]?.summary.checkpoint).toEqual(undefined);
+    expect(restarted.readArtifact(id, '../escape')).toEqual(null);
+    expect(restarted.readArtifact(id, 'action')).toEqual(null);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    await removeTemp(dir);
   }
 });
 
@@ -739,40 +730,31 @@ test('authored YAML is immutable, schema validated, and only selects allowlisted
   try {
     const store = new StepDefinitionStore(dir);
     const id = 'noteTest';
-    assert.equal(parseStepDefinition(yaml(id, 1)).spec.operation, 'record-event');
+    expect(parseStepDefinition(yaml(id, 1)).spec.operation).toEqual('record-event');
     await store.create(yaml(id, 1));
     await store.create(yaml(id, 2));
-    await assert.rejects(store.create(yaml(id, 1)), /EEXIST/);
-    assert.equal((await store.get(id, 1))?.metadata.version, 1);
-    assert.equal((await store.list()).length, 2);
-    assert.throws(
-      () =>
-        parseStepDefinition(
-          yaml(id, 1).replace('operation: "record-event"', 'operation: "execute-shell"'),
-        ),
-      /Unregistered/,
-    );
-    assert.throws(
-      () => parseStepDefinition(yaml(id, 1).replace('  version: 1', '  version: 1\n  version: 2')),
-      /Duplicate YAML/,
-    );
-    assert.throws(
-      () => parseStepDefinition(yaml(id, 1).replace('  id: "noteTest"', '  id: ../../escape')),
-      /YAML scalar/,
-    );
-    assert.throws(
-      () =>
-        parseStepDefinition(
-          yaml(id, 1).replace('  outputs: "status/v1"', '  outputs: "action-event/v1"'),
-        ),
-      /Unregistered/,
-    );
-    assert.throws(
-      () => parseStepDefinition(`${yaml(id, 1)}  command: "bad"\n`),
+    await expect(store.create(yaml(id, 1))).rejects.toThrow(/EEXIST/);
+    expect((await store.get(id, 1))?.metadata.version).toEqual(1);
+    expect((await store.list()).length).toEqual(2);
+    expect(() =>
+      parseStepDefinition(
+        yaml(id, 1).replace('operation: "record-event"', 'operation: "execute-shell"'),
+      ),
+    ).toThrow(/Unregistered/);
+    expect(() =>
+      parseStepDefinition(yaml(id, 1).replace('  version: 1', '  version: 1\n  version: 2')),
+    ).toThrow(/Duplicate YAML/);
+    expect(() =>
+      parseStepDefinition(yaml(id, 1).replace('  id: "noteTest"', '  id: ../../escape')),
+    ).toThrow(/YAML scalar/);
+    expect(() =>
+      parseStepDefinition(yaml(id, 1).replace('  outputs: "status/v1"', '  outputs: "action-event/v1"')),
+    ).toThrow(/Unregistered/);
+    expect(() => parseStepDefinition(`${yaml(id, 1)}  command: "bad"\n`)).toThrow(
       /Invalid YAML spec schema/,
     );
   } finally {
-    await rm(dir, { recursive: true, force: true });
+    await removeTemp(dir);
   }
 });
 
@@ -815,17 +797,17 @@ test('typed bindings accept earlier note messages and numeric delay durations, b
     links: steps.slice(1).map((step, i) => ({ source: steps[i]!.id, target: step.id })),
   };
   const compiled = compileWorkflow(plan);
-  assert.equal(
+  expect(
     compiled.steps.find((step) => step.source.id === 'note-relay')?.document.spec.inputs.bindings
       ?.message?.schema,
-    'status/v1',
-  );
-  assert.equal(
+  ).toEqual('status/v1');
+  expect(
     compiled.steps.find((step) => step.source.id === 'delay-two')?.document.spec.inputs.bindings?.delayMs
       ?.schema,
-    'status/v1',
+  ).toEqual('status/v1');
+  expect(compiled.steps.find((step) => step.source.id === 'delay-two')?.yaml ?? '').toMatch(
+    /durationMs/,
   );
-  assert.match(compiled.steps.find((step) => step.source.id === 'delay-two')?.yaml ?? '', /durationMs/);
   const wrong = {
     ...plan,
     steps: steps.map((step) =>
@@ -839,7 +821,7 @@ test('typed bindings accept earlier note messages and numeric delay durations, b
         : step,
     ),
   };
-  assert.throws(() => compileWorkflow(wrong), /type mismatch/);
+  expect(() => compileWorkflow(wrong)).toThrow(/type mismatch/);
   const future = {
     ...plan,
     steps: steps.map((step) =>
@@ -853,7 +835,7 @@ test('typed bindings accept earlier note messages and numeric delay durations, b
         : step,
     ),
   };
-  assert.throws(() => compileWorkflow(future), /earlier/);
+  expect(() => compileWorkflow(future)).toThrow(/earlier/);
   const unsafe = {
     ...plan,
     steps: steps.map((step) =>
@@ -867,7 +849,7 @@ test('typed bindings accept earlier note messages and numeric delay durations, b
         : step,
     ),
   };
-  assert.throws(() => compileWorkflow(unsafe), /Unsupported workflow input binding/);
+  expect(() => compileWorkflow(unsafe)).toThrow(/Unsupported workflow input binding/);
 });
 
 test('saved YAML step definitions execute with pinned versions and expose step outputs without provider mutation', async () => {
@@ -904,8 +886,8 @@ test('saved YAML step definitions execute with pinned versions and expose step o
       url: '/step-definitions',
       payload: { yaml },
     });
-    assert.equal(created.statusCode, 201, created.body);
-    assert.equal(
+    expect(created.statusCode).toEqual(201);
+    expect(
       (
         await app.inject({
           method: 'POST',
@@ -913,9 +895,8 @@ test('saved YAML step definitions execute with pinned versions and expose step o
           payload: { yaml },
         })
       ).statusCode,
-      409,
-    );
-    assert.equal((await app.inject(`/step-definitions/${id}/versions/1`)).statusCode, 200);
+    ).toEqual(409);
+    expect((await app.inject(`/step-definitions/${id}/versions/1`)).statusCode).toEqual(200);
     const base = defaultPlan('x', 'audit');
     const note = {
       id: 'note-authored',
@@ -939,10 +920,10 @@ test('saved YAML step definitions execute with pinned versions and expose step o
       url: '/workflows',
       payload: { plan },
     });
-    assert.equal(createdWorkflow.statusCode, 201, createdWorkflow.body);
+    expect(createdWorkflow.statusCode).toEqual(201);
     const record = createdWorkflow.json() as { id: string; revision: number };
     savedWorkflowId = record.id;
-    assert.match((await app.inject(`/workflows/${record.id}/yaml`)).body, /note-authored/);
+    expect((await app.inject(`/workflows/${record.id}/yaml`)).body).toMatch(/note-authored/);
     const started = await app.inject({
       method: 'POST',
       url: '/runs',
@@ -954,19 +935,19 @@ test('saved YAML step definitions execute with pinned versions and expose step o
         workflowRevision: 1,
       },
     });
-    assert.equal(started.statusCode, 202, started.body);
+    expect(started.statusCode).toEqual(202);
     const runId = started.json().id as string;
     for (let i = 0; i < 120; i++) {
       const state = (await app.inject(`/runs/${runId}`)).json().state;
       if (['cancelled', 'failed', 'completed'].includes(state)) break;
       await new Promise((done) => setTimeout(done, 20));
     }
-    assert.equal((await app.inject(`/runs/${runId}`)).json().state, 'cancelled');
+    expect((await app.inject(`/runs/${runId}`)).json().state).toEqual('cancelled');
     const output = await app.inject(`/runs/${runId}/steps/note-authored/output`);
-    assert.equal(output.statusCode, 200, output.body);
-    assert.equal(output.json().message, 'Verified authored instruction');
-    assert.match((await app.inject(`/runs/${runId}/steps/note-authored.yaml`)).body, /definitionId/);
-    assert.equal((await app.inject(`/runs/${runId}/steps/action/output`)).statusCode, 404);
+    expect(output.statusCode).toEqual(200);
+    expect(output.json().message).toEqual('Verified authored instruction');
+    expect((await app.inject(`/runs/${runId}/steps/note-authored.yaml`)).body).toMatch(/definitionId/);
+    expect((await app.inject(`/runs/${runId}/steps/action/output`)).statusCode).toEqual(404);
   } finally {
     await app.close();
     BrowserSession.prototype.open = originalOpen;
@@ -1052,7 +1033,7 @@ test('typed note-to-note and number-to-delay handoffs execute before a guarded p
         workflow: plan,
       },
     });
-    assert.equal(started.statusCode, 202, started.body);
+    expect(started.statusCode).toEqual(202);
     const id = started.json().id as string;
     let state = '';
     for (let i = 0; i < 120; i++) {
@@ -1060,13 +1041,12 @@ test('typed note-to-note and number-to-delay handoffs execute before a guarded p
       if (['failed', 'cancelled', 'completed'].includes(state)) break;
       await new Promise((done) => setTimeout(done, 20));
     }
-    assert.equal(state, 'cancelled');
-    assert.equal(
-      (await app.inject(`/runs/${id}/steps/note-second/output`)).json().message,
+    expect(state).toEqual('cancelled');
+    expect((await app.inject(`/runs/${id}/steps/note-second/output`)).json().message).toEqual(
       'Typed browser observation',
     );
-    assert.equal((await app.inject(`/runs/${id}/steps/delay-second/output`)).json().durationMs, 1);
-    assert.equal((await app.inject(`/runs/${id}/steps/action/output`)).statusCode, 404);
+    expect((await app.inject(`/runs/${id}/steps/delay-second/output`)).json().durationMs).toEqual(1);
+    expect((await app.inject(`/runs/${id}/steps/action/output`)).statusCode).toEqual(404);
   } finally {
     await app.close();
     BrowserSession.prototype.open = oldOpen;
@@ -1090,21 +1070,18 @@ test('authored assessment definitions enforce a reviewed output contract', () =>
     '    expectedText: "public"',
   ].join('\n')}\n`;
   const parsed = parseStepDefinition(yaml);
-  assert.equal(parsed.spec.config.expectedText, 'public');
-  assert.equal(parsed.spec.outputs, 'assessment/v1');
-  assert.throws(
-    () => parseStepDefinition(yaml.replace('assess-observation', 'execute-approved-action')),
-    /Unregistered/,
-  );
-  assert.throws(() => parseStepDefinition(yaml.replace('assessment/v1', 'status/v1')), /Unregistered/);
-  assert.throws(
-    () => parseStepDefinition(yaml.replace('expectedText: "public"', 'expectedText: " "')),
+  expect(parsed.spec.config.expectedText).toEqual('public');
+  expect(parsed.spec.outputs).toEqual('assessment/v1');
+  expect(() =>
+    parseStepDefinition(yaml.replace('assess-observation', 'execute-approved-action')),
+  ).toThrow(/Unregistered/);
+  expect(() => parseStepDefinition(yaml.replace('assessment/v1', 'status/v1'))).toThrow(/Unregistered/);
+  expect(() => parseStepDefinition(yaml.replace('expectedText: "public"', 'expectedText: " "'))).toThrow(
     /expectation/,
   );
-  assert.throws(
-    () => parseStepDefinition(yaml.replace('    expectedText: "public"', '    script: "rm -rf"')),
-    /schema/,
-  );
+  expect(() =>
+    parseStepDefinition(yaml.replace('    expectedText: "public"', '    script: "rm -rf"')),
+  ).toThrow(/schema/);
 });
 
 test('typed assessment dataflow compiles across string and boolean outputs without provider bindings', () => {
@@ -1141,20 +1118,17 @@ test('typed assessment dataflow compiles across string and boolean outputs witho
     links: steps.slice(1).map((step, i) => ({ source: steps[i]!.id, target: step.id })),
   };
   const compiled = compileWorkflow(plan);
-  assert.equal(
-    compiled.steps.find((s) => s.source.id === 'assessment')?.document.spec.outputs.schema,
+  expect(compiled.steps.find((s) => s.source.id === 'assessment')?.document.spec.outputs.schema).toEqual(
     'assessment/v1',
   );
-  assert.equal(
+  expect(
     compiled.steps.find((s) => s.source.id === 'assessment-again')?.document.spec.inputs.bindings
       ?.expectedMatch?.schema,
-    'assessment/v1',
-  );
-  assert.equal(
+  ).toEqual('assessment/v1');
+  expect(
     compiled.steps.find((s) => s.source.id === 'assessment-note')?.document.spec.inputs.bindings?.message
       ?.schema,
-    'assessment/v1',
-  );
+  ).toEqual('assessment/v1');
   const wrong = {
     ...plan,
     steps: steps.map((step) =>
@@ -1168,7 +1142,7 @@ test('typed assessment dataflow compiles across string and boolean outputs witho
         : step,
     ),
   };
-  assert.throws(() => compileWorkflow(wrong), /type mismatch/);
+  expect(() => compileWorkflow(wrong)).toThrow(/type mismatch/);
   const future = {
     ...plan,
     steps: steps.map((step) =>
@@ -1182,7 +1156,7 @@ test('typed assessment dataflow compiles across string and boolean outputs witho
         : step,
     ),
   };
-  assert.throws(() => compileWorkflow(future), /earlier/);
+  expect(() => compileWorkflow(future)).toThrow(/earlier/);
   const unsafe = {
     ...plan,
     steps: steps.map((step) =>
@@ -1196,12 +1170,12 @@ test('typed assessment dataflow compiles across string and boolean outputs witho
         : step,
     ),
   };
-  assert.throws(() => compileWorkflow(unsafe), /Unsupported workflow input binding/);
+  expect(() => compileWorkflow(unsafe)).toThrow(/Unsupported workflow input binding/);
   const missing = {
     ...plan,
     steps: steps.map((step) => (step.id === 'assessment' ? { ...step, expectedText: undefined } : step)),
   };
-  assert.throws(() => compileWorkflow(missing), /Assessment requires/);
+  expect(() => compileWorkflow(missing)).toThrow(/Assessment requires/);
 });
 
 test('authored observation assessments produce immutable typed outputs before guarded provider actions', async () => {
@@ -1233,7 +1207,7 @@ test('authored observation assessments produce immutable typed outputs before gu
   let workflowId = '';
   try {
     await app.ready();
-    assert.equal(
+    expect(
       (
         await app.inject({
           method: 'POST',
@@ -1241,8 +1215,7 @@ test('authored observation assessments produce immutable typed outputs before gu
           payload: { yaml },
         })
       ).statusCode,
-      201,
-    );
+    ).toEqual(201);
     const base = defaultPlan('x', 'audit');
     const assess = {
       id: 'assess-authored',
@@ -1275,7 +1248,7 @@ test('authored observation assessments produce immutable typed outputs before gu
       url: '/workflows',
       payload: { plan },
     });
-    assert.equal(saved.statusCode, 201, saved.body);
+    expect(saved.statusCode).toEqual(201);
     workflowId = saved.json().id as string;
     const started = await app.inject({
       method: 'POST',
@@ -1288,32 +1261,34 @@ test('authored observation assessments produce immutable typed outputs before gu
         workflowRevision: 1,
       },
     });
-    assert.equal(started.statusCode, 202, started.body);
+    expect(started.statusCode).toEqual(202);
     const runId = started.json().id as string;
     for (let i = 0; i < 120; i++) {
       const state = (await app.inject(`/runs/${runId}`)).json().state;
       if (['cancelled', 'failed', 'completed'].includes(state)) break;
       await new Promise((done) => setTimeout(done, 20));
     }
-    assert.equal((await app.inject(`/runs/${runId}`)).json().state, 'cancelled');
+    expect((await app.inject(`/runs/${runId}`)).json().state).toEqual('cancelled');
     const assessment = await app.inject(`/runs/${runId}/steps/assess-authored/output`);
-    assert.equal(assessment.statusCode, 200, assessment.body);
-    assert.deepEqual(assessment.json(), {
+    expect(assessment.statusCode).toEqual(200);
+    expect(assessment.json()).toEqual({
       stepId: 'assess-authored',
       schema: 'assessment/v1',
       matched: true,
       summary: 'Assessment matched the declared observation text',
     });
     const noteResult = await app.inject(`/runs/${runId}/steps/note-assessment/output`);
-    assert.equal(noteResult.statusCode, 200, noteResult.body);
-    assert.equal(noteResult.json().message, assessment.json().summary);
-    assert.equal((await app.inject(`/runs/${runId}/steps/action/output`)).statusCode, 404);
-    assert.match((await app.inject(`/runs/${runId}/steps/assess-authored.yaml`)).body, /assessment\/v1/);
+    expect(noteResult.statusCode).toEqual(200);
+    expect(noteResult.json().message).toEqual(assessment.json().summary);
+    expect((await app.inject(`/runs/${runId}/steps/action/output`)).statusCode).toEqual(404);
+    expect((await app.inject(`/runs/${runId}/steps/assess-authored.yaml`)).body).toMatch(
+      /assessment\/v1/,
+    );
     const bytes = await readFile(
       join(process.cwd(), '.runtime', 'runs', runId, 'assess-authored.output.json'),
       'utf8',
     );
-    assert.equal(JSON.parse(bytes).matched, true);
+    expect(JSON.parse(bytes).matched).toEqual(true);
   } finally {
     await app.close();
     BrowserSession.prototype.open = oldOpen;
@@ -1357,16 +1332,13 @@ test('evidence and approval steps compile only with prior provenance-bound typed
     links: steps.slice(1).map((step, i) => ({ source: steps[i]!.id, target: step.id })),
   };
   const compiled = compileWorkflow(plan);
-  assert.equal(
-    compiled.steps.find((s) => s.source.id === 'evidence')?.document.spec.outputs.schema,
+  expect(compiled.steps.find((s) => s.source.id === 'evidence')?.document.spec.outputs.schema).toEqual(
     'evidence/v1',
   );
-  assert.equal(
+  expect(
     compiled.steps.find((s) => s.source.id === 'approval-review')?.document.spec.policy.humanApproval,
-    'required-at-evidence-step',
-  );
-  assert.match(
-    compiled.steps.find((s) => s.source.id === 'approval-review')?.yaml ?? '',
+  ).toEqual('required-at-evidence-step');
+  expect(compiled.steps.find((s) => s.source.id === 'approval-review')?.yaml ?? '').toMatch(
     /require-evidence-approval/,
   );
   const invalid = {
@@ -1382,7 +1354,7 @@ test('evidence and approval steps compile only with prior provenance-bound typed
         : item,
     ),
   };
-  assert.throws(() => compileWorkflow(invalid), /Approval must reference an earlier evidence digest/);
+  expect(() => compileWorkflow(invalid)).toThrow(/Approval must reference an earlier evidence digest/);
   const future = {
     ...plan,
     steps: steps.map((item) =>
@@ -1396,31 +1368,29 @@ test('evidence and approval steps compile only with prior provenance-bound typed
         : item,
     ),
   };
-  assert.throws(() => compileWorkflow(future), /earlier/);
+  expect(() => compileWorkflow(future)).toThrow(/earlier/);
   const unbound = {
     ...plan,
     steps: steps.map((item) =>
       item.id === 'approval-review' ? { ...item, inputBindings: undefined } : item,
     ),
   };
-  assert.throws(() => compileWorkflow(unbound), /Approval step requires/);
-  assert.throws(
-    () =>
-      compileWorkflow({
-        ...plan,
-        steps: steps.map((item) =>
-          item.id === 'action'
-            ? {
-                ...item,
-                inputBindings: {
-                  evidence: { stepId: 'evidence', field: 'digest' as const },
-                },
-              }
-            : item,
-        ),
-      }),
-    /Unsupported workflow input binding/,
-  );
+  expect(() => compileWorkflow(unbound)).toThrow(/Approval step requires/);
+  expect(() =>
+    compileWorkflow({
+      ...plan,
+      steps: steps.map((item) =>
+        item.id === 'action'
+          ? {
+              ...item,
+              inputBindings: {
+                evidence: { stepId: 'evidence', field: 'digest' as const },
+              },
+            }
+          : item,
+      ),
+    }),
+  ).toThrow(/Unsupported workflow input binding/);
 });
 
 test('approval of immutable observed evidence is a real checkpoint and does not execute later provider steps', async () => {
@@ -1481,7 +1451,7 @@ test('approval of immutable observed evidence is a real checkpoint and does not 
         workflow: plan,
       },
     });
-    assert.equal(started.statusCode, 202, started.body);
+    expect(started.statusCode).toEqual(202);
     const id = started.json().id as string;
     let checkpointId = '';
     for (let i = 0; i < 160; i++) {
@@ -1495,7 +1465,7 @@ test('approval of immutable observed evidence is a real checkpoint and does not 
       }
       await new Promise((done) => setTimeout(done, 20));
     }
-    assert(checkpointId, 'evidence review must request a real operator decision');
+    expect(checkpointId).toBeTruthy();
     const evidence = (await app.inject(`/runs/${id}/steps/evidence-capture/output`)).json() as {
       schema: string;
       sourceStepId: string;
@@ -1503,39 +1473,38 @@ test('approval of immutable observed evidence is a real checkpoint and does not 
       url: string;
       digest: string;
     };
-    assert.equal(evidence.schema, 'evidence/v1');
-    assert.equal(evidence.sourceStepId, 'inspect');
-    assert.equal(evidence.sourceSchema, 'page-observation/v1');
-    assert.equal(evidence.digest.length, 64);
-    assert.equal((await app.inject(`/runs/${id}/steps/approve-evidence/output`)).statusCode, 404);
+    expect(evidence.schema).toEqual('evidence/v1');
+    expect(evidence.sourceStepId).toEqual('inspect');
+    expect(evidence.sourceSchema).toEqual('page-observation/v1');
+    expect(evidence.digest.length).toEqual(64);
+    expect((await app.inject(`/runs/${id}/steps/approve-evidence/output`)).statusCode).toEqual(404);
     const response = await app.inject({
       method: 'POST',
       url: `/runs/${id}/decision`,
       payload: { checkpointId, approved: true },
     });
-    assert.equal(response.statusCode, 200, response.body);
+    expect(response.statusCode).toEqual(200);
     for (let i = 0; i < 160; i++) {
       const run = (await app.inject(`/runs/${id}`)).json() as { state: string };
       if (['cancelled', 'blocked', 'failed'].includes(run.state)) break;
       await new Promise((done) => setTimeout(done, 20));
     }
-    assert.equal((await app.inject(`/runs/${id}`)).json().state, 'cancelled');
+    expect((await app.inject(`/runs/${id}`)).json().state).toEqual('cancelled');
     const approval = (await app.inject(`/runs/${id}/steps/approve-evidence/output`)).json();
-    assert.deepEqual(approval, {
+    expect(approval).toEqual({
       stepId: 'approve-evidence',
       schema: 'approval/v1',
       approved: true,
       evidenceStepId: 'inspect',
       evidenceDigest: evidence.digest,
     });
-    assert.equal((await app.inject(`/runs/${id}/steps/action/output`)).statusCode, 404);
-    assert.match(
+    expect((await app.inject(`/runs/${id}/steps/action/output`)).statusCode).toEqual(404);
+    expect(
       await readFile(
         join(process.cwd(), '.runtime', 'runs', id, 'approve-evidence.output.json'),
         'utf8',
       ),
-      /evidenceDigest/,
-    );
+    ).toMatch(/evidenceDigest/);
   } finally {
     await app.close();
     BrowserSession.prototype.open = oldOpen;
@@ -1595,7 +1564,7 @@ test('rejecting an evidence approval blocks the run and leaves no approved outpu
         workflow: plan,
       },
     });
-    assert.equal(started.statusCode, 202, started.body);
+    expect(started.statusCode).toEqual(202);
     const id = started.json().id as string;
     let checkpoint = '';
     for (let i = 0; i < 160; i++) {
@@ -1609,22 +1578,22 @@ test('rejecting an evidence approval blocks the run and leaves no approved outpu
       }
       await new Promise((done) => setTimeout(done, 20));
     }
-    assert(checkpoint);
+    expect(checkpoint).toBeTruthy();
     const denied = await app.inject({
       method: 'POST',
       url: `/runs/${id}/decision`,
       payload: { checkpointId: checkpoint, approved: false },
     });
-    assert.equal(denied.statusCode, 200, denied.body);
+    expect(denied.statusCode).toEqual(200);
     for (let i = 0; i < 160; i++) {
       const state = (await app.inject(`/runs/${id}`)).json().state;
       if (['blocked', 'failed', 'cancelled'].includes(state)) break;
       await new Promise((done) => setTimeout(done, 20));
     }
-    assert.equal((await app.inject(`/runs/${id}`)).json().state, 'blocked');
-    assert.equal((await app.inject(`/runs/${id}/steps/approval-check/output`)).statusCode, 404);
-    assert.equal((await app.inject(`/runs/${id}/steps/action/output`)).statusCode, 404);
-    assert.equal(
+    expect((await app.inject(`/runs/${id}`)).json().state).toEqual('blocked');
+    expect((await app.inject(`/runs/${id}/steps/approval-check/output`)).statusCode).toEqual(404);
+    expect((await app.inject(`/runs/${id}/steps/action/output`)).statusCode).toEqual(404);
+    expect(
       (
         await app.inject({
           method: 'POST',
@@ -1632,8 +1601,7 @@ test('rejecting an evidence approval blocks the run and leaves no approved outpu
           payload: { checkpointId: checkpoint, approved: true },
         })
       ).statusCode,
-      409,
-    );
+    ).toEqual(409);
   } finally {
     await app.close();
     BrowserSession.prototype.open = oldOpen;
@@ -1684,7 +1652,7 @@ test('evidence capture rejects an off-profile redirect before any approval', asy
         workflow: plan,
       },
     });
-    assert.equal(started.statusCode, 202, started.body);
+    expect(started.statusCode).toEqual(202);
     const id = started.json().id as string;
     for (let i = 0; i < 160; i++) {
       const state = (await app.inject(`/runs/${id}`)).json().state;
@@ -1695,23 +1663,22 @@ test('evidence capture rejects an off-profile redirect before any approval', asy
       state: string;
       error: string;
     };
-    assert.equal(final.state, 'failed');
-    assert.match(final.error, /outside the exact authorized profile scope/);
-    assert.equal((await app.inject(`/runs/${id}/steps/verify-origin/output`)).statusCode, 404);
-    assert.equal((await app.inject(`/runs/${id}/steps/action/output`)).statusCode, 404);
+    expect(final.state).toEqual('failed');
+    expect(final.error).toMatch(/outside the exact authorized profile scope/);
+    expect((await app.inject(`/runs/${id}/steps/verify-origin/output`)).statusCode).toEqual(404);
+    expect((await app.inject(`/runs/${id}/steps/action/output`)).statusCode).toEqual(404);
     const journal = (await app.inject(`/runs/${id}/logs`)).json() as Array<{
       kind: string;
       details?: { stepId?: string; stage?: string };
     }>;
-    assert(
+    expect(
       journal.some(
         (event) =>
           event.kind === 'step' &&
           event.details?.stepId === 'verify-origin' &&
           event.details?.stage === 'failed',
       ),
-      'failed workflow stage must be identifiable on the artboard',
-    );
+    ).toBeTruthy();
   } finally {
     await app.close();
     BrowserSession.prototype.open = oldOpen;
@@ -1721,50 +1688,35 @@ test('evidence capture rejects an off-profile redirect before any approval', asy
 
 test('LinkedIn templates compile into owner-approved evidence and read-back pipelines', async () => {
   const plans = templates('linkedin');
-  assert.equal(plans.length, 9);
-  assert.equal(new Set(plans.map((plan) => plan.name)).size, 9);
+  expect(plans.length).toEqual(9);
+  expect(new Set(plans.map((plan) => plan.name)).size).toEqual(9);
   for (const plan of plans) {
     const validated = validatePlan(plan, 'linkedin', plan.action);
     const compiled = compileWorkflow(validated);
-    assert.equal(compiled.steps.length, plan.steps.length);
-    assert.equal(plan.steps.filter((step) => step.kind === 'action').length, 1);
-    assert.equal(
-      plan.steps.some((step) => step.kind === 'pause'),
-      true,
-    );
-    assert.equal(
-      plan.steps.some((step) => step.kind === 'verify'),
-      true,
-    );
-    assert.equal(
-      plan.steps.some((step) => step.kind === 'evidence'),
-      true,
-    );
-    assert.equal(
-      plan.steps.some((step) => step.kind === 'approve'),
-      true,
-    );
+    expect(compiled.steps.length).toEqual(plan.steps.length);
+    expect(plan.steps.filter((step) => step.kind === 'action').length).toEqual(1);
+    expect(plan.steps.some((step) => step.kind === 'pause')).toEqual(true);
+    expect(plan.steps.some((step) => step.kind === 'verify')).toEqual(true);
+    expect(plan.steps.some((step) => step.kind === 'evidence')).toEqual(true);
+    expect(plan.steps.some((step) => step.kind === 'approve')).toEqual(true);
     for (const step of compiled.steps) {
-      assert.equal(step.document.spec.inputs.scope, 'current-run');
-      assert.ok(step.document.spec.outputs.schema);
-      assert.ok(step.yaml.startsWith('apiVersion: "utomator.dev/v1"'));
+      expect(step.document.spec.inputs.scope).toEqual('current-run');
+      expect(step.document.spec.outputs.schema).toBeTruthy();
+      expect(step.yaml.startsWith('apiVersion: "utomator.dev/v1"')).toBeTruthy();
     }
   }
   const selected = plans.find((plan) => plan.action === 'audit-page')!;
-  assert.equal(
+  expect(
     selected.steps.find((step) => step.kind === 'evidence')?.inputBindings?.observation?.stepId,
-    'verify',
-  );
+  ).toEqual('verify');
   const mutation = plans.find((plan) => plan.action === 'edit-profile')!;
-  assert.equal(
+  expect(
     mutation.steps.find((step) => step.kind === 'evidence')?.inputBindings?.observation?.stepId,
-    'inspect',
-  );
+  ).toEqual('inspect');
   const store = new WorkflowPlanStore(join(tmpdir(), `missing-linkedin-fixture-${randomUUID()}`));
   const loaded = await store.get('linkedin', 'edit-profile');
-  assert.equal(loaded.steps.length, 11);
-  assert.equal(
-    loaded.steps.find((step) => step.id === 'action')?.title,
+  expect(loaded.steps.length).toEqual(11);
+  expect(loaded.steps.find((step) => step.id === 'action')?.title).toEqual(
     'Revise approved headline or About',
   );
 });
@@ -1775,15 +1727,15 @@ test('LinkedIn template can be saved while disconnected, but execution requires 
   try {
     await app.ready();
     const all = await app.inject('/workflow-templates/linkedin');
-    assert.equal(all.statusCode, 200, all.body);
+    expect(all.statusCode).toEqual(200);
     const plan = (all.json() as ReturnType<typeof templates>).find((item) => item.action === 'audit');
-    assert.ok(plan, 'registered LinkedIn template must exist');
+    expect(plan).toBeTruthy();
     const saved = await app.inject({
       method: 'POST',
       url: '/workflows',
       payload: { plan, templateId: 'li-audit' },
     });
-    assert.equal(saved.statusCode, 201, saved.body);
+    expect(saved.statusCode).toEqual(201);
     id = (saved.json() as { id: string }).id;
     const before = (await app.inject('/runs')).json().length;
     const handleOnly = await app.inject({
@@ -1797,8 +1749,8 @@ test('LinkedIn template can be saved while disconnected, but execution requires 
         workflowRevision: 1,
       },
     });
-    assert.equal(handleOnly.statusCode, 400, handleOnly.body);
-    assert.match(handleOnly.body, /connect.*sync/);
+    expect(handleOnly.statusCode).toEqual(400);
+    expect(handleOnly.body).toMatch(/connect.*sync/);
     const noAccount = await app.inject({
       method: 'POST',
       url: '/runs',
@@ -1809,7 +1761,7 @@ test('LinkedIn template can be saved while disconnected, but execution requires 
         workflow: plan,
       },
     });
-    assert.equal(noAccount.statusCode, 400);
+    expect(noAccount.statusCode).toEqual(400);
     const unverified = await app.inject({
       method: 'POST',
       url: '/runs',
@@ -1821,15 +1773,11 @@ test('LinkedIn template can be saved while disconnected, but execution requires 
         workflowRevision: 1,
       },
     });
-    assert.equal(unverified.statusCode, 400, unverified.body);
-    assert.match(unverified.body, /not found|not verified/i);
-    assert.equal(
-      (await app.inject('/runs')).json().length,
-      before,
-      'an unsynced LinkedIn account must never start a run',
-    );
+    expect(unverified.statusCode).toEqual(400);
+    expect(unverified.body).toMatch(/not found|not verified/i);
+    expect((await app.inject('/runs')).json().length).toEqual(before);
     const exists = await app.inject(`/workflows/${id}`);
-    assert.equal(exists.statusCode, 200, 'loading a template does not depend on a connector');
+    expect(exists.statusCode).toEqual(200);
   } finally {
     await app.close();
     if (id) {
@@ -1877,24 +1825,22 @@ test('every LinkedIn run revalidates the saved browser session and flags authent
       profileUrl: 'https://www.linkedin.com/in/verified-owner/',
     });
     const account = seeded.socialAccounts[0]!;
-    assert.equal(
+    expect(
       (
         await app.inject({
           method: 'POST',
           url: `/connectors/${account.id}/connect`,
         })
       ).statusCode,
-      200,
-    );
-    assert.equal(
+    ).toEqual(200);
+    expect(
       (
         await app.inject({
           method: 'POST',
           url: `/connectors/${account.id}/sync`,
         })
       ).json().status,
-      'connected',
-    );
+    ).toEqual('connected');
     signedIn = false; // The provider revoked the session after the earlier sync.
     const started = await app.inject({
       method: 'POST',
@@ -1905,7 +1851,7 @@ test('every LinkedIn run revalidates the saved browser session and flags authent
         accountId: account.id,
       },
     });
-    assert.equal(started.statusCode, 202, started.body);
+    expect(started.statusCode).toEqual(202);
     const id = (started.json() as { id: string }).id;
     for (let i = 0; i < 180; i++) {
       const row = (await app.inject(`/runs/${id}`)).json() as { state: string };
@@ -1916,26 +1862,26 @@ test('every LinkedIn run revalidates the saved browser session and flags authent
       state: string;
       error: string;
     };
-    assert.equal(final.state, 'blocked');
-    assert.match(final.error, /session not authenticated/);
+    expect(final.state).toEqual('blocked');
+    expect(final.error).toMatch(/session not authenticated/);
     const journal = (await app.inject(`/runs/${id}/logs`)).json() as Array<{
       kind: string;
       details?: { stepId?: string; stage?: string };
     }>;
-    assert(
+    expect(
       journal.some(
         (e) => e.kind === 'step' && e.details?.stepId === 'session' && e.details?.stage === 'failed',
       ),
-    );
+    ).toBeTruthy();
     const refreshed = (await app.inject('/connectors')).json() as Array<{
       id: string;
       status: string;
     }>;
-    assert.equal(refreshed.find((row) => row.id === account.id)?.status, 'disconnected');
+    expect(refreshed.find((row) => row.id === account.id)?.status).toEqual('disconnected');
   } finally {
     await app.close();
     BrowserSession.prototype.open = oldOpen;
     BrowserSession.prototype.close = oldClose;
-    await rm(root, { recursive: true, force: true });
+    await removeTemp(root);
   }
 });

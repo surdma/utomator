@@ -1,103 +1,96 @@
-import assert from 'node:assert/strict';
-import { test } from 'node:test';
-import { explainCommand } from '../components/dashboard/pipeline/command-parser.ts';
+import { expect, test } from 'vitest';
+import { explainCommand } from '../modules/pipeline/components/command-parser.ts';
 import {
   decideUtterance,
   nextCommandState,
-} from '../components/dashboard/pipeline/utterance.ts';
+} from '../modules/pipeline/components/utterance.ts';
 
 test('natural phrases map onto the same four commands', () => {
-  assert.equal(explainCommand('check my profile')?.action, 'audit');
-  assert.equal(explainCommand('review my LinkedIn.')?.action, 'audit');
-  assert.equal(
+  expect(explainCommand('check my profile')?.action).toEqual('audit');
+  expect(explainCommand('review my LinkedIn.')?.action).toEqual('audit');
+  expect(
     explainCommand('change my headline to Clinical Systems Lead')?.fields
       .headline,
-    'Clinical Systems Lead'
-  );
-  assert.equal(
+  ).toEqual('Clinical Systems Lead');
+  expect(
     explainCommand('make my headline Clinical Systems Lead')?.fields.headline,
-    'Clinical Systems Lead'
+  ).toEqual('Clinical Systems Lead');
+  expect(explainCommand('change my headline to')).toEqual(null);
+  expect(explainCommand('change my headline to .')).toEqual(null);
+  expect(explainCommand('add a skill called React')?.fields.skill).toEqual(
+    'React',
   );
-  assert.equal(explainCommand('change my headline to'), null);
-  assert.equal(explainCommand('change my headline to .'), null);
-  assert.equal(
-    explainCommand('add a skill called React')?.fields.skill,
-    'React'
+  expect(explainCommand('add the skill TypeScript')?.fields.skill).toEqual(
+    'TypeScript',
   );
-  assert.equal(
-    explainCommand('add the skill TypeScript')?.fields.skill,
-    'TypeScript'
-  );
-  assert.equal(
+  expect(
     explainCommand('draft a post about New research')?.fields.postText,
-    'New research'
-  );
-  assert.equal(
+  ).toEqual('New research');
+  expect(
     explainCommand('write a post saying Hello team')?.fields.postText,
-    'Hello team'
-  );
-  assert.equal(explainCommand('launch everything'), null);
-  assert.equal(explainCommand('add a skill called'), null);
+  ).toEqual('Hello team');
+  expect(explainCommand('launch everything')).toEqual(null);
+  expect(explainCommand('add a skill called')).toEqual(null);
 });
 
 test('typed exact commands stage immediately and spoken ones wait', () => {
   const typed = decideUtterance(
     'set headline: Clinical Systems Lead',
     'text',
-    false
+    false,
   );
-  assert.equal(typed.kind, 'stage-now');
+  expect(typed.kind).toEqual('stage-now');
   const staged = nextCommandState(null, typed);
-  assert.equal(staged.stage?.fields.headline, 'Clinical Systems Lead');
-  assert.equal(staged.pending, null);
+  expect(staged.stage?.fields.headline).toEqual('Clinical Systems Lead');
+  expect(staged.pending).toEqual(null);
 
   const spoken = decideUtterance(
     'change my headline to Clinical Systems Lead',
     'voice',
-    false
+    false,
   );
-  assert.equal(spoken.kind, 'needs-confirm');
+  expect(spoken.kind).toEqual('needs-confirm');
   const waiting = nextCommandState(null, spoken);
-  assert.equal(waiting.stage, null);
-  assert.equal(waiting.pending?.action, 'edit-profile');
-  assert.match(waiting.reply ?? '', /Nothing is staged until you confirm/);
+  expect(waiting.stage).toEqual(null);
+  expect(waiting.pending?.action).toEqual('edit-profile');
+  expect(waiting.reply ?? '').toMatch(/Nothing is staged until you confirm/);
 
   const typedNatural = decideUtterance(
     'change my headline to Clinical Systems Lead',
     'text',
-    false
+    false,
   );
-  assert.equal(typedNatural.kind, 'needs-confirm');
+  expect(typedNatural.kind).toEqual('needs-confirm');
 });
 
 test('confirm stages the pending command and does nothing when none is waiting', () => {
   const heard = decideUtterance(
     'change my headline to Clinical Systems Lead',
     'voice',
-    false
+    false,
   );
   const waiting = nextCommandState(null, heard);
   const confirmed = nextCommandState(
     waiting.pending,
-    decideUtterance('stage it', 'voice', true)
+    decideUtterance('stage it', 'voice', true),
   );
-  assert.equal(confirmed.stage?.action, 'edit-profile');
-  assert.equal(confirmed.pending, null);
-  assert.match(confirmed.reply ?? '', /No change has been published/);
+  expect(confirmed.stage?.action).toEqual('edit-profile');
+  expect(confirmed.pending).toEqual(null);
+  expect(confirmed.reply ?? '').toMatch(/No change has been published/);
 
   const idle = nextCommandState(
     null,
-    decideUtterance('go ahead', 'text', false)
+    decideUtterance('go ahead', 'text', false),
   );
-  assert.equal(idle.stage, null);
-  assert.equal(idle.pending, null);
-  assert.match(idle.reply ?? '', /Nothing is waiting/);
+  expect(idle.stage).toEqual(null);
+  expect(idle.pending).toEqual(null);
+  expect(idle.reply ?? '').toMatch(/Nothing is waiting/);
 
   const dropped = nextCommandState(
     waiting.pending,
-    decideUtterance('never mind', 'voice', true)
+    decideUtterance('never mind', 'voice', true),
   );
-  assert.equal(dropped.stage, null);
-  assert.equal(dropped.pending, null);
-  assert.match(dropped.reply ?? '', /Dropped/);
+  expect(dropped.stage).toEqual(null);
+  expect(dropped.pending).toEqual(null);
+  expect(dropped.reply ?? '').toMatch(/Dropped/);
 });

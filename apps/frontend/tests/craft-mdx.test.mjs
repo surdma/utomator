@@ -1,6 +1,5 @@
-import assert from 'node:assert/strict';
-import { test } from 'node:test';
-import { renderMdx } from '../components/dashboard/crafts/craft-mdx.ts';
+import { expect, test } from 'vitest';
+import { renderMdx } from '../modules/crafts/components/craft-mdx.ts';
 
 test('craft source serialization preserves metadata and connected step links', () => {
   const source = renderMdx({
@@ -27,9 +26,9 @@ test('craft source serialization preserves metadata and connected step links', (
     ],
     links: [{ id: 'edge-1', source: 'research', target: 'draft' }],
   });
-  assert.match(source, /^---\nname: audience-growth\n/);
-  assert.match(source, /enabled: false/);
-  assert.match(source, /<CraftNode kind="research" x=\{25\} y=\{50\} \/>/);
-  assert.match(source, /\*\*Next:\*\* \[draft\]\(#step-draft\)/);
-  assert.match(source, /\*\*Next:\*\* End/);
+  expect(source).toMatch(/^---\nname: audience-growth\n/);
+  expect(source).toMatch(/enabled: false/);
+  expect(source).toMatch(/<CraftNode kind="research" x=\{25\} y=\{50\} \/>/);
+  expect(source).toMatch(/\*\*Next:\*\* \[draft\]\(#step-draft\)/);
+  expect(source).toMatch(/\*\*Next:\*\* End/);
 });

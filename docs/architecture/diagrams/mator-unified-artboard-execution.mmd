@@ -1,0 +1,28 @@
+sequenceDiagram
+  actor Owner
+  participant Artboard as Unified Artboard
+  participant API as Growth Fastify API
+  participant Coordinator as Growth Coordinator
+  participant Runner as Existing Runner
+  Owner->>Artboard: Select a YAML workflow
+  Artboard->>API: GET /growth/templates/:id
+  API-->>Artboard: Compiled stages and task plans
+  Artboard->>API: GET /growth/templates/:id/runs
+  API-->>Artboard: Owner-scoped run status
+  Owner->>Artboard: Open execution and evidence
+  opt Executable template, verified account
+    Owner->>Artboard: Start Growth workflow
+    Artboard->>API: POST /growth/templates/:id/runs
+    API->>Coordinator: Start serial program
+    Coordinator->>Runner: Start first compiled child
+    Runner-->>API: Child status and journal
+    Artboard->>API: GET /runs/:childId/logs
+    API-->>Artboard: Recorded task events
+    Owner->>Artboard: Submit owner evidence
+    Artboard->>API: POST /growth/templates/:id/runs/:runId/evidence
+    opt canAdvance and Runner idle
+      Owner->>Artboard: Advance to next pipeline
+      Artboard->>API: POST /growth/templates/:id/runs/:runId/advance
+      API->>Coordinator: Verify evidence and release state
+    end
+  end

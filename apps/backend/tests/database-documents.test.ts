@@ -1,21 +1,21 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createClient } from '@libsql/client';
-import { createDocumentStore } from '../src/db/documents.js';
-import { AccountStore } from '../src/profile/account-store.js';
-import { WorkflowPlanStore } from '../src/core/workflow-store.js';
-import { WorkflowRegistry } from '../src/core/workflow-registry.js';
-import { defaultPlan } from '../src/core/workflow-plan.js';
-import { ConnectorService } from '../src/core/connectors.js';
 import type { Page } from 'playwright';
+import { expect, test } from 'vitest';
+import { defaultPlan } from '../src/domain/workflow-plan.js';
+import { ConnectorService } from '../src/infrastructure/connect/service.js';
+import { createDocumentStore } from '../src/infrastructure/db/documents.js';
+import { AccountStore } from '../src/infrastructure/profile/account-store.js';
+import { WorkflowRegistry } from '../src/infrastructure/workflows/workflow-registry.js';
+import { WorkflowPlanStore } from '../src/infrastructure/workflows/workflow-store.js';
+import { removeTemp } from './support/remove-temp.js';
 
 test('SQLite Drizzle persists connector verification, account identity and revision-pinned workflows', async () => {
   const root = await mkdtemp(join(tmpdir(), 'utomator-drizzle-'));
-  const url = 'file:' + join(root, 'local.db');
+  const url = `file:${join(root, 'local.db')}`;
   const client = createClient({ url });
   try {
     // First-time schema creation equivalent to the initial Drizzle schema push.
@@ -25,23 +25,25 @@ test('SQLite Drizzle persists connector verification, account identity and revis
         'version INTEGER NOT NULL,payload TEXT NOT NULL,updated_at TEXT NOT NULL,' +
         'PRIMARY KEY(owner_id,namespace,record_key))',
     );
-    client.close();
-    const docs = await createDocumentStore({ DB_FILE_NAME: url });
+    await client.close();
+    const docs = await createDocumentStore({
+      DB_FILE_NAME: url,
+      NODE_ENV: 'development',
+    });
     try {
-      assert.equal(docs.dialect, 'sqlite');
+      expect(docs.dialect).toEqual('sqlite');
       await docs.put('workflow-plans', 'linkedin-audit', { sample: true }, 0);
-      await assert.rejects(
-        docs.put('workflow-plans', 'linkedin-audit', { sample: false }, 0),
+      await expect(docs.put('workflow-plans', 'linkedin-audit', { sample: false }, 0)).rejects.toThrow(
         /changed/,
       );
       const current = await docs.get<{ sample: boolean }>('workflow-plans', 'linkedin-audit');
-      assert.equal(current?.version, 1);
-      assert.equal(current?.value.sample, true);
-      await docs.put('workflow-plans', 'linkedin-audit', { sample: false }, current!.version);
-      assert.equal(
+      if (!current) throw new Error('stored workflow plan missing');
+      expect(current.version).toEqual(1);
+      expect(current.value.sample).toEqual(true);
+      await docs.put('workflow-plans', 'linkedin-audit', { sample: false }, current.version);
+      expect(
         (await docs.get<{ sample: boolean }>('workflow-plans', 'linkedin-audit'))?.value.sample,
-        false,
-      );
+      ).toEqual(false);
 
       const owner = new AccountStore(root);
       owner.setDocuments(docs);
@@ -58,10 +60,10 @@ test('SQLite Drizzle persists connector verification, account identity and revis
         handle: 'database-owner',
         profileUrl: 'https://www.linkedin.com/in/database-owner/',
       });
-      assert.equal(edited.revision, 1);
+      expect(edited.revision).toEqual(1);
       const reopenedOwner = new AccountStore(root);
       reopenedOwner.setDocuments(docs);
-      assert.equal((await reopenedOwner.get()).profile.displayName, 'Persisted Database Owner');
+      expect((await reopenedOwner.get()).profile.displayName).toEqual('Persisted Database Owner');
 
       const plans = new WorkflowPlanStore(join(root, 'legacy-plans'));
       plans.setDocuments(docs);
@@ -70,7 +72,7 @@ test('SQLite Drizzle persists connector verification, account identity and revis
         name: 'Stored YAML workflow',
       };
       await plans.save('linkedin', 'audit', plan);
-      assert.equal((await plans.get('linkedin', 'audit')).name, 'Stored YAML workflow');
+      expect((await plans.get('linkedin', 'audit')).name).toEqual('Stored YAML workflow');
 
       const registry = new WorkflowRegistry(join(root, 'legacy-workflows'), join(root, 'legacy-plans'));
       registry.setDocuments(docs);
@@ -79,10 +81,10 @@ test('SQLite Drizzle persists connector verification, account identity and revis
         ...plan,
         name: 'Revised YAML workflow',
       });
-      assert.equal(second.revision, 2);
-      assert.equal((await registry.get(first.id, 1))?.plan.name, 'Stored YAML workflow');
-      assert.equal((await registry.get(first.id, 2))?.plan.name, 'Revised YAML workflow');
-      assert.equal((await registry.list()).length, 1);
+      expect(second.revision).toEqual(2);
+      expect((await registry.get(first.id, 1))?.plan.name).toEqual('Stored YAML workflow');
+      expect((await registry.get(first.id, 2))?.plan.name).toEqual('Revised YAML workflow');
+      expect((await registry.list()).length).toEqual(1);
 
       const browser = {
         currentPage: undefined as Page | undefined,
@@ -93,6 +95,18 @@ test('SQLite Drizzle persists connector verification, account identity and revis
             getByRole: () => ({
               first: () => ({ waitFor: async () => undefined }),
             }),
+            // The verifier scrapes the live page. This fixture has no DOM, so return an empty profile.
+            evaluate: async () => ({
+              displayName: '',
+              headline: '',
+              location: '',
+              about: '',
+              experience: '',
+              education: '',
+              skills: '',
+              website: '',
+              avatarUrl: '',
+            }),
           } as unknown as Page;
           return this.currentPage;
         },
@@ -102,57 +116,62 @@ test('SQLite Drizzle persists connector verification, account identity and revis
       };
       const connector = new ConnectorService(owner, () => browser, root);
       connector.setDocuments(docs);
-      const account = (await owner.get()).socialAccounts.find((x) => x.platform === 'linkedin')!;
+      const account = (await owner.get()).socialAccounts.find((x) => x.platform === 'linkedin');
+      if (!account) throw new Error('linkedin account missing');
       await connector.begin(account.id);
-      assert.equal((await connector.sync(account.id)).status, 'connected');
+      expect((await connector.sync(account.id)).status).toEqual('connected');
       const connectorAgain = new ConnectorService(reopenedOwner, () => browser, root);
       connectorAgain.setDocuments(docs);
-      assert.equal((await connectorAgain.list()).find((x) => x.id === account.id)?.status, 'connected');
+      expect((await connectorAgain.list()).find((x) => x.id === account.id)?.status).toEqual(
+        'connected',
+      );
       const saved = await docs.get<Record<string, { verifiedAt: string }>>('connectors', 'sessions');
-      assert(saved?.value[account.id]?.verifiedAt, 'verification must be persisted in SQL');
-      const restarted = await createDocumentStore({ DB_FILE_NAME: url });
+      expect(saved?.value[account.id]?.verifiedAt).toBeTruthy();
+      const restarted = await createDocumentStore({
+        DB_FILE_NAME: url,
+        NODE_ENV: 'development',
+      });
       try {
         const afterRestartOwner = new AccountStore(root);
         afterRestartOwner.setDocuments(restarted);
         const afterRestart = new ConnectorService(afterRestartOwner, () => browser, root);
         afterRestart.setDocuments(restarted);
-        assert.equal(
-          (await afterRestart.list()).find((x) => x.id === account.id)?.status,
+        expect((await afterRestart.list()).find((x) => x.id === account.id)?.status).toEqual(
           'connected',
-          'a new SQL client and service must restore the verified account',
         );
       } finally {
         await restarted.close();
       }
-      await assert.rejects(
+      await expect(
         import('node:fs/promises').then((fs) => fs.access(join(root, '.runtime', 'connectors.json'))),
-        /ENOENT/,
-        'SQL-backed connector updates must not create JSON mirrors',
-      );
+      ).rejects.toThrow(/ENOENT/);
       await connector.disconnect(account.id);
 
-      await assert.rejects(docs.remove('workflow-plans', 'linkedin-audit', 1), /changed/);
+      await expect(docs.remove('workflow-plans', 'linkedin-audit', 1)).rejects.toThrow(/changed/);
     } finally {
       await docs.close();
     }
-    const reopened = await createDocumentStore({ DB_FILE_NAME: url });
+    const reopened = await createDocumentStore({
+      DB_FILE_NAME: url,
+      NODE_ENV: 'development',
+    });
     try {
       const row = await reopened.get<{ sample: boolean }>('workflow-plans', 'linkedin-audit');
-      assert(row, 'SQLite record must survive closing the client');
-      assert.equal(row.version, 3);
-      assert.equal((row.value as { name: string }).name, 'Stored YAML workflow');
+      expect(row).toBeTruthy();
+      expect(row.version).toEqual(3);
+      expect((row.value as unknown as { name: string }).name).toEqual('Stored YAML workflow');
     } finally {
       await reopened.close();
     }
   } finally {
-    client.close();
-    await rm(root, { recursive: true, force: true });
+    await client.close();
+    await removeTemp(root);
   }
 });
 
 test('LinkedIn draft documents remain tenant-isolated and revision guarded in SQLite', async () => {
   const root = await mkdtemp(join(tmpdir(), 'utomator-editorial-db-'));
-  const url = 'file:' + join(root, 'editorial.db');
+  const url = `file:${join(root, 'editorial.db')}`;
   const raw = createClient({ url });
   try {
     await raw.execute(
@@ -161,25 +180,37 @@ test('LinkedIn draft documents remain tenant-isolated and revision guarded in SQ
         'version INTEGER NOT NULL,payload TEXT NOT NULL,updated_at TEXT NOT NULL,' +
         'PRIMARY KEY(owner_id,namespace,record_key))',
     );
-    const ownerA = await createDocumentStore({ DB_FILE_NAME: url }, randomUUID());
-    const ownerB = await createDocumentStore({ DB_FILE_NAME: url }, randomUUID());
+    const ownerA = await createDocumentStore(
+      {
+        DB_FILE_NAME: url,
+        NODE_ENV: 'development',
+      },
+      randomUUID(),
+    );
+    const ownerB = await createDocumentStore(
+      {
+        DB_FILE_NAME: url,
+        NODE_ENV: 'development',
+      },
+      randomUUID(),
+    );
     try {
       const id = randomUUID();
       await ownerA.put('linkedin-drafts', id, { owner: 'A', status: 'draft' }, 0);
-      assert.equal(await ownerB.get('linkedin-drafts', id), null);
+      expect(await ownerB.get('linkedin-drafts', id)).toEqual(null);
       await ownerB.put('linkedin-drafts', id, { owner: 'B', status: 'approved' }, 0);
-      assert.equal((await ownerA.get<{ owner: string }>('linkedin-drafts', id))?.value.owner, 'A');
-      assert.equal((await ownerB.get<{ owner: string }>('linkedin-drafts', id))?.value.owner, 'B');
-      await assert.rejects(ownerA.put('linkedin-drafts', id, { owner: 'A2' }, 0), /changed/);
+      expect((await ownerA.get<{ owner: string }>('linkedin-drafts', id))?.value.owner).toEqual('A');
+      expect((await ownerB.get<{ owner: string }>('linkedin-drafts', id))?.value.owner).toEqual('B');
+      await expect(ownerA.put('linkedin-drafts', id, { owner: 'A2' }, 0)).rejects.toThrow(/changed/);
       await ownerA.put('linkedin-drafts', id, { owner: 'A2' }, 1);
-      assert.equal((await ownerA.get<{ owner: string }>('linkedin-drafts', id))?.value.owner, 'A2');
-      assert.equal((await ownerB.get<{ owner: string }>('linkedin-drafts', id))?.value.owner, 'B');
+      expect((await ownerA.get<{ owner: string }>('linkedin-drafts', id))?.value.owner).toEqual('A2');
+      expect((await ownerB.get<{ owner: string }>('linkedin-drafts', id))?.value.owner).toEqual('B');
     } finally {
       await ownerA.close();
       await ownerB.close();
     }
   } finally {
-    raw.close();
-    await rm(root, { recursive: true, force: true });
+    await raw.close();
+    await removeTemp(root);
   }
 });

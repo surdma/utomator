@@ -1,11 +1,10 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
 import { chromium, type Page } from 'playwright';
+import { expect, test } from 'vitest';
 
 process.env.NODE_ENV = 'test';
 const [{ buildApp }, { BrowserSession }] = await Promise.all([
   import('../src/main.js'),
-  import('../src/browser/session.js'),
+  import('../src/infrastructure/browser/session.js'),
 ]);
 
 async function awaitRun(
@@ -89,7 +88,7 @@ test('Delayed authwall holds Chrome open for human login, then resumes audit', {
         handle: 'surdma',
       },
     });
-    assert.equal(started.statusCode, 202);
+    expect(started.statusCode).toEqual(202);
     const runId = started.json().id as string;
     const waiting = await awaitRun(
       app,
@@ -97,20 +96,16 @@ test('Delayed authwall holds Chrome open for human login, then resumes audit', {
       (state) => state === 'approval-needed' || state === 'failed',
       12000,
     );
-    assert.equal(
-      waiting.state,
-      'approval-needed',
-      'a late login redirect must pause instead of failing',
-    );
-    assert.match(waiting.checkpoint?.message || '', /Sign in.+Chrome/);
-    assert(page);
-    assert.equal(page.isClosed(), false, 'Chrome stays open for a human sign-in');
+    expect(waiting.state).toEqual('approval-needed');
+    expect(waiting.checkpoint?.message || '').toMatch(/Sign in.+Chrome/);
+    expect(page).toBeTruthy();
+    expect(page.isClosed()).toEqual(false);
     await new Promise((done) => setTimeout(done, 350));
-    assert.equal(page.isClosed(), false, 'browser must remain open while approval is pending');
+    expect(page.isClosed()).toEqual(false);
     const artifacts = app.inject(`/runs/${runId}/assessment`);
     // No login-screen screenshots may be emitted before authentication completes.
     const assessment = await artifacts;
-    assert.equal(assessment.json().observations, 0);
+    expect(assessment.json().observations).toEqual(0);
     await page.getByRole('button', { name: 'Finish manual sign in' }).click();
     await page.waitForURL('https://www.linkedin.com/session-ready');
     const approval = await app.inject({
@@ -121,24 +116,20 @@ test('Delayed authwall holds Chrome open for human login, then resumes audit', {
         approved: true,
       },
     });
-    assert.equal(approval.statusCode, 200);
+    expect(approval.statusCode).toEqual(200);
     const finished = await awaitRun(
       app,
       runId,
       (state) => state === 'completed' || state === 'failed' || state === 'blocked',
       35000,
     );
-    assert.equal(
-      finished.state,
-      'completed',
-      'resumed run must load the profile and finish after authentication',
-    );
-    assert.equal(signedIn, true);
+    expect(finished.state).toEqual('completed');
+    expect(signedIn).toEqual(true);
     const cleanupDeadline = Date.now() + 4000;
     while (closeCalls === 0 && Date.now() < cleanupDeadline) {
       await new Promise((done) => setTimeout(done, 20));
     }
-    assert.equal(closeCalls, 1, 'session cleans up after workflow completion');
+    expect(closeCalls).toEqual(1);
   } finally {
     BrowserSession.prototype.open = originalOpen;
     BrowserSession.prototype.close = originalClose;
@@ -186,7 +177,7 @@ test('Rejecting a login checkpoint closes the browser without running the audit'
         handle: 'surdma',
       },
     });
-    assert.equal(started.statusCode, 202);
+    expect(started.statusCode).toEqual(202);
     const id = started.json().id as string;
     const waiting = await awaitRun(
       app,
@@ -194,8 +185,8 @@ test('Rejecting a login checkpoint closes the browser without running the audit'
       (state) => state === 'approval-needed' || state === 'failed',
       12000,
     );
-    assert.equal(waiting.state, 'approval-needed');
-    assert(page && !page.isClosed());
+    expect(waiting.state).toEqual('approval-needed');
+    expect(page && !page.isClosed()).toBeTruthy();
     const answer = await app.inject({
       method: 'POST',
       url: `/runs/${id}/decision`,
@@ -204,16 +195,16 @@ test('Rejecting a login checkpoint closes the browser without running the audit'
         approved: false,
       },
     });
-    assert.equal(answer.statusCode, 200);
+    expect(answer.statusCode).toEqual(200);
     const ended = await awaitRun(app, id, (state) => state === 'blocked' || state === 'failed', 5000);
-    assert.equal(ended.state, 'blocked');
+    expect(ended.state).toEqual('blocked');
     // Close is async from the runner's finally block; await the observable effect.
     const deadline = Date.now() + 3000;
     while ((!page.isClosed() || closeCalls === 0) && Date.now() < deadline) {
       await new Promise((done) => setTimeout(done, 20));
     }
-    assert.equal(closeCalls, 1);
-    assert.equal(page.isClosed(), true);
+    expect(closeCalls).toEqual(1);
+    expect(page.isClosed()).toEqual(true);
   } finally {
     BrowserSession.prototype.open = originalOpen;
     BrowserSession.prototype.close = originalClose;

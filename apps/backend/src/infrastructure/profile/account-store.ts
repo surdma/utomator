@@ -1,0 +1,351 @@
+import { randomUUID } from 'node:crypto';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
+import type { DocumentStore } from '../db/documents.js';
+import { createWriteQueue } from '../db/persistence.js';
+
+export type SocialPlatform = 'linkedin' | 'x' | 'instagram' | 'github' | 'devto';
+export type AccountProfile = {
+  displayName: string;
+  email: string;
+  location: string;
+  about: string;
+  headline: string;
+  website: string;
+  skills: string;
+  experience: string;
+  education: string;
+  avatarUrl: string;
+};
+export type SocialAccount = {
+  id: string;
+  platform: SocialPlatform;
+  label: string;
+  handle: string;
+  profileUrl: string;
+  avatarUrl?: string;
+};
+export type AccountState = {
+  revision: number;
+  profile: AccountProfile;
+  socialAccounts: SocialAccount[];
+};
+const platforms = new Set<SocialPlatform>(['linkedin', 'x', 'instagram', 'github', 'devto']);
+const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const field = (value: unknown, max: number, name: string) => {
+  if (typeof value !== 'string' || value.length > max) throw Error('Invalid ' + name);
+  return value.trim();
+};
+const asRecord = (value: unknown) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error('Expected object');
+  return value as Record<string, unknown>;
+};
+const profileLimits = {
+  displayName: 150,
+  email: 240,
+  location: 180,
+  about: 2600,
+  headline: 220,
+  website: 400,
+  skills: 800,
+  experience: 2000,
+  education: 1500,
+  avatarUrl: 2000,
+} as const;
+
+export function blankProfile(): AccountProfile {
+  return {
+    displayName: '',
+    email: '',
+    location: '',
+    about: '',
+    headline: '',
+    website: '',
+    skills: '',
+    experience: '',
+    education: '',
+    avatarUrl: '',
+  };
+}
+
+function clipProfileField(key: keyof AccountProfile, value: string) {
+  const text = value.trim().slice(0, profileLimits[key]);
+  if (!text) return '';
+  if (key === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)) return '';
+  if (key === 'website' || key === 'avatarUrl') {
+    try {
+      const parsed = new URL(text);
+      if (parsed.protocol !== 'https:' || parsed.username || parsed.password) return '';
+      if (key === 'avatarUrl' && /displaybackground|backgroundimage|profile_banners/i.test(parsed.href))
+        return '';
+      return parsed.href;
+    } catch {
+      return '';
+    }
+  }
+  return text;
+}
+
+export function readStoredProfile(raw: unknown): AccountProfile {
+  const value = asRecord(raw);
+  const profile = blankProfile();
+  for (const key of Object.keys(profile) as (keyof AccountProfile)[]) {
+    const incoming = value[key];
+    profile[key] = typeof incoming === 'string' ? clipProfileField(key, incoming) : '';
+  }
+  return profile;
+}
+
+/** Fill only fields the account does not already have. */
+export function mergeEmptyProfile(
+  current: AccountProfile,
+  incoming: Partial<AccountProfile>,
+): AccountProfile {
+  const next = { ...current };
+  for (const key of Object.keys(blankProfile()) as (keyof AccountProfile)[]) {
+    if (next[key].trim()) continue;
+    const value = incoming[key];
+    if (typeof value !== 'string') continue;
+    const clipped = clipProfileField(key, value);
+    if (clipped) next[key] = clipped;
+  }
+  return next;
+}
+
+export function parseAccountProfile(raw: unknown): AccountProfile {
+  const value = asRecord(raw);
+  const displayName = field(value.displayName, profileLimits.displayName, 'name');
+  const email = field(value.email, profileLimits.email, 'email');
+  const location = field(value.location, profileLimits.location, 'location');
+  const about = field(value.about, profileLimits.about, 'about');
+  if (!displayName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    throw Error('A name and valid email are required');
+  return { ...blankProfile(), displayName, email, location, about };
+}
+export function parseSocialAccount(raw: unknown, id: string = randomUUID()): SocialAccount {
+  const value = asRecord(raw);
+  const platform = value.platform;
+  if (typeof platform !== 'string' || !platforms.has(platform as SocialPlatform))
+    throw Error('Unsupported platform category');
+  const label = field(value.label, 100, 'account label');
+  const handle = field(value.handle, 100, 'handle').replace(/^@/, '');
+  if (!label || !/^[a-zA-Z0-9._-]{1,100}$/.test(handle))
+    throw Error('Account label and valid handle are required');
+  const profileUrl = field(value.profileUrl, 400, 'profile URL');
+  let parsed: URL;
+  try {
+    parsed = new URL(profileUrl);
+  } catch {
+    throw Error('Profile URL must be HTTPS');
+  }
+  if (
+    parsed.protocol !== 'https:' ||
+    parsed.username ||
+    parsed.password ||
+    parsed.port ||
+    parsed.search ||
+    parsed.hash
+  )
+    throw Error('Profile URL must be HTTPS without credentials or parameters');
+  const host = parsed.hostname.toLowerCase();
+  const approved: Partial<Record<SocialPlatform, string[]>> = {
+    linkedin: ['linkedin.com', 'www.linkedin.com'],
+    x: ['x.com', 'www.x.com'],
+    instagram: ['instagram.com', 'www.instagram.com'],
+    github: ['github.com', 'www.github.com'],
+    devto: ['dev.to'],
+  };
+  const allowed = approved[platform as SocialPlatform];
+  if (!allowed || !allowed.includes(host))
+    throw Error('Profile URL does not match the selected platform');
+  if (platform === 'linkedin') {
+    const match = parsed.pathname.match(/^\/in\/([a-zA-Z0-9_-]+)\/?$/);
+    if (!match) throw Error('LinkedIn profile must use an /in/ URL');
+    if (match[1]!.toLowerCase() !== handle.toLowerCase())
+      throw Error('LinkedIn profile handle must match its URL');
+  }
+  if (platform === 'x' && parsed.pathname.replace(/\/$/, '') !== '/' + handle)
+    throw Error('X profile handle must match its URL');
+  const avatarUrl = optionalAvatar(value.avatarUrl);
+  return {
+    id,
+    platform: platform as SocialPlatform,
+    label,
+    handle,
+    profileUrl: parsed.href,
+    ...(avatarUrl ? { avatarUrl } : {}),
+  };
+}
+
+function optionalAvatar(value: unknown) {
+  if (value == null || value === '') return undefined;
+  if (typeof value !== 'string' || value.length > 2000) throw Error('Invalid profile image');
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw Error('Invalid profile image');
+  }
+  if (parsed.protocol !== 'https:' || parsed.username || parsed.password)
+    throw Error('Invalid profile image');
+  return parsed.href;
+}
+
+const emptyProfile = blankProfile;
+
+function storedProfile(value: unknown): AccountProfile {
+  return readStoredProfile(value);
+}
+
+export class AccountStore {
+  private readonly file: string;
+  private readonly queue = createWriteQueue();
+  private documents?: DocumentStore;
+  setDocuments(documents: DocumentStore) {
+    this.documents = documents;
+  }
+  constructor(root = process.cwd()) {
+    this.file = resolve(root, '.runtime', 'account-studio.json');
+  }
+  async get(): Promise<AccountState> {
+    try {
+      const stored = this.documents ? await this.documents.get<AccountState>('account', 'owner') : null;
+      // Tenant data must never fall through to the local operator's JSON records.
+      if (this.documents && this.documents.ownerId !== 'local-owner' && !stored)
+        return { revision: 0, profile: emptyProfile(), socialAccounts: [] };
+      const data = stored
+        ? stored.value
+        : (JSON.parse(await readFile(this.file, 'utf8')) as AccountState);
+      if (
+        !Number.isSafeInteger(data.revision) ||
+        data.revision < 0 ||
+        !Array.isArray(data.socialAccounts) ||
+        data.socialAccounts.length > 80
+      )
+        throw Error('Invalid account workspace');
+      const socialAccounts = data.socialAccounts
+        .filter((row) => String(row.platform) !== 'other')
+        .map((row) => {
+          if (!uuid.test(row.id)) throw Error('Invalid account ID');
+          return parseSocialAccount(row, row.id);
+        });
+      if (new Set(socialAccounts.map((row) => row.id)).size !== socialAccounts.length)
+        throw Error('Duplicate account ID');
+      return {
+        revision: data.revision,
+        profile: storedProfile(data.profile),
+        socialAccounts,
+      };
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      // New workspaces must not inherit a portfolio owner's identity or social links.
+      return { revision: 0, profile: emptyProfile(), socialAccounts: [] };
+    }
+  }
+  private change(
+    expectedRevision: number,
+    nextState: (state: AccountState) => AccountState,
+  ): Promise<AccountState> {
+    if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0)
+      return Promise.reject(Error('Invalid revision'));
+    return this.queue(async () => {
+      const current = await this.get();
+      if (current.revision !== expectedRevision)
+        throw Error('Account data changed. Reload before saving.');
+      const updated = nextState(current);
+      updated.revision = current.revision + 1;
+      if (this.documents) {
+        const existing = await this.documents.get<AccountState>('account', 'owner');
+        await this.documents.put('account', 'owner', updated, existing?.version ?? 0);
+      } else {
+        await mkdir(dirname(this.file), { recursive: true, mode: 0o700 });
+        const temp = this.file + '.' + randomUUID() + '.tmp';
+        await writeFile(temp, JSON.stringify(updated, null, 2) + '\n', {
+          mode: 0o600,
+        });
+        await rename(temp, this.file);
+      }
+      return updated;
+    });
+  }
+  updateProfile(revision: number, value: unknown) {
+    const submitted = parseAccountProfile(value);
+    return this.change(revision, (state) => ({
+      ...state,
+      profile: {
+        ...state.profile,
+        displayName: submitted.displayName,
+        email: submitted.email,
+        location: submitted.location,
+        about: submitted.about,
+      },
+    }));
+  }
+  async fillEmptyProfile(patch: Partial<AccountProfile>) {
+    const current = await this.get();
+    return this.change(current.revision, (state) => ({
+      ...state,
+      profile: mergeEmptyProfile(state.profile, patch),
+    }));
+  }
+  addSocial(revision: number, value: unknown) {
+    const social = parseSocialAccount(value);
+    return this.change(revision, (state) => {
+      if (state.socialAccounts.some((item) => item.platform === social.platform))
+        throw Error('Only one linked account is permitted per platform');
+      return { ...state, socialAccounts: [...state.socialAccounts, social] };
+    });
+  }
+  updateSocial(revision: number, id: string, value: unknown) {
+    if (!uuid.test(id)) return Promise.reject(Error('Invalid account ID'));
+    const social = parseSocialAccount(value, id);
+    return this.change(revision, (state) => {
+      if (!state.socialAccounts.some((s) => s.id === id)) throw Error('Social account not found');
+      if (state.socialAccounts.some((item) => item.id !== id && item.platform === social.platform))
+        throw Error('Only one linked account is permitted per platform');
+      return {
+        ...state,
+        socialAccounts: state.socialAccounts.map((s) => (s.id === id ? social : s)),
+      };
+    });
+  }
+  // Only the connector calls this after proving ownership in the provider's browser.
+  // The caller-supplied UUID is also the persistent isolated Chrome profile ID.
+  async linkVerifiedSocial(id: string, value: unknown) {
+    if (!uuid.test(id)) throw Error('Invalid account ID');
+    const social = parseSocialAccount(value, id);
+    const current = await this.get();
+    return this.change(current.revision, (state) => {
+      const same = state.socialAccounts.find((item) => item.id === id);
+      if (same) {
+        if (
+          same.platform === social.platform &&
+          same.handle === social.handle &&
+          same.profileUrl === social.profileUrl
+        ) {
+          if (!social.avatarUrl || social.avatarUrl === same.avatarUrl) return state;
+          return {
+            ...state,
+            socialAccounts: state.socialAccounts.map((item) =>
+              item.id === id ? { ...item, avatarUrl: social.avatarUrl } : item,
+            ),
+          };
+        }
+        throw Error('Linked account identity cannot be replaced');
+      }
+      if (state.socialAccounts.some((item) => item.platform === social.platform))
+        throw Error('Only one linked account is permitted per platform');
+      return { ...state, socialAccounts: [...state.socialAccounts, social] };
+    });
+  }
+  removeSocial(revision: number, id: string) {
+    if (!uuid.test(id)) return Promise.reject(Error('Invalid account ID'));
+    return this.change(revision, (state) => {
+      if (!state.socialAccounts.some((s) => s.id === id)) throw Error('Social account not found');
+      return {
+        ...state,
+        socialAccounts: state.socialAccounts.filter((s) => s.id !== id),
+      };
+    });
+  }
+}

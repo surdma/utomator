@@ -1,7 +1,6 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
-import { attemptLogin } from '../src/browser/login.js';
+import { expect, test } from 'vitest';
+import { attemptLogin } from '../src/infrastructure/browser/login.js';
 
 test('LinkedIn fixture receives credentials with no logging or external request', async () => {
   const browser = await chromium.launch();
@@ -23,8 +22,8 @@ test('LinkedIn fixture receives credentials with no logging or external request'
       },
       new AbortController().signal,
     );
-    assert.equal(submitted, true);
-    assert.equal(await page.locator('body').getAttribute('data-sent'), 'yes');
+    expect(submitted).toEqual(true);
+    expect(await page.locator('body').getAttribute('data-sent')).toEqual('yes');
   } finally {
     await browser.close();
   }
@@ -35,7 +34,7 @@ test('credentials are never used on an untrusted origin', async () => {
   try {
     const page = await browser.newPage();
     await page.goto('about:blank');
-    await assert.rejects(
+    await expect(
       attemptLogin(
         page,
         'linkedin',
@@ -45,8 +44,7 @@ test('credentials are never used on an untrusted origin', async () => {
         },
         new AbortController().signal,
       ),
-      /official platform/,
-    );
+    ).rejects.toThrow(/official platform/);
   } finally {
     await browser.close();
   }
@@ -69,7 +67,7 @@ test('X two-step fixture logs in without writing credentials to run history', as
       });
     });
     await page.goto('https://x.com/i/flow/login');
-    assert.equal(
+    expect(
       await attemptLogin(
         page,
         'x',
@@ -79,9 +77,8 @@ test('X two-step fixture logs in without writing credentials to run history', as
         },
         new AbortController().signal,
       ),
-      true,
-    );
-    assert.equal(await page.locator('body').getAttribute('data-sent'), 'yes');
+    ).toEqual(true);
+    expect(await page.locator('body').getAttribute('data-sent')).toEqual('yes');
   } finally {
     await browser.close();
   }

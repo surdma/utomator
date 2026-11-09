@@ -1,5 +1,5 @@
-import { ConnectorService } from '../src/core/connectors.ts';
-import { AccountStore } from '../src/profile/account-store.ts';
+import { ConnectorService } from '../src/infrastructure/connect/service.ts';
+import { AccountStore } from '../src/infrastructure/profile/account-store.ts';
 
 const accounts = new AccountStore();
 const before = await accounts.get();

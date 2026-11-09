@@ -1,34 +1,30 @@
-import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { expect, test } from 'vitest';
 import {
   matchAnnotationAction,
   mergeSpokenComment,
-} from '../components/dashboard/reviews/annotation-voice.ts';
+} from '../modules/reviews/components/annotation-voice.ts';
 
 const linkedin = ['inspect', 'edit-profile', 'add-skill'];
 
 test('spoken annotation comments pick an allowed action and keep the words', () => {
-  assert.equal(
-    matchAnnotationAction('add a skill here', linkedin),
-    'add-skill'
+  expect(matchAnnotationAction('add a skill here', linkedin)).toEqual(
+    'add-skill',
   );
-  assert.equal(
-    matchAnnotationAction('edit my headline', linkedin),
-    'edit-profile'
+  expect(matchAnnotationAction('edit my headline', linkedin)).toEqual(
+    'edit-profile',
   );
-  assert.equal(matchAnnotationAction('inspect this spot', linkedin), 'inspect');
-  assert.equal(matchAnnotationAction('add a skill here', ['inspect']), null);
-  assert.equal(matchAnnotationAction('looks crowded', linkedin), null);
-  assert.equal(
-    mergeSpokenComment('', 'The headline is vague.'),
-    'The headline is vague.'
+  expect(matchAnnotationAction('inspect this spot', linkedin)).toEqual(
+    'inspect',
   );
-  assert.equal(
+  expect(matchAnnotationAction('add a skill here', ['inspect'])).toEqual(null);
+  expect(matchAnnotationAction('looks crowded', linkedin)).toEqual(null);
+  expect(mergeSpokenComment('', 'The headline is vague.')).toEqual(
+    'The headline is vague.',
+  );
+  expect(
     mergeSpokenComment('Keep the first line.', 'Name the audience.'),
-    'Keep the first line. Name the audience.'
-  );
-  assert.equal(
+  ).toEqual('Keep the first line. Name the audience.');
+  expect(
     mergeSpokenComment('Name the audience.', 'name the audience.'),
-    'Name the audience.'
-  );
+  ).toEqual('Name the audience.');
 });

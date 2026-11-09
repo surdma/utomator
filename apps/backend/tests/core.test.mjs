@@ -1,53 +1,151 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { expect, test } from 'vitest';
+import { EventJournal } from '../src/domain/events.ts';
 import {
-  validateRun,
-  validateProfileUrl,
-  validatePostUrl,
   profileUrlForHandle,
-} from '../src/core/validate.ts';
-import { EventJournal } from '../src/core/events.ts';
-import { ApprovalGate } from '../src/core/approvals.ts';
+  validatePostUrl,
+  validateProfileUrl,
+  validateRun,
+} from '../src/domain/validate.ts';
+import { ApprovalGate } from '../src/infrastructure/runs/approvals.ts';
 
 const linkedIn = 'https://www.linkedin.com/in/surdma/';
 const x = 'https://x.com/surdma';
 
 test('only legitimate direct profile URLs are accepted', () => {
-  assert.equal(validateProfileUrl('linkedin', linkedIn).pathname, '/in/surdma/');
-  assert.equal(validateProfileUrl('x', x).pathname, '/surdma');
+  expect(validateProfileUrl('linkedin', linkedIn).pathname).toEqual('/in/surdma/');
+  expect(validateProfileUrl('x', x).pathname).toEqual('/surdma');
   for (const bad of [
     'http://x.com/surdma',
     'https://x.com.evil.test/surdma',
     'https://x.com/surdma/settings',
     'https://evil.test',
   ]) {
-    assert.throws(() => validateProfileUrl('x', bad));
+    {
+      let e;
+      try {
+        (() => validateProfileUrl('x', bad))();
+      } catch (caught) {
+        e = caught;
+      }
+      expect(e).toBeDefined();
+      expect(() => {
+        throw e;
+      }).toThrow();
+    }
   }
 });
 test('platform capabilities and required fields are enforced', () => {
-  assert.doesNotThrow(() =>
+  expect(() =>
     validateRun({ platform: 'linkedin', action: 'audit', profileUrl: linkedIn }),
-  );
-  assert.throws(() =>
-    validateRun({ platform: 'linkedin', action: 'delete-post', profileUrl: linkedIn }),
-  );
-  assert.throws(() => validateRun({ platform: 'x', action: 'edit-profile', profileUrl: x }));
-  assert.throws(() =>
-    validateRun({ platform: 'linkedin', action: 'add-skill', profileUrl: linkedIn, skill: ' ' }),
-  );
-  assert.throws(() =>
-    validateRun({ platform: 'x', action: 'compose-post', profileUrl: x, postText: 'x'.repeat(281) }),
-  );
+  ).not.toThrow();
+  {
+    let e;
+    try {
+      (() => validateRun({ platform: 'linkedin', action: 'delete-post', profileUrl: linkedIn }))();
+    } catch (caught) {
+      e = caught;
+    }
+    expect(e).toBeDefined();
+    expect(() => {
+      throw e;
+    }).toThrow();
+  }
+  {
+    let e;
+    try {
+      (() => validateRun({ platform: 'x', action: 'edit-profile', profileUrl: x }))();
+    } catch (caught) {
+      e = caught;
+    }
+    expect(e).toBeDefined();
+    expect(() => {
+      throw e;
+    }).toThrow();
+  }
+  {
+    let e;
+    try {
+      (() =>
+        validateRun({ platform: 'linkedin', action: 'add-skill', profileUrl: linkedIn, skill: ' ' }))();
+    } catch (caught) {
+      e = caught;
+    }
+    expect(e).toBeDefined();
+    expect(() => {
+      throw e;
+    }).toThrow();
+  }
+  {
+    let e;
+    try {
+      (() =>
+        validateRun({
+          platform: 'x',
+          action: 'compose-post',
+          profileUrl: x,
+          postText: 'x'.repeat(281),
+        }))();
+    } catch (caught) {
+      e = caught;
+    }
+    expect(e).toBeDefined();
+    expect(() => {
+      throw e;
+    }).toThrow();
+  }
 });
 test('destructive post URLs cannot target a different account', () => {
-  assert.equal(
-    validatePostUrl(new URL(x), 'https://x.com/surdma/status/123').pathname,
+  expect(validatePostUrl(new URL(x), 'https://x.com/surdma/status/123').pathname).toEqual(
     '/surdma/status/123',
   );
-  assert.throws(() => validatePostUrl(new URL(x), 'https://x.com/someone/status/123'));
-  assert.throws(() => validatePostUrl(new URL(x), 'https://x.com/surdma/status/123?delete=yes'));
-  assert.throws(() => validatePostUrl(new URL(x), 'https://x.com:8443/surdma/status/123'));
-  assert.throws(() => validatePostUrl(new URL(x), 'https://other@x.com/surdma/status/123'));
+  {
+    let e;
+    try {
+      (() => validatePostUrl(new URL(x), 'https://x.com/someone/status/123'))();
+    } catch (caught) {
+      e = caught;
+    }
+    expect(e).toBeDefined();
+    expect(() => {
+      throw e;
+    }).toThrow();
+  }
+  {
+    let e;
+    try {
+      (() => validatePostUrl(new URL(x), 'https://x.com/surdma/status/123?delete=yes'))();
+    } catch (caught) {
+      e = caught;
+    }
+    expect(e).toBeDefined();
+    expect(() => {
+      throw e;
+    }).toThrow();
+  }
+  {
+    let e;
+    try {
+      (() => validatePostUrl(new URL(x), 'https://x.com:8443/surdma/status/123'))();
+    } catch (caught) {
+      e = caught;
+    }
+    expect(e).toBeDefined();
+    expect(() => {
+      throw e;
+    }).toThrow();
+  }
+  {
+    let e;
+    try {
+      (() => validatePostUrl(new URL(x), 'https://other@x.com/surdma/status/123'))();
+    } catch (caught) {
+      e = caught;
+    }
+    expect(e).toBeDefined();
+    expect(() => {
+      throw e;
+    }).toThrow();
+  }
 });
 test('event IDs are increasing, replay filter works, subscriber unsubscribes', () => {
   const journal = new EventJournal();
@@ -56,17 +154,11 @@ test('event IDs are increasing, replay filter works, subscriber unsubscribes', (
   journal.publish({ runId: 'one', kind: 'step', message: 'a' });
   journal.publish({ runId: 'two', kind: 'step', message: 'b' });
   journal.publish({ runId: 'one', kind: 'result', message: 'c' });
-  assert.deepEqual(
-    journal.getSince(1, 'one').map((evt) => evt.message),
-    ['c'],
-  );
-  assert.deepEqual(
-    received.map((evt) => evt.id),
-    [1, 2, 3],
-  );
+  expect(journal.getSince(1, 'one').map((evt) => evt.message)).toEqual(['c']);
+  expect(received.map((evt) => evt.id)).toEqual([1, 2, 3]);
   stop();
   journal.publish({ runId: 'one', kind: 'step', message: 'd' });
-  assert.equal(received.length, 3);
+  expect(received.length).toEqual(3);
 });
 test('approval requires exact run/checkpoint identity and cannot be reused', async () => {
   const gate = new ApprovalGate();
@@ -80,22 +172,22 @@ test('approval requires exact run/checkpoint identity and cannot be reused', asy
     controller.signal,
     2000,
   );
-  assert.equal(gate.answer('run2', id, true), false);
-  assert.equal(gate.answer('run1', 'wrong', true), false);
-  assert.equal(gate.answer('run1', id, true), true);
-  assert.equal(await pending, true);
-  assert.equal(gate.answer('run1', id, true), false);
+  expect(gate.answer('run2', id, true)).toEqual(false);
+  expect(gate.answer('run1', 'wrong', true)).toEqual(false);
+  expect(gate.answer('run1', id, true)).toEqual(true);
+  expect(await pending).toEqual(true);
+  expect(gate.answer('run1', id, true)).toEqual(false);
 });
 test('approval rejects aborts without allowing a save', async () => {
   const gate = new ApprovalGate();
   const controller = new AbortController();
   const pending = gate.request('run1', () => {}, controller.signal, 2000);
   controller.abort();
-  assert.equal(await pending, false);
+  expect(await pending).toEqual(false);
 });
 
 test('human text prompt validates exact checkpoint and text length', async () => {
-  const { PromptGate } = await import('../src/core/prompts.ts');
+  const { PromptGate } = await import('../src/infrastructure/runs/prompts.ts');
   const gate = new PromptGate();
   const controller = new AbortController();
   let checkpoint;
@@ -107,32 +199,53 @@ test('human text prompt validates exact checkpoint and text length', async () =>
     controller.signal,
     2000,
   );
-  assert.equal(gate.answer('run2', checkpoint, 'choice'), false);
-  assert.equal(gate.answer('run1', checkpoint, '  '), false);
-  assert.equal(gate.answer('run1', checkpoint, 'observed option'), true);
-  assert.equal(await waiting, 'observed option');
+  expect(gate.answer('run2', checkpoint, 'choice')).toEqual(false);
+  expect(gate.answer('run1', checkpoint, '  ')).toEqual(false);
+  expect(gate.answer('run1', checkpoint, 'observed option')).toEqual(true);
+  expect(await waiting).toEqual('observed option');
 });
 
 test('handle to platform URL allows @ but rejects URLs, email and path injection', () => {
-  assert.equal(profileUrlForHandle('linkedin', '@surdma'), 'https://www.linkedin.com/in/surdma/');
-  assert.equal(profileUrlForHandle('x', '@surdma'), 'https://x.com/surdma');
+  expect(profileUrlForHandle('linkedin', '@surdma')).toEqual('https://www.linkedin.com/in/surdma/');
+  expect(profileUrlForHandle('x', '@surdma')).toEqual('https://x.com/surdma');
   for (const unsafe of ['https://x.com/user', 'a/b', 'a@b.com', '..', 'bad?x=y']) {
-    assert.throws(() => profileUrlForHandle('x', unsafe));
+    {
+      let e;
+      try {
+        (() => profileUrlForHandle('x', unsafe))();
+      } catch (caught) {
+        e = caught;
+      }
+      expect(e).toBeDefined();
+      expect(() => {
+        throw e;
+      }).toThrow();
+    }
   }
 });
 test('one-time credentials must be complete', () => {
-  assert.throws(() =>
-    validateRun({
-      platform: 'x',
-      action: 'audit',
-      profileUrl: x,
-      login: { identifier: 'somebody', password: '' },
-    }),
-  );
+  {
+    let e;
+    try {
+      (() =>
+        validateRun({
+          platform: 'x',
+          action: 'audit',
+          profileUrl: x,
+          login: { identifier: 'somebody', password: '' },
+        }))();
+    } catch (caught) {
+      e = caught;
+    }
+    expect(e).toBeDefined();
+    expect(() => {
+      throw e;
+    }).toThrow();
+  }
 });
 
 test('audit assessment distinguishes observation from a proposal', async () => {
-  const { assessAudit } = await import('../src/core/assessment.ts');
+  const { assessAudit } = await import('../src/infrastructure/runs/assessment.ts');
   const events = new EventJournal();
   events.publish({
     runId: 'sample',
@@ -148,13 +261,13 @@ test('audit assessment distinguishes observation from a proposal', async () => {
     createdAt: new Date().toISOString(),
   };
   const report = assessAudit(events, summary, 'Evidence-backed draft');
-  assert.equal(report.comparisons[0].status, 'review-candidate');
-  assert.equal(report.comparisons[0].observed, 'Current human-authored headline');
-  assert.equal(report.comparisons[0].proposed, 'Evidence-backed draft');
-  assert.match(report.notice, /not an error/);
+  expect(report.comparisons[0].status).toEqual('review-candidate');
+  expect(report.comparisons[0].observed).toEqual('Current human-authored headline');
+  expect(report.comparisons[0].proposed).toEqual('Evidence-backed draft');
+  expect(report.notice).toMatch(/not an error/);
 });
 test('audit assessment does not invent missing observations', async () => {
-  const { assessAudit } = await import('../src/core/assessment.ts');
+  const { assessAudit } = await import('../src/infrastructure/runs/assessment.ts');
   const events = new EventJournal();
   const report = assessAudit(
     events,
@@ -167,12 +280,12 @@ test('audit assessment does not invent missing observations', async () => {
     },
     'Draft',
   );
-  assert.equal(report.comparisons[0].status, 'not-observed');
-  assert.equal(report.comparisons[0].observed, null);
+  expect(report.comparisons[0].status).toEqual('not-observed');
+  expect(report.comparisons[0].observed).toEqual(null);
 });
 
 test('read-only audit retries a destroyed page context, but does not replay navigation', async () => {
-  const { observeAfterNavigation } = await import('../src/workflows/execute.ts');
+  const { observeAfterNavigation } = await import('../src/infrastructure/workflows/execute.ts');
   let reads = 0,
     loads = 0,
     retries = 0;
@@ -198,113 +311,99 @@ test('read-only audit retries a destroyed page context, but does not replay navi
       },
     },
   );
-  assert.equal(result.headline, 'Verified read');
-  assert.equal(reads, 2);
-  assert.equal(retries, 1);
-  assert.ok(loads >= 2);
+  expect(result.headline).toEqual('Verified read');
+  expect(reads).toEqual(2);
+  expect(retries).toEqual(1);
+  expect(loads >= 2).toBeTruthy();
 });
 
 test('audit read retry never bypasses a redirect to an unrelated page', async () => {
-  const { observeAfterNavigation } = await import('../src/workflows/execute.ts');
+  const { observeAfterNavigation } = await import('../src/infrastructure/workflows/execute.ts');
   const page = { url: () => 'https://www.linkedin.com/feed/', waitForLoadState: async () => {} };
-  await assert.rejects(
+  await expect(
     observeAfterNavigation(page, new URL('https://www.linkedin.com/in/surdma/'), async () => ({
       headline: 'wrong account',
     })),
-    /different page/,
-  );
+  ).rejects.toThrow(/different page/);
 });
 
 test('audit never retries arbitrary script failures or cancelled work', async () => {
-  const { observeAfterNavigation } = await import('../src/workflows/execute.ts');
+  const { observeAfterNavigation } = await import('../src/infrastructure/workflows/execute.ts');
   const page = { url: () => 'https://www.linkedin.com/in/surdma/', waitForLoadState: async () => {} };
   let attempts = 0;
-  await assert.rejects(
+  await expect(
     observeAfterNavigation(page, new URL('https://www.linkedin.com/in/surdma/'), async () => {
       attempts++;
       throw new Error('Unexpected script bug');
     }),
-    /Unexpected script bug/,
-  );
-  assert.equal(attempts, 1);
+  ).rejects.toThrow(/Unexpected script bug/);
+  expect(attempts).toEqual(1);
   const controller = new AbortController();
   controller.abort();
-  await assert.rejects(
+  await expect(
     observeAfterNavigation(
       page,
       new URL('https://www.linkedin.com/in/surdma/'),
       async () => 'unreachable',
       { signal: controller.signal },
     ),
-    /Run cancelled/,
-  );
+  ).rejects.toThrow(/Run cancelled/);
 });
 
 test('audit accepts LinkedIn www host redirect but never unrelated hosts', async () => {
-  const { observeAfterNavigation } = await import('../src/workflows/execute.ts');
+  const { observeAfterNavigation } = await import('../src/infrastructure/workflows/execute.ts');
   const page = { url: () => 'https://www.linkedin.com/in/surdma/', waitForLoadState: async () => {} };
   const good = await observeAfterNavigation(
     page,
     new URL('https://linkedin.com/in/surdma/'),
     async () => 42,
   );
-  assert.equal(good, 42);
+  expect(good).toEqual(42);
   page.url = () => 'https://www.linkedin.com.evil.test/in/surdma/';
-  await assert.rejects(
+  await expect(
     observeAfterNavigation(page, new URL('https://www.linkedin.com/in/surdma/'), async () => 99),
-    /different page/,
-  );
+  ).rejects.toThrow(/different page/);
 });
 
 test('Scoped inspection accepts only exact owned LinkedIn/X pages', async () => {
-  const { validatePageScope, validateRun } = await import('../src/core/validate.ts');
+  const { validatePageScope, validateRun } = await import('../src/domain/validate.ts');
   const profile = new URL('https://www.linkedin.com/in/surdma/');
   const expected = 'https://www.linkedin.com/in/surdma/details/experience/';
-  assert.equal(validatePageScope('linkedin', profile, expected).href, expected);
-  assert.throws(
-    () =>
-      validatePageScope('linkedin', profile, 'https://www.linkedin.com/in/other/details/experience/'),
-    /Unsupported/,
-  );
-  assert.throws(
-    () => validatePageScope('linkedin', profile, 'https://www.linkedin.com/in/surdma/details/security/'),
-    /Unsupported/,
-  );
-  assert.throws(
-    () => validatePageScope('linkedin', profile, 'https://evil.test/in/surdma/'),
+  expect(validatePageScope('linkedin', profile, expected).href).toEqual(expected);
+  expect(() =>
+    validatePageScope('linkedin', profile, 'https://www.linkedin.com/in/other/details/experience/'),
+  ).toThrow(/Unsupported/);
+  expect(() =>
+    validatePageScope('linkedin', profile, 'https://www.linkedin.com/in/surdma/details/security/'),
+  ).toThrow(/Unsupported/);
+  expect(() => validatePageScope('linkedin', profile, 'https://evil.test/in/surdma/')).toThrow(
     /official/,
   );
-  assert.throws(() => validatePageScope('linkedin', profile, `${expected}?token=1`), /official/);
-  assert.equal(
+  expect(() => validatePageScope('linkedin', profile, `${expected}?token=1`)).toThrow(/official/);
+  expect(
     validateRun({
       platform: 'linkedin',
       action: 'audit-page',
       profileUrl: profile.href,
       pageUrl: expected,
     }).href,
-    profile.href,
-  );
-  assert.throws(
-    () => validateRun({ platform: 'linkedin', action: 'audit-page', profileUrl: profile.href }),
-    /Choose/,
-  );
-  assert.throws(
-    () =>
-      validateRun({
-        platform: 'linkedin',
-        action: 'edit-profile',
-        headline: 'Valid',
-        profileUrl: profile.href,
-        pageUrl: expected,
-      }),
-    /only for/,
-  );
-  assert.equal(
+  ).toEqual(profile.href);
+  expect(() =>
+    validateRun({ platform: 'linkedin', action: 'audit-page', profileUrl: profile.href }),
+  ).toThrow(/Choose/);
+  expect(() =>
+    validateRun({
+      platform: 'linkedin',
+      action: 'edit-profile',
+      headline: 'Valid',
+      profileUrl: profile.href,
+      pageUrl: expected,
+    }),
+  ).toThrow(/only for/);
+  expect(
     validatePageScope('x', new URL('https://x.com/surdma'), 'https://x.com/surdma').pathname,
-    '/surdma',
-  );
-  assert.throws(
-    () => validatePageScope('x', new URL('https://x.com/surdma'), 'https://x.com/surdma/settings'),
-    /Only the selected X/,
-  );
+  ).toEqual('/surdma');
+  expect(() =>
+    validatePageScope('x', new URL('https://x.com/surdma'), 'https://x.com/surdma/settings'),
+  ).toThrow(/Only the selected X/);
 });

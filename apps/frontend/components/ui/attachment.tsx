@@ -36,7 +36,7 @@ export function Attachment({
             ? 'gap-2 rounded-lg p-1 pr-2'
             : 'p-2 pr-3',
         stateStyles[state],
-        className
+        className,
       )}
       {...props}
     />
@@ -56,7 +56,7 @@ export function AttachmentMedia({
         variant === 'image'
           ? 'size-11 ring-1 ring-slate-200 ring-inset [&_img]:size-full [&_img]:object-cover'
           : 'size-8 [&_svg]:size-4',
-        className
+        className,
       )}
       {...props}
     />
@@ -125,7 +125,7 @@ export function AttachmentAction({
       type="button"
       className={cn(
         'inline-flex size-7 cursor-pointer items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700',
-        className
+        className,
       )}
       {...props}
     />
@@ -141,7 +141,7 @@ export function AttachmentGroup({
       data-slot="attachment-group"
       className={cn(
         'mator-snap-x flex gap-2 overflow-x-auto pb-0.5',
-        className
+        className,
       )}
       {...props}
     />

@@ -1,0 +1,4 @@
+# Enforce LF for the Growth YAML corpus: the restricted YAML compiler in
+# apps/backend/src/core/step-definitions.ts rejects CR characters, so a
+# Windows CRLF checkout would make every YAML template invalid by design.
+apps/backend/growth/*.yaml text eol=lf

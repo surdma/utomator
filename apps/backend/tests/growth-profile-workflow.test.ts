@@ -1,41 +1,42 @@
-import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { expect, test } from 'vitest';
+
 // Set the test environment before loading the Fastify app, matching other route tests.
 process.env.NODE_ENV = 'test';
 const { buildApp } = await import('../src/main.js');
-import { compileGrowthProfileYaml, readGrowthProfileWorkflow } from '../src/engine/growth-profile.js';
+
+import {
+  compileGrowthProfileYaml,
+  readGrowthProfileWorkflow,
+} from '../src/infrastructure/growth/growth-profile.js';
 
 test('Profile YAML retains nine requirements, twenty evidence targets and compiled registered actions', async () => {
   const { program } = await readGrowthProfileWorkflow();
-  assert.equal(program.id, 'linkedin-profile');
-  assert.equal(program.requirements.length, 9);
-  assert.equal(program.coverage.length, 20);
-  assert.equal(program.pipelines.length, 9);
-  assert(program.coverage.every((item) => item.status === 'requires-independent-evidence'));
-  assert(
+  expect(program.id).toEqual('linkedin-profile');
+  expect(program.requirements.length).toEqual(9);
+  expect(program.coverage.length).toEqual(20);
+  expect(program.pipelines.length).toEqual(9);
+  expect(program.coverage.every((item) => item.status === 'requires-independent-evidence')).toBeTruthy();
+  expect(
     program.pipelines.every(
       (item) =>
         item.source === 'registered-workflow-plan' &&
         item.requiresConnectedAccount &&
         item.stepCount >= 4,
     ),
-  );
+  ).toBeTruthy();
 });
 test('Unknown operations, duplicated evidence targets and unknown YAML keys fail closed', async () => {
   const { yaml } = await readGrowthProfileWorkflow();
-  assert.throws(
-    () => compileGrowthProfileYaml(yaml.replace('"add-featured"', '"delete-post"')),
-    /missing, duplicated or unregistered/,
+  expect(() => compileGrowthProfileYaml(yaml.replace('"add-featured"', '"delete-post"'))).toThrow(
+    /missing/,
   );
-  assert.throws(
-    () => compileGrowthProfileYaml(yaml.replace('"Profile verification"', '"Profile photo"')),
-    /missing, duplicated or unregistered/,
-  );
-  assert.throws(
-    () => compileGrowthProfileYaml(yaml.replace('  objective:', '  unsupported: "yes"\n  objective:')),
-    /Invalid Growth profile YAML spec/,
-  );
-  assert.throws(() => compileGrowthProfileYaml(yaml + '\nspec:\n'), /Duplicate YAML key/);
+  expect(() =>
+    compileGrowthProfileYaml(yaml.replace('"Profile verification"', '"Profile photo"')),
+  ).toThrow(/missing/);
+  expect(() =>
+    compileGrowthProfileYaml(yaml.replace('  objective:', '  unsupported: "yes"\n  objective:')),
+  ).toThrow(/Invalid Growth profile YAML spec/);
+  expect(() => compileGrowthProfileYaml(yaml + '\nspec:\n')).toThrow(/Duplicate YAML key/);
 });
 test('Read-only YAML and compiled program endpoints do not create a run', async () => {
   const app = buildApp();
@@ -43,25 +44,25 @@ test('Read-only YAML and compiled program endpoints do not create a run', async 
     await app.ready();
     const before = await app.inject('/runs');
     const profile = await app.inject('/growth/workflows/profile');
-    assert.equal(profile.statusCode, 200, profile.body);
-    assert.equal(profile.json().coverage.length, 20);
-    assert.equal(profile.json().requirements.length, 9);
+    expect(profile.statusCode).toEqual(200);
+    expect(profile.json().coverage.length).toEqual(20);
+    expect(profile.json().requirements.length).toEqual(9);
     const source = await app.inject('/growth/workflows/profile/yaml');
-    assert.equal(source.statusCode, 200, source.body);
-    assert.match(source.body, /kind: "GrowthProfileWorkflow"/);
-    assert.equal(source.headers['cache-control'], 'private, no-store');
-    assert.equal((await app.inject('/runs')).body, before.body);
+    expect(source.statusCode).toEqual(200);
+    expect(source.body).toMatch(/kind: "GrowthProfileWorkflow"/);
+    expect(source.headers['cache-control']).toEqual('private, no-store');
+    expect((await app.inject('/runs')).body).toEqual(before.body);
   } finally {
     await app.close();
   }
 });
 
-import type { Runner } from '../src/core/runner.js';
-import type { RunRequest, RunSummary } from '../src/core/types.js';
 import { randomUUID } from 'node:crypto';
-import { validateRun } from '../src/core/validate.js';
-import { compileWorkflow } from '../src/core/workflow-yaml.js';
-import { ProfileGrowthCoordinator } from '../src/engine/profile-growth-coordinator.js';
+import type { RunRequest, RunSummary } from '../src/domain/types.js';
+import { validateRun } from '../src/domain/validate.js';
+import { ProfileGrowthCoordinator } from '../src/infrastructure/growth/profile-growth-coordinator.js';
+import type { Runner } from '../src/infrastructure/runs/runner.js';
+import { compileWorkflow } from '../src/infrastructure/workflows/workflow-yaml.js';
 
 test('six dependent pipelines reuse validated Runner WorkflowPlans and record independent missing coverage', async () => {
   const runs = new Map<string, { summary: RunSummary; input: RunRequest }>();
@@ -69,7 +70,7 @@ test('six dependent pipelines reuse validated Runner WorkflowPlans and record in
   const stub = {
     start(input: RunRequest) {
       validateRun(input);
-      assert(input.workflow, 'each stage must use the existing WorkflowPlan compiler');
+      expect(input.workflow).toBeTruthy();
       compileWorkflow(input.workflow);
       actions.push(input.action);
       const summary: RunSummary = {
@@ -88,7 +89,7 @@ test('six dependent pipelines reuse validated Runner WorkflowPlans and record in
     stepOutput(id: string, stageId: string) {
       const run = runs.get(id);
       if (!run) return null;
-      assert.equal(stageId, run.input.action === 'audit-page' ? 'sectionEvidence' : 'baseline');
+      expect(stageId).toEqual(run.input.action === 'audit-page' ? 'sectionEvidence' : 'baseline');
       return {
         schema: 'evidence/v1',
         url: run.input.pageUrl ?? run.input.profileUrl,
@@ -106,38 +107,36 @@ test('six dependent pipelines reuse validated Runner WorkflowPlans and record in
   const accountId = 'c63e8078-644d-4a2a-80bd-7cba9eaa0e1b';
   const profile = 'https://www.linkedin.com/in/verified-owner/';
   const started = await coordinator.start(accountId, profile);
-  assert.equal(started.stages.length, 6);
-  assert.equal(started.coverage.length, 20);
-  assert.equal(started.counts.missing, 20);
-  assert.equal(started.canAdvance, true);
-  await assert.rejects(
+  expect(started.stages.length).toEqual(6);
+  expect(started.coverage.length).toEqual(20);
+  expect(started.counts.missing).toEqual(20);
+  expect(started.canAdvance).toEqual(true);
+  await expect(
     coordinator.supplyEvidence(started.id, {
       sectionId: 'headline',
       text: 'Not in the active identity stage',
     }),
-    /current stage/,
-  );
+  ).rejects.toThrow(/current stage/);
   const afterEvidence = await coordinator.supplyEvidence(started.id, {
     sectionId: 'profilePhoto',
     text: 'Owner reports a current professional photograph.',
   });
-  assert.equal(afterEvidence.counts.ownerSupplied, 1);
-  assert.equal(
-    afterEvidence.coverage.find((item) => item.id === 'profilePhoto')?.status,
+  expect(afterEvidence.counts.ownerSupplied).toEqual(1);
+  expect(afterEvidence.coverage.find((item) => item.id === 'profilePhoto')?.status).toEqual(
     'owner-supplied-unverified',
   );
   let stage = afterEvidence;
   for (let step = 0; step < 6; step++) {
     stage = await coordinator.advance(started.id);
-    if (step < 5) assert.equal(stage.activeIndex, step + 1);
+    if (step < 5) expect(stage.activeIndex).toEqual(step + 1);
   }
-  assert.deepEqual(actions, ['audit', 'audit', 'audit-page', 'audit-page', 'audit', 'audit']);
-  assert.equal(runs.size, 6);
-  assert.equal([...runs.values()].filter((r) => r.input.pageUrl).length, 2);
-  assert.equal(stage.status, 'completed-with-gaps');
-  assert.equal(stage.counts.missing, 19);
-  assert.equal(stage.counts.independentlyProviderVerified, 0);
-  await assert.rejects(coordinator.advance(started.id), /finalized/);
+  expect(actions).toEqual(['audit', 'audit', 'audit-page', 'audit-page', 'audit', 'audit']);
+  expect(runs.size).toEqual(6);
+  expect([...runs.values()].filter((r) => r.input.pageUrl).length).toEqual(2);
+  expect(stage.status).toEqual('completed-with-gaps');
+  expect(stage.counts.missing).toEqual(19);
+  expect(stage.counts.independentlyProviderVerified).toEqual(0);
+  await expect(coordinator.advance(started.id)).rejects.toThrow(/finalized/);
 });
 
 test('unverified Growth run cannot advance, and no valid account means no browser launch', async () => {
@@ -167,17 +166,16 @@ test('unverified Growth run cannot advance, and no valid account means no browse
     },
   } as unknown as Runner;
   const coordinator = new ProfileGrowthCoordinator(runner);
-  await assert.rejects(
-    coordinator.start('bad-identity', 'https://www.linkedin.com/in/owner/'),
+  await expect(coordinator.start('bad-identity', 'https://www.linkedin.com/in/owner/')).rejects.toThrow(
     /Verified LinkedIn account ID/,
   );
-  assert.equal(starts, 0);
+  expect(starts).toEqual(0);
   const result = await coordinator.start(
     'c63e8078-644d-4a2a-80bd-7cba9eaa0e1b',
     'https://www.linkedin.com/in/verified-owner/',
   );
-  await assert.rejects(coordinator.advance(result.id), /not completed/);
-  assert.equal(starts, 1);
+  await expect(coordinator.advance(result.id)).rejects.toThrow(/not completed/);
+  expect(starts).toEqual(1);
 });
 
 test('Growth composite API requires a genuine linked account, not arbitrary profile input', async () => {
@@ -188,44 +186,49 @@ test('Growth composite API requires a genuine linked account, not arbitrary prof
       method: 'GET',
       url: '/growth/workflows/profile/runs',
     });
-    assert.equal(initial.statusCode, 200, initial.body);
+    expect(initial.statusCode).toEqual(200);
     const start = await app.inject({
       method: 'POST',
       url: '/growth/workflows/profile/runs',
       payload: { accountId: 'c63e8078-644d-4a2a-80bd-7cba9eaa0e1b' },
     });
-    assert.equal(start.statusCode, 400, start.body);
-    assert.equal((await app.inject('/growth/workflows/profile/runs')).json().length, 0);
-    assert.equal((await app.inject('/growth/workflows/profile/runs/' + randomUUID())).statusCode, 404);
+    expect(start.statusCode).toEqual(400);
+    expect((await app.inject('/growth/workflows/profile/runs')).json().length).toEqual(0);
+    expect((await app.inject('/growth/workflows/profile/runs/' + randomUUID())).statusCode).toEqual(404);
   } finally {
     await app.close();
   }
 });
 
-import { readGrowthTemplateCatalog, readGrowthTemplate } from '../src/engine/growth-profile.js';
+import {
+  readGrowthTemplate,
+  readGrowthTemplateCatalog,
+} from '../src/infrastructure/growth/growth-profile.js';
 
 test('all YAML Growth templates share the same discoverable manifest contract', async () => {
   const catalog = await readGrowthTemplateCatalog();
-  assert(catalog.length >= 1);
-  assert.equal(catalog.find((item) => item.program.id === 'linkedin-profile')?.program.stages.length, 6);
-  assert.equal((await readGrowthTemplate('linkedin-profile'))?.program.id, 'linkedin-profile');
-  assert.equal(await readGrowthTemplate('missing-template'), null);
+  expect(catalog.length >= 1).toBeTruthy();
+  expect(catalog.find((item) => item.program.id === 'linkedin-profile')?.program.stages.length).toEqual(
+    6,
+  );
+  expect((await readGrowthTemplate('linkedin-profile'))?.program.id).toEqual('linkedin-profile');
+  expect(await readGrowthTemplate('missing-template')).toEqual(null);
   const { yaml } = await readGrowthProfileWorkflow();
   const another = compileGrowthProfileYaml(
     yaml
       .replace('id: "linkedin-profile"', 'id: "linkedin-competitors"')
       .replace('    skills: "add-skill"\n', ''),
   );
-  assert.equal(another.id, 'linkedin-competitors');
-  assert.equal(another.pipelines.length, 8);
-  assert(
+  expect(another.id).toEqual('linkedin-competitors');
+  expect(another.pipelines.length).toEqual(8);
+  expect(
     another.stages.every(
       (stage) =>
         stage.plan.steps[0]?.kind === 'start' &&
         stage.plan.steps[1]?.kind === 'session' &&
         stage.plan.links.length > 0,
     ),
-  );
+  ).toBeTruthy();
 });
 
 test('YAML Growth template API exposes the entire task graph and rejects unsupported runs', async () => {
@@ -233,23 +236,23 @@ test('YAML Growth template API exposes the entire task graph and rejects unsuppo
   try {
     await app.ready();
     const catalog = await app.inject('/growth/templates');
-    assert.equal(catalog.statusCode, 200, catalog.body);
-    assert(catalog.json().some((item: { id: string }) => item.id === 'linkedin-profile'));
+    expect(catalog.statusCode).toEqual(200);
+    expect(catalog.json().some((item: { id: string }) => item.id === 'linkedin-profile')).toBeTruthy();
     const detail = await app.inject('/growth/templates/linkedin-profile');
-    assert.equal(detail.statusCode, 200, detail.body);
-    assert.equal(detail.json().stages.length, 6);
-    assert(
+    expect(detail.statusCode).toEqual(200);
+    expect(detail.json().stages.length).toEqual(6);
+    expect(
       detail.json().stages.every((item: { plan: { steps: unknown[] } }) => item.plan.steps.length >= 4),
-    );
-    assert.equal((await app.inject('/growth/templates/linkedin-profile/yaml')).statusCode, 200);
-    assert.equal((await app.inject('/growth/templates/no-such-workflow')).statusCode, 404);
+    ).toBeTruthy();
+    expect((await app.inject('/growth/templates/linkedin-profile/yaml')).statusCode).toEqual(200);
+    expect((await app.inject('/growth/templates/no-such-workflow')).statusCode).toEqual(404);
     const rejected = await app.inject({
       method: 'POST',
       url: '/growth/templates/linkedin-profile/runs',
       payload: { accountId: 'c63e8078-644d-4a2a-80bd-7cba9eaa0e1b' },
     });
-    assert.equal(rejected.statusCode, 400, rejected.body);
-    assert.deepEqual((await app.inject('/growth/templates/linkedin-profile/runs')).json(), []);
+    expect(rejected.statusCode).toEqual(400);
+    expect((await app.inject('/growth/templates/linkedin-profile/runs')).json()).toEqual([]);
   } finally {
     await app.close();
   }
@@ -292,11 +295,11 @@ test('composite runner reports failed pipelines and the exact failed child task'
   } as unknown as Runner;
   const coordinator = new ProfileGrowthCoordinator(runner);
   const run = await coordinator.start(id, 'https://www.linkedin.com/in/verified-owner/');
-  assert.equal(run.pipelineRuns[0]?.state, 'failed');
-  assert.equal(run.pipelineRuns[0]?.currentStepId, 'inspect');
-  assert.match(run.pipelineRuns[0]?.error ?? '', /inspection failed/);
-  await assert.rejects(coordinator.advance(run.id), /not completed/);
-  assert.equal(run.pipelineRuns[1]?.state, 'waiting');
+  expect(run.pipelineRuns[0]?.state).toEqual('failed');
+  expect(run.pipelineRuns[0]?.currentStepId).toEqual('inspect');
+  expect(run.pipelineRuns[0]?.error ?? '').toMatch(/inspection failed/);
+  await expect(coordinator.advance(run.id)).rejects.toThrow(/not completed/);
+  expect(run.pipelineRuns[1]?.state).toEqual('waiting');
 });
 
 test('completed child waits for Runner browser cleanup before the next pipeline', async () => {
@@ -336,47 +339,42 @@ test('completed child waits for Runner browser cleanup before the next pipeline'
   } as unknown as Runner;
   const coordinator = new ProfileGrowthCoordinator(runner);
   const started = await coordinator.start(accountId, 'https://www.linkedin.com/in/verified-owner/');
-  assert.equal(started.currentChild?.state, 'completed');
-  assert.equal(started.releasePending, true);
-  assert.equal(started.canAdvance, false);
-  await assert.rejects(coordinator.advance(started.id), /browser session is still closing/);
-  assert.equal(starts, 1, 'blocked advance must never launch a second browser');
-  assert.equal((await coordinator.get(started.id))?.activeIndex, 0);
+  expect(started.currentChild?.state).toEqual('completed');
+  expect(started.releasePending).toEqual(true);
+  expect(started.canAdvance).toEqual(false);
+  await expect(coordinator.advance(started.id)).rejects.toThrow(/browser session is still closing/);
+  expect(starts).toEqual(1);
+  expect((await coordinator.get(started.id))?.activeIndex).toEqual(0);
   idle = true;
-  assert.equal((await coordinator.get(started.id))?.canAdvance, true);
+  expect((await coordinator.get(started.id))?.canAdvance).toEqual(true);
   const next = await coordinator.advance(started.id);
-  assert.equal(next.activeIndex, 1);
-  assert.equal(starts, 2);
+  expect(next.activeIndex).toEqual(1);
+  expect(starts).toEqual(2);
 });
 
 test('a second Growth YAML is discovered and compiled as one guarded pipeline', async () => {
   const templates = await readGrowthTemplateCatalog();
   const second = templates.find((item) => item.program.id === 'linkedin-branding');
-  assert(second, 'another Growth must be discovered without a dedicated page or controller');
-  assert.equal(second.program.kind, 'GrowthWorkflow');
-  assert.equal(second.program.stages.length, 1);
-  assert.equal(second.program.coverage.length, 5);
-  assert.deepEqual(
-    second.program.stages[0]?.sectionIds,
-    second.program.coverage.map((item) => item.id),
-  );
-  assert.equal(second.program.stages[0]?.plan.steps[1]?.kind, 'session');
-  assert(second.program.stages[0]!.plan.links.length >= 4);
-  assert.throws(
-    () =>
-      compileGrowthProfileYaml(
-        second.yaml.replace('      action: "audit"', '      action: "edit-profile"'),
-      ),
-    /Invalid or unsafe Growth pipeline stage configuration/,
-  );
+  expect(second).toBeTruthy();
+  expect(second.program.kind).toEqual('GrowthWorkflow');
+  expect(second.program.stages.length).toEqual(1);
+  expect(second.program.coverage.length).toEqual(5);
+  expect(second.program.stages[0]?.sectionIds).toEqual(second.program.coverage.map((item) => item.id));
+  expect(second.program.stages[0]?.plan.steps[1]?.kind).toEqual('session');
+  expect(second.program.stages[0]!.plan.links.length >= 4).toBeTruthy();
+  expect(() =>
+    compileGrowthProfileYaml(
+      second.yaml.replace('      action: "audit"', '      action: "edit-profile"'),
+    ),
+  ).toThrow(/Invalid or unsafe Growth pipeline stage configuration/);
   const app = buildApp();
   try {
     await app.ready();
     const detail = await app.inject('/growth/templates/linkedin-branding');
-    assert.equal(detail.statusCode, 200, detail.body);
-    assert.equal(detail.json().stages.length, 1);
-    assert.equal((await app.inject('/growth/templates/linkedin-branding/yaml')).statusCode, 200);
-    assert.deepEqual((await app.inject('/growth/templates/linkedin-branding/runs')).json(), []);
+    expect(detail.statusCode).toEqual(200);
+    expect(detail.json().stages.length).toEqual(1);
+    expect((await app.inject('/growth/templates/linkedin-branding/yaml')).statusCode).toEqual(200);
+    expect((await app.inject('/growth/templates/linkedin-branding/runs')).json()).toEqual([]);
   } finally {
     await app.close();
   }
@@ -387,7 +385,7 @@ test('single-pipeline Growth reports all owner evidence without false provider v
   const runner = {
     start(input: RunRequest) {
       validateRun(input);
-      assert(input.workflow);
+      expect(input.workflow).toBeTruthy();
       compileWorkflow(input.workflow);
       const child: RunSummary = {
         id: randomUUID(),
@@ -422,41 +420,44 @@ test('single-pipeline Growth reports all owner evidence without false provider v
     'https://www.linkedin.com/in/verified-owner/',
     'linkedin-branding',
   );
-  assert.equal(started.stages.length, 1);
-  assert.equal(started.counts.total, 5);
+  expect(started.stages.length).toEqual(1);
+  expect(started.counts.total).toEqual(5);
   for (const field of started.coverage)
     await coordinator.supplyEvidence(started.id, {
       sectionId: field.id,
       text: 'Owner reported observation for ' + field.id,
     });
   const final = await coordinator.advance(started.id);
-  assert.equal(final.status, 'completed-with-owner-evidence');
-  assert.equal(final.counts.missing, 0);
-  assert.equal(final.counts.independentlyProviderVerified, 0);
-  assert.equal(runs.size, 1);
+  expect(final.status).toEqual('completed-with-owner-evidence');
+  expect(final.counts.missing).toEqual(0);
+  expect(final.counts.independentlyProviderVerified).toEqual(0);
+  expect(runs.size).toEqual(1);
 });
-
 
 test('Growth template library exposes exactly 21 YAML workflows with connected tasks', async () => {
   const templates = await readGrowthTemplateCatalog();
-  assert.equal(templates.length, 21);
-  assert.equal(new Set(templates.map((item) => item.program.id)).size, 21);
+  expect(templates.length).toEqual(21);
+  expect(new Set(templates.map((item) => item.program.id)).size).toEqual(21);
   for (const { program } of templates) {
-    assert(program.stages.length >= 1);
-    assert(program.stages.every((stage) => stage.plan.links.length === stage.plan.steps.length - 1));
-    assert(program.stages.every((stage) => stage.plan.steps.length >= 5));
+    expect(program.stages.length >= 1).toBeTruthy();
+    expect(
+      program.stages.every((stage) => stage.plan.links.length === stage.plan.steps.length - 1),
+    ).toBeTruthy();
+    expect(program.stages.every((stage) => stage.plan.steps.length >= 5)).toBeTruthy();
   }
   const blueprints = templates.filter((item) => item.program.kind === 'GrowthBlueprintWorkflow');
-  assert.equal(blueprints.length, 19);
+  expect(blueprints.length).toEqual(19);
   for (const { program } of blueprints) {
-    assert.equal(program.executable, false);
-    assert.deepEqual(program.stages.map((stage) => stage.id), ['discovery', 'review']);
-    assert(program.stages.every((stage) => stage.action === 'manual'));
-    assert(program.stages.every((stage) =>
-      ['todo', 'procedure', 'action', 'event', 'verify'].every((id) =>
-        stage.plan.steps.some((step) => step.id === id),
+    expect(program.executable).toEqual(false);
+    expect(program.stages.map((stage) => stage.id)).toEqual(['discovery', 'review']);
+    expect(program.stages.every((stage) => stage.action === 'manual')).toBeTruthy();
+    expect(
+      program.stages.every((stage) =>
+        ['todo', 'procedure', 'action', 'event', 'verify'].every((id) =>
+          stage.plan.steps.some((step) => step.id === id),
+        ),
       ),
-    ));
+    ).toBeTruthy();
   }
 });
 
@@ -465,24 +466,24 @@ test('planning-only YAML can be previewed but must reject Runner launch', async 
   try {
     await app.ready();
     const listed = await app.inject('/growth/templates');
-    assert.equal(listed.statusCode, 200);
-    assert.equal(listed.json().length, 21);
+    expect(listed.statusCode).toEqual(200);
+    expect(listed.json().length).toEqual(21);
     const planned = listed.json().find((item: { id: string }) => item.id === 'linkedin-analytics');
-    assert.equal(planned.executable, false);
+    expect(planned.executable).toEqual(false);
     const detail = await app.inject('/growth/templates/linkedin-analytics');
-    assert.equal(detail.statusCode, 200);
-    assert.equal(detail.json().kind, 'GrowthBlueprintWorkflow');
-    assert.equal(detail.json().stages.length, 2);
+    expect(detail.statusCode).toEqual(200);
+    expect(detail.json().kind).toEqual('GrowthBlueprintWorkflow');
+    expect(detail.json().stages.length).toEqual(2);
     const source = await app.inject('/growth/templates/linkedin-analytics/yaml');
-    assert.equal(source.statusCode, 200);
-    assert.match(source.body, /kind: "GrowthBlueprintWorkflow"/);
+    expect(source.statusCode).toEqual(200);
+    expect(source.body).toMatch(/kind: "GrowthBlueprintWorkflow"/);
     const run = await app.inject({
       method: 'POST',
       url: '/growth/templates/linkedin-analytics/runs',
       payload: { accountId: 'c63e8078-644d-4a2a-80bd-7cba9eaa0e1b' },
     });
-    assert.equal(run.statusCode, 409, run.body);
-    assert.match(run.json().error, /design-only/i);
+    expect(run.statusCode).toEqual(409);
+    expect(run.json().error).toMatch(/design-only/i);
   } finally {
     await app.close();
   }

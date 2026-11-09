@@ -58,7 +58,7 @@ function matorPermitted(path: string, method: string): boolean {
     return true;
   if (
     new RegExp(`^mator/conversations/${id}/stage/${id}/(confirm|reject)$`).test(
-      path
+      path,
     ) &&
     method === 'POST'
   )
@@ -89,14 +89,14 @@ function permitted(path: string, method: string): boolean {
   if (
     method === 'GET' &&
     /^growth\/templates\/[a-z][a-z0-9-]{2,70}\/runs(?:\/[0-9a-fA-F-]{36})?$/.test(
-      path
+      path,
     )
   )
     return true;
   if (
     method === 'POST' &&
     /^growth\/templates\/[a-z][a-z0-9-]{2,70}\/runs(?:\/[0-9a-fA-F-]{36}\/(advance|evidence))?$/.test(
-      path
+      path,
     )
   )
     return true;
@@ -123,7 +123,7 @@ function permitted(path: string, method: string): boolean {
     method === 'POST' &&
     (path === 'growth/workflows/profile/runs' ||
       /^growth\/workflows\/profile\/runs\/[0-9a-fA-F-]{36}\/(advance|evidence)$/.test(
-        path
+        path,
       ))
   )
     return true;
@@ -157,26 +157,26 @@ function permitted(path: string, method: string): boolean {
         'step-forms',
       ].includes(path) ||
       /^career\/resumes\/[0-9a-fA-F-]{36}$/.test(path) ||
-      new RegExp('^profile-plans/' + id + '$').test(path) ||
+      new RegExp(`^profile-plans/${id}$`).test(path) ||
       /^crafts\/[a-zA-Z0-9-]{1,75}(?:\/(?:export|mdx))?$/.test(path) ||
-      new RegExp('^(runs|events)/' + id + '$').test(path) ||
-      new RegExp('^runs/' + id + '/(assessment|logs)$').test(path) ||
-      new RegExp(
-        '^runs/' + id + '/steps/[a-zA-Z][a-zA-Z0-9_-]{0,63}/output$'
-      ).test(path) ||
-      new RegExp('^visual-reviews/' + id + '/yaml$').test(path) ||
+      new RegExp(`^(runs|events)/${id}$`).test(path) ||
+      new RegExp(`^runs/${id}/(assessment|logs)$`).test(path) ||
+      new RegExp(`^runs/${id}/steps/[a-zA-Z][a-zA-Z0-9_-]{0,63}/output$`).test(
+        path,
+      ) ||
+      new RegExp(`^visual-reviews/${id}/yaml$`).test(path) ||
       /^workflows\/[0-9a-fA-F-]{36}(?:\/yaml|\/revisions\/[1-9][0-9]*)?$/.test(
-        path
+        path,
       ) ||
       /^step-definitions\/[a-zA-Z][a-zA-Z0-9_-]{0,63}\/versions\/[1-9][0-9]*$/.test(
-        path
+        path,
       ) ||
       /^workflow-templates\/(linkedin|x)$/.test(path) ||
       /^workflow-plans\/(linkedin|x)\/(audit|audit-page|edit-profile|add-skill|compose-post|pin-post|delete-post|edit-experience|edit-website|edit-services|add-project|add-featured|upload-banner)$/.test(
-        path
+        path,
       ) ||
-      new RegExp('^visual-reviews/' + id + '/image$').test(path) ||
-      new RegExp('^runs/' + id + '/evidence/[a-zA-Z0-9_-]+\\.png$').test(path)
+      new RegExp(`^visual-reviews/${id}/image$`).test(path) ||
+      new RegExp(`^runs/${id}/evidence/[a-zA-Z0-9_-]+\\.png$`).test(path)
     );
   }
   if (method === 'POST') {
@@ -196,7 +196,7 @@ function permitted(path: string, method: string): boolean {
       path === 'connectors/start' ||
       path === 'intelligence/chat' ||
       /^connectors\/[0-9a-fA-F-]{36}\/(connect|sync|check|disconnect|input)$/.test(
-        path
+        path,
       )
     )
       return true;
@@ -212,10 +212,8 @@ function permitted(path: string, method: string): boolean {
         'step-definitions',
         'profile-plans',
       ].includes(path) ||
-      new RegExp('^profile-plans/' + id + '/(decision|select)$').test(path) ||
-      new RegExp('^runs/' + id + '/(decision|input|cancel|pause|resume)$').test(
-        path
-      )
+      new RegExp(`^profile-plans/${id}/(decision|select)$`).test(path) ||
+      new RegExp(`^runs/${id}/(decision|input|cancel|pause|resume)$`).test(path)
     );
   }
   if (method === 'PUT' && /^linkedin\/drafts\/[0-9a-fA-F-]{36}$/.test(path))
@@ -232,7 +230,7 @@ function permitted(path: string, method: string): boolean {
       /^workflows\/[0-9a-fA-F-]{36}$/.test(path) ||
       /^crafts\/[a-zA-Z0-9-]{1,75}$/.test(path) ||
       /^workflow-plans\/(linkedin|x)\/(audit|audit-page|edit-profile|add-skill|compose-post|pin-post|delete-post|edit-experience|edit-website|edit-services|add-project|add-featured|upload-banner)$/.test(
-        path
+        path,
       )
     );
   if (method === 'DELETE' && /^account\/social\/[0-9a-fA-F-]{36}$/.test(path))
@@ -264,7 +262,7 @@ async function forward(req: NextRequest, params: Promise<{ path: string[] }>) {
     ) {
       return Response.json(
         { error: 'Same-origin request required' },
-        { status: 403 }
+        { status: 403 },
       );
     }
   }
@@ -280,7 +278,7 @@ async function forward(req: NextRequest, params: Promise<{ path: string[] }>) {
           path[2] === 'steps' &&
           /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(part)
         ) &&
-        !(index === path.length - 1 && /^[a-zA-Z0-9_-]+\.png$/.test(part))
+        !(index === path.length - 1 && /^[a-zA-Z0-9_-]+\.png$/.test(part)),
     )
   ) {
     return Response.json({ error: 'Unsupported path' }, { status: 404 });
@@ -292,7 +290,7 @@ async function forward(req: NextRequest, params: Promise<{ path: string[] }>) {
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     return Response.json(
       { error: 'Invalid local automation port' },
-      { status: 503 }
+      { status: 503 },
     );
   }
   try {
@@ -322,7 +320,7 @@ async function forward(req: NextRequest, params: Promise<{ path: string[] }>) {
     if (body && new TextEncoder().encode(body).byteLength > maxBytes)
       return Response.json({ error: 'Request too large' }, { status: 413 });
     const upstream = await fetch(
-      'http://127.0.0.1:' + port + '/' + target + new URL(req.url).search,
+      `http://127.0.0.1:${port}/${target}${new URL(req.url).search}`,
       {
         method: req.method,
         // Craft cloning can legitimately send an empty POST. Fastify rejects empty JSON bodies.
@@ -334,11 +332,14 @@ async function forward(req: NextRequest, params: Promise<{ path: string[] }>) {
                 'idempotency-key': req.headers.get('idempotency-key') as string,
               }
             : {}),
+          ...(req.headers.get('x-owner-id')
+            ? { 'x-owner-id': req.headers.get('x-owner-id') as string }
+            : {}),
         },
         body: body?.length ? body : undefined,
         cache: 'no-store',
         signal: req.signal,
-      }
+      },
     );
     const headers = new Headers({
       'content-type':
@@ -349,42 +350,51 @@ async function forward(req: NextRequest, params: Promise<{ path: string[] }>) {
     if (target.startsWith('events/')) {
       headers.set('x-accel-buffering', 'no');
     }
+    if (/^runs\/[0-9a-fA-F-]{36}\/logs$/.test(target)) {
+      for (const name of [
+        'x-run-journal-truncated',
+        'x-run-journal-has-more',
+      ]) {
+        const value = upstream.headers.get(name);
+        if (value !== null) headers.set(name, value);
+      }
+    }
     return new Response(upstream.body, { status: upstream.status, headers });
   } catch {
     return Response.json(
       { error: 'Automation engine unavailable. Start pnpm dev.' },
-      { status: 503 }
+      { status: 503 },
     );
   }
 }
 export async function GET(
   req: NextRequest,
-  context: { params: Promise<{ path: string[] }> }
+  context: { params: Promise<{ path: string[] }> },
 ) {
   return forward(req, context.params);
 }
 export async function POST(
   req: NextRequest,
-  context: { params: Promise<{ path: string[] }> }
+  context: { params: Promise<{ path: string[] }> },
 ) {
   return forward(req, context.params);
 }
 
 export async function PUT(
   req: NextRequest,
-  context: { params: Promise<{ path: string[] }> }
+  context: { params: Promise<{ path: string[] }> },
 ) {
   return forward(req, context.params);
 }
 export async function PATCH(
   req: NextRequest,
-  context: { params: Promise<{ path: string[] }> }
+  context: { params: Promise<{ path: string[] }> },
 ) {
   return forward(req, context.params);
 }
 export async function DELETE(
   req: NextRequest,
-  context: { params: Promise<{ path: string[] }> }
+  context: { params: Promise<{ path: string[] }> },
 ) {
   return forward(req, context.params);
 }

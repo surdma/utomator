@@ -1,21 +1,21 @@
 'use client';
 
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   createContext,
+  type ReactNode,
   useCallback,
   useContext,
   useRef,
   useState,
-  type ReactNode,
 } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 type ToastTone = 'default' | 'success' | 'error';
 type Toast = { id: number; message: string; tone: ToastTone };
 
 const ToastContext = createContext<(message: string, tone?: ToastTone) => void>(
-  () => undefined
+  () => undefined,
 );
 
 export function useToast() {
@@ -58,7 +58,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
                   : toast.tone === 'error'
                     ? 'border-rose-200 bg-rose-50 text-rose-700'
-                    : 'border-slate-700 bg-slate-900 text-white'
+                    : 'border-slate-700 bg-slate-900 text-white',
               )}
             >
               {toast.message}

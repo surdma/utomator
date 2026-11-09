@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 /** Self-contained mock provider page used to rehearse the sign-in flow. */
 function fixtureUrl(search: string) {
@@ -7,9 +7,9 @@ function fixtureUrl(search: string) {
     process.cwd(),
     'tests',
     'mocks',
-    'mock-provider-signin.html'
+    'mock-provider-signin.html',
   ).replace(/\\/g, '/');
-  return 'file:///' + file + search;
+  return `file:///${file}${search}`;
 }
 
 const stage = (page: Page) => page.getByTestId('mock-provider-stage');
@@ -30,7 +30,7 @@ test('Mock provider happy path: sign-in → MFA → consent → success', async 
   await page.getByTestId('mock-consent-allow').click();
   await expect(stage(page)).toHaveAttribute('data-stage', 'success');
   await expect(page.getByTestId('mock-owner-only-control')).toHaveText(
-    'Edit profile'
+    'Edit profile',
   );
 });
 

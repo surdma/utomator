@@ -1,4 +1,5 @@
-import type { HTMLAttributes, ButtonHTMLAttributes } from 'react';
+import type { ButtonHTMLAttributes, HTMLAttributes } from 'react';
+
 type Props = HTMLAttributes<HTMLDivElement>;
 export function Card({ className = '', ...props }: Props) {
   return (
@@ -56,6 +57,7 @@ export function Button({
   };
   return (
     <button
+      type="button"
       className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-3 font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40 ${size === 'sm' ? 'text-xs' : 'text-sm'} ${styles[variant]} ${className}`}
       {...props}
     />

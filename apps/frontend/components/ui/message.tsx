@@ -8,10 +8,11 @@ export function Message({ className = '', align = 'start', ...props }: Props) {
   return (
     <div
       data-slot="message"
+      data-align={align}
       className={cn(
-        'flex w-full items-end gap-2.5',
-        align === 'end' && 'flex-row-reverse',
-        className
+        'group/msg flex w-full items-end gap-2.5',
+        align === 'end' && 'justify-end',
+        className,
       )}
       {...props}
     />
@@ -34,7 +35,7 @@ export function MessageAvatar({ className = '', ...props }: Props) {
       data-slot="message-avatar"
       className={cn(
         'flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-800 text-xs font-semibold text-white',
-        className
+        className,
       )}
       {...props}
     />
@@ -45,7 +46,11 @@ export function MessageContent({ className = '', ...props }: Props) {
   return (
     <div
       data-slot="message-content"
-      className={cn('max-w-[min(100%,42rem)] min-w-0 flex-1', className)}
+      className={cn(
+        'max-w-[min(100%,42rem)] min-w-0 flex-1',
+        'group-data-[align=end]/msg:flex group-data-[align=end]/msg:w-fit group-data-[align=end]/msg:max-w-[min(82%,28rem)] group-data-[align=end]/msg:flex-none group-data-[align=end]/msg:flex-col group-data-[align=end]/msg:items-end',
+        className,
+      )}
       {...props}
     />
   );
@@ -56,7 +61,7 @@ export function MessageHeader({ className = '', ...props }: Props) {
     <div
       className={cn(
         'mb-1 text-[11px] font-semibold tracking-wider text-slate-500 uppercase',
-        className
+        className,
       )}
       {...props}
     />

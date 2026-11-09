@@ -1,11 +1,11 @@
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AccountStore } from '../src/profile/account-store.js';
-import { randomBytes } from 'node:crypto';
 import { createClient } from '@libsql/client';
+import { expect, test } from 'vitest';
+import { AccountStore } from '../src/infrastructure/profile/account-store.js';
+import { removeTemp } from './support/remove-temp.js';
 
 process.env.NODE_ENV = 'test';
 const { buildApp } = await import('../src/main.js');
@@ -93,13 +93,13 @@ async function fixture(outcome: 'success' | 'rejected' | 'uncertain') {
     url: '/linkedin/drafts',
     payload: { accountId, content: editorial },
   });
-  assert.equal(draft.statusCode, 201, draft.body);
+  expect(draft.statusCode).toEqual(201);
   const approved = await app.inject({
     method: 'POST',
     url: `/linkedin/drafts/${draft.json().id}/transition`,
     payload: { expectedVersion: 1, action: 'approve' },
   });
-  assert.equal(approved.statusCode, 200, approved.body);
+  expect(approved.statusCode).toEqual(200);
   const id = approved.json().id as string,
     revision = approved.json().version as number;
   const start = await app.inject({
@@ -107,16 +107,16 @@ async function fixture(outcome: 'success' | 'rejected' | 'uncertain') {
     url: '/linkedin/oauth/start',
     payload: { accountId },
   });
-  assert.equal(start.statusCode, 200, start.body);
+  expect(start.statusCode).toEqual(200);
   const url = new URL(start.json().authorizationUrl);
-  assert.equal(url.host, 'www.linkedin.com');
-  assert.equal(url.searchParams.get('scope'), 'openid profile w_member_social');
-  assert.equal(url.searchParams.get('redirect_uri'), process.env.LINKEDIN_REDIRECT_URI);
+  expect(url.host).toEqual('www.linkedin.com');
+  expect(url.searchParams.get('scope')).toEqual('openid profile w_member_social');
+  expect(url.searchParams.get('redirect_uri')).toEqual(process.env.LINKEDIN_REDIRECT_URI);
   const nonce = url.searchParams.get('state');
   const cb = await app.inject(`/linkedin/oauth/callback?state=${nonce}&code=code-12345`);
-  assert.equal(cb.statusCode, 200, cb.body);
+  expect(cb.statusCode).toEqual(200);
   const replay = await app.inject(`/linkedin/oauth/callback?state=${nonce}&code=code-12345`);
-  assert.equal(replay.statusCode, 400);
+  expect(replay.statusCode).toEqual(400);
   return { app, client, root, received, id, revision, accountId };
 }
 async function cleanup(o: Awaited<ReturnType<typeof fixture>>) {
@@ -124,7 +124,7 @@ async function cleanup(o: Awaited<ReturnType<typeof fixture>>) {
     await o.app.close();
   } finally {
     await o.client.close();
-    await rm(o.root, { recursive: true, force: true });
+    await removeTemp(o.root);
     for (const key of [
       'UTOMATOR_TEST_DATABASE',
       'DB_FILE_NAME',
@@ -145,59 +145,57 @@ test('OAuth consent -> member identity -> encrypted grant -> text publication ->
     const grant = await f.client.execute(
       "SELECT payload FROM utomator_documents WHERE namespace='linkedin-oauth-grants'",
     );
-    assert.equal(grant.rows.length, 1);
-    assert.ok(!String(grant.rows[0]!.payload).includes('secret-oauth-token-12345'));
+    expect(grant.rows.length).toEqual(1);
+    expect(!String(grant.rows[0]!.payload).includes('secret-oauth-token-12345')).toBeTruthy();
     const status = await f.app.inject(`/linkedin/oauth/status?accountId=${f.accountId}`);
-    assert.equal(status.json().connected, true);
-    assert.ok(!status.body.includes('secret-oauth-token'));
+    expect(status.json().connected).toEqual(true);
+    expect(!status.body.includes('secret-oauth-token')).toBeTruthy();
     const refused = await f.app.inject({
       method: 'POST',
       url: `/linkedin/drafts/${f.id}/publish`,
       payload: { expectedVersion: f.revision, confirmed: false },
     });
-    assert.equal(refused.statusCode, 400);
+    expect(refused.statusCode).toEqual(400);
     const result = await f.app.inject({
       method: 'POST',
       url: `/linkedin/drafts/${f.id}/publish`,
       payload: { expectedVersion: f.revision, confirmed: true },
     });
-    assert.equal(result.statusCode, 200, result.body);
-    assert.equal(result.json().status, 'published');
-    assert.equal(result.json().publication.postUrn, 'urn:li:share:1234567890123');
+    expect(result.statusCode).toEqual(200);
+    expect(result.json().status).toEqual('published');
+    expect(result.json().publication.postUrn).toEqual('urn:li:share:1234567890123');
     const post = f.received.filter((x) => x.url.endsWith('/rest/posts'));
-    assert.equal(post.length, 1);
+    expect(post.length).toEqual(1);
     const request = post[0]!.request;
-    assert.equal((request.headers as Record<string, string>)['Linkedin-Version'], version);
-    assert.equal(
+    expect((request.headers as Record<string, string>)['Linkedin-Version']).toEqual(version);
+    expect(
       (
         JSON.parse(String(request.body)) as {
           author: string;
           commentary: string;
         }
       ).author,
-      'urn:li:person:memberA123',
-    );
-    assert.equal((JSON.parse(String(request.body)) as { commentary: string }).commentary, text);
+    ).toEqual('urn:li:person:memberA123');
+    expect((JSON.parse(String(request.body)) as { commentary: string }).commentary).toEqual(text);
     const duplicate = await f.app.inject({
       method: 'POST',
       url: `/linkedin/drafts/${f.id}/publish`,
       payload: { expectedVersion: f.revision, confirmed: true },
     });
-    assert.equal(duplicate.statusCode, 409);
-    assert.equal(f.received.filter((x) => x.url.endsWith('/rest/posts')).length, 1);
+    expect(duplicate.statusCode).toEqual(409);
+    expect(f.received.filter((x) => x.url.endsWith('/rest/posts')).length).toEqual(1);
     const receipt = await f.app.inject(`/linkedin/drafts/${f.id}/yaml`);
-    assert.match(receipt.body, /externalPublishing: "confirmed"/);
-    assert.match(receipt.body, /urn:li:share:1234567890123/);
+    expect(receipt.body).toMatch(/externalPublishing: "confirmed"/);
+    expect(receipt.body).toMatch(/urn:li:share:1234567890123/);
     const disconnected = await f.app.inject({
       method: 'POST',
       url: '/linkedin/oauth/disconnect',
       payload: { accountId: f.accountId },
     });
-    assert.equal(disconnected.statusCode, 200);
-    assert.equal(
+    expect(disconnected.statusCode).toEqual(200);
+    expect(
       (await f.app.inject(`/linkedin/oauth/status?accountId=${f.accountId}`)).json().connected,
-      false,
-    );
+    ).toEqual(false);
   } finally {
     await cleanup(f);
   }
@@ -210,12 +208,12 @@ test('Provider refuses unauthorized publication and preserves terminal failure e
       url: `/linkedin/drafts/${f.id}/publish`,
       payload: { expectedVersion: f.revision, confirmed: true },
     });
-    assert.equal(result.statusCode, 403);
-    assert.match(result.body, /denied Posts API access/);
+    expect(result.statusCode).toEqual(403);
+    expect(result.body).toMatch(/denied Posts API access/);
     const persisted = (await f.app.inject(`/linkedin/drafts/${f.id}`)).json();
-    assert.equal(persisted.status, 'publish-failed');
-    assert.equal(persisted.publication.status, 'publish-failed');
-    assert.equal(f.received.filter((x) => x.url.endsWith('/rest/posts')).length, 1);
+    expect(persisted.status).toEqual('publish-failed');
+    expect(persisted.publication.status).toEqual('publish-failed');
+    expect(f.received.filter((x) => x.url.endsWith('/rest/posts')).length).toEqual(1);
   } finally {
     await cleanup(f);
   }
@@ -228,17 +226,17 @@ test('Uncertain upstream post response is never retried or misreported as publis
       url: `/linkedin/drafts/${f.id}/publish`,
       payload: { expectedVersion: f.revision, confirmed: true },
     });
-    assert.equal(result.statusCode, 502);
+    expect(result.statusCode).toEqual(502);
     const saved = (await f.app.inject(`/linkedin/drafts/${f.id}`)).json();
-    assert.equal(saved.status, 'publication-uncertain');
-    assert.equal(saved.publication.postUrn, undefined);
+    expect(saved.status).toEqual('publication-uncertain');
+    expect(saved.publication.postUrn).toEqual(undefined);
     const again = await f.app.inject({
       method: 'POST',
       url: `/linkedin/drafts/${f.id}/publish`,
       payload: { expectedVersion: saved.version, confirmed: true },
     });
-    assert.equal(again.statusCode, 409);
-    assert.equal(f.received.filter((x) => x.url.endsWith('/rest/posts')).length, 1);
+    expect(again.statusCode).toEqual(409);
+    expect(f.received.filter((x) => x.url.endsWith('/rest/posts')).length).toEqual(1);
   } finally {
     await cleanup(f);
   }

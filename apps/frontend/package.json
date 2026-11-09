@@ -7,8 +7,14 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",
-    "lint": "eslint .",
-    "test": "node --experimental-strip-types --test tests/utomator-routes.test.mjs tests/routes.test.mjs tests/growth-graph-model.test.mjs tests/growth-run-journal.test.mjs tests/pipeline-command-parser.test.mjs tests/pipeline-utterance.test.mjs tests/voice-support.test.mjs tests/annotation-voice.test.mjs tests/growth-profile-client.test.mjs tests/build-run-payload.test.mjs tests/pipeline-api-client.test.mjs tests/dashboard-route.test.mjs tests/craft-command-editor.test.mjs tests/craft-command-service.test.mjs tests/craft-category-titles.test.mjs tests/run-event-utils.test.mjs tests/default-workflow-plan.test.mjs tests/pipeline-controller-boundaries.test.mjs tests/visual-review-model.test.mjs tests/dashboard-component-structure.test.mjs tests/craft-mdx.test.mjs tests/mator-settings-client.test.mjs tests/mator-chat-state.test.mjs tests/mator-send-gate.test.mjs tests/mator-chat-ui.test.mjs",
+    "lint": "biome check .",
+    "biome:check": "biome check .",
+    "biome:fix": "biome check --write .",
+    "biome:unsafe-fix": "biome check --write --unsafe .",
+    "doctor": "npx react-doctor@latest",
+    "test": "vitest run --config vitest.unit.config.ts && vitest run --config vitest.feature.config.ts",
+    "test:unit": "vitest run --config vitest.unit.config.ts",
+    "test:feature": "vitest run --config vitest.feature.config.ts",
     "test:browser": "playwright test",
     "test:ui": "playwright test tests/frontend-quality.test.ts"
   },
@@ -26,7 +32,7 @@
     "tailwind-merge": "3.7.0"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.5",
+    "@biomejs/biome": "^2.6.3",
     "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4.2.2",
     "@types/node": "^25.5.0",
@@ -34,11 +40,11 @@
     "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.4.27",
     "axe-core": "4.11.2",
-    "eslint": "^9.39.1",
-    "eslint-config-next": "16.2.2",
-    "playwright": "^1.55.0",
     "postcss": "^8.5.8",
+    "react-doctor": "^0.9.22",
     "tailwindcss": "^4.2.2",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.2",
+    "jsdom": "^26",
+    "vitest": "^3"
   }
 }

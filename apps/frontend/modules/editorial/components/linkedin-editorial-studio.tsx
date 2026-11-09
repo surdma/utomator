@@ -1,0 +1,438 @@
+'use client';
+import { type FormEvent, useEffect, useState } from 'react';
+import EditorialDraftForm from './sections/editorial-draft-form';
+import EditorialDraftList from './sections/editorial-draft-list';
+import EditorialStudioHeader from './sections/editorial-studio-header';
+import LinkedInPublishingStatus from './sections/linkedin-publishing-status';
+
+type Account = { id: string; platform: string; label: string; handle: string };
+type Research = {
+  id: string;
+  input: { niche: string };
+  sources: Array<{ url: string }>;
+  output: { gaps: Array<{ topic: string; examples: string[] }> };
+};
+type Content = {
+  goal: string;
+  pillar: string;
+  body: string;
+  sourceUrls: string[];
+  researchRunId: string | null;
+};
+type Draft = {
+  id: string;
+  accountId: string;
+  version: number;
+  status:
+    | 'draft'
+    | 'approved'
+    | 'archived'
+    | 'deleted'
+    | 'publishing'
+    | 'published'
+    | 'publish-failed'
+    | 'publication-uncertain';
+  publication?: { status: string; postUrn?: string };
+  content: Content;
+  updatedAt: string;
+  history: Array<{ version: number; event: string; timestamp: string }>;
+};
+const blank = (): Content => ({
+  goal: '',
+  pillar: '',
+  body: '',
+  sourceUrls: [],
+  researchRunId: null,
+});
+export default function LinkedInEditorialStudio() {
+  const [accounts, setAccounts] = useState<Account[]>([]),
+    [accountId, setAccountId] = useState('');
+  const [research, setResearch] = useState<Research[]>([]),
+    [drafts, setDrafts] = useState<Draft[]>([]);
+  const [selected, setSelected] = useState<Draft | null>(null),
+    [content, setContent] = useState<Content>(blank());
+  const [error, setError] = useState(''),
+    [feedback, setFeedback] = useState(''),
+    [busy, setBusy] = useState(false),
+    [loading, setLoading] = useState(true);
+  const [sourcesText, setSourcesText] = useState('');
+  const [oauth, setOauth] = useState<{
+    connected: boolean;
+    configured: boolean;
+    subject?: string;
+    expiresAt?: string;
+  } | null>(null);
+  const refresh = async () => {
+    const response = await fetch('/api/linkedin/drafts', { cache: 'no-store' });
+    if (!response.ok) throw Error('Editorial drafts are unavailable');
+    const rows = (await response.json()) as Draft[];
+    setDrafts(rows);
+    return rows;
+  };
+  useEffect(() => {
+    let alive = true;
+    void Promise.all([
+      fetch('/api/account', { cache: 'no-store' }),
+      fetch('/api/linkedin/research', { cache: 'no-store' }),
+      fetch('/api/linkedin/drafts', { cache: 'no-store' }),
+    ])
+      .then(async (responses) => {
+        if (responses.some((item) => !item.ok))
+          throw Error('Unable to load account, research or editorial records');
+        const [account, report, items] = (await Promise.all(
+          responses.map((r) => r.json()),
+        )) as [{ socialAccounts: Account[] }, Research[], Draft[]];
+        if (!alive) return;
+        const linkedIn = account.socialAccounts.filter(
+          (row) => row.platform === 'linkedin',
+        );
+        setAccounts(linkedIn);
+        setAccountId(linkedIn[0]?.id ?? '');
+        setResearch(report);
+        setDrafts(items);
+      })
+      .catch((e) => {
+        if (alive)
+          setError(
+            e instanceof Error ? e.message : 'Unable to load editorial studio',
+          );
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  async function checkPublishingStatus(id: string) {
+    const response = await fetch(
+      `/api/linkedin/oauth/status?accountId=${encodeURIComponent(id)}`,
+      { cache: 'no-store' },
+    );
+    const result = (await response.json()) as {
+      connected: boolean;
+      configured: boolean;
+      subject?: string;
+      expiresAt?: string;
+      error?: string;
+    };
+    if (!response.ok) throw Error(result.error || 'OAuth status unavailable');
+    setOauth(result);
+  }
+  useEffect(() => {
+    if (!accountId) {
+      setOauth(null);
+      return;
+    }
+    void checkPublishingStatus(accountId).catch((e) =>
+      setError(
+        e instanceof Error ? e.message : 'Unable to read publishing status',
+      ),
+    );
+  }, [accountId, checkPublishingStatus]);
+  async function connectPublishing() {
+    if (!accountId) return;
+    setError('');
+    setFeedback('');
+    try {
+      const response = await fetch('/api/linkedin/oauth/start', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ accountId }),
+      });
+      const result = (await response.json()) as {
+        authorizationUrl?: string;
+        error?: string;
+      };
+      if (!response.ok || !result.authorizationUrl)
+        throw Error(result.error || 'LinkedIn OAuth unavailable');
+      window.location.assign(result.authorizationUrl);
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : 'Could not start LinkedIn authorization',
+      );
+    }
+  }
+  async function disconnectPublishing() {
+    if (
+      !accountId ||
+      !window.confirm(
+        'Disconnect LinkedIn publishing authorization? Saved drafts will remain.',
+      )
+    )
+      return;
+    setBusy(true);
+    try {
+      const response = await fetch('/api/linkedin/oauth/disconnect', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ accountId }),
+      });
+      if (!response.ok)
+        throw Error(
+          ((await response.json()) as { error: string }).error ||
+            'Disconnect failed',
+        );
+      await checkPublishingStatus(accountId);
+      setFeedback('Publishing authorization disconnected.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Disconnect failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function publish() {
+    if (selected?.status !== 'approved' || unsaved || !oauth?.connected) return;
+    if (
+      !window.confirm(
+        'Publish this approved text-only draft as LinkedIn member ' +
+          (oauth?.subject || 'unknown') +
+          '? This creates a real public post, not a preview.',
+      )
+    )
+      return;
+    setBusy(true);
+    setError('');
+    setFeedback('');
+    try {
+      const response = await fetch(
+        `/api/linkedin/drafts/${selected.id}/publish`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            expectedVersion: selected.version,
+            confirmed: true,
+          }),
+        },
+      );
+      const result = (await response.json()) as Draft & { error?: string };
+      if (!response.ok)
+        throw Error(result.error || 'LinkedIn publication failed');
+      choose(result);
+      await refresh();
+      setFeedback(
+        'LinkedIn accepted this post. The provider ID is stored in your publication receipt.',
+      );
+    } catch (e) {
+      const reason =
+        e instanceof Error ? e.message : 'LinkedIn publication failed';
+      await refresh()
+        .then((rows) => {
+          const newest = rows.find((item) => item.id === selected.id);
+          if (newest) choose(newest);
+        })
+        .catch(() => undefined);
+      setError(reason);
+    } finally {
+      setBusy(false);
+    }
+  }
+  function choose(draft: Draft | null) {
+    setSelected(draft);
+    setContent(draft ? { ...draft.content } : blank());
+    setSourcesText(draft?.content.sourceUrls.join('\n') ?? '');
+    if (draft) setAccountId(draft.accountId);
+    setError('');
+    setFeedback('');
+  }
+  function selectResearchEvidence(id: string) {
+    const run = research.find((item) => item.id === id);
+    if (!run) {
+      setContent((old) => ({ ...old, researchRunId: null, sourceUrls: [] }));
+      setSourcesText('');
+      return;
+    }
+    const gap = run.output.gaps[0];
+    const sourceUrls = (
+      gap?.examples.length ? gap.examples : run.sources.map((s) => s.url)
+    ).slice(0, 5);
+    setContent((old) => ({
+      ...old,
+      researchRunId: run.id,
+      pillar: gap?.topic ?? old.pillar,
+      goal:
+        old.goal || `Share an evidence-backed insight in ${run.input.niche}`,
+      sourceUrls,
+    }));
+    setSourcesText(sourceUrls.join('\n'));
+  }
+  function payload(): Content {
+    return {
+      ...content,
+      sourceUrls: sourcesText
+        .split('\n')
+        .map((row) => row.trim())
+        .filter(Boolean),
+    };
+  }
+  const unsaved = Boolean(
+    selected && JSON.stringify(payload()) !== JSON.stringify(selected.content),
+  );
+  async function command(
+    url: string,
+    method: 'POST' | 'PUT',
+    body: unknown,
+  ): Promise<Draft> {
+    const response = await fetch(url, {
+      method,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const result = (await response.json()) as Draft & { error?: string };
+    if (!response.ok) throw Error(result.error || 'Editorial action failed');
+    return result;
+  }
+  async function save(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    setFeedback('');
+    try {
+      if (!accountId)
+        throw Error(
+          'Save a LinkedIn account in Profile before creating a draft',
+        );
+      const result = selected
+        ? await command(`/api/linkedin/drafts/${selected.id}`, 'PUT', {
+            expectedVersion: selected.version,
+            content: payload(),
+          })
+        : await command('/api/linkedin/drafts', 'POST', {
+            accountId,
+            content: payload(),
+          });
+      choose(result);
+      await refresh();
+      setFeedback(
+        'Draft saved to your private workspace. No LinkedIn post was published.',
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save draft');
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function transition(
+    action: 'approve' | 'reopen' | 'archive' | 'delete' | 'restore',
+  ) {
+    if (!selected) return;
+    if (
+      action === 'delete' &&
+      !window.confirm(
+        'Remove this internal draft from the list? It will not delete any LinkedIn post.',
+      )
+    )
+      return;
+    setBusy(true);
+    setError('');
+    setFeedback('');
+    try {
+      const updated = await command(
+        `/api/linkedin/drafts/${selected.id}/transition`,
+        'POST',
+        {
+          expectedVersion: selected.version,
+          action,
+          confirm: action === 'delete',
+        },
+      );
+      if (action === 'delete') {
+        choose(null);
+        setFeedback('Draft removed from your workspace list.');
+      } else {
+        choose(updated);
+        setFeedback(
+          'Draft is now ' +
+            updated.status +
+            '. No LinkedIn post was published.',
+        );
+      }
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not change draft state');
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div
+      data-testid="linkedin-editorial-studio"
+      className="mx-auto max-w-5xl space-y-5 pb-16"
+    >
+      <EditorialStudioHeader />
+      {loading && (
+        <p role="status" className="text-sm text-slate-600">
+          Loading editorial records…
+        </p>
+      )}
+      {error && (
+        <p
+          role="alert"
+          className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"
+        >
+          {error}
+        </p>
+      )}
+      {feedback && (
+        <p
+          role="status"
+          className="rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-900"
+        >
+          {feedback}
+        </p>
+      )}
+      {!loading && accounts.length === 0 && (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm">
+          Add your LinkedIn profile in{' '}
+          <a
+            className="font-bold underline"
+            href="/dashboard/profile/connections"
+          >
+            Profile / Connections
+          </a>{' '}
+          to associate drafts with the correct account. No LinkedIn login is
+          required for private draft preparation.
+        </p>
+      )}
+      {accountId && (
+        <LinkedInPublishingStatus
+          accountId={accountId}
+          oauth={oauth}
+          busy={busy}
+          connectPublishing={() => void connectPublishing()}
+          checkPublishingStatus={checkPublishingStatus}
+          disconnectPublishing={() => void disconnectPublishing()}
+          setError={setError}
+        />
+      )}
+      <EditorialDraftForm
+        save={save}
+        selected={selected}
+        choose={choose}
+        accounts={accounts}
+        accountId={accountId}
+        setAccountId={setAccountId}
+        research={research}
+        content={content}
+        setContent={setContent}
+        sourcesText={sourcesText}
+        setSourcesText={setSourcesText}
+        selectResearchEvidence={selectResearchEvidence}
+        busy={busy}
+        unsaved={unsaved}
+        oauth={oauth}
+        publish={() => void publish()}
+        transition={(action) => void transition(action)}
+      />
+      <EditorialDraftList drafts={drafts} choose={choose} />
+      <p className="text-xs leading-6 text-slate-600">
+        Approval confirms your internal editorial review only. These drafts are
+        not automatically posted or scheduled. Source links identify
+        user-submitted evidence, not verified LinkedIn analytics.
+      </p>
+    </div>
+  );
+}
