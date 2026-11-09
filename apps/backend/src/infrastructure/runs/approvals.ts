@@ -16,9 +16,10 @@ export class ApprovalGate {
     signal: AbortSignal,
     timeoutMs = 600000,
   ): Promise<boolean> {
+    if (signal.aborted) return Promise.resolve(false);
     if (this.waiting.has(runId)) throw new Error('A checkpoint is already pending');
     const checkpointId = randomUUID();
-    return new Promise<boolean>((resolve) => {
+    return new Promise<boolean>((resolve, reject) => {
       const finish = (approved: boolean) => {
         const pending = this.waiting.get(runId);
         if (!pending || pending.checkpointId !== checkpointId) return;
@@ -31,7 +32,15 @@ export class ApprovalGate {
       const timer = setTimeout(() => finish(false), timeoutMs);
       this.waiting.set(runId, { checkpointId, resolve: finish, timer });
       signal.addEventListener('abort', onAbort, { once: true });
-      onCheckpoint(checkpointId);
+      try {
+        onCheckpoint(checkpointId);
+      } catch (error) {
+        clearTimeout(timer);
+        signal.removeEventListener('abort', onAbort);
+        this.waiting.delete(runId);
+        reject(error);
+        return;
+      }
       if (signal.aborted) finish(false);
     });
   }

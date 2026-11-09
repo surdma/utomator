@@ -594,7 +594,7 @@ export default function OperatorChatPanel({
           </p>
         )}
 
-        {growthExecution && (
+        {(growthExecution || growthExecutionError) && (
           <MatorPipelineExecution
             execution={growthExecution}
             title={growthExecutionTitle}

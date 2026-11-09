@@ -1,0 +1,59 @@
+name: Utomator M3 acceptance
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/backend/**'
+      - 'apps/frontend/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/utomator-m3-acceptance.yml'
+  push:
+    branches: ['work/m3-*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: utomator-m3-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  journal-acceptance:
+    name: Durable journal, owner isolation and real workspace journey
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - name: Install pinned dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Backend unit and real HTTP regression tests
+        run: pnpm --filter @utomator/backend test
+      - name: Frontend projection, proxy and component tests
+        run: pnpm --filter @utomator/frontend test
+      - name: Compile backend and type-check the acceptance harness
+        working-directory: apps/backend
+        run: |
+          pnpm build
+          pnpm exec tsc --noEmit --skipLibCheck --esModuleInterop --target ES2022 --module NodeNext --moduleResolution NodeNext tests/m3-journal.integration.test.ts
+      - name: Build the production frontend
+        run: pnpm --filter @utomator/frontend build
+      - name: Install test Chromium
+        run: pnpm --filter @utomator/backend exec playwright install --with-deps chromium
+      - name: Exercise real Runner, Fastify, Next and persisted restart
+        run: pnpm --filter @utomator/backend exec vitest run --config vitest.integration.config.ts tests/m3-journal.integration.test.ts
+      - name: Preserve the acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m3-journal-acceptance-${{ github.sha }}
+          path: apps/backend/.runtime/m3-acceptance/
+          if-no-files-found: warn
+          retention-days: 14

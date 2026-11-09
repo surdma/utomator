@@ -79,6 +79,11 @@ test('six dependent pipelines reuse validated Runner WorkflowPlans and record in
         action: input.action,
         state: 'completed',
         createdAt: new Date().toISOString(),
+        ownerId: input.ownerId,
+        growth: input.growth,
+        cleanupComplete: true,
+        historyIncomplete: false,
+        terminalEventId: 20,
       };
       runs.set(summary.id, { summary, input });
       return summary;
@@ -94,6 +99,10 @@ test('six dependent pipelines reuse validated Runner WorkflowPlans and record in
         schema: 'evidence/v1',
         url: run.input.pageUrl ?? run.input.profileUrl,
         digest: 'a'.repeat(64),
+        stepId: stageId,
+        sourceStepId: 'inspect',
+        outputId: `${id}:${stageId}:output`,
+        outputDigest: 'b'.repeat(64),
       };
     },
     cancel() {
@@ -260,9 +269,10 @@ test('YAML Growth template API exposes the entire task graph and rejects unsuppo
 
 test('composite runner reports failed pipelines and the exact failed child task', async () => {
   const id = 'c63e8078-644d-4a2a-80bd-7cba9eaa0e1b';
+  let child: RunSummary;
   const runner = {
     start(input: RunRequest) {
-      return {
+      child = {
         id,
         platform: input.platform,
         action: input.action,
@@ -270,18 +280,13 @@ test('composite runner reports failed pipelines and the exact failed child task'
         createdAt: new Date().toISOString(),
         currentStepId: 'inspect',
         error: 'Scoped profile inspection failed',
+        ownerId: input.ownerId,
+        growth: input.growth,
       } as RunSummary;
+      return child;
     },
     get() {
-      return {
-        id,
-        platform: 'linkedin',
-        action: 'audit',
-        state: 'failed',
-        createdAt: new Date().toISOString(),
-        currentStepId: 'inspect',
-        error: 'Scoped profile inspection failed',
-      } as RunSummary;
+      return child;
     },
     stepOutput() {
       return null;
@@ -316,6 +321,11 @@ test('completed child waits for Runner browser cleanup before the next pipeline'
         action: input.action,
         state: 'completed',
         createdAt: new Date().toISOString(),
+        ownerId: input.ownerId,
+        growth: input.growth,
+        cleanupComplete: true,
+        historyIncomplete: false,
+        terminalEventId: 20,
       };
       children.set(value.id, value);
       return value;
@@ -323,11 +333,15 @@ test('completed child waits for Runner browser cleanup before the next pipeline'
     get(id: string) {
       return children.get(id);
     },
-    stepOutput() {
+    stepOutput(id: string, stepId: string) {
       return {
         schema: 'evidence/v1',
         url: 'https://www.linkedin.com/in/verified-owner/',
         digest: 'a'.repeat(64),
+        stepId,
+        sourceStepId: 'inspect',
+        outputId: `${id}:${stepId}:output`,
+        outputDigest: 'b'.repeat(64),
       };
     },
     isIdle() {
@@ -393,6 +407,11 @@ test('single-pipeline Growth reports all owner evidence without false provider v
         action: input.action,
         state: 'completed',
         createdAt: new Date().toISOString(),
+        ownerId: input.ownerId,
+        growth: input.growth,
+        cleanupComplete: true,
+        historyIncomplete: false,
+        terminalEventId: 20,
       };
       runs.set(child.id, child);
       return child;
@@ -400,11 +419,15 @@ test('single-pipeline Growth reports all owner evidence without false provider v
     get(id: string) {
       return runs.get(id);
     },
-    stepOutput() {
+    stepOutput(id: string, stepId: string) {
       return {
         schema: 'evidence/v1',
         url: 'https://www.linkedin.com/in/verified-owner/',
         digest: 'a'.repeat(64),
+        stepId,
+        sourceStepId: 'inspect',
+        outputId: `${id}:${stepId}:output`,
+        outputDigest: 'b'.repeat(64),
       };
     },
     isIdle() {

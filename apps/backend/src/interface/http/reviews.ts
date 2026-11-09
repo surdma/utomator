@@ -13,7 +13,7 @@ import type {
  * notes, and the read-only identity timeline. Reviewing is an owner action;
  * annotations are intent, never browser selectors.
  */
-export function registerReviewRoutes(app: FastifyInstance, visual: VisualReviewStore) {
+export function registerReviewRoutes(app: FastifyInstance, visual: VisualReviewStore, ownerId: string) {
   // Visual reviews store only bounded image bytes and explicit operator
   // annotations; image pixels are never translated into unapproved clicks.
   app.get('/visual-reviews', async () => visual.listReviews());
@@ -61,7 +61,7 @@ export function registerReviewRoutes(app: FastifyInstance, visual: VisualReviewS
     }
   });
   app.get('/identity-memory', async () => visual.listNotes());
-  app.get('/identity-timeline', async () => loadIdentityTimeline());
+  app.get('/identity-timeline', async () => loadIdentityTimeline(ownerId));
   app.post<{
     Body: { platform: Platform; handle: string; pageUrl: string; text: string };
   }>(

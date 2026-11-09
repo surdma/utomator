@@ -7,6 +7,7 @@ import {
   type MatorActionPorts,
   MatorActionValidationError,
   parseGeneratedMatorAction,
+  parseMatorAction,
   stageAction,
 } from './mator-actions.js';
 import { getAttachmentFile, getAttachmentMeta } from './mator-attachments.js';
@@ -276,7 +277,7 @@ async function persistAction(
         workflowId: input.workflowId,
         conversationId: input.conversationId,
         eventId: staged.id,
-        action: input.action,
+        action: parseMatorAction(staged.action),
       },
       { squash: settings.squashPipelineHistory, conversationId: input.conversationId },
     );

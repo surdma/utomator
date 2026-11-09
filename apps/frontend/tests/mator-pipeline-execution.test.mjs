@@ -71,3 +71,16 @@ test('only a real checkpoint with an authorized callback exposes actions', () =>
   );
   expect(noHtml).not.toContain('>Approve</button>');
 });
+
+test('missing source identity renders the historical execution error', () => {
+  const html = renderToStaticMarkup(
+    createElement(MatorPipelineExecution, {
+      execution: null,
+      title: 'Profile workflow',
+      error:
+        'Pinned execution identity is unavailable for this historical run.',
+    }),
+  );
+  expect(html).toContain('Pinned execution identity is unavailable');
+  expect(html).not.toContain('>Completed<');
+});

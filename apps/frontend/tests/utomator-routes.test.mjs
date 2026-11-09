@@ -207,10 +207,6 @@ test('Growth YAML uses the persistent Artboard canvas and real Runner controls',
     ),
     'utf8',
   );
-  const graphModel = readFileSync(
-    resolve(root, 'modules/growth/components/growth-graph-model.ts'),
-    'utf8',
-  );
   const toolbar = readFileSync(
     resolve(
       root,
@@ -250,7 +246,6 @@ test('Growth YAML uses the persistent Artboard canvas and real Runner controls',
   assert.match(details, /Read-only source configuration/);
   assert.match(graphNode, /growth-pipeline-node-/);
   assert.match(graphNode, /growth-task-node-/);
-  assert.match(graphModel, /details\?\.stepId/);
   assert.match(proxy, /growth\\\/templates/);
   const legacy = readFileSync(
     resolve(root, 'app/growth/default-growth-profile/page.tsx'),

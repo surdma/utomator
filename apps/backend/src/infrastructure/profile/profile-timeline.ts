@@ -1,5 +1,9 @@
-import { readdir, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { isOwnedBy, isTrustedOwnerId } from '../../domain/ownership.js';
+import { RunArchive } from '../runs/run-archive.js';
+import { type PersistedRunEvent, parseRunJournal } from '../runs/run-journal.js';
+import { runtimePath } from '../runtime/paths.js';
 
 export interface IdentityObservation {
   runId: string;
@@ -14,36 +18,45 @@ export interface IdentityObservation {
 
 // The runner already persists event journals. Summarize only observed fields,
 // never a screenshot's free-text excerpt, credentials or unverified deductions.
-export async function loadIdentityTimeline(): Promise<IdentityObservation[]> {
-  const directory = resolve(process.cwd(), '.runtime', 'runs');
-  let names: string[];
-  try {
-    names = (await readdir(directory)).filter((n) => /^[a-f0-9-]{36}\.jsonl$/.test(n));
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
-    throw error;
-  }
+export async function loadIdentityTimeline(
+  ownerId?: string,
+  directory = runtimePath('runs'),
+): Promise<IdentityObservation[]> {
+  if (!isTrustedOwnerId(ownerId)) return [];
+  const records = new RunArchive(directory)
+    .list()
+    .filter(({ summary }) => isOwnedBy(summary, ownerId) && !summary.historyIncomplete);
   const files = await Promise.all(
-    names.slice(-100).map(async (name) => {
-      const data = await readFile(resolve(directory, name), 'utf8');
-      return data.split('\n').flatMap((line) => {
-        if (!line) return [];
+    records.map(async ({ summary }) => {
+      const events: PersistedRunEvent[] = [];
+      try {
+        const data = await readFile(resolve(directory, `${summary.id}.jsonl`), 'utf8');
+        let since = 0;
+        for (;;) {
+          const page = parseRunJournal(data, summary.id, {
+            since,
+            expectedGrowth: summary.growth,
+            expectedTerminal: summary,
+          });
+          events.push(...page.events);
+          if (!page.hasMore) break;
+          const last = page.events.at(-1);
+          if (!last || last.id <= since) return [];
+          since = last.id;
+        }
+      } catch (error) {
+        if (
+          (error as NodeJS.ErrnoException).code === 'ENOENT' ||
+          (error instanceof Error && /^(Corrupt run journal|History incomplete)/.test(error.message))
+        )
+          return [];
+        throw error;
+      }
+      return events.flatMap((event) => {
         try {
-          const event = JSON.parse(line) as {
-            id: number;
-            time: string;
-            runId: string;
-            kind: string;
-            details?: {
-              url?: unknown;
-              title?: unknown;
-              headline?: unknown;
-              bio?: unknown;
-            };
-          };
-          if (event.kind !== 'audit' || !event.details || typeof event.details.url !== 'string')
-            return [];
-          const url = new URL(event.details.url);
+          const details = event.details as Record<string, unknown> | undefined;
+          if (event.kind !== 'audit' || !details || typeof details.url !== 'string') return [];
+          const url = new URL(details.url);
           const platform: IdentityObservation['platform'] | null =
             url.hostname === 'www.linkedin.com' || url.hostname === 'linkedin.com'
               ? 'linkedin'
@@ -57,10 +70,9 @@ export async function loadIdentityTimeline(): Promise<IdentityObservation[]> {
               timestamp: event.time,
               platform,
               url: url.href,
-              title: typeof event.details.title === 'string' ? event.details.title.slice(0, 200) : null,
-              headline:
-                typeof event.details.headline === 'string' ? event.details.headline.slice(0, 300) : null,
-              bio: typeof event.details.bio === 'string' ? event.details.bio.slice(0, 300) : null,
+              title: typeof details.title === 'string' ? details.title.slice(0, 200) : null,
+              headline: typeof details.headline === 'string' ? details.headline.slice(0, 300) : null,
+              bio: typeof details.bio === 'string' ? details.bio.slice(0, 300) : null,
               source: 'browser-audit' as const,
             },
           ];

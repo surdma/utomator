@@ -1,179 +1,142 @@
 import { expect, test } from 'vitest';
 import { projectGrowthExecution } from '../modules/growth/model/growth-execution-projection.ts';
-
-const run = (override = {}) => ({
-  id: 'parent',
-  programId: 'linkedin-profile',
-  programVersion: 2,
-  sourceDigest: 'pinned',
-  status: 'active',
-  activeIndex: 0,
-  releasePending: false,
-  currentChild: null,
-  stages: [
-    {
-      id: 'inspect',
-      title: 'Profile inspection',
-      dependsOn: 'none',
-      childRunId: 'child-1',
-      pageEvidence: null,
-      plan: {
-        steps: [
-          { id: 'session', title: 'Session', kind: 'session' },
-          { id: 'observe', title: 'Observe', kind: 'inspect' },
-        ],
-      },
-    },
-  ],
-  pipelineRuns: [
-    {
-      id: 'inspect',
-      childRunId: 'child-1',
-      state: 'running',
-      currentStepId: 'observe',
-      error: null,
-    },
-  ],
-  ...override,
-});
-const event = (id, stage, stepId = 'observe') => ({
-  id,
-  runId: 'child-1',
-  time: '2026-11-05T00:00:00Z',
-  kind: 'step',
-  message: stage,
-  details: { stepId, stage },
-});
-const journal = (events, complete = true) => ({
-  'child-1': { runId: 'child-1', events, complete },
-});
+import {
+  childId,
+  completedEvents,
+  growthRun,
+  journals,
+  recordedEvent,
+  stepDigests,
+} from './support/growth-execution-fixture.mjs';
 
 test('pinned task structure is waiting without observed completion', () => {
-  const projected = projectGrowthExecution(run(), journal([]));
+  const run = growthRun({ status: 'active' });
+  run.pipelineRuns[0].state = 'running';
+  const projected = projectGrowthExecution(run, journals([]));
   expect(projected.workflowRevision).toBe(2);
-  expect(projected.pipelines[0].tasks.map((t) => t.state)).toEqual([
+  expect(projected.pipelines[0].tasks.map((task) => task.state)).toEqual([
     'waiting',
     'running',
   ]);
   expect(projected.pipelines[0].completed).toBe(0);
 });
 
-test('task lifecycle advances once for same task identity', () => {
-  const p = projectGrowthExecution(
-    run(),
-    journal([event(2, 'completed'), event(1, 'started')]),
+test('task lifecycle is deterministic for shuffled and identical duplicate events', () => {
+  const events = completedEvents();
+  const projection = projectGrowthExecution(
+    growthRun(),
+    journals([...events].reverse().concat(events[0])),
   );
-  expect(p.pipelines[0].tasks[1].state).toBe('completed');
-  expect(p.pipelines[0].completed).toBe(1);
+  expect(projection.pipelines[0].tasks.map((task) => task.state)).toEqual([
+    'completed',
+    'completed',
+  ]);
+  expect(projection.pipelines[0].completed).toBe(2);
 });
 
 test('cross-run, malformed and duplicate conflicting events cannot forge completion', () => {
-  const old = event(1, 'started');
-  const fake = event(1, 'completed');
-  const p = projectGrowthExecution(
-    run(),
-    journal([old, fake, { ...event(2, 'completed'), runId: 'other' }]),
+  const started = recordedEvent(1, 'observe', 'started');
+  const fake = recordedEvent(1, 'observe', 'completed');
+  const projection = projectGrowthExecution(
+    growthRun(),
+    journals([
+      started,
+      fake,
+      { ...recordedEvent(2, 'baseline', 'completed'), runId: 'other' },
+    ]),
   );
-  expect(p.pipelines[0].historyIncomplete).toBe(true);
-  expect(p.pipelines[0].completed).toBe(0);
+  expect(projection.pipelines[0].historyIncomplete).toBe(true);
+  expect(projection.pipelines[0].completed).toBe(0);
 });
 
-test('child complete is finalizing without recorded evidence and browser cleanup', () => {
-  const r = run({
-    pipelineRuns: [
-      {
-        id: 'inspect',
-        childRunId: 'child-1',
-        state: 'completed',
-        currentStepId: 'observe',
-        error: null,
-      },
-    ],
-  });
+test('child complete remains finalizing without matched evidence or browser cleanup', () => {
+  const run = growthRun();
+  run.stages[0].pageEvidence = null;
+  expect(projectGrowthExecution(run, journals()).pipelines[0].state).toBe(
+    'finalizing',
+  );
+  const closing = growthRun();
+  closing.pipelineRuns[0].cleanupComplete = false;
+  expect(projectGrowthExecution(closing, journals()).pipelines[0].state).toBe(
+    'finalizing',
+  );
   expect(
-    projectGrowthExecution(r, journal([event(1, 'completed')])).pipelines[0]
-      .state,
-  ).toBe('finalizing');
-  const proved = run({
-    ...r,
-    stages: [
-      {
-        ...r.stages[0],
-        pageEvidence: { url: 'https://example.com', digest: 'abc' },
-      },
-    ],
-  });
-  expect(
-    projectGrowthExecution(proved, journal([event(1, 'completed')]))
-      .pipelines[0].state,
+    projectGrowthExecution(growthRun(), journals()).pipelines[0].state,
   ).toBe('completed');
 });
 
-test('approval checkpoint comes only from current real child', () => {
-  const waiting = run({
+test('approval checkpoint requires the current child and its persisted announcement', () => {
+  const run = growthRun({
+    status: 'active',
     currentChild: {
-      id: 'child-1',
+      id: childId,
       checkpoint: { id: 'gate', message: 'Approve' },
     },
-    pipelineRuns: [
-      {
-        id: 'inspect',
-        childRunId: 'child-1',
-        state: 'approval-needed',
-        currentStepId: 'observe',
-        error: null,
-      },
-    ],
   });
-  const p = projectGrowthExecution(waiting, journal([event(1, 'started')]));
-  expect(p.pipelines[0].tasks[1].checkpointId).toBe('gate');
-  const wrong = projectGrowthExecution(
-    {
-      ...waiting,
-      currentChild: { id: 'other', checkpoint: { id: 'fake', message: 'No' } },
-    },
-    journal([]),
+  run.pipelineRuns[0].state = 'approval-needed';
+  const events = completedEvents().slice(0, 3);
+  events.push(
+    recordedEvent(4, 'baseline', 'review', {
+      kind: 'approval',
+      details: {
+        stepId: 'baseline',
+        checkpointId: 'gate',
+        attempt: 1,
+        yamlSha256: stepDigests.baseline,
+      },
+    }),
   );
-  expect(wrong.pipelines[0].tasks[1].checkpointId).toBeUndefined();
+  expect(
+    projectGrowthExecution(run, journals(events)).pipelines[0].tasks[1]
+      .checkpointId,
+  ).toBe('gate');
+  expect(
+    projectGrowthExecution(run, journals(events.slice(0, 3))).pipelines[0]
+      .tasks[1].checkpointId,
+  ).toBeUndefined();
+  run.currentChild.id = 'other';
+  expect(
+    projectGrowthExecution(run, journals(events)).pipelines[0].tasks[1]
+      .checkpointId,
+  ).toBeUndefined();
 });
 
-test('unknown child and missing journal show unavailable or incomplete, never done', () => {
-  const r = run({
-    pipelineRuns: [
-      {
-        id: 'inspect',
-        childRunId: 'other',
-        state: 'completed',
-        currentStepId: 'observe',
-        error: null,
-      },
-    ],
-  });
-  const p = projectGrowthExecution(r, {});
-  expect(p.pipelines[0].state).toBe('unavailable');
-  expect(p.pipelines[0].historyIncomplete).toBe(true);
+test('unknown child and missing journal show unavailable rather than done', () => {
+  const run = growthRun();
+  run.pipelineRuns[0].childRunId = 'other';
+  const pipeline = projectGrowthExecution(run, {}).pipelines[0];
+  expect(pipeline.state).toBe('unavailable');
+  expect(pipeline.historyIncomplete).toBe(true);
 });
 
-test('screenshots require explicit matching step ID', () => {
-  const shot = {
-    ...event(1, 'capture'),
+test('screenshots require explicit matching step and evidence identity', () => {
+  const shot = recordedEvent(6, 'observe', 'capture', {
     kind: 'screenshot',
-    details: { fileName: 'proof.png', stepId: 'observe' },
-  };
-  const foreign = { ...shot, id: 2, details: { fileName: 'unattributed.png' } };
-  const p = projectGrowthExecution(run(), journal([shot, foreign]));
-  expect(p.pipelines[0].tasks[1].screenshots).toEqual(['proof.png']);
-  expect(p.pipelines[0].unattributedCount).toBe(1);
+    details: {
+      fileName: 'proof.png',
+      evidenceId: `${childId}:proof.png`,
+      stepId: 'observe',
+      attempt: 1,
+      yamlSha256: stepDigests.observe,
+    },
+  });
+  const orphan = { ...shot, id: 7, details: { fileName: 'unattributed.png' } };
+  const pipeline = projectGrowthExecution(
+    growthRun(),
+    journals([...completedEvents(), shot, orphan]),
+  ).pipelines[0];
+  expect(pipeline.tasks[0].screenshots).toEqual(['proof.png']);
+  expect(pipeline.unattributedCount).toBe(1);
 });
 
-test('unknown IDs in one pinned stage reject the release', () => {
-  const r = run();
-  r.stages[0].plan.steps.push({
-    id: 'session',
+test('duplicate IDs in a pinned stage reject the release', () => {
+  const run = growthRun();
+  run.stages[0].plan.steps.push({
+    id: 'observe',
     title: 'Duplicate',
-    kind: 'start',
+    kind: 'inspect',
   });
-  expect(() => projectGrowthExecution(r, {})).toThrow(
+  expect(() => projectGrowthExecution(run, {})).toThrow(
     /duplicate pinned task ID/i,
   );
 });

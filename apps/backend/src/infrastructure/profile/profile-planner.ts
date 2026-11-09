@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, rm, unlink, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { isOwnedBy, isTrustedOwnerId } from '../../domain/ownership.js';
 import { validateProfileUrl } from '../../domain/validate.js';
 import {
   approvalDecision,
@@ -84,6 +85,7 @@ export type PlanningReport = {
 };
 export type ProfilePlanningRun = {
   id: string;
+  ownerId?: string;
   templateId: 'li-full';
   state: State;
   createdAt: string;
@@ -195,7 +197,10 @@ export class ProfilePlanner {
   constructor(
     private readonly root = resolve(process.cwd(), '.runtime', 'profile-plans'),
     private readonly timelineLoader = loadIdentityTimeline,
-  ) {}
+    private readonly ownerId = 'local-owner',
+  ) {
+    if (!isTrustedOwnerId(ownerId)) throw Error('Profile planning requires an authenticated owner');
+  }
   private serialized<T>(work: () => Promise<T>): Promise<T> {
     const promise = this.queue.then(work);
     this.queue = promise.catch(() => undefined);
@@ -219,6 +224,7 @@ export class ProfilePlanner {
   async get(id: string): Promise<ProfilePlanningRun | null> {
     try {
       const value = JSON.parse(await readFile(this.path(id), 'utf8')) as ProfilePlanningRun;
+      if (!isOwnedBy(value, this.ownerId)) return null;
       if (
         value.id !== checkedId(id) ||
         value.templateId !== 'li-full' ||
@@ -267,7 +273,7 @@ export class ProfilePlanner {
           featured: featured ? text(featured.title, 150) : null,
         },
       };
-      const timeline = await this.timelineLoader();
+      const timeline = await this.timelineLoader(this.ownerId);
       const matched = timeline.find(
         (event) =>
           event.platform === 'linkedin' &&
@@ -361,6 +367,7 @@ export class ProfilePlanner {
       const now = new Date().toISOString();
       const run: ProfilePlanningRun = {
         id: randomUUID(),
+        ownerId: this.ownerId,
         templateId: 'li-full',
         state: 'approval-needed',
         createdAt: now,

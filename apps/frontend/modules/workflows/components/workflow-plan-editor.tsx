@@ -42,12 +42,13 @@ export type {
 
 import {
   buildGrowthGraph,
+  type GrowthExecutionView,
   type GrowthGraphNode,
   GrowthGraphNodeCard,
+  type GrowthWorkflowState,
   GrowthWorkspaceDialogs,
   useGrowthExecutionProjection,
   useGrowthProfileWorkflow,
-  useGrowthRunJournal,
 } from '@/modules/growth';
 import StudioDialog from '../../../components/ui/studio-dialog';
 
@@ -72,6 +73,8 @@ type Props = {
   accountLabel?: string;
   growthTemplateId?: string | null;
   growthAccountId?: string;
+  growthState?: GrowthWorkflowState;
+  growthExecution?: GrowthExecutionView;
   onGrowthTemplateApply?: (id: string) => Promise<void>;
   onClearGrowth?: () => void;
   onGrowthActionSelect?: (action: string) => void;
@@ -147,6 +150,8 @@ function EditorBody(props: Props) {
     accountLabel,
     growthTemplateId,
     growthAccountId,
+    growthState,
+    growthExecution,
     onGrowthTemplateApply,
     onClearGrowth,
     onGrowthActionSelect,
@@ -164,11 +169,12 @@ function EditorBody(props: Props) {
   const [returnConfirmOpen, setReturnConfirmOpen] = useState(false);
   const [growthPipelineId, setGrowthPipelineId] = useState<string | null>(null);
   const [growthTaskId, setGrowthTaskId] = useState<string | null>(null);
-  const growth = useGrowthProfileWorkflow(
+  const localGrowth = useGrowthProfileWorkflow(
     plan.platform,
-    growthTemplateId ?? null,
+    growthState ? null : (growthTemplateId ?? null),
     growthAccountId,
   );
+  const growth = growthState ?? localGrowth;
   const growthRun = growth.run;
   // A past execution must display its pinned YAML plans, not a newer library revision.
   const growthProgram =
@@ -184,13 +190,14 @@ function EditorBody(props: Props) {
   const growthStage =
     growthProgram?.stages.find((stage) => stage.id === growthPipelineId) ??
     null;
-  const { projection: growthProjection } =
-    useGrowthExecutionProjection(growthRun);
-  const liveGrowthPipeline = growthRun?.pipelineRuns.find(
+  const localExecution = useGrowthExecutionProjection(
+    growthExecution ? null : growthRun,
+  );
+  const { projection: growthProjection, error: growthJournalError } =
+    growthExecution ?? localExecution;
+  const projectedPipeline = growthProjection?.pipelines.find(
     (item) => item.id === growthPipelineId,
   );
-  const { journal: growthJournal, logError: growthJournalError } =
-    useGrowthRunJournal(liveGrowthPipeline?.childRunId ?? null);
   const growthGraph = useMemo(
     () =>
       growthProgram
@@ -198,19 +205,10 @@ function EditorBody(props: Props) {
             growthProgram,
             growthRun,
             growthStage,
-            growthJournal,
-            liveGrowthPipeline,
             growthProjection,
           )
         : null,
-    [
-      growthProgram,
-      growthRun,
-      growthStage,
-      growthJournal,
-      liveGrowthPipeline,
-      growthProjection,
-    ],
+    [growthProgram, growthRun, growthStage, growthProjection],
   );
   const [outputOpen, setOutputOpen] = useState(false);
   const [editorError, setEditorError] = useState('');
@@ -583,9 +581,9 @@ function EditorBody(props: Props) {
                   {growthStage.title} · {growthStage.plan.steps.length} tasks
                 </span>
               )}
-              {growthStage && liveGrowthPipeline?.childRunId && (
+              {growthStage && projectedPipeline?.runId && (
                 <a
-                  href={`/api/runs/${liveGrowthPipeline.childRunId}/logs`}
+                  href={`/api/runs/${encodeURIComponent(projectedPipeline.runId)}/logs?since=0`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="pointer-events-auto rounded-xl border border-slate-200 bg-white/95 px-3 py-2 text-xs font-semibold text-teal-800 underline shadow-sm"
@@ -730,7 +728,7 @@ function EditorBody(props: Props) {
         busy={busy}
         working={growth.working}
         error={growth.error}
-        journal={growthJournal}
+        execution={growthProjection}
         journalError={growthJournalError}
         detailsOpen={Boolean(growthTemplateId && growthDetailsOpen)}
         onDetailsClose={() => setGrowthDetailsOpen(false)}

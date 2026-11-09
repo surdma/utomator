@@ -91,7 +91,7 @@ test('run_step stamps conversationId on the run and binds conversation→run', a
   const conv = await createConversation(docs, workflowId, 'Run thread');
 
   const plan = defaultPlan('x', 'audit');
-  const record = makeRecord(plan);
+  const record = { ...makeRecord(plan), id: workflowId };
   const captured: RunRequest[] = [];
   const ports: MatorActionPorts = {
     workflows: {
@@ -133,6 +133,7 @@ test('run_step stamps conversationId on the run and binds conversation→run', a
           profileUrl: 'https://x.com/surdma',
           workflowId,
           workflowRevision: 1,
+          ownerId: '22222222-2222-4222-8222-222222222222',
         },
       },
     },
@@ -141,7 +142,9 @@ test('run_step stamps conversationId on the run and binds conversation→run', a
 
   expect(captured).toHaveLength(1);
   expect(captured[0]!.conversationId).toBe(conv.id);
+  expect(captured[0]!.ownerId).toBe('local-owner');
   expect(result.run?.conversationId).toBe(conv.id);
+  expect(result.run?.ownerId).toBe('local-owner');
   expect(await getConversationRunId(docs, conv.id)).toBe('run-bound-to-conversation');
   expect(result.event.action).toMatchObject({ type: 'run_step' });
 });
@@ -163,7 +166,7 @@ test('run_step always binds conversation→run via applyAction input', async () 
   const conv = await createConversation(docs, workflowId, 'Bind thread');
 
   const plan = defaultPlan('x', 'audit');
-  const record = makeRecord(plan);
+  const record = { ...makeRecord(plan), id: workflowId };
   const captured: RunRequest[] = [];
   const ports: MatorActionPorts = {
     workflows: {
@@ -200,6 +203,8 @@ test('run_step always binds conversation→run via applyAction input', async () 
           platform: 'x',
           action: 'audit',
           profileUrl: 'https://x.com/surdma',
+          workflowId,
+          workflowRevision: record.revision,
         },
       },
     },

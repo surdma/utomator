@@ -1,4 +1,9 @@
 import type { WorkflowPlan } from '@/modules/workflows';
+import type {
+  GrowthChild,
+  GrowthPageEvidence,
+  GrowthStage,
+} from '../model/growth-execution-projection';
 
 export type Stage = {
   id: string;
@@ -45,12 +50,7 @@ export type Run = {
   programId?: string;
   programVersion?: number;
   sourceDigest?: string;
-  stages?: Array<
-    Omit<Stage, 'stepCount'> & {
-      childRunId: string | null;
-      pageEvidence?: { url: string; digest: string } | null;
-    }
-  >;
+  stages?: Array<Omit<Stage, 'stepCount'> & Omit<GrowthStage, 'plan'>>;
   accountId: string;
   status: string;
   state: string;
@@ -59,14 +59,8 @@ export type Run = {
   currentStage: Omit<Stage, 'plan' | 'stepCount'> & {
     childRunId: string | null;
   };
-  pipelineRuns: Array<{
-    id: string;
-    childRunId: string | null;
-    state: string;
-    currentStepId: string | null;
-    error: string | null;
-  }>;
-  currentPageEvidence: { url: string; digest: string } | null;
+  pipelineRuns: GrowthChild[];
+  currentPageEvidence: GrowthPageEvidence | null;
   canAdvance: boolean;
   releasePending: boolean;
   coverage: Array<{

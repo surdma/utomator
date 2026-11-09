@@ -189,3 +189,7 @@ The still-unproven complete journey is: start an authorized workflow → inspect
 ### Verification boundary
 
 This review uses GitHub source, PR history and completed CI logs. It does **not** claim a separate local checkout/build, a physical microphone/browser session, or live Groq/LinkedIn testing. The remediation branch creation is verified; production edits, local validation, independent acceptance and release are separate stages.
+
+## 8. November 9 M3 follow-up
+
+The review above is preserved as historical evidence. The issue #24 remediation was investigated again against main `244af7e270ce83fb2940319a26a8d1a45dea7956`; old PR status and old green checks are not current release claims. The [M3 acceptance ledger](../../architecture/m3-journal-acceptance.md) maps all six remaining works to the implementation, regression tests, real-process browser journey, verification limits and exact local commands. Current PR/CI evidence must be assessed alongside that ledger before marking M3 complete.

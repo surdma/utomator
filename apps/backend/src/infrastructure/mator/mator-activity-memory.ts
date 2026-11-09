@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { appendFile, mkdir, readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
+import { isOwnedBy, isTrustedOwnerId } from '../../domain/ownership.js';
 import { loadIdentityTimeline } from '../profile/profile-timeline.js';
 
 export type MemoryEntry = {
   id: string;
+  ownerId?: string;
   time: string;
   source: 'chat' | 'browser';
   platform: 'linkedin' | 'x' | null;
@@ -17,7 +19,11 @@ const sensitive =
 export class ActivityMemory {
   private path: string;
   private writing: Promise<void> = Promise.resolve();
-  constructor(root = process.cwd()) {
+  constructor(
+    private readonly root = process.cwd(),
+    private readonly ownerId = 'local-owner',
+  ) {
+    if (!isTrustedOwnerId(ownerId)) throw Error('Activity memory requires an authenticated owner');
     this.path = resolve(root, '.runtime', 'intelligence', 'chat-events.jsonl');
   }
   async addChat(body: {
@@ -35,6 +41,7 @@ export class ActivityMemory {
         : null;
     const entry: MemoryEntry = {
       id: randomUUID(),
+      ownerId: this.ownerId,
       time: new Date().toISOString(),
       source: 'chat',
       platform,
@@ -62,22 +69,29 @@ export class ActivityMemory {
     const chat = lines.slice(-300).flatMap((line) => {
       try {
         const record = JSON.parse(line) as MemoryEntry;
-        return record.source === 'chat' && typeof record.text === 'string' ? [record] : [];
+        return isOwnedBy(record, this.ownerId) &&
+          record.source === 'chat' &&
+          typeof record.text === 'string'
+          ? [record]
+          : [];
       } catch {
         return [];
       }
     });
-    const audit = (await loadIdentityTimeline()).map((entry) => ({
-      id: `${entry.runId}:${entry.timestamp}`,
-      time: entry.timestamp,
-      source: 'browser' as const,
-      platform: entry.platform,
-      accountId: null,
-      text:
-        [entry.title, entry.headline, entry.bio].filter(Boolean).join(' · ').slice(0, 600) ||
-        'Profile page observed',
-      runId: entry.runId,
-    }));
+    const audit = (await loadIdentityTimeline(this.ownerId, resolve(this.root, '.runtime', 'runs'))).map(
+      (entry) => ({
+        id: `${entry.runId}:${entry.timestamp}`,
+        ownerId: this.ownerId,
+        time: entry.timestamp,
+        source: 'browser' as const,
+        platform: entry.platform,
+        accountId: null,
+        text:
+          [entry.title, entry.headline, entry.bio].filter(Boolean).join(' · ').slice(0, 600) ||
+          'Profile page observed',
+        runId: entry.runId,
+      }),
+    );
     return [...chat, ...audit].sort((a, b) => b.time.localeCompare(a.time)).slice(0, 300);
   }
 }

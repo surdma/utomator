@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { isOwnedBy, isTrustedOwnerId } from '../../domain/ownership.js';
 import type { Platform } from '../../domain/types.js';
 import { profileUrlForHandle, validatePageScope } from '../../domain/validate.js';
 import { runtimePath } from '../runtime/paths.js';
@@ -48,6 +49,7 @@ export type AnnotationEditEvent = {
 };
 export type ReviewRecord = {
   id: string;
+  ownerId?: string;
   createdAt: string;
   platform: Platform;
   handle: string;
@@ -64,6 +66,7 @@ export type ReviewRecord = {
 };
 export type IdentityNote = {
   id: string;
+  ownerId?: string;
   createdAt: string;
   platform: Platform;
   scope: string;
@@ -270,14 +273,19 @@ export class VisualReviewStore {
       fileName: string,
       platform: Platform,
     ) => boolean | Promise<boolean>,
-  ) {}
+    private readonly ownerId: string,
+  ) {
+    if (!isTrustedOwnerId(ownerId)) throw Error('Visual reviews require an authenticated owner');
+  }
   private serialize<T>(work: () => Promise<T>): Promise<T> {
     const result = this.writeQueue.then(work);
     this.writeQueue = result.catch(() => undefined);
     return result;
   }
   async listReviews(): Promise<ReviewRecord[]> {
-    return readArray<ReviewRecord>(recordFile);
+    return (await readArray<ReviewRecord>(recordFile)).filter((review) =>
+      isOwnedBy(review, this.ownerId),
+    );
   }
   async addReview(input: {
     platform: Platform;
@@ -380,6 +388,7 @@ export class VisualReviewStore {
     } else throw new Error('Choose an actual run screenshot or uploaded image');
     const entry: ReviewRecord = {
       id: randomUUID(),
+      ownerId: this.ownerId,
       createdAt: new Date().toISOString(),
       platform: input.platform,
       handle: input.handle,
@@ -392,8 +401,8 @@ export class VisualReviewStore {
       source,
     };
     return this.serialize(async () => {
-      const list = await this.listReviews();
-      if (list.length >= 200)
+      const list = await readArray<ReviewRecord>(recordFile);
+      if (list.filter((review) => isOwnedBy(review, this.ownerId)).length >= 200)
         throw new Error('Visual review limit reached; archive older reviews first');
       await mkdir(root, { recursive: true, mode: 0o700 });
       if (image)
@@ -429,7 +438,7 @@ export class VisualReviewStore {
     }
   }
   async listNotes(): Promise<IdentityNote[]> {
-    return readArray<IdentityNote>(memoryFile);
+    return (await readArray<IdentityNote>(memoryFile)).filter((note) => isOwnedBy(note, this.ownerId));
   }
   async addNote(input: {
     platform: Platform;
@@ -448,14 +457,16 @@ export class VisualReviewStore {
       throw new Error('Memory note must be 3–800 characters');
     const note: IdentityNote = {
       id: randomUUID(),
+      ownerId: this.ownerId,
       createdAt: new Date().toISOString(),
       platform: input.platform,
       scope,
       text: input.text.trim(),
     };
     return this.serialize(async () => {
-      const list = await this.listNotes();
-      if (list.length >= 250) throw new Error('Identity memory limit reached');
+      const list = await readArray<IdentityNote>(memoryFile);
+      if (list.filter((item) => isOwnedBy(item, this.ownerId)).length >= 250)
+        throw new Error('Identity memory limit reached');
       await atomicJson(memoryFile, [...list, note]);
       return note;
     });

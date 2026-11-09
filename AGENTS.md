@@ -52,6 +52,8 @@ Backend changes start with a failing Vitest test. Move behavior, then delete the
 
 `test:integration` needs a built frontend and Chromium. `test:hosted` is the hosted OIDC, gateway, and worker suite. Neither proves live LinkedIn access. Fixture green is not provider access.
 
+M3 acceptance has a dedicated `.github/workflows/utomator-m3-acceptance.yml` gate. Run its real-process journey with `pnpm --filter @utomator/backend exec vitest run --config vitest.integration.config.ts tests/m3-journal.integration.test.ts` after building the frontend and installing Chromium. The test starts its own Fastify and Next processes on temporary loopback ports, uses an isolated SQLite database and the actual Runner/browser provider, and restarts the backend from persisted state. Only LinkedIn HTML is a controlled fixture. Evidence goes to `apps/backend/.runtime/m3-acceptance/`; do not commit generated traces, screenshots, or logs. See `docs/architecture/m3-journal-acceptance.md` for the six issue #24 gates and local commands.
+
 Format both apps with Biome. Do not run root `pnpm format` on backend files.
 
 ## Design

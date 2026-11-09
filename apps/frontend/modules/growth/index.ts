@@ -7,6 +7,7 @@ export type { GrowthGraphNode } from './components/growth-graph-model';
 export { buildGrowthGraph } from './components/growth-graph-model';
 export type { Program } from './components/growth-profile-types';
 export { default as GrowthWorkspaceDialogs } from './components/growth-workspace-dialogs';
+export type { GrowthWorkflowState } from './components/hooks/use-growth-profile-workflow';
 export { useGrowthProfileWorkflow } from './components/hooks/use-growth-profile-workflow';
 export type {
   GrowthCapability,
@@ -19,6 +20,7 @@ export {
   profileSections,
 } from './components/linkedin-growth-capabilities';
 export { default as GrowthRunControls } from './components/run-controls';
+export type { GrowthExecutionView } from './hooks/use-growth-execution-projection';
 export { useGrowthExecutionProjection } from './hooks/use-growth-execution-projection';
 export { useGrowthRunJournal } from './hooks/use-growth-run-journal';
 export type {

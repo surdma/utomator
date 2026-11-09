@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
-import type { GrowthJournalEvent } from '../components/growth-graph-model';
-import { fetchGrowthRunJournalPage } from '../model/growth-run-journal';
+import type { GrowthRecordedEvent } from '../model/growth-execution-projection';
+import { fetchGrowthRunJournal } from '../model/growth-run-journal';
 
 type JournalResult = {
   runId: string;
-  entries: GrowthJournalEvent[];
+  entries: GrowthRecordedEvent[];
   error: string;
 };
 
 export function useGrowthRunJournal(childRunId: string | null): {
-  journal: GrowthJournalEvent[];
+  journal: GrowthRecordedEvent[];
   logError: string;
 } {
   const [result, setResult] = useState<JournalResult>({
@@ -27,17 +27,15 @@ export function useGrowthRunJournal(childRunId: string | null): {
       if (!active || inFlight) return;
       inFlight = true;
       try {
-        const page = await fetchGrowthRunJournalPage(
+        const entries = await fetchGrowthRunJournal(
           childRunId,
           controller.signal,
         );
         if (active)
           setResult({
             runId: childRunId,
-            entries: page.entries,
-            error: page.truncated
-              ? 'Earlier Runner events were omitted. Task history is incomplete.'
-              : '',
+            entries,
+            error: '',
           });
       } catch (error) {
         if (active && !controller.signal.aborted) {
