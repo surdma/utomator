@@ -142,6 +142,21 @@ async function readSse(url: string, since: number, count: number) {
   }
 }
 
+async function readJournal(origin: string, runId: string) {
+  const events: StreamEvent[] = [];
+  let cursor = 0;
+  for (;;) {
+    const response = await fetch(`${origin}/api/runs/${runId}/logs?since=${cursor}`);
+    expect(response.status).toBe(200);
+    const batch = (await response.json()) as StreamEvent[];
+    expect(batch.every((event) => event.runId === runId && event.id > cursor)).toBe(true);
+    events.push(...batch);
+    if (response.headers.get('x-run-journal-has-more') !== 'true') return events;
+    expect(batch.length).toBeGreaterThan(0);
+    cursor = required(batch.at(-1), 'next journal cursor').id;
+  }
+}
+
 test('M3 real Runner, Fastify and Next preserve journal truth across approval, cleanup, restart and UI navigation', {
   timeout: 240_000,
 }, async () => {
@@ -336,18 +351,7 @@ test('M3 real Runner, Fastify and Next preserve journal truth across approval, c
     expect(finished.historyIncomplete).not.toBe(true);
     expect(finished.terminalEventId).toBeTypeOf('number');
 
-    const events: StreamEvent[] = [];
-    let cursor = 0;
-    for (;;) {
-      const response = await fetch(`${origin}/api/runs/${childId}/logs?since=${cursor}`);
-      expect(response.status).toBe(200);
-      const batch = (await response.json()) as StreamEvent[];
-      expect(batch.every((event) => event.runId === childId && event.id > cursor)).toBe(true);
-      events.push(...batch);
-      if (response.headers.get('x-run-journal-has-more') !== 'true') break;
-      expect(batch.length).toBeGreaterThan(0);
-      cursor = required(batch.at(-1), 'next journal cursor').id;
-    }
+    const events = await readJournal(origin, childId);
     expect(events.length).toBeGreaterThan(20);
     expect(new Set(events.map((event) => event.id)).size).toBe(events.length);
     expect(
@@ -355,6 +359,7 @@ test('M3 real Runner, Fastify and Next preserve journal truth across approval, c
     ).toBe(true);
     const terminal = events.find((event) => event.id === finished.terminalEventId);
     expect(terminal?.details).toMatchObject({ terminalState: 'completed', cleanupComplete: true });
+    await writeFile(join(evidenceRoot, 'completed-journal.json'), JSON.stringify(events, null, 2));
     const source = await fetch(`${origin}/api/runs/${childId}/workflow.yaml`);
     expect(source.status).toBe(200);
     expect(await source.text()).toContain('kind:');
@@ -414,6 +419,10 @@ test('M3 real Runner, Fastify and Next preserve journal truth across approval, c
       expectedReplay.length,
     );
     expect(replay).toEqual(expectedReplay);
+    await writeFile(
+      join(evidenceRoot, 'replayed-events.json'),
+      JSON.stringify({ since: reconnectFrom, events: replay }, null, 2),
+    );
     expect((await fetch(`${origin}/api/runs/${childId}/evidence/${screenshotFile}`)).status).toBe(200);
     await page.goto(`${origin}/dashboard/workspace`);
     await openGrowth(page);
@@ -443,6 +452,21 @@ test('M3 real Runner, Fastify and Next preserve journal truth across approval, c
       'cancellation and cleanup',
     );
     expect(cancelled.growth?.stageId).toBe('positioning');
+    const cancelledEvents = await readJournal(origin, secondChildId);
+    const cancelledTerminal = cancelledEvents.find((event) => event.id === cancelled.terminalEventId);
+    expect(cancelledTerminal?.details).toMatchObject({
+      terminalState: 'cancelled',
+      cleanupComplete: true,
+    });
+    expect(
+      cancelledEvents.every(
+        (event) => JSON.stringify(event.growth) === JSON.stringify(cancelled.growth),
+      ),
+    ).toBe(true);
+    await writeFile(
+      join(evidenceRoot, 'cancelled-journal.json'),
+      JSON.stringify(cancelledEvents, null, 2),
+    );
     await page.keyboard.press('Escape');
     await ui.getByTestId('growth-pipeline-node-positioning').waitFor({ state: 'visible' });
     await until(

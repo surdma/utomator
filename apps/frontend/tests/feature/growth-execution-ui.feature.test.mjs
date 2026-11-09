@@ -7,6 +7,8 @@ import GrowthWorkspaceDialogs from '../../modules/growth/components/growth-works
 import GrowthRunControls from '../../modules/growth/components/run-controls.tsx';
 import { projectGrowthExecution } from '../../modules/growth/model/growth-execution-projection.ts';
 import { MatorPipelineExecution } from '../../modules/mator/components/chat/mator-pipeline-execution.tsx';
+import { defaultWorkflowPlan } from '../../modules/pipeline/components/default-workflow-plan.ts';
+import WorkflowPlanEditor from '../../modules/workflows/components/workflow-plan-editor.tsx';
 import {
   childId,
   growthRun,
@@ -188,4 +190,181 @@ test('workspace controls cannot advance a cancelled child or use another parent 
   const unavailable = controlsText(completed, foreign);
   expect(unavailable).toContain('unavailable');
   expect(unavailable).not.toContain('Advance to the next dependent pipeline');
+});
+
+function artboardRun() {
+  const run = controlsRun('completed');
+  run.coverage = [];
+  run.currentPageEvidence = run.stages[0].pageEvidence;
+  const first = run.stages[0];
+  for (let index = 1; index < 6; index++) {
+    const id = `pipeline-${index + 1}`;
+    run.stages.push({
+      ...structuredClone(first),
+      id,
+      title: `Pipeline ${index + 1}`,
+      dependsOn: run.stages[index - 1].id,
+      childRunId: null,
+      pageEvidence: null,
+    });
+    run.pipelineRuns.push({
+      id,
+      childRunId: null,
+      state: 'waiting',
+      currentStepId: null,
+      error: null,
+    });
+  }
+  return run;
+}
+
+function artboardFooter(run, execution, kind = 'GrowthProfileWorkflow') {
+  const stages = (run?.stages ?? growthRun().stages).map((stage) => ({
+    ...stage,
+    action: 'audit',
+    page: 'profile',
+    sectionIds: [],
+    stepCount: stage.plan.steps.length,
+  }));
+  const host = document.createElement('div');
+  host.innerHTML = renderToStaticMarkup(
+    createElement(WorkflowPlanEditor, {
+      plan: defaultWorkflowPlan(),
+      templates: [],
+      events: [],
+      busy: false,
+      dirty: false,
+      saving: false,
+      connected: true,
+      growthTemplateId: 'linkedin-profile',
+      growthState: {
+        run: run ? { ...run, stages } : null,
+        program: {
+          id: 'linkedin-profile',
+          title: 'Profile audit',
+          kind,
+          stages,
+          requirements: [],
+          coverage: [],
+          pipelines: [],
+        },
+        endpoint: '/api/growth/templates/linkedin-profile',
+        working: false,
+        error: '',
+        mutate: async () => {},
+        setRun() {},
+      },
+      growthExecution: { projection: execution, error: '' },
+      onPlanChange() {},
+      onTemplateApply: async () => {},
+      onSave: async () => {},
+    }),
+  );
+  const controls = [...host.querySelectorAll('button')].find((button) =>
+    button.textContent.includes('Run controls and evidence'),
+  );
+  expect(controls).toBeDefined();
+  return controls.parentElement.querySelector('span').textContent;
+}
+
+test('artboard footer cannot certify raw completion with incomplete or missing journal projection', () => {
+  const run = artboardRun();
+  const incomplete = projectGrowthExecution(run, journals(undefined, false));
+  for (const projection of [incomplete, null]) {
+    const footer = artboardFooter(run, projection);
+    expect(footer).toContain('Current pipeline: unavailable');
+    expect(footer).not.toContain('completed');
+  }
+});
+
+test.each([
+  ['runId', '33333333-3333-4333-8333-333333333333'],
+  ['workflowId', 'another-program'],
+  ['workflowRevision', 99],
+  ['sourceDigest', '9'.repeat(64)],
+])(
+  'artboard footer rejects a projection with mismatched %s',
+  (field, value) => {
+    const run = artboardRun();
+    const execution = projectGrowthExecution(run, journals());
+    execution[field] = value;
+    expect(artboardFooter(run, execution)).toContain(
+      'Current pipeline: unavailable',
+    );
+  },
+);
+
+test('artboard footer limits verified completion to the current pipeline of a six-stage program', () => {
+  const run = artboardRun();
+  const execution = projectGrowthExecution(run, journals());
+  expect(execution.pipelines.map((pipeline) => pipeline.state)).toEqual([
+    'completed',
+    'waiting',
+    'waiting',
+    'waiting',
+    'waiting',
+    'waiting',
+  ]);
+  const footer = artboardFooter(run, execution);
+  expect(footer).toContain('Current pipeline: completed');
+  expect(footer).not.toContain('Growth execution: completed');
+});
+
+test('artboard footer rejects a prior child projection after the current child changes', () => {
+  const run = artboardRun();
+  const execution = projectGrowthExecution(run, journals());
+  run.currentStage.childRunId = '33333333-3333-4333-8333-333333333333';
+  run.currentChild.id = run.currentStage.childRunId;
+  expect(artboardFooter(run, execution)).toContain(
+    'Current pipeline: unavailable',
+  );
+});
+
+test('artboard footer follows the newly active pipeline rather than the first completed pipeline', () => {
+  const run = artboardRun();
+  const nextChildId = '33333333-3333-4333-8333-333333333333';
+  const next = run.stages[1];
+  const source = { ...run.pipelineRuns[0].growth, stageId: next.id };
+  next.childRunId = nextChildId;
+  run.activeIndex = 1;
+  run.currentStage = next;
+  run.currentChild = { id: nextChildId, state: 'running' };
+  run.state = 'running';
+  run.pipelineRuns[1] = {
+    ...run.pipelineRuns[1],
+    childRunId: nextChildId,
+    state: 'running',
+    currentStepId: 'observe',
+    growth: source,
+  };
+  const execution = projectGrowthExecution(run, {
+    ...journals(),
+    [nextChildId]: {
+      runId: nextChildId,
+      complete: true,
+      events: [
+        recordedEvent(1, 'observe', 'started', {
+          runId: nextChildId,
+          growth: source,
+        }),
+      ],
+    },
+  });
+  expect(artboardFooter(run, execution)).toContain('Current pipeline: running');
+});
+
+test('artboard footer does not turn pending cleanup into completion', () => {
+  const run = artboardRun();
+  run.releasePending = true;
+  const execution = projectGrowthExecution(run, journals());
+  const footer = artboardFooter(run, execution);
+  expect(footer).toContain('Current pipeline: finalizing');
+  expect(footer).not.toContain('completed');
+});
+
+test('artboard footer keeps the planning-only and not-started states', () => {
+  expect(artboardFooter(null, null)).toContain('not started');
+  expect(artboardFooter(null, null, 'GrowthBlueprintWorkflow')).toBe(
+    'Planning-only workflow',
+  );
 });

@@ -202,6 +202,21 @@ function EditorBody(props: Props) {
   const projectedPipeline = growthProjection?.pipelines.find(
     (item) => item.id === growthPipelineId,
   );
+  const currentPipeline =
+    growthRun &&
+    growthProjection?.runId === growthRun.id &&
+    growthProjection.workflowId === growthRun.programId &&
+    growthProjection.workflowRevision === growthRun.programVersion &&
+    growthProjection.sourceDigest === growthRun.sourceDigest
+      ? growthProjection.pipelines.find(
+          (item) =>
+            item.id === growthRun.currentStage?.id &&
+            item.runId === growthRun.currentStage?.childRunId,
+        )
+      : undefined;
+  const currentPipelineState = growthRun
+    ? (currentPipeline?.state ?? 'unavailable')
+    : 'not started';
   const growthGraph = useMemo(
     () =>
       growthProgram
@@ -640,7 +655,7 @@ function EditorBody(props: Props) {
             <span>
               {growthProgram?.kind === 'GrowthBlueprintWorkflow'
                 ? 'Planning-only workflow'
-                : `Growth execution: ${growthRun?.state ?? 'not started'}`}
+                : `Current pipeline: ${currentPipelineState}`}
               {growthRun?.id ? ` · ${growthRun.id.slice(0, 8)}` : ''}
             </span>
             <button
