@@ -8,11 +8,31 @@
 > runs.** ARBHIL is not implemented. `docs/` and this file separate existing behavior from
 > proposals. A proposal does not override `AGENTS.md`.
 
+## Mato isolation
+
+The ARBHIL remote-browser design applies only to the mato app under `/mato/**`. Dashboard
+(`/dashboard/**`, `apps/frontend/app/dashboard/**`) keeps its existing patterns, modules, design
+system, growth YAML, crafts, and approvals. The public root (`/`, `apps/frontend/app/page.tsx`)
+stays outside this design.
+
+No importing the dashboard shell (`apps/frontend/modules/shell`) or dashboard modules into mato
+routes. Agents working on mato must not apply dashboard invariants to browser sessions, and agents
+working on the dashboard must not apply ARBHIL session rules to dashboard browser sessions.
+
+`/mato/**` is a route scope inside the existing Next.js app (`apps/frontend/app/mato/**` when that
+tree exists), not a second frontend. There is no `apps/frontend/app/mato` page in the repository
+today. The shipped agent UI is the `mator` module at `apps/frontend/modules/mator`, rendered inside
+dashboard pages such as `/dashboard/pipeline` and `/dashboard/settings`, with Fastify handlers in
+`apps/backend/src/interface/http/mator-routes.ts`. That embedded Mator stays part of the dashboard.
+The sections below describe the proposed mato app. They do not change dashboard runs.
+
+Detail and the divergence list: [docs/architecture/arbhil.md](./docs/architecture/arbhil.md).
+
 Utomator is a local-first automation product: a Next.js operator UI and one Fastify process that
-runs allowlisted browser workflows through Playwright. The proposed design on this page is
+runs allowlisted browser workflows through Playwright. The proposed mato design on this page is
 **Agent-Operated Remote Browser with Human-in-the-Loop (ARBHIL)**: an AI agent drives a remote
 Chrome, a human can watch and take over at any time, and user secrets stay out of the agent
-context.
+context. It applies under `/mato/**` only.
 
 ## What runs today
 
@@ -35,11 +55,12 @@ execution engine are described in
 
 ## ARBHIL mental model
 
-A person asks the product to do something in a signed-in website. The Fastify control plane gives
-the agent a browser and a memory, and withholds passwords, addresses, and other secrets. The agent
-names a secret by handle. A vault proxy decrypts it and types it into the page. The person can
-open a live view, take the controls, and hand them back. While nobody is watching, Chrome stays
-headless so the session does not pay for a video stream.
+This is the proposed `/mato/**` app. A person asks mato to do something in a signed-in website. The
+Fastify control plane gives the agent a browser and a memory, and withholds passwords, addresses,
+and other secrets. The agent names a secret by handle. A vault proxy decrypts it and types it into
+the page. The person can open a live view, take the controls, and hand them back. While nobody is
+watching, Chrome stays headless so the session does not pay for a video stream. Dashboard pages
+under `/dashboard/**` keep the runner described in "What runs today".
 
 ```mermaid
 flowchart TB

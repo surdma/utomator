@@ -11,6 +11,26 @@
 > [docs/architecture/diagrams](./diagrams/README.md). If a figure changes, update the Markdown fence
 > and the matching `.mmd` file together.
 
+## Mato isolation
+
+The ARBHIL remote-browser design applies only to the mato app under `/mato/**`. Dashboard
+(`/dashboard/**`, `apps/frontend/app/dashboard/**`) keeps its existing patterns, modules, design
+system, growth YAML, crafts, and approvals. The public root (`/`, `apps/frontend/app/page.tsx`)
+stays outside this design.
+
+No importing the dashboard shell (`apps/frontend/modules/shell`) or dashboard modules into mato
+routes. Agents working on mato must not apply dashboard invariants to browser sessions, and agents
+working on the dashboard must not apply ARBHIL session rules to dashboard browser sessions.
+
+`/mato/**` is a route scope inside the existing Next.js app (`apps/frontend/app/mato/**` when that
+tree exists), not a second frontend. There is no `apps/frontend/app/mato` page in the repository
+today. The shipped agent UI is the `mator` module at `apps/frontend/modules/mator`, rendered inside
+dashboard pages such as `/dashboard/pipeline` and `/dashboard/settings`, with Fastify handlers in
+`apps/backend/src/interface/http/mator-routes.ts`. That embedded Mator stays part of the dashboard.
+Everything after this section is the proposed mato app. It does not change dashboard runs.
+
+The agent rule is [AGENTS.md](../../AGENTS.md) under "Mato isolation".
+
 This design does not replace the run lifecycle already drawn in
 [09-run-state-machine.mmd](./diagrams/09-run-state-machine.mmd). A workflow run still moves through
 `running`, `paused`, `input-needed`, `approval-needed`, `completed`, `blocked`, `failed`, and
@@ -19,7 +39,8 @@ where a secret goes when the page asks for one.
 
 ## 1. Overview and mental model
 
-ARBHIL is a remote browser with two drivers and a blind spot for secrets.
+ARBHIL is a remote browser for the mato app under `/mato/**`, with two drivers and a blind spot
+for secrets. Dashboard routes under `/dashboard/**` keep the run lifecycle above.
 
 The **agent** is the default driver. It sees the page the way an automation client does: URL,
 structure, and text that the tool boundary is willing to return. It decides the next click, type,
@@ -450,7 +471,15 @@ is a hosted deployment shape. It is not required for the local operator.
 These are places where the design summary and the repository do not say the same thing. The
 summary was not edited into the code, and the code was not rewritten to match the summary.
 
-1. **WebRTC versus CDP screencast.** The approved connector design in
+1. **Mato route versus the embedded Mator module.** This design is scoped to a future `/mato/**`
+   app. The repository has no `apps/frontend/app/mato` route. Operator pages live under
+   `apps/frontend/app/dashboard/**`. The existing agent UI is `apps/frontend/modules/mator`, used
+   from `/dashboard/pipeline` and `/dashboard/settings`, with HTTP in
+   `apps/backend/src/interface/http/mator-routes.ts`. Applying ARBHIL states, locks, or vault
+   injection to those dashboard pages would break the isolation rule. A `/mato/**` tree is not
+   created by this document.
+
+2. **WebRTC versus CDP screencast.** The approved connector design in
    `docs/superpowers/specs/2026-10-29-linkedin-vault-connector-design.md` locks streaming to CDP
    screencast over WebSocket and rejects a third-party media service and Xvfb. The implementation
    follows that: `startScreencast` in `provider.ts`, the sign-in broker in `streaming-signin.ts`,
@@ -458,7 +487,7 @@ summary was not edited into the code, and the code was not rewritten to match th
    an explicit decision. Adaptive quality already has a screencast-shaped control (JPEG quality and
    max width and height).
 
-2. **Redis.** `@utomator/backend` does not depend on Redis. The hosted architecture document says
+3. **Redis.** `@utomator/backend` does not depend on Redis. The hosted architecture document says
    there is no durable Redis queue or cross-node lease, and that multiple gateway replicas need a
    design that does not exist yet. The unified engine proposal says to add Redis only for a real
    coordination job and not as a second state authority. This document uses Redis as the driver
@@ -466,7 +495,7 @@ summary was not edited into the code, and the code was not rewritten to match th
    proposal for review, not a lease that exists in code. Today's mutual exclusion is the single
    `Runner` throwing `BUSY`.
 
-3. **Containers and Kubernetes.** There is no Chrome pool, Dockerfile, or Kubernetes manifest for
+4. **Containers and Kubernetes.** There is no Chrome pool, Dockerfile, or Kubernetes manifest for
    browsers in this repository. Hosted mode is one Linux node, an OIDC gateway, and a child Fastify
    process per owner, with headless Chromium in that process. `AGENTS.md` forbids a second server
    framework and a microservice split, and `assertLoopbackCdp` rejects non-loopback CDP. A pool
@@ -474,7 +503,7 @@ summary was not edited into the code, and the code was not rewritten to match th
    A public CDP port, or a second control service beside Fastify, cannot. The hosted document also
    says process isolation is not container isolation against malicious native code.
 
-4. **Two different vaults, plus a plaintext login field.** The connector session vault stores
+5. **Two different vaults, plus a plaintext login field.** The connector session vault stores
    encrypted cookies and origin storage, not a handle catalogue of passwords and addresses.
    `RunRequest.login` still carries `identifier` and `password` into the runner, and
    `attemptLogin` fills them with Playwright in the same process before clearing the password
@@ -482,52 +511,52 @@ summary was not edited into the code, and the code was not rewritten to match th
    "the proxy" share an address space unless a later change introduces a real boundary. A separate
    vault deployable would conflict with the single-process rule. That boundary is unresolved.
 
-5. **Three state machines.** Domain `RunState` is the workflow run. `BrokerState` on the sign-in
+6. **Three state machines.** Domain `RunState` is the workflow run. `BrokerState` on the sign-in
    broker is `launching`, `streaming`, `authenticated`, and `closed`. ARBHIL adds Idle,
    AgentDriving, HumanDriving, Visualizing, RequestingSecret, VaultInjecting, Paused, Error, and
    Terminated for the remote browser. Collapsing them would hide the existing rule that a
    completed run summary is not an idle runner, and that connect sessions and run sessions are
    different instances.
 
-6. **Memory.** There is no pgvector extension and no embedding table. Postgres and SQLite schemas
+7. **Memory.** There is no pgvector extension and no embedding table. Postgres and SQLite schemas
    are a single `utomator_documents` table. Agent memory today is a JSONL file plus the identity
    timeline. Adding a vector store means changing both schema files in one change, or leaving both
    alone.
 
-7. **Who may preempt, and what a dead watcher means.** The summary says the human can take over at
+8. **Who may preempt, and what a dead watcher means.** The summary says the human can take over at
    any time. This document infers the converse (the agent cannot preempt the human) and infers
    that a lost human heartbeat pauses instead of handing the lock back. Both inferences need to be
    checked against the original session.
 
-8. **`Visualizing` as a state.** It is drawn as its own state so the cost controls have a single
+9. **`Visualizing` as a state.** It is drawn as its own state so the cost controls have a single
    place to turn video on. The lock holder in that state is still the agent. If the original
    session treated "watching" as a flag on top of `AgentDriving` and `HumanDriving`, the diagram
    should be redrawn that way. The stream would still be off in headless `AgentDriving`.
 
-9. **How the agent drives.** Current executable work is a validated linear plan
+10. **How the agent drives.** Current executable work is a validated linear plan
    (`start → session → action → finish`) dispatched by `Runner`. Image annotations are explicitly
    not browser clicks. ARBHIL's loop of arbitrary Playwright tool calls is a wider authority than
    the allowlisted actions. Any implementation still has to keep approval and read-back on
    mutations.
 
-10. **Screencast already starts when a session opens.** `BrowserSession.open` calls `beginView`,
+11. **Screencast already starts when a session opens.** `BrowserSession.open` calls `beginView`,
     which starts a CDP screencast and keeps the latest JPEG. That is broader than "headed only
     while a human is watching." The cost section describes the proposed narrower rule.
 
-11. **Addresses.** Nothing in the current vault schema stores a postal address or a generic secret
+12. **Addresses.** Nothing in the current vault schema stores a postal address or a generic secret
     handle. The connector payload is cookies, origin storage, and browser hints for `linkedin` and
     `x`.
 
-12. **Pool size.** The summary does not set warm-pool depth, idle timeout, or maximum concurrent
+13. **Pool size.** The summary does not set warm-pool depth, idle timeout, or maximum concurrent
     browsers. `HOSTED_MAX_WORKERS` is the only existing cap, and it bounds child processes on one
     node.
 
-13. **Media path and auth.** WebRTC signaling has to stay behind the authenticated gateway and the
+14. **Media path and auth.** WebRTC signaling has to stay behind the authenticated gateway and the
     Next.js proxy. The summary does not specify ICE, TURN, or how a container on a private network
     reaches the operator's browser. Those details are open, and they must not become a way around
     owner checks or a way to expose CDP.
 
-14. **Same-process secret injection.** Even with a vault proxy module, a model that can read the
+15. **Same-process secret injection.** Even with a vault proxy module, a model that can read the
     page after `locator.fill` can read a non-password field such as an address. The threat model
     requires secret-tagged nodes to be stripped from observations. That filter does not exist yet.
     Password fields filled by `attemptLogin` are the closest current behavior, and they run inside
