@@ -1,0 +1,10 @@
+flowchart TB
+    Fastify["Fastify control plane"] --> Alloc["Allocator"]
+    Alloc -->|"claim an idle container"| Warm["Warm Chrome pool"]
+    Warm --> Bound["Bound container"]
+    Bound --> Redis["Redis affinity and driver lock"]
+    Bound --> Cleanup["Wipe profile on Terminated or idle timeout"]
+    Cleanup -->|"return a healthy container"| Warm
+    Metrics["Active sessions and idle depth"] --> Scale["Autoscaler"]
+    Scale -->|"add or remove warm containers"| Warm
+    Fastify --> Metrics

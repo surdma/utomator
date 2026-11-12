@@ -1,0 +1,24 @@
+sequenceDiagram
+    actor Human
+    participant Next
+    participant Fastify
+    participant Redis
+    participant Agent
+    participant Chrome
+    Human->>Next: Take over
+    Next->>Fastify: Preempt driver lock
+    Fastify->>Redis: Replace agent holder with human
+    Redis-->>Fastify: New fencing token
+    Fastify->>Agent: Reject further browser tools
+    Fastify->>Chrome: Keep the stream headed
+    Human->>Next: Pointer, keys, and scroll
+    Next->>Fastify: Input while human token matches
+    Fastify->>Redis: Check fencing token
+    Fastify->>Chrome: CDP input dispatch
+    Human->>Next: Hand back
+    Next->>Fastify: Release human lock
+    Fastify->>Redis: Compare and delete human token
+    Redis-->>Fastify: Lock cleared
+    Fastify->>Agent: Agent may acquire again
+    Agent->>Fastify: Acquire driver lock
+    Fastify->>Redis: Set agent holder if absent

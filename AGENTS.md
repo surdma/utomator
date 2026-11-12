@@ -72,4 +72,4 @@ Read using-superpowers before other work, test-driven-development before backend
 
 ## Evidence
 
-`docs/` separates existing behavior from proposals. The unified engine, canonical IR, multi-provider scheduling, and field-level collectors are proposals until code and tests say otherwise. Growth progress lives in `docs/architecture/growth-workflow-implementation-handoff.md`. Do not mark a fixture-green run as live provider access.
+`docs/` separates existing behavior from proposals. The unified engine, canonical IR, multi-provider scheduling, field-level collectors, and the ARBHIL remote-browser design in `ARCHITECTURE.md` and `docs/architecture/arbhil.md` are proposals until code and tests say otherwise. Growth progress lives in `docs/architecture/growth-workflow-implementation-handoff.md`. Do not mark a fixture-green run as live provider access.

@@ -3,6 +3,9 @@
 All **existing versus proposed** functionality boundaries are explicit. Mermaid diagrams,
 illustrative interfaces and named handlers are designs unless verified in product code.
 
+The repository entry point is [ARCHITECTURE.md](../ARCHITECTURE.md).
+
+- [Agent-Operated Remote Browser with Human-in-the-Loop (ARBHIL, proposed)](./architecture/arbhil.md): remote Chrome driven by an agent, human watch and takeover, secret handles with vault injection, session state machine, and a browser pool. Diagrams were reconstructed from a design summary and need review against the original session. Divergences from the current runner, CDP screencast, and connector session vault are listed in that document.
 - [Cross-platform Growth workflow unification v2 (proposed)](./architecture/growth-workflow-unification-v2.md): one workflow identity across providers, contextual step UI, bounded Mator failure repair, and explicit migration gates.
 - [Unified Growth, Craft, Graph, Pipeline and Execution Engine Architecture](./architecture/unified-growth-workflow-engine.md):
   actual two-contract gap, target architecture, 12 Mermaid diagrams, contracts, lifecycle,

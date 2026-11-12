@@ -80,6 +80,13 @@ limitations.
 
 ## Architecture and product knowledge
 
+[ARCHITECTURE.md](./ARCHITECTURE.md) is the entry point. It maps the system that runs today and the
+proposed [Agent-Operated Remote Browser with Human-in-the-Loop (ARBHIL)](./docs/architecture/arbhil.md)
+design: an agent drives a remote Chrome, a human can watch and take over, and secrets stay out of
+the agent context. The ARBHIL diagrams were reconstructed from a design summary and should be
+reviewed against the original session. They are a proposal. They do not describe the runner,
+screencast, or connector vault that the code implements today.
+
 The [documentation index](./docs/README.md) connects the
 [unified execution-engine proposal](./docs/architecture/unified-growth-workflow-engine.md),
 [expert-methodology knowledge](./docs/knowledge/growth-craft-methodology.md) and

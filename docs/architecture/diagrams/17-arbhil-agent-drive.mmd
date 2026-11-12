@@ -1,0 +1,24 @@
+sequenceDiagram
+    actor Human
+    participant Next
+    participant Fastify
+    participant Redis
+    participant Agent
+    participant Chrome
+    Human->>Next: Start an agent task
+    Next->>Fastify: Create or resume session
+    Fastify->>Chrome: Allocate a warm headless container
+    Fastify->>Redis: Acquire driver lock for agent
+    Redis-->>Fastify: Fencing token granted
+    Fastify->>Agent: Task context without secrets
+    loop Until the task pauses or finishes
+        Agent->>Fastify: Browser tool call
+        Fastify->>Redis: Check fencing token
+        Redis-->>Fastify: Agent still holds the lock
+        Fastify->>Chrome: Playwright command over CDP
+        Chrome-->>Fastify: Page result with secret fields redacted
+        Fastify-->>Agent: Redacted observation
+    end
+    Agent->>Fastify: Task finished
+    Fastify->>Redis: Release agent lock
+    Fastify->>Chrome: Start idle timer

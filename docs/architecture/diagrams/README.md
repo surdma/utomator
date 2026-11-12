@@ -1,11 +1,14 @@
 # Architecture diagram library
 
-> **Proposed design, not implemented behavior.** All Mermaid files below are exact source copies
-> from the [architecture](../unified-growth-workflow-engine.md) and
-> [expert-methodology reference](../../knowledge/growth-craft-methodology.md). GitHub renders the
-> fenced Mermaid diagrams in those documents as scalable vector graphics. Standalone SVGs here are
-> accessible, independently drawn high-level companion illustrations, not exact one-for-one renders
-> of every Mermaid edge.
+> **Proposed design, not implemented behavior.** Files `01` through `14` are exact source copies
+> from the [unified workflow architecture](../unified-growth-workflow-engine.md) and
+> [expert-methodology reference](../../knowledge/growth-craft-methodology.md). Files `15` through
+> `20` are exact source copies from the
+> [ARBHIL proposal](../arbhil.md). Those ARBHIL figures were reconstructed from a design summary
+> and should be reviewed against the original session. GitHub renders the fenced Mermaid diagrams
+> in those documents as scalable vector graphics. Standalone SVGs here are accessible,
+> independently drawn high-level companion illustrations, not exact one-for-one renders of every
+> Mermaid edge.
 
 | Diagram                      | Original Mermaid                                | Portable SVG companion                       |
 | ---------------------------- | ----------------------------------------------- | -------------------------------------------- |
@@ -23,6 +26,12 @@
 | final architecture           | [source](./12-final-architecture.mmd)           | View in the linked Markdown source           |
 | expert method lifecycle      | [source](./13-expert-method-lifecycle.mmd)      | [SVG](./13-expert-method-lifecycle.svg)      |
 | profile optimization journey | [source](./14-profile-optimization-journey.mmd) | [SVG](./14-profile-optimization-journey.svg) |
+| ARBHIL control plane | [source](./15-arbhil-control-plane.mmd) | [ARBHIL](../arbhil.md#2-high-level-architecture) |
+| ARBHIL session state | [source](./16-arbhil-session-state.mmd) | [ARBHIL](../arbhil.md#3-session-state-machine) |
+| ARBHIL agent drive | [source](./17-arbhil-agent-drive.mmd) | [ARBHIL](../arbhil.md#agent-drive) |
+| ARBHIL human takeover | [source](./18-arbhil-human-takeover.mmd) | [ARBHIL](../arbhil.md#human-takeover-and-handback) |
+| ARBHIL vault injection | [source](./19-arbhil-vault-injection.mmd) | [ARBHIL](../arbhil.md#vault-injection) |
+| ARBHIL browser pool | [source](./20-arbhil-browser-pool.mmd) | [ARBHIL](../arbhil.md#8-deployment) |
 
 ## SVG visual references
 

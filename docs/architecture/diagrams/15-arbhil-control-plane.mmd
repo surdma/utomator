@@ -1,0 +1,27 @@
+flowchart TB
+    subgraph operator["Operator"]
+        Next["Next.js frontend"]
+    end
+    subgraph plane["Fastify control plane"]
+        Api["Session API"]
+        Agent["Agent tool boundary"]
+        Proxy["Vault proxy"]
+    end
+    subgraph data["Coordination and memory"]
+        Redis["Redis driver lock"]
+        Memory["Postgres and pgvector"]
+        Vault["Encrypted secret vault"]
+    end
+    subgraph browsers["Chrome pool"]
+        Chrome["Chrome container"]
+    end
+    Next -->|"HTTPS through the loopback proxy"| Api
+    Next -->|"WebRTC media while a human watches"| Chrome
+    Api --> Agent
+    Api --> Redis
+    Api --> Memory
+    Agent -->|"Playwright over private CDP"| Chrome
+    Agent -->|"secret handle only"| Proxy
+    Agent --> Memory
+    Proxy --> Vault
+    Proxy -->|"decrypt and inject over CDP"| Chrome
