@@ -1,0 +1,16 @@
+sequenceDiagram
+    participant Agent
+    participant Fastify
+    participant Vault
+    participant Audit
+    participant Chrome
+    Agent->>Fastify: Request handle for this origin
+    Fastify->>Audit: Record handle, origin, and field role
+    Fastify->>Vault: Authorize injection
+    Note over Agent,Vault: The agent receives a status, never the secret
+    Vault->>Vault: Decrypt the secret in the proxy
+    Vault->>Chrome: Insert text into the bound field over CDP
+    Vault->>Vault: Discard the plaintext buffer
+    Vault->>Audit: Record success or failure without the value
+    Vault-->>Fastify: Injected or denied
+    Fastify-->>Agent: Status only

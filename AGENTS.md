@@ -29,6 +29,20 @@ Bind `127.0.0.1` only. The browser reaches Fastify through `apps/frontend/app/ap
 
 Growth stays YAML in `apps/backend/growth/*-workflow.yaml`. Adding a Growth is a YAML file, not a Next.js page. Craft defaults in `apps/backend/crafts/default/*.mdx` are read-only seeds. Workflow plans stay linear `start → session → action → finish`.
 
+## Mato isolation
+
+The ARBHIL remote-browser design applies only to the mato app under `/mato/**`. The design is `docs/architecture/arbhil.md`.
+
+Dashboard (`/dashboard/**`, `apps/frontend/app/dashboard/**`) keeps its existing patterns, modules, design system, growth YAML, crafts, and approvals. The public root (`/`, `apps/frontend/app/page.tsx`) stays outside ARBHIL.
+
+No importing the dashboard shell (`apps/frontend/modules/shell`) or dashboard modules into mato routes. Those modules are career, connections, crafts, editorial, growth, intelligence, pipeline, research, reviews, settings, workflows, mator, and shell.
+
+Agents working on mato must not apply dashboard invariants to browser sessions, and agents working on the dashboard must not apply ARBHIL session rules to dashboard browser sessions.
+
+`/mato/**` is a route scope inside the existing Next.js app, at `apps/frontend/app/mato/**` when that tree exists. It is not a second frontend or a second server. Process-wide hard stops in this file still apply to both surfaces.
+
+The route tree has no `apps/frontend/app/mato` page today. The shipped agent UI is the `mator` module at `apps/frontend/modules/mator`, rendered inside dashboard pages such as `/dashboard/pipeline` and `/dashboard/settings`, with Fastify handlers in `apps/backend/src/interface/http/mator-routes.ts` and browser calls under `/api/mator/**`. That embedded Mator stays part of the dashboard. ARBHIL does not retarget it.
+
 ## How to change behavior
 
 Backend changes start with a failing Vitest test. Move behavior, then delete the old file only when the inventory row names the new test. New unit tests go in `apps/backend/tests/unit/**` or `apps/frontend/tests/unit/**` and are collected by `vitest.unit.config.ts`. The backend unit include is `tests/*.{ts,mjs}` plus `tests/unit/**/*.{ts,mjs}`, excluding `tests/*.integration.test.ts` and `tests/hosted-*.test.mjs`. New feature tests go in `tests/feature/**` and are collected by `vitest.feature.config.ts` include `tests/feature/**/*.{ts,mjs}`. Playwright projects in `apps/frontend/playwright.config.ts` collect `test:ui` (`tests/frontend-quality.test.ts`) and `test:browser`. A test file that no include matches is a failure.
@@ -72,4 +86,4 @@ Read using-superpowers before other work, test-driven-development before backend
 
 ## Evidence
 
-`docs/` separates existing behavior from proposals. The unified engine, canonical IR, multi-provider scheduling, and field-level collectors are proposals until code and tests say otherwise. Growth progress lives in `docs/architecture/growth-workflow-implementation-handoff.md`. Do not mark a fixture-green run as live provider access.
+`docs/` separates existing behavior from proposals. The unified engine, canonical IR, multi-provider scheduling, field-level collectors, and the ARBHIL remote-browser design in `ARCHITECTURE.md` and `docs/architecture/arbhil.md` are proposals until code and tests say otherwise. Growth progress lives in `docs/architecture/growth-workflow-implementation-handoff.md`. Do not mark a fixture-green run as live provider access.

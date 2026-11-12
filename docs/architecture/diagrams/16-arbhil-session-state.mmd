@@ -1,0 +1,45 @@
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> AgentDriving: agentAcquiresLock
+    Idle --> Terminated: reclaim
+    AgentDriving --> Visualizing: watcherSubscribes
+    Visualizing --> AgentDriving: lastWatcherLeaves
+    AgentDriving --> HumanDriving: humanPreemptsLock
+    Visualizing --> HumanDriving: humanPreemptsLock
+    HumanDriving --> Visualizing: handbackWhileWatching
+    HumanDriving --> AgentDriving: handbackHeadless
+    HumanDriving --> Idle: handbackTaskDone
+    AgentDriving --> Idle: taskDone
+    Visualizing --> Idle: taskDone
+    AgentDriving --> RequestingSecret: secretNeeded
+    Visualizing --> RequestingSecret: secretNeeded
+    HumanDriving --> RequestingSecret: secretNeeded
+    RequestingSecret --> VaultInjecting: injectionAuthorized
+    RequestingSecret --> AgentDriving: deniedToAgent
+    RequestingSecret --> Visualizing: deniedWhileWatching
+    RequestingSecret --> HumanDriving: deniedToHuman
+    VaultInjecting --> AgentDriving: injectedHeadless
+    VaultInjecting --> Visualizing: injectedWhileWatching
+    VaultInjecting --> HumanDriving: injectedForHuman
+    AgentDriving --> Paused: pause
+    Visualizing --> Paused: pause
+    HumanDriving --> Paused: pause
+    HumanDriving --> Paused: heartbeatLost
+    RequestingSecret --> Paused: pause
+    Paused --> AgentDriving: resumeHeadlessAgent
+    Paused --> Visualizing: resumeWatching
+    Paused --> HumanDriving: resumeHuman
+    Paused --> Terminated: pauseTimeout
+    AgentDriving --> Error: fault
+    Visualizing --> Error: fault
+    HumanDriving --> Error: fault
+    RequestingSecret --> Error: fault
+    VaultInjecting --> Error: fault
+    Error --> Paused: recoverable
+    Error --> Terminated: unrecoverable
+    AgentDriving --> Terminated: timeoutOrCancel
+    Visualizing --> Terminated: timeoutOrCancel
+    HumanDriving --> Terminated: timeoutOrCancel
+    RequestingSecret --> Terminated: sessionTimeout
+    VaultInjecting --> Terminated: sessionTimeout
+    Terminated --> [*]
