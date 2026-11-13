@@ -27,6 +27,15 @@ export type RunState =
   | 'blocked'
   | 'failed'
   | 'cancelled';
+export interface GrowthRunIdentity {
+  parentRunId: string;
+  programId: string;
+  programVersion: number;
+  sourceDigest: string;
+  stageId: string;
+  attempt: number;
+  planDigest: string;
+}
 export interface RunRequest {
   platform: Platform;
   accountId?: string;
@@ -39,6 +48,7 @@ export interface RunRequest {
   login?: LoginCredentials;
   ownerId?: string;
   conversationId?: string;
+  growth?: GrowthRunIdentity;
   headline?: string;
   about?: string;
   skill?: string;
@@ -65,6 +75,7 @@ export interface StreamEvent {
   kind: 'status' | 'step' | 'audit' | 'approval' | 'input' | 'screenshot' | 'error' | 'result';
   message: string;
   details?: unknown;
+  growth?: GrowthRunIdentity;
 }
 export interface RunSummary {
   id: string;
@@ -80,4 +91,8 @@ export interface RunSummary {
   currentStepId?: string;
   completedStepIds?: string[];
   error?: string;
+  growth?: GrowthRunIdentity;
+  historyIncomplete?: boolean;
+  cleanupComplete?: boolean;
+  terminalEventId?: number;
 }

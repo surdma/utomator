@@ -4,6 +4,12 @@ import type { Locator, Page } from 'playwright';
 import type { RunRequest, StreamEvent } from '../../domain/types.js';
 import { attemptLogin } from '../browser/login.js';
 
+export type ApprovalEvidenceBinding = {
+  evidenceStepId: string;
+  evidenceDigest: string;
+  evidenceOutputId: string;
+};
+
 export interface WorkflowContext {
   page: Page;
   input: RunRequest;
@@ -11,7 +17,7 @@ export interface WorkflowContext {
   runId: string;
   signal: AbortSignal;
   emit: (kind: StreamEvent['kind'], message: string, details?: unknown) => void;
-  approve: (message: string) => Promise<void>;
+  approve: (message: string, evidence?: ApprovalEvidenceBinding) => Promise<void>;
   ask: (message: string) => Promise<string>;
 }
 

@@ -1,5 +1,6 @@
+import { createHash } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
-import type { RunRequest, StreamEvent } from '../../domain/types.js';
+import type { GrowthRunIdentity, StreamEvent } from '../../domain/types.js';
 import { runtimePath } from '../runtime/paths.js';
 import { execute } from '../workflows/execute.js';
 import type { CompiledStep, CompiledWorkflow } from '../workflows/workflow-yaml.js';
@@ -34,6 +35,7 @@ export interface PlanSummary {
   id: string;
   currentStepId?: string;
   completedStepIds?: string[];
+  growth?: GrowthRunIdentity;
 }
 
 /** Executes a compiled linear workflow plan step-by-step.
@@ -65,6 +67,7 @@ export async function executePlan(
     let output: StepOutput;
     try {
       output = await executeStep(step, ctx, signal, emit, outputs);
+      if (signal.aborted) throw Error('Run cancelled');
       if (output.schema !== step.document.spec.outputs.schema)
         throw Error('Step output schema does not match compiled YAML instruction');
     } catch (error) {
@@ -78,20 +81,33 @@ export async function executePlan(
       throw error;
     }
     // A completed stage must have an immutable result, not just a success log.
-    writeFileSync(
-      runtimePath('runs', summary.id ?? '', `${step.source.id}.output.json`),
-      `${JSON.stringify({ stepId: step.source.id, ...output })}\n`,
-      { flag: 'wx', mode: 0o600 },
-    );
+    const outputId = `${summary.id}:${step.source.id}:output`;
+    const artifact = `${JSON.stringify({
+      stepId: step.source.id,
+      ...output,
+      runId: summary.id,
+      outputId,
+      attempt: summary.growth?.attempt ?? 1,
+      yamlSha256: step.digest,
+      ...(summary.growth ? { growth: summary.growth } : {}),
+    })}\n`;
+    writeFileSync(runtimePath('runs', summary.id ?? '', `${step.source.id}.output.json`), artifact, {
+      flag: 'wx',
+      mode: 0o600,
+    });
     outputs.set(step.source.id, output);
-    summary.completedStepIds.push(step.source.id);
     emit('step', `Completed: ${step.source.title}`, {
       stepId: step.source.id,
       stage: 'completed',
       kind: step.source.kind,
       yamlSha256: step.digest,
       outputSchema: output.schema,
+      outputId,
+      outputDigest: createHash('sha256').update(artifact).digest('hex'),
+      attempt: summary.growth?.attempt ?? 1,
+      ...(output.schema === 'evidence/v1' ? { evidenceDigest: output.digest } : {}),
     });
+    summary.completedStepIds.push(step.source.id);
     if (output.schema === 'status/v1' && output.status === 'stopped') return 'stopped';
   }
   return 'finished';
@@ -152,6 +168,11 @@ export async function executeStep(
         ' (SHA-256 ' +
         source.digest.slice(0, 12) +
         '). Approve using this evidence for this workflow only. External provider writes require their own separate authorization.',
+      {
+        evidenceStepId: binding.stepId,
+        evidenceDigest: source.digest,
+        evidenceOutputId: `${ctx.runId}:${binding.stepId}:output`,
+      },
     );
     const decision = approvalDecision(source, true);
     emit('step', 'Owner approved the referenced evidence', {

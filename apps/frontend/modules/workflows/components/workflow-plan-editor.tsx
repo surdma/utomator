@@ -42,12 +42,14 @@ export type {
 
 import {
   buildGrowthGraph,
+  type GrowthExecutionView,
   type GrowthGraphNode,
   GrowthGraphNodeCard,
+  type GrowthWorkflowState,
   GrowthWorkspaceDialogs,
   useGrowthExecutionProjection,
+  useGrowthGraphNodes,
   useGrowthProfileWorkflow,
-  useGrowthRunJournal,
 } from '@/modules/growth';
 import StudioDialog from '../../../components/ui/studio-dialog';
 
@@ -72,6 +74,8 @@ type Props = {
   accountLabel?: string;
   growthTemplateId?: string | null;
   growthAccountId?: string;
+  growthState?: GrowthWorkflowState;
+  growthExecution?: GrowthExecutionView;
   onGrowthTemplateApply?: (id: string) => Promise<void>;
   onClearGrowth?: () => void;
   onGrowthActionSelect?: (action: string) => void;
@@ -147,6 +151,8 @@ function EditorBody(props: Props) {
     accountLabel,
     growthTemplateId,
     growthAccountId,
+    growthState,
+    growthExecution,
     onGrowthTemplateApply,
     onClearGrowth,
     onGrowthActionSelect,
@@ -164,33 +170,53 @@ function EditorBody(props: Props) {
   const [returnConfirmOpen, setReturnConfirmOpen] = useState(false);
   const [growthPipelineId, setGrowthPipelineId] = useState<string | null>(null);
   const [growthTaskId, setGrowthTaskId] = useState<string | null>(null);
-  const growth = useGrowthProfileWorkflow(
+  const localGrowth = useGrowthProfileWorkflow(
     plan.platform,
-    growthTemplateId ?? null,
+    growthState ? null : (growthTemplateId ?? null),
     growthAccountId,
   );
+  const growth = growthState ?? localGrowth;
   const growthRun = growth.run;
   // A past execution must display its pinned YAML plans, not a newer library revision.
-  const growthProgram =
-    growth.program && growthRun?.stages?.length
-      ? {
-          ...growth.program,
-          stages: growthRun.stages.map((stage) => ({
-            ...stage,
-            stepCount: stage.plan.steps.length,
-          })),
-        }
-      : growth.program;
+  const growthProgram = useMemo(
+    () =>
+      growth.program && growthRun?.stages?.length
+        ? {
+            ...growth.program,
+            stages: growthRun.stages.map((stage) => ({
+              ...stage,
+              stepCount: stage.plan.steps.length,
+            })),
+          }
+        : growth.program,
+    [growth.program, growthRun?.stages],
+  );
   const growthStage =
     growthProgram?.stages.find((stage) => stage.id === growthPipelineId) ??
     null;
-  const { projection: growthProjection } =
-    useGrowthExecutionProjection(growthRun);
-  const liveGrowthPipeline = growthRun?.pipelineRuns.find(
+  const localExecution = useGrowthExecutionProjection(
+    growthExecution ? null : growthRun,
+  );
+  const { projection: growthProjection, error: growthJournalError } =
+    growthExecution ?? localExecution;
+  const projectedPipeline = growthProjection?.pipelines.find(
     (item) => item.id === growthPipelineId,
   );
-  const { journal: growthJournal, logError: growthJournalError } =
-    useGrowthRunJournal(liveGrowthPipeline?.childRunId ?? null);
+  const currentPipeline =
+    growthRun &&
+    growthProjection?.runId === growthRun.id &&
+    growthProjection.workflowId === growthRun.programId &&
+    growthProjection.workflowRevision === growthRun.programVersion &&
+    growthProjection.sourceDigest === growthRun.sourceDigest
+      ? growthProjection.pipelines.find(
+          (item) =>
+            item.id === growthRun.currentStage?.id &&
+            item.runId === growthRun.currentStage?.childRunId,
+        )
+      : undefined;
+  const currentPipelineState = growthRun
+    ? (currentPipeline?.state ?? 'unavailable')
+    : 'not started';
   const growthGraph = useMemo(
     () =>
       growthProgram
@@ -198,20 +224,19 @@ function EditorBody(props: Props) {
             growthProgram,
             growthRun,
             growthStage,
-            growthJournal,
-            liveGrowthPipeline,
             growthProjection,
           )
         : null,
-    [
-      growthProgram,
-      growthRun,
-      growthStage,
-      growthJournal,
-      liveGrowthPipeline,
-      growthProjection,
-    ],
+    [growthProgram, growthRun, growthStage, growthProjection],
   );
+  const growthViewKey = [
+    'growth',
+    growthTemplateId,
+    growthPipelineId ?? 'overview',
+    growthProgram ? 'loaded' : 'loading',
+  ].join('/');
+  const { nodes: growthNodes, onNodesChange: onGrowthNodesChange } =
+    useGrowthGraphNodes(growthViewKey, growthGraph?.nodes);
   const [outputOpen, setOutputOpen] = useState(false);
   const [editorError, setEditorError] = useState('');
   const [stepForms, setStepForms] = useState<
@@ -465,21 +490,14 @@ function EditorBody(props: Props) {
           data-testid={growthTemplateId ? 'growth-nested-artboard' : undefined}
         >
           <ReactFlow<ArtboardNode, Edge>
-            key={
-              growthTemplateId
-                ? [
-                    'growth',
-                    growthTemplateId,
-                    growthPipelineId ?? 'overview',
-                    growthProgram ? 'loaded' : 'loading',
-                  ].join('/')
-                : 'workflow'
-            }
+            key={growthTemplateId ? growthViewKey : 'workflow'}
             data-testid={growthTemplateId ? 'growth-workflow-graph' : undefined}
-            nodes={growthTemplateId ? (growthGraph?.nodes ?? []) : nodes}
+            nodes={growthTemplateId ? growthNodes : nodes}
             edges={growthTemplateId ? (growthGraph?.edges ?? []) : data.edges}
             nodeTypes={nodeTypes}
-            onNodesChange={growthTemplateId ? undefined : onNodesChange}
+            onNodesChange={
+              growthTemplateId ? onGrowthNodesChange : onNodesChange
+            }
             nodesDraggable={!growthTemplateId && canEdit}
             nodesConnectable={!growthTemplateId && canEdit}
             edgesReconnectable={false}
@@ -583,9 +601,9 @@ function EditorBody(props: Props) {
                   {growthStage.title} · {growthStage.plan.steps.length} tasks
                 </span>
               )}
-              {growthStage && liveGrowthPipeline?.childRunId && (
+              {growthStage && projectedPipeline?.runId && (
                 <a
-                  href={`/api/runs/${liveGrowthPipeline.childRunId}/logs`}
+                  href={`/api/runs/${encodeURIComponent(projectedPipeline.runId)}/logs?since=0`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="pointer-events-auto rounded-xl border border-slate-200 bg-white/95 px-3 py-2 text-xs font-semibold text-teal-800 underline shadow-sm"
@@ -637,7 +655,7 @@ function EditorBody(props: Props) {
             <span>
               {growthProgram?.kind === 'GrowthBlueprintWorkflow'
                 ? 'Planning-only workflow'
-                : `Growth execution: ${growthRun?.state ?? 'not started'}`}
+                : `Current pipeline: ${currentPipelineState}`}
               {growthRun?.id ? ` · ${growthRun.id.slice(0, 8)}` : ''}
             </span>
             <button
@@ -730,7 +748,7 @@ function EditorBody(props: Props) {
         busy={busy}
         working={growth.working}
         error={growth.error}
-        journal={growthJournal}
+        execution={growthProjection}
         journalError={growthJournalError}
         detailsOpen={Boolean(growthTemplateId && growthDetailsOpen)}
         onDetailsClose={() => setGrowthDetailsOpen(false)}

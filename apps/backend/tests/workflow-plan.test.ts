@@ -569,11 +569,14 @@ test('a run binds live observed data to a later note and stores immutable typed 
     expect(state).toEqual('cancelled');
     const observation = await app.inject(`/runs/${id}/steps/inspect/output`);
     expect(observation.statusCode).toEqual(200);
-    expect(observation.json()).toEqual({
+    expect(observation.json()).toMatchObject({
       stepId: 'inspect',
       schema: 'page-observation/v1',
       url: 'https://x.com/flow_test',
       excerpt: 'Observed account profile with a public bio.',
+      runId: id,
+      outputId: `${id}:inspect:output`,
+      attempt: 1,
     });
     const noteOutput = await app.inject(`/runs/${id}/steps/note-excerpt/output`);
     expect(noteOutput.statusCode).toEqual(200);
@@ -1271,11 +1274,14 @@ test('authored observation assessments produce immutable typed outputs before gu
     expect((await app.inject(`/runs/${runId}`)).json().state).toEqual('cancelled');
     const assessment = await app.inject(`/runs/${runId}/steps/assess-authored/output`);
     expect(assessment.statusCode).toEqual(200);
-    expect(assessment.json()).toEqual({
+    expect(assessment.json()).toMatchObject({
       stepId: 'assess-authored',
       schema: 'assessment/v1',
       matched: true,
       summary: 'Assessment matched the declared observation text',
+      runId,
+      outputId: `${runId}:assess-authored:output`,
+      attempt: 1,
     });
     const noteResult = await app.inject(`/runs/${runId}/steps/note-assessment/output`);
     expect(noteResult.statusCode).toEqual(200);
@@ -1491,12 +1497,15 @@ test('approval of immutable observed evidence is a real checkpoint and does not 
     }
     expect((await app.inject(`/runs/${id}`)).json().state).toEqual('cancelled');
     const approval = (await app.inject(`/runs/${id}/steps/approve-evidence/output`)).json();
-    expect(approval).toEqual({
+    expect(approval).toMatchObject({
       stepId: 'approve-evidence',
       schema: 'approval/v1',
       approved: true,
       evidenceStepId: 'inspect',
       evidenceDigest: evidence.digest,
+      runId: id,
+      outputId: `${id}:approve-evidence:output`,
+      attempt: 1,
     });
     expect((await app.inject(`/runs/${id}/steps/action/output`)).statusCode).toEqual(404);
     expect(

@@ -161,6 +161,10 @@ function permitted(path: string, method: string): boolean {
       /^crafts\/[a-zA-Z0-9-]{1,75}(?:\/(?:export|mdx))?$/.test(path) ||
       new RegExp(`^(runs|events)/${id}$`).test(path) ||
       new RegExp(`^runs/${id}/(assessment|logs)$`).test(path) ||
+      new RegExp(`^runs/${id}/workflow\\.yaml$`).test(path) ||
+      new RegExp(`^runs/${id}/steps/[a-zA-Z][a-zA-Z0-9_-]{0,63}\\.yaml$`).test(
+        path,
+      ) ||
       new RegExp(`^runs/${id}/steps/[a-zA-Z][a-zA-Z0-9_-]{0,63}/output$`).test(
         path,
       ) ||
@@ -243,7 +247,7 @@ function permitted(path: string, method: string): boolean {
 async function forward(req: NextRequest, params: Promise<{ path: string[] }>) {
   if (!allowedHost(req))
     return Response.json({ error: 'Local automation only' }, { status: 403 });
-  if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
     const origin = req.headers.get('origin');
     const host = req.headers.get('host');
     // Next can normalize request.url to localhost behind its router. Compare
@@ -277,6 +281,14 @@ async function forward(req: NextRequest, params: Promise<{ path: string[] }>) {
           path[0] === 'runs' &&
           path[2] === 'steps' &&
           /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(part)
+        ) &&
+        !(
+          path[0] === 'runs' &&
+          ((path.length === 3 && index === 2 && part === 'workflow.yaml') ||
+            (path.length === 4 &&
+              index === 3 &&
+              path[2] === 'steps' &&
+              /^[a-zA-Z][a-zA-Z0-9_-]{0,63}\.yaml$/.test(part)))
         ) &&
         !(index === path.length - 1 && /^[a-zA-Z0-9_-]+\.png$/.test(part)),
     )
@@ -332,8 +344,8 @@ async function forward(req: NextRequest, params: Promise<{ path: string[] }>) {
                 'idempotency-key': req.headers.get('idempotency-key') as string,
               }
             : {}),
-          ...(req.headers.get('x-owner-id')
-            ? { 'x-owner-id': req.headers.get('x-owner-id') as string }
+          ...(req.method === 'GET' && req.headers.get('last-event-id')
+            ? { 'last-event-id': req.headers.get('last-event-id') as string }
             : {}),
         },
         body: body?.length ? body : undefined,

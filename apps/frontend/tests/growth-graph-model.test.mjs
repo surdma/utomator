@@ -1,8 +1,5 @@
 import { expect, test } from 'vitest';
-import {
-  buildGrowthGraph,
-  getGrowthTaskStates,
-} from '../modules/growth/components/growth-graph-model.ts';
+import { buildGrowthGraph } from '../modules/growth/components/growth-graph-model.ts';
 
 const stage = {
   id: 'audit',
@@ -48,7 +45,15 @@ test('pipeline graph preserves dependencies and real run state', () => {
       },
     ],
   };
-  const graph = buildGrowthGraph(program, run, null, [], undefined);
+  const projection = {
+    runId: 'r1',
+    workflowId: 'growth',
+    pipelines: [
+      { id: 'audit', state: 'completed', tasks: [] },
+      { id: 'review', state: 'running', tasks: [] },
+    ],
+  };
+  const graph = buildGrowthGraph(program, run, null, projection);
   expect(graph.nodes.map((node) => node.id)).toEqual(['audit', 'review']);
   expect(
     graph.edges.map((edge) => [edge.source, edge.target, edge.animated]),
@@ -57,7 +62,7 @@ test('pipeline graph preserves dependencies and real run state', () => {
   expect(graph.nodes[1].data.state).toEqual('running');
 });
 
-test('failed task comes from persisted journal and active Runner checkpoint', () => {
+test('blocked task preserves the canonical projection failure', () => {
   const live = {
     id: 'audit',
     childRunId: 'c1',
@@ -65,31 +70,27 @@ test('failed task comes from persisted journal and active Runner checkpoint', ()
     currentStepId: 'inspect',
     error: 'Provider blocked',
   };
-  const journal = [
-    {
-      kind: 'task',
-      message: 'Starting',
-      details: { stepId: 'inspect', stage: 'started' },
-    },
-    {
-      kind: 'task',
-      message: 'Blocked',
-      details: {
-        stepId: 'inspect',
-        stage: 'failed',
-        reason: 'Could not inspect',
+  const projection = {
+    runId: 'r1',
+    workflowId: 'growth',
+    pipelines: [
+      {
+        id: 'audit',
+        state: 'blocked',
+        tasks: [
+          { id: 'start', state: 'completed' },
+          { id: 'inspect', state: 'blocked', failure: 'Could not inspect' },
+        ],
       },
-    },
-  ];
-  expect(getGrowthTaskStates(journal, live).get('inspect')).toEqual('failed');
+    ],
+  };
   const graph = buildGrowthGraph(
     program,
     { id: 'r1', pipelineRuns: [live] },
     stage,
-    journal,
-    live,
+    projection,
   );
-  expect(graph.nodes[1].data.state).toEqual('failed');
+  expect(graph.nodes[1].data.state).toEqual('blocked');
   expect(graph.nodes[1].data.failure).toEqual('Could not inspect');
   expect(
     graph.edges.map((edge) => [edge.source, edge.target, edge.animated]),
@@ -97,18 +98,18 @@ test('failed task comes from persisted journal and active Runner checkpoint', ()
 });
 
 test('missing run evidence stays waiting and cannot imply completion', () => {
-  const graph = buildGrowthGraph(program, null, null, [], undefined);
+  const graph = buildGrowthGraph(program, null, null);
   expect(graph.nodes[0].data.state).toEqual('waiting');
   expect(graph.nodes[1].data.state).toEqual('waiting');
   expect(graph.edges[0].animated).toEqual(false);
 });
 
 test('pipeline and task cards receive numbered step metadata and real step kinds', () => {
-  const overview = buildGrowthGraph(program, null, null, [], undefined);
+  const overview = buildGrowthGraph(program, null, null);
   expect(overview.nodes[0].data.kind).toEqual('pipeline');
   expect(overview.nodes[0].data.index).toEqual(1);
   expect(overview.nodes[0].data.stepCount).toEqual(2);
-  const tasks = buildGrowthGraph(program, null, stage, [], undefined);
+  const tasks = buildGrowthGraph(program, null, stage);
   expect(tasks.nodes[0].data.kind).toEqual('task');
   expect(tasks.nodes[0].data.index).toEqual(1);
   expect(tasks.nodes[0].data.stepKind).toEqual('start');
@@ -118,8 +119,6 @@ test('pipeline and task cards receive numbered step metadata and real step kinds
     { ...program, kind: 'GrowthBlueprintWorkflow' },
     null,
     stage,
-    [],
-    undefined,
   );
   expect(designOnly.nodes[1].data.designOnly).toEqual(true);
 });

@@ -13,7 +13,7 @@ vi.mock('node:fs', async () => {
 
 import { appendFileSync } from 'node:fs';
 
-test('Runner stops and marks the run failed when the journal write fails (fail closed)', () => {
+test('Runner stops and marks the run failed when the journal write fails (fail closed)', async () => {
   vi.mocked(appendFileSync).mockImplementation(() => {
     throw new Error('ENOSPC: no space left on device, write failed');
   });
@@ -23,6 +23,7 @@ test('Runner stops and marks the run failed when the journal write fails (fail c
     action: 'audit',
     profileUrl: 'https://www.linkedin.com/in/john-doe/',
   });
+  await vi.waitFor(() => expect(runner.isIdle()).toBe(true));
   // The durable record could not be extended, so execution must not proceed
   // to a completed (or even running) state.
   expect(summary.state).toBe('failed');
@@ -35,8 +36,9 @@ test('Runner stops and marks the run failed when the journal write fails (fail c
   expect(
     recorded.some((e) => e.kind === 'status' && e.message === 'Run queued for browser startup'),
   ).toBe(false);
-  // A terminal outcome is still broadcast so the UI learns the run ended.
+  // The status API reports failure without inventing a journal event.
   expect(recorded.some((e) => e.kind === 'status' && e.message === `Run ended: ${summary.state}`)).toBe(
-    true,
+    false,
   );
+  expect(summary.historyIncomplete).toBe(true);
 });

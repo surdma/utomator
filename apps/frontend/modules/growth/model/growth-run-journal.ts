@@ -1,8 +1,10 @@
-import type { GrowthJournalEvent } from '../components/growth-graph-model';
-import type { GrowthRecordedEvent } from './growth-execution-projection';
+import {
+  type GrowthRecordedEvent,
+  isGrowthRecordedEvent,
+} from './growth-execution-projection';
 
 export type GrowthJournalPage = {
-  entries: GrowthJournalEvent[];
+  entries: GrowthRecordedEvent[];
   truncated: boolean;
 };
 
@@ -20,7 +22,7 @@ export async function fetchGrowthRunJournalPage(
   const entries: unknown = await response.json();
   if (!Array.isArray(entries)) throw Error('Invalid Runner journal');
   return {
-    entries: entries as GrowthJournalEvent[],
+    entries: entries as GrowthRecordedEvent[],
     truncated: response.headers?.get('x-run-journal-truncated') === 'true',
   };
 }
@@ -34,7 +36,7 @@ export async function fetchGrowthRunJournal(
   // instead of stopping at the default page.
   let since = 0;
   for (;;) {
-    if (signal.aborted) break;
+    signal.throwIfAborted();
     const response = await fetch(
       `/api/runs/${encodeURIComponent(childRunId)}/logs?since=${since}`,
       { cache: 'no-store', signal },
@@ -43,11 +45,21 @@ export async function fetchGrowthRunJournal(
       throw Error(`Runner event journal unavailable (HTTP ${response.status})`);
     }
     const page: unknown = await response.json();
+    signal.throwIfAborted();
     if (!Array.isArray(page)) throw Error('Invalid Runner journal');
-    entries.push(...(page as GrowthRecordedEvent[]));
+    if (response.headers?.get('x-run-journal-truncated') === 'true')
+      throw Error('Runner journal is incomplete');
+    let next = since;
+    for (const event of page) {
+      if (!isGrowthRecordedEvent(event, childRunId) || event.id <= next)
+        throw Error('Invalid Runner journal event or cursor order');
+      next = event.id;
+      entries.push(event);
+    }
     const hasMore = response.headers?.get('x-run-journal-has-more') === 'true';
-    if (!hasMore || page.length === 0) break;
-    since = (page as GrowthRecordedEvent[])[page.length - 1].id;
+    if (!hasMore) break;
+    if (next === since) throw Error('Runner journal cursor made no progress');
+    since = next;
   }
   return entries;
 }

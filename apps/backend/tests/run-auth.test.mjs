@@ -42,10 +42,11 @@ test('runIsAccessibleToOwner denies an empty principal against an owned run', ()
   expect(runIsAccessibleToOwner(summary('r1', ownerA), '')).toBe(false);
 });
 
-test('runIsAccessibleToOwner binds legacy ownerless runs to the trusted principal', () => {
+test('runIsAccessibleToOwner denies legacy runs whose owner cannot be proven', () => {
   const ownerless = summary('r1', undefined);
-  expect(runIsAccessibleToOwner(ownerless, ownerA)).toBe(true);
-  expect(runIsAccessibleToOwner(ownerless, ownerB)).toBe(true);
+  expect(runIsAccessibleToOwner(ownerless, ownerA)).toBe(false);
+  expect(runIsAccessibleToOwner(ownerless, ownerB)).toBe(false);
+  expect(runIsAccessibleToOwner(ownerless, 'local-owner')).toBe(false);
 });
 
 test('Runner.start stamps the supplied owner identity on the summary (two distinct users)', {

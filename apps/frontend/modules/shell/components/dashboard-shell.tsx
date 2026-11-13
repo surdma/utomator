@@ -689,6 +689,11 @@ export default function DashboardShell({
             workflowPlan={workflowPlan}
             templatePlans={templatePlans}
             selectedGrowthTemplateId={selectedGrowthTemplateId}
+            growthState={workspaceGrowth}
+            growthExecution={{
+              projection: workspaceExecution,
+              error: workspaceJournalError,
+            }}
             workspaceOpen={workspaceOpen}
             savedWorkflows={savedWorkflows}
             beginNewWorkflow={beginNewWorkflow}
@@ -830,7 +835,11 @@ export default function DashboardShell({
               : null
           }
           growthExecutionTitle={workspaceGrowth.program?.title}
-          growthExecutionError={workspaceJournalError || workspaceGrowth.error}
+          growthExecutionError={
+            pane === 'workspace' && selectedGrowthTemplateId
+              ? workspaceJournalError || workspaceGrowth.error
+              : undefined
+          }
           growthExecutionBusy={workspaceGrowth.working}
           onGrowthDecision={(runId, checkpointId, approved) =>
             submitWorkspaceCheckpoint(runId, checkpointId, 'decision', {

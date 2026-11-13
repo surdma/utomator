@@ -114,3 +114,5 @@ export function useGrowthProfileWorkflow(
 
   return { endpoint, program, run, setRun, error, working, mutate };
 }
+
+export type GrowthWorkflowState = ReturnType<typeof useGrowthProfileWorkflow>;

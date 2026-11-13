@@ -47,6 +47,7 @@ import {
   type MatorSettingsPatch,
   putMatorSettings,
 } from '../../infrastructure/mator/mator-settings.js';
+import { RunPreparationError } from '../../infrastructure/runs/prepare-run.js';
 
 /** Reflect saved marker changes after a reload, without rewriting immutable chat events. */
 async function withAttachmentDetails(docs: DocumentStore, events: MatorEvent[]): Promise<MatorEvent[]> {
@@ -164,6 +165,7 @@ function plansEqual(a: unknown, b: unknown): boolean {
 }
 
 function httpStatusForError(error: unknown): number {
+  if (error instanceof RunPreparationError) return error.statusCode;
   if (error instanceof MatorConfigError) return 400;
   if (error instanceof MatorActionValidationError) return 400;
   const message = error instanceof Error ? error.message : '';

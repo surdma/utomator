@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { isGrowthRunIdentity } from '../../domain/run-identity.js';
 import type { RunSummary } from '../../domain/types.js';
 import { runtimePath } from '../runtime/paths.js';
 
@@ -53,6 +54,11 @@ function parsedEntry(raw: unknown, id: string): ArchivedRun | null {
     !states.has(s.state) ||
     typeof s.createdAt !== 'string' ||
     !Number.isFinite(Date.parse(s.createdAt)) ||
+    (s.growth !== undefined && !isGrowthRunIdentity(s.growth)) ||
+    (s.cleanupComplete !== undefined && typeof s.cleanupComplete !== 'boolean') ||
+    (s.historyIncomplete !== undefined && typeof s.historyIncomplete !== 'boolean') ||
+    (s.terminalEventId !== undefined &&
+      (!Number.isSafeInteger(s.terminalEventId) || s.terminalEventId < 1)) ||
     !Array.isArray(entry.stepIds) ||
     entry.stepIds.length > 24 ||
     !entry.stepIds.every((v) => typeof v === 'string' && stepIdPattern.test(v)) ||
@@ -101,7 +107,8 @@ export class RunArchive {
     this.entries.set(id, entry);
   }
 
-  restore(limit = 100): ArchivedRun[] {
+  /** Enumerate validated summaries without treating a live run as interrupted. */
+  list(limit = 100): ArchivedRun[] {
     let names: string[] = [];
     try {
       names = readdirSync(this.root, { withFileTypes: true })
@@ -128,13 +135,22 @@ export class RunArchive {
         b.summary.createdAt.localeCompare(a.summary.createdAt) ||
         b.summary.id.localeCompare(a.summary.id),
     );
+    return records.slice(0, limit);
+  }
+
+  /** Recover interrupted sessions only when a Runner takes over the archive. */
+  restore(limit = 100): ArchivedRun[] {
     this.entries.clear();
-    for (const record of records.slice(0, limit)) {
+    for (const record of this.list(limit)) {
       if (!terminals.has(record.summary.state)) {
         record.summary.state = 'failed';
         record.summary.error =
           'Run interrupted by an automation engine restart; the browser session was not resumed';
         record.summary.checkpoint = undefined;
+        record.summary.cleanupComplete = false;
+        record.summary.historyIncomplete = true;
+        record.summary.terminalEventId = undefined;
+        this.save(record.summary, record.stepIds);
       }
       this.entries.set(record.summary.id, record);
     }

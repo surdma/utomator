@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { resolve } from 'node:path';
 import Fastify from 'fastify';
 import { AuthBlockedError } from './domain/errors.js';
+import { isOwnedBy } from './domain/ownership.js';
 import { ConnectorService } from './infrastructure/connect/service.js';
 import { CraftLibrary } from './infrastructure/crafts/library.js';
 import {
@@ -20,6 +21,8 @@ import { ActivityMemory } from './infrastructure/mator/mator-activity-memory.js'
 import { AccountStore } from './infrastructure/profile/account-store.js';
 import { CareerStore } from './infrastructure/profile/career-store.js';
 import { ProfilePlanner } from './infrastructure/profile/profile-planner.js';
+import { loadIdentityTimeline } from './infrastructure/profile/profile-timeline.js';
+import { prepareRun } from './infrastructure/runs/prepare-run.js';
 import { Runner } from './infrastructure/runs/runner.js';
 import { VisualReviewStore } from './infrastructure/runs/visual-review.js';
 import { StepDefinitionStore } from './infrastructure/workflows/step-definitions.js';
@@ -60,7 +63,7 @@ export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?
   const accountStore = new AccountStore(options.socialWorkspaceRoot);
   const connectors = new ConnectorService(accountStore, undefined, options.socialWorkspaceRoot);
   let database: DocumentStore | undefined;
-  const activityMemory = new ActivityMemory();
+  const activityMemory = new ActivityMemory(undefined, ownerId);
   const linkedInResearch = new CreatorResearchStore(
     options.socialWorkspaceRoot
       ? resolve(options.socialWorkspaceRoot, '.runtime', 'linkedin-research')
@@ -89,7 +92,7 @@ export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?
         );
     },
   );
-  const profilePlanner = new ProfilePlanner();
+  const profilePlanner = new ProfilePlanner(undefined, () => loadIdentityTimeline(ownerId), ownerId);
   const career = new CareerStore();
   const workflowPlans = new WorkflowPlanStore();
   const workflowRegistry = new WorkflowRegistry();
@@ -100,14 +103,14 @@ export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?
     options.linkedInFetch,
   );
   const authoredSteps = new StepDefinitionStore();
-  const growthProfileRuns = new ProfileGrowthCoordinator(runner);
+  const growthProfileRuns = new ProfileGrowthCoordinator(runner, ownerId);
   const growthTemplates = new GrowthTemplateStore(undefined, ownerId);
   const craftLibrary = new CraftLibrary();
   const visual = new VisualReviewStore(async (runId, fileName, platform) => {
     const run = runner.get(runId);
-    if (!run || run.platform !== platform) return false;
+    if (!run || !isOwnedBy(run, ownerId) || run.platform !== platform) return false;
     return runner.isScreenshotAuthorized(runId, fileName);
-  });
+  }, ownerId);
 
   app.addHook('onReady', async () => {
     if (process.env.NODE_ENV === 'test' && process.env.UTOMATOR_TEST_DATABASE !== 'true') return;
@@ -172,7 +175,14 @@ export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?
       return workflowRegistryPort(workflowRegistry, database);
     },
     runner: {
-      start: (request: Parameters<typeof runner.start>[0]) => runner.start(request),
+      start: async (request: Parameters<typeof runner.start>[0]) => {
+        const prepared = await prepareRun(request, ownerId, {
+          connectors,
+          workflowRegistry,
+          authoredSteps,
+        });
+        return runner.start(prepared.request, prepared.definitions);
+      },
     },
     crafts: {
       apply: async (action: { craftId?: string }) => {
@@ -192,7 +202,7 @@ export function buildApp(options: { socialWorkspaceRoot?: string; linkedInFetch?
   registerIntelligenceRoutes(app, activityMemory);
   registerWorkflowRoutes(app, workflowPlans, workflowRegistry, authoredSteps);
   registerCraftRoutes(app, craftLibrary);
-  registerReviewRoutes(app, visual);
+  registerReviewRoutes(app, visual, ownerId);
   registerProfileRoutes(app, {
     accountStore,
     career,

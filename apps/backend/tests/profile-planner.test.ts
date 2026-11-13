@@ -118,6 +118,25 @@ test('full-profile planning uses real owner sources, enforces approval and keeps
   }
 });
 
+test('planning evidence and approval decisions require the stored owner after restart', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'utomator-owned-planner-'));
+  try {
+    const start = await new ProfilePlanner(root, async () => [], alice).start(input);
+    const foreign = new ProfilePlanner(root, async () => [], bob);
+    expect(await foreign.get(start.id)).toBeNull();
+    await expect(foreign.decide(start.id, true)).rejects.toThrow(/not found/i);
+    await expect(foreign.select(start.id, ['headline'])).rejects.toThrow(/not found/i);
+    expect(start.ownerId).toBe(alice);
+    const restored = new ProfilePlanner(root, async () => [], alice);
+    expect((await restored.get(start.id))?.id).toBe(start.id);
+    const { ownerId: _owner, ...legacy } = start;
+    await writeFile(join(root, `${start.id}.json`), JSON.stringify(legacy));
+    expect(await restored.get(start.id)).toBeNull();
+  } finally {
+    await removeTemp(root);
+  }
+});
+
 test('Fastify refuses portfolio planning without a verified selected account', async () => {
   const app = buildApp();
   try {

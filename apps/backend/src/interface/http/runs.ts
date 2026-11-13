@@ -1,26 +1,42 @@
 import { readFile } from 'node:fs/promises';
-import type { FastifyInstance } from 'fastify';
+import { isDeepStrictEqual } from 'node:util';
+import type { FastifyInstance, FastifyReply } from 'fastify';
+import { isOwnedBy, isTrustedOwnerId } from '../../domain/ownership.js';
 import type { RunRequest, RunSummary, StreamEvent } from '../../domain/types.js';
-import { profileUrlForHandle } from '../../domain/validate.js';
 import type { ConnectorService } from '../../infrastructure/connect/service.js';
 import { assessAudit } from '../../infrastructure/runs/assessment.js';
-import { parseRunJournal } from '../../infrastructure/runs/run-journal.js';
+import { prepareRun, RunPreparationError } from '../../infrastructure/runs/prepare-run.js';
 import type { Runner } from '../../infrastructure/runs/runner.js';
 import { runtimePath } from '../../infrastructure/runtime/paths.js';
 import type { StepDefinitionStore } from '../../infrastructure/workflows/step-definitions.js';
 import type { WorkflowRegistry } from '../../infrastructure/workflows/workflow-registry.js';
 
-/**
- * Access rule for owner-bound runs.
- *
- * New runs are stamped with the trusted server-side principal. Legacy runs
- * that were recorded before ownership existed (ownerId === undefined) are
- * deliberately bound to the deployment's trusted principal so they remain
- * readable after this control is enabled. A run owned by another principal is
- * never accessible.
- */
+/** Legacy ownerless runs must be recreated under an authenticated owner. */
 export function runIsAccessibleToOwner(run: RunSummary, ownerId: string): boolean {
-  return run.ownerId === undefined || run.ownerId === ownerId;
+  return isOwnedBy(run, ownerId);
+}
+
+function journalCursor(value: unknown): number | undefined {
+  if (value === undefined) return undefined;
+  if (
+    typeof value !== 'string' ||
+    !/^(0|[1-9][0-9]*)$/.test(value) ||
+    !Number.isSafeInteger(Number(value))
+  )
+    throw Error('Invalid journal cursor');
+  return Number(value);
+}
+
+function journalFailure(reply: FastifyReply, error: unknown) {
+  if ((error as NodeJS.ErrnoException).code === 'ENOENT')
+    return reply.code(404).send({ error: 'Journal unavailable' });
+  if (error instanceof Error && error.message.startsWith('History incomplete'))
+    return reply
+      .code(409)
+      .send({ error: 'History incomplete: durable run events could not be verified' });
+  if (error instanceof Error && error.message === 'Corrupt run journal')
+    return reply.code(409).send({ error: 'Corrupt run journal' });
+  throw error;
 }
 
 /** Run execution schema: platform/action scoped with bounded freeform inputs. */
@@ -98,11 +114,9 @@ export function registerRunRoutes(
    * from a client-controlled header. */
   ownerId: string,
 ) {
-  const { connectors, workflowRegistry, authoredSteps } = stores;
-  app.get<{ Querystring: { conversationId?: string } }>('/runs', async (request) => {
-    // Only runs attributable to the trusted principal are listed. Legacy
-    // ownerless runs (no ownerId stamped) are bound to the trusted principal
-    // for read access; runs owned by another principal are never disclosed.
+  app.get<{ Querystring: { conversationId?: string } }>('/runs', async (request, reply) => {
+    if (!isTrustedOwnerId(ownerId))
+      return reply.code(401).send({ error: 'Owner authentication required' });
     let runs = runner.list().filter((run) => runIsAccessibleToOwner(run, ownerId));
     if (request.query.conversationId)
       runs = runs.filter((run) => run.conversationId === request.query.conversationId);
@@ -117,7 +131,7 @@ export function registerRunRoutes(
       }
       const run = runner.get(id);
       if (!run) return reply.code(404).send({ error: 'Evidence not found' });
-      if (run.ownerId !== undefined && run.ownerId !== ownerId)
+      if (!runIsAccessibleToOwner(run, ownerId))
         return reply.code(403).send({ error: 'Run not accessible to this owner' });
       const captured = await runner.isScreenshotAuthorized(id, file);
       if (!captured) return reply.code(404).send({ error: 'Evidence not found' });
@@ -174,7 +188,7 @@ export function registerRunRoutes(
     async (request, reply) => {
       const run = runner.get(request.params.id);
       if (!run) return reply.code(404).send({ error: 'Run not found' });
-      if (run.ownerId !== undefined && run.ownerId !== ownerId)
+      if (!runIsAccessibleToOwner(run, ownerId))
         return reply.code(403).send({ error: 'Run not accessible to this owner' });
       const yaml = runner.workflowYaml(request.params.id, request.params.stepId);
       if (!yaml) return reply.code(404).send({ error: 'Run step YAML not found' });
@@ -189,7 +203,7 @@ export function registerRunRoutes(
     async (request, reply) => {
       const run = runner.get(request.params.id);
       if (!run) return reply.code(404).send({ error: 'Run not found' });
-      if (run.ownerId !== undefined && run.ownerId !== ownerId)
+      if (!runIsAccessibleToOwner(run, ownerId))
         return reply.code(403).send({ error: 'Run not accessible to this owner' });
       const result = runner.stepOutput(request.params.id, request.params.stepId);
       return result
@@ -202,20 +216,18 @@ export function registerRunRoutes(
     async (request, reply) => {
       const run = runner.get(request.params.id);
       if (!run) return reply.code(404).send({ error: 'Run not found' });
-      if (run.ownerId !== undefined && run.ownerId !== ownerId)
+      if (!runIsAccessibleToOwner(run, ownerId))
         return reply.code(403).send({ error: 'Run not accessible to this owner' });
-      const cursor = request.query?.since;
-      if (
-        cursor !== undefined &&
-        (!/^(0|[1-9][0-9]*)$/.test(cursor) || !Number.isSafeInteger(Number(cursor)))
-      )
-        return reply.code(400).send({ error: 'Invalid journal cursor' });
+      let cursor: number | undefined;
       try {
-        const log = await readFile(runtimePath('runs', `${request.params.id}.jsonl`), 'utf8');
-        const page = parseRunJournal(
-          log,
+        cursor = journalCursor(request.query?.since);
+      } catch {
+        return reply.code(400).send({ error: 'Invalid journal cursor' });
+      }
+      try {
+        const page = await runner.journalPage(
           request.params.id,
-          cursor === undefined ? {} : { since: Number(cursor) },
+          cursor === undefined ? {} : { since: cursor },
         );
         return reply
           .header('Cache-Control', 'private, no-store')
@@ -223,16 +235,7 @@ export function registerRunRoutes(
           .header('X-Run-Journal-Has-More', String(page.hasMore))
           .send(page.events);
       } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT')
-          return reply.code(404).send({ error: 'Journal unavailable' });
-        if (error instanceof Error && error.message.startsWith('History incomplete'))
-          return reply.code(409).send({
-            error:
-              'History incomplete: the durable journal ended mid-line; earlier events may be missing',
-          });
-        if (error instanceof Error && error.message === 'Corrupt run journal')
-          return reply.code(409).send({ error: 'Corrupt run journal' });
-        throw error;
+        return journalFailure(reply, error);
       }
     },
   );
@@ -241,108 +244,22 @@ export function registerRunRoutes(
     '/runs',
     { schema: { body: runBodySchema } },
     async (request, reply) => {
+      if (!isTrustedOwnerId(ownerId))
+        return reply.code(401).send({ error: 'Owner authentication required' });
       try {
-        const { handle, profileUrl, ...rest } = request.body;
-        // Saved or explicitly supplied LinkedIn artboard graphs must bind to a verified account.
-        // Preserve the legacy standalone handle-audit login path without bypassing template checks.
-        if (
-          rest.platform === 'linkedin' &&
-          (rest.workflowId !== undefined || rest.workflow !== undefined) &&
-          !rest.accountId
-        ) {
-          return reply.code(400).send({
-            error: 'Select, connect, and sync a LinkedIn account before running this workflow',
-          });
-        }
-        if (!rest.accountId && Boolean(handle) === Boolean(profileUrl)) {
-          return reply.code(400).send({ error: 'Supply either your handle or a profile URL' });
-        }
-        const resolved = rest.accountId
-          ? (
-              await connectors.requireConnected(
-                rest.accountId,
-                rest.platform,
-                profileUrl || (handle ? profileUrlForHandle(rest.platform, handle) : undefined),
-              )
-            ).profileUrl
-          : handle
-            ? profileUrlForHandle(rest.platform, handle)
-            : profileUrl;
-        if (rest.workflowId !== undefined) {
-          if (
-            rest.workflow !== undefined ||
-            !Number.isSafeInteger(rest.workflowRevision) ||
-            (rest.workflowRevision ?? 0) < 1
-          ) {
-            return reply.code(400).send({
-              error: 'Choose a saved workflow revision instead of submitting a second graph',
-            });
-          }
-          const record = await workflowRegistry.get(rest.workflowId, rest.workflowRevision);
-          if (!record) return reply.code(404).send({ error: 'Workflow revision not found' });
-          if (record.plan.platform !== rest.platform || record.plan.action !== rest.action)
-            return reply.code(400).send({
-              error: 'Workflow identity does not match the requested action',
-            });
-          // A revision cannot be represented as one graph and executed with different action inputs.
-          // Authentication, selected account and page scope remain explicit per-run inputs.
-          const parameterKeys = [
-            'headline',
-            'about',
-            'skill',
-            'bio',
-            'location',
-            'website',
-            'postText',
-            'postUrl',
-            'positionId',
-            'description',
-            'startMonth',
-            'startYear',
-            'websiteIndex',
-            'websiteType',
-            'projectName',
-            'projectUrl',
-            'featuredTitle',
-            'bannerPath',
-          ] as const;
-          const snapshot = record.plan.parameters ?? {};
-          const resolvedFields: Record<string, string | number> = {};
-          for (const key of parameterKeys) {
-            const saved = snapshot[key],
-              supplied = rest[key];
-            if (supplied !== undefined && (saved === undefined || String(supplied) !== saved))
-              return reply.code(409).send({
-                error: 'Action inputs differ from the selected workflow revision',
-              });
-            if (saved !== undefined)
-              resolvedFields[key] = key === 'websiteIndex' ? Number(saved) : saved;
-          }
-          const definitions = await authoredSteps.resolve(record.plan);
-          return reply.code(202).send(
-            runner.start(
-              {
-                ...rest,
-                ...resolvedFields,
-                profileUrl: resolved,
-                ownerId,
-                workflow: record.plan,
-                workflowId: record.id,
-                workflowRevision: record.revision,
-              },
-              definitions,
-            ),
-          );
-        }
-        if (rest.workflowRevision !== undefined)
-          return reply.code(400).send({ error: 'Workflow ID required for revisioned execution' });
-        const definitions = rest.workflow ? await authoredSteps.resolve(rest.workflow) : undefined;
-        return reply
-          .code(202)
-          .send(runner.start({ ...rest, profileUrl: resolved, ownerId }, definitions));
+        const prepared = await prepareRun(request.body, ownerId, stores);
+        return reply.code(202).send(runner.start(prepared.request, prepared.definitions));
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        return reply.code(message.startsWith('BUSY:') ? 409 : 400).send({ error: message });
+        return reply
+          .code(
+            error instanceof RunPreparationError
+              ? error.statusCode
+              : message.startsWith('BUSY:')
+                ? 409
+                : 400,
+          )
+          .send({ error: message });
       }
     },
   );
@@ -367,7 +284,7 @@ export function registerRunRoutes(
     async (request, reply) => {
       const run = runner.get(request.params.id);
       if (!run) return reply.code(404).send({ error: 'Run not found' });
-      if (run.ownerId !== undefined && run.ownerId !== ownerId)
+      if (!runIsAccessibleToOwner(run, ownerId))
         return reply.code(403).send({ error: 'Run not accessible to this owner' });
       const ok = runner.decide(request.params.id, request.body.checkpointId, request.body.approved);
       return ok ? { accepted: true } : reply.code(409).send({ error: 'No matching pending checkpoint' });
@@ -394,7 +311,7 @@ export function registerRunRoutes(
     async (request, reply) => {
       const run = runner.get(request.params.id);
       if (!run) return reply.code(404).send({ error: 'Run not found' });
-      if (run.ownerId !== undefined && run.ownerId !== ownerId)
+      if (!runIsAccessibleToOwner(run, ownerId))
         return reply.code(403).send({ error: 'Run not accessible to this owner' });
       const accepted = runner.answerText(
         request.params.id,
@@ -434,42 +351,116 @@ export function registerRunRoutes(
       : reply.code(409).send({ error: 'Run not active' });
   });
 
-  app.get<{ Params: { id: string } }>('/events/:id', async (request, reply) => {
-    const runId = request.params.id;
-    const run = runner.get(runId);
-    if (!run) return reply.code(404).send({ error: 'Run not found' });
-    if (!runIsAccessibleToOwner(run, ownerId))
-      return reply.code(403).send({ error: 'Run not accessible to this owner' });
-    if (runner.events.getSince(0, runId).length === 0)
-      return reply.code(409).send({
-        error: 'Archived run events are available through the persisted logs endpoint',
-      });
-    reply.hijack();
-    reply.raw.writeHead(200, {
-      'Content-Type': 'text/event-stream; charset=utf-8',
-      'Cache-Control': 'no-cache, no-transform',
-      'X-Accel-Buffering': 'no',
-      Connection: 'keep-alive',
-    });
-    reply.raw.flushHeaders();
-    const send = (event: StreamEvent) => {
-      if (event.runId === runId && !reply.raw.destroyed) {
-        reply.raw.write(`id: ${event.id}\nevent: ${event.kind}\ndata: ${JSON.stringify(event)}\n\n`);
+  app.get<{ Params: { id: string }; Querystring: { since?: string } }>(
+    '/events/:id',
+    async (request, reply) => {
+      const runId = request.params.id;
+      const run = runner.get(runId);
+      if (!run) return reply.code(404).send({ error: 'Run not found' });
+      if (!runIsAccessibleToOwner(run, ownerId))
+        return reply.code(403).send({ error: 'Run not accessible to this owner' });
+      let cursor: number;
+      try {
+        const query = journalCursor(request.query.since);
+        cursor = journalCursor(request.headers['last-event-id']) ?? query ?? 0;
+      } catch {
+        return reply.code(400).send({ error: 'Invalid journal cursor' });
       }
-    };
-    const cursor = Number(
-      request.headers['last-event-id'] ||
-        (request.query && (request.query as { since?: string }).since) ||
-        0,
-    );
-    for (const event of runner.events.getSince(Number.isFinite(cursor) ? cursor : 0, runId)) send(event);
-    const unsubscribe = runner.events.subscribe(send);
-    const heartbeat = setInterval(() => {
-      if (!reply.raw.destroyed) reply.raw.write(': heartbeat\n\n');
-    }, 15000);
-    reply.raw.on('close', () => {
-      unsubscribe();
-      clearInterval(heartbeat);
-    });
-  });
+
+      let replaying = true;
+      let closed = false;
+      let lastSent = cursor;
+      let conflict = false;
+      let heartbeat: NodeJS.Timeout | undefined;
+      const buffered = new Map<number, StreamEvent>();
+      const delivered = new Map<number, StreamEvent>();
+      const send = (event: StreamEvent) => {
+        if (closed || event.runId !== runId || event.id <= cursor) return;
+        const prior = delivered.get(event.id);
+        if (prior) {
+          if (!isDeepStrictEqual(prior, event)) throw Error('Corrupt run journal');
+          return;
+        }
+        if (!Number.isSafeInteger(event.id) || event.id <= lastSent) throw Error('Corrupt run journal');
+        delivered.set(event.id, event);
+        lastSent = event.id;
+        reply.raw.write(`id: ${event.id}\nevent: ${event.kind}\ndata: ${JSON.stringify(event)}\n\n`);
+      };
+      // Subscribe before disk I/O. Events committed during replay join the same
+      // ordered stream, including an event already present in the page being read.
+      const unsubscribe = runner.events.subscribe((published) => {
+        if (closed || published.runId !== runId || published.id <= cursor) return;
+        try {
+          // Compare the persisted JSON values: optional undefined fields are absent on disk.
+          const event = JSON.parse(JSON.stringify(published)) as StreamEvent;
+          if (replaying) {
+            const prior = buffered.get(event.id);
+            if (prior && !isDeepStrictEqual(prior, event)) conflict = true;
+            else buffered.set(event.id, event);
+            return;
+          }
+          send(event);
+        } catch {
+          if (replaying) {
+            conflict = true;
+            return;
+          }
+          cleanup();
+          reply.raw.destroy();
+        }
+      });
+      const cleanup = () => {
+        if (closed) return;
+        closed = true;
+        unsubscribe();
+        if (heartbeat) clearInterval(heartbeat);
+        buffered.clear();
+        delivered.clear();
+      };
+      reply.raw.once('close', cleanup);
+      try {
+        const replay = new Map<number, StreamEvent>();
+        let since = cursor;
+        for (;;) {
+          const page = await runner.journalPage(runId, { since, limit: 1000 });
+          if (closed) return reply;
+          for (const event of page.events) {
+            if (event.runId !== runId || event.id <= since) throw Error('Corrupt run journal');
+            replay.set(event.id, event);
+            since = event.id;
+          }
+          if (!page.hasMore) break;
+          if (!page.events.length) throw Error('Corrupt run journal');
+        }
+        for (const event of buffered.values()) {
+          const prior = replay.get(event.id);
+          if (prior && !isDeepStrictEqual(prior, event)) conflict = true;
+          replay.set(event.id, event);
+        }
+        if (conflict) throw Error('Corrupt run journal');
+        reply.hijack();
+        reply.raw.writeHead(200, {
+          'Content-Type': 'text/event-stream; charset=utf-8',
+          'Cache-Control': 'private, no-cache, no-transform',
+          'X-Accel-Buffering': 'no',
+          Connection: 'keep-alive',
+        });
+        reply.raw.flushHeaders();
+        for (const event of [...replay.values()].sort((a, b) => a.id - b.id)) send(event);
+        buffered.clear();
+        replaying = false;
+        heartbeat = setInterval(() => {
+          if (!closed && !reply.raw.destroyed) reply.raw.write(': heartbeat\n\n');
+        }, 15000);
+        return reply;
+      } catch (error) {
+        cleanup();
+        if (reply.raw.headersSent) {
+          reply.raw.destroy();
+          return reply;
+        }
+        return journalFailure(reply, error);
+      }
+    },
+  );
 }

@@ -16,9 +16,10 @@ export class PromptGate {
     signal: AbortSignal,
     timeoutMs = 600000,
   ): Promise<string | null> {
+    if (signal.aborted) return Promise.resolve(null);
     if (this.waiting.has(runId)) throw new Error('A text response is already pending');
     const id = randomUUID();
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const finish = (value: string | null) => {
         const pending = this.waiting.get(runId);
         if (!pending || pending.id !== id) return;
@@ -31,7 +32,15 @@ export class PromptGate {
       const timer = setTimeout(() => finish(null), timeoutMs);
       this.waiting.set(runId, { id, resolve: finish, timer });
       signal.addEventListener('abort', onAbort, { once: true });
-      onCheckpoint(id);
+      try {
+        onCheckpoint(id);
+      } catch (error) {
+        clearTimeout(timer);
+        signal.removeEventListener('abort', onAbort);
+        this.waiting.delete(runId);
+        reject(error);
+        return;
+      }
       if (signal.aborted) finish(null);
     });
   }

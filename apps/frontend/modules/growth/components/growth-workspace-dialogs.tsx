@@ -2,10 +2,10 @@
 
 import { FileCode2, ShieldCheck } from 'lucide-react';
 import StudioDialog from '../../../components/ui/studio-dialog';
+import type { GrowthExecutionProjection } from '../model/growth-execution-projection';
 import { request } from '../model/growth-profile-client';
 import GrowthCoverageList from './coverage-list';
 import GrowthEvidenceForm from './evidence-form';
-import type { GrowthJournalEvent } from './growth-graph-model';
 import type { Program, Run, Stage } from './growth-profile-types';
 import GrowthRunControls from './run-controls';
 
@@ -17,7 +17,7 @@ type Props = {
   busy: boolean;
   working: boolean;
   error: string;
-  journal: GrowthJournalEvent[];
+  execution: GrowthExecutionProjection | null;
   journalError: string;
   detailsOpen: boolean;
   onDetailsClose: () => void;
@@ -39,7 +39,7 @@ export default function GrowthWorkspaceDialogs({
   busy,
   working,
   error,
-  journal,
+  execution,
   journalError,
   detailsOpen,
   onDetailsClose,
@@ -54,10 +54,11 @@ export default function GrowthWorkspaceDialogs({
 }: Props) {
   const designOnly = program?.kind === 'GrowthBlueprintWorkflow';
   const task = stage?.plan.steps.find((item) => item.id === taskId) ?? null;
-  const taskEvent = [...journal]
-    .reverse()
-    .find((event) => event.details?.stepId === taskId && event.details?.stage);
-  const liveStage = run?.pipelineRuns.find((item) => item.id === stage?.id);
+  const pipeline =
+    execution?.runId === run?.id && execution?.workflowId === program?.id
+      ? execution?.pipelines.find((item) => item.id === stage?.id)
+      : undefined;
+  const projectedTask = pipeline?.tasks.find((item) => item.id === taskId);
 
   return (
     <>
@@ -134,6 +135,7 @@ export default function GrowthWorkspaceDialogs({
             <>
               <GrowthRunControls
                 run={run}
+                execution={execution}
                 program={program}
                 busy={busy}
                 working={working}
@@ -214,7 +216,7 @@ export default function GrowthWorkspaceDialogs({
               <dd className="capitalize">{task.kind}</dd>
               <dt className="font-semibold">Recorded state</dt>
               <dd>
-                {taskEvent?.details?.stage ?? 'No recorded task execution'}
+                {projectedTask?.state ?? (run ? 'unavailable' : 'waiting')}
               </dd>
             </dl>
             {task.message && (
@@ -271,27 +273,23 @@ export default function GrowthWorkspaceDialogs({
                 </p>
               </section>
             )}
-            {taskEvent?.details?.reason && (
+            {projectedTask?.failure && (
               <p
                 role="alert"
                 className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800"
               >
-                {taskEvent.details.reason}
+                {projectedTask.failure}
               </p>
             )}
-            {liveStage?.error && (
-              <p role="alert" className="text-xs text-rose-800">
-                {liveStage.error}
-              </p>
-            )}
-            {journalError && (
+            {(journalError || pipeline?.historyIncomplete) && (
               <p role="status" className="text-xs text-amber-800">
-                {journalError}
+                {journalError ||
+                  'Journal unavailable or incomplete. Progress cannot be verified.'}
               </p>
             )}
-            {liveStage?.childRunId && (
+            {pipeline?.runId && (
               <a
-                href={`/api/runs/${liveStage.childRunId}/logs`}
+                href={`/api/runs/${encodeURIComponent(pipeline.runId)}/logs?since=0`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block text-xs font-semibold text-teal-800 underline"
@@ -299,13 +297,29 @@ export default function GrowthWorkspaceDialogs({
                 Inspect Runner journal
               </a>
             )}
+            {pipeline?.runId && projectedTask?.output && (
+              <a
+                href={`/api/runs/${encodeURIComponent(pipeline.runId)}/steps/${encodeURIComponent(task.id)}/output`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-xs font-semibold text-teal-800 underline"
+              >
+                Inspect persisted task output
+              </a>
+            )}
             <a
-              href={`${endpoint}/yaml`}
+              href={
+                pipeline?.runId
+                  ? `/api/runs/${encodeURIComponent(pipeline.runId)}/steps/${encodeURIComponent(task.id)}.yaml`
+                  : `${endpoint}/yaml`
+              }
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex min-h-11 items-center text-xs font-semibold text-teal-800 underline"
             >
-              View complete source YAML
+              {pipeline?.runId
+                ? 'View executed task YAML'
+                : 'View complete source YAML'}
             </a>
           </div>
         )}

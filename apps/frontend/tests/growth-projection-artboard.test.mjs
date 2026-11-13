@@ -16,6 +16,8 @@ const stage = {
 };
 test('Growth artboard consumes a shared projection instead of conflicting raw journal', () => {
   const projected = {
+    runId: 'run',
+    workflowId: 'growth',
     pipelines: [
       {
         id: 'inspect',
@@ -32,23 +34,10 @@ test('Growth artboard consumes a shared projection instead of conflicting raw jo
     coverage: [],
     stages: [stage],
   };
-  const overview = buildGrowthGraph(
-    program,
-    null,
-    null,
-    [],
-    undefined,
-    projected,
-  );
+  const run = { id: 'run', pipelineRuns: [] };
+  const overview = buildGrowthGraph(program, run, null, projected);
   expect(overview.nodes[0].data.state).toBe('blocked');
-  const tasks = buildGrowthGraph(
-    program,
-    null,
-    stage,
-    [],
-    undefined,
-    projected,
-  );
+  const tasks = buildGrowthGraph(program, run, stage, projected);
   expect(tasks.nodes[0].data.state).toBe('blocked');
   expect(tasks.nodes[0].data.failure).toBe('Provider blocked');
 });

@@ -17,7 +17,7 @@ type SubmitInput = (
   value: string,
 ) => Promise<void>;
 type Props = {
-  execution: GrowthExecutionProjection;
+  execution: GrowthExecutionProjection | null;
   title?: string;
   busy?: boolean;
   error?: string;
@@ -55,7 +55,10 @@ function PendingTask({
   const [input, setInput] = useState('');
   const [requestError, setRequestError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const live = task.checkpointId && runId;
+  const live =
+    task.checkpointId && runId
+      ? { runId, checkpointId: task.checkpointId }
+      : null;
   const submit = async (operation: () => Promise<void>) => {
     if (busy || submitting) return;
     setSubmitting(true);
@@ -123,13 +126,25 @@ function PendingTask({
               ))}
             </div>
           )}
+          {runId && task.output && (
+            <a
+              href={`/api/runs/${encodeURIComponent(runId)}/steps/${encodeURIComponent(task.id)}/output`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 block text-xs text-teal-800 underline"
+            >
+              Persisted task output
+            </a>
+          )}
           {live && task.state === 'approval-needed' && onDecision && (
             <div className="mt-2 flex flex-wrap gap-2">
               <button
                 type="button"
                 disabled={busy || submitting}
                 onClick={() =>
-                  void submit(() => onDecision(runId, task.checkpointId!, true))
+                  void submit(() =>
+                    onDecision(live.runId, live.checkpointId, true),
+                  )
                 }
                 className="min-h-9 rounded-md border border-teal-700 px-2 text-xs font-semibold text-teal-800 disabled:opacity-50"
               >
@@ -140,7 +155,7 @@ function PendingTask({
                 disabled={busy || submitting}
                 onClick={() =>
                   void submit(() =>
-                    onDecision(runId, task.checkpointId!, false),
+                    onDecision(live.runId, live.checkpointId, false),
                   )
                 }
                 className="min-h-9 rounded-md border border-rose-300 px-2 text-xs font-semibold text-rose-800 disabled:opacity-50"
@@ -156,18 +171,18 @@ function PendingTask({
                 event.preventDefault();
                 if (input.trim())
                   void submit(() =>
-                    onInput(runId, task.checkpointId!, input.trim()),
+                    onInput(live.runId, live.checkpointId, input.trim()),
                   );
               }}
             >
               <label
                 className="w-full text-[11px] text-slate-600"
-                htmlFor={'task-answer-' + task.id}
+                htmlFor={`task-answer-${runId}-${task.id}`}
               >
                 Requested input
               </label>
               <input
-                id={'task-answer-' + task.id}
+                id={`task-answer-${runId}-${task.id}`}
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 maxLength={300}
@@ -210,7 +225,7 @@ export function MatorPipelineExecution({
     >
       <div className="min-w-0 space-y-1">
         <p className="text-xs font-semibold break-words text-slate-900">
-          {title || execution.workflowId}
+          {title || execution?.workflowId || 'Workspace execution'}
         </p>
         <p className="text-[11px] text-slate-500">
           Selected workspace execution · separate from saved conversation
@@ -223,9 +238,9 @@ export function MatorPipelineExecution({
         </p>
       )}
       <div className="mt-2 max-h-64 space-y-2 overflow-y-auto">
-        {execution.pipelines.map((pipeline) => (
+        {execution?.pipelines.map((pipeline) => (
           <details
-            key={pipeline.id}
+            key={`${execution.runId}:${execution.sourceDigest}:${pipeline.id}:${pipeline.runId}`}
             className="min-w-0 rounded-lg border border-slate-200 bg-white"
             open={
               [
@@ -258,7 +273,7 @@ export function MatorPipelineExecution({
             <ol className="space-y-0 px-3 pb-2">
               {pipeline.tasks.map((task) => (
                 <PendingTask
-                  key={task.id}
+                  key={`${pipeline.runId}:${task.id}:${task.attempt}:${task.checkpointId ?? ''}`}
                   task={task}
                   runId={pipeline.runId}
                   busy={busy}

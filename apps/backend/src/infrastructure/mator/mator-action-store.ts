@@ -1,4 +1,5 @@
-import type { RunRequest, RunSummary } from '../../domain/types.js';
+import { isOwnedBy } from '../../domain/ownership.js';
+import type { RunSummary } from '../../domain/types.js';
 import type { WorkflowPlan, WorkflowStep } from '../../domain/workflow-plan.js';
 import { validatePlan } from '../../domain/workflow-plan.js';
 import type { DocumentStore } from '../db/documents.js';
@@ -7,7 +8,6 @@ import {
   assertActionAgainstPlan,
   type MatorAction,
   type MatorActionPorts,
-  type MatorRunnerPort,
   type MatorWorkflowPort,
   parseRevisionId,
   revisionIdFor,
@@ -109,6 +109,38 @@ async function loadConversation(
   return hit;
 }
 
+function pinnedRunAction(
+  action: MatorAction,
+  workflowId: string,
+  live: WorkflowRecord,
+  ownerId: string,
+  requirePinned: boolean,
+): MatorAction {
+  if (action.type !== 'run_step') return action;
+  if (!isOwnedBy(live, ownerId)) throw Error('Workflow not accessible to this owner');
+  const request = action.request;
+  if (live.id !== workflowId || (request.workflowId !== undefined && request.workflowId !== workflowId))
+    throw new MatorActionValidationError(
+      'Run workflow does not match this conversation',
+      'request.workflowId',
+    );
+  if (requirePinned && (request.workflowId === undefined || request.workflowRevision === undefined))
+    throw new MatorActionValidationError(
+      'Stage a new run proposal with a saved workflow revision',
+      'request.workflowRevision',
+    );
+  if (request.workflowRevision !== undefined && request.workflowRevision !== live.revision)
+    throw Error('Version conflict: workflow changed after this run was proposed');
+  if (request.workflow !== undefined)
+    throw new MatorActionValidationError(
+      'Run the saved workflow revision without a second graph',
+      'request.workflow',
+    );
+  if (request.platform !== live.plan.platform || request.action !== live.plan.action)
+    throw new MatorActionValidationError('Run action does not match this workflow', 'request.action');
+  return { ...action, request: { ...request, workflowId, workflowRevision: live.revision } };
+}
+
 export async function stageAction(
   docs: DocumentStore,
   ports: MatorActionPorts,
@@ -121,11 +153,12 @@ export async function stageAction(
 ): Promise<MatorEvent> {
   const live = await ports.workflows.get(input.workflowId);
   if (!live) throw Error('Workflow not found');
-  assertActionAgainstPlan(input.action, live.plan);
+  const action = pinnedRunAction(input.action, input.workflowId, live, docs.ownerId, false);
+  assertActionAgainstPlan(action, live.plan);
   return appendEvent(docs, input.conversationId, {
     role: 'assistant',
     kind: 'action',
-    action: input.action,
+    action,
     status: 'staged',
     ...(input.text ? { text: input.text } : {}),
   });
@@ -152,17 +185,18 @@ export async function applyAction(
   const conversationId = opts.conversationId ?? input.conversationId;
   const live = await ports.workflows.get(input.workflowId);
   if (!live) throw Error('Workflow not found');
-  assertActionAgainstPlan(input.action, live.plan);
+  const action = pinnedRunAction(input.action, input.workflowId, live, docs.ownerId, true);
+  assertActionAgainstPlan(action, live.plan);
 
   let record: TaggedWorkflowRecord | undefined;
   let run: RunSummary | undefined;
   let craftResult: unknown;
 
-  switch (input.action.type) {
+  switch (action.type) {
     case 'edit_step':
     case 'add_step':
     case 'remove_step': {
-      const nextPlan = applyPlanMutation(live.plan, input.action);
+      const nextPlan = applyPlanMutation(live.plan, action);
       const tags = opts.squash ? undefined : { conversationId, eventId: input.eventId };
       record = await ports.workflows.update(input.workflowId, live.revision, nextPlan, tags);
       if (!opts.squash && record)
@@ -175,8 +209,10 @@ export async function applyAction(
       break;
     }
     case 'run_step': {
+      await loadConversation(docs, input.workflowId, conversationId);
       run = await ports.runner.start({
-        ...input.action.request,
+        ...action.request,
+        ownerId: docs.ownerId,
         conversationId: input.conversationId,
       });
       // Persist the conversation↔run-attempt binding so switching
@@ -186,11 +222,11 @@ export async function applyAction(
     }
     case 'craft': {
       if (!ports.crafts) throw new MatorActionValidationError('Craft port is not configured', 'type');
-      craftResult = await ports.crafts.apply(input.action);
+      craftResult = await ports.crafts.apply(action);
       break;
     }
     case 'annotate_image': {
-      await upsertMarkers(docs, input.action.attachmentId, input.action.markers, input.action.reviewId);
+      await upsertMarkers(docs, action.attachmentId, action.markers, action.reviewId);
       break;
     }
     case 'explain_how':
@@ -202,7 +238,7 @@ export async function applyAction(
   const event = await appendEvent(docs, conversationId, {
     role: 'assistant',
     kind: 'action',
-    action: input.action,
+    action,
     status: 'applied',
     resolvesEventId: input.eventId,
   });

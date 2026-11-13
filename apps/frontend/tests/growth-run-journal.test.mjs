@@ -1,11 +1,19 @@
 import { expect, test } from 'vitest';
 import { fetchGrowthRunJournal } from '../modules/growth/model/growth-run-journal.ts';
 
+const event = (id, runId, message) => ({
+  id,
+  runId,
+  time: '2026-11-09T00:00:00Z',
+  kind: 'step',
+  message,
+});
+
 test('journal request uses the child run identifier, starts at cursor 0 and forwards cancellation', async () => {
   const previous = globalThis.fetch;
   try {
     const controller = new AbortController();
-    const entries = [{ id: 1, kind: 'step', message: 'Started' }];
+    const entries = [event(1, 'run/one', 'Started')];
     const calls = [];
     globalThis.fetch = async (path, options) => {
       calls.push(String(path));
@@ -30,8 +38,8 @@ test('consumes every available page until hasMore is false', async () => {
   const previous = globalThis.fetch;
   try {
     const controller = new AbortController();
-    const page1 = [{ id: 1, kind: 'step', message: 'Started' }];
-    const page2 = [{ id: 2, kind: 'step', message: 'Completed' }];
+    const page1 = [event(1, 'run-one', 'Started')];
+    const page2 = [event(2, 'run-one', 'Completed')];
     let call = 0;
     globalThis.fetch = async (path) => {
       call += 1;
@@ -62,11 +70,11 @@ test('consumes every available page until hasMore is false', async () => {
   }
 });
 
-test('stops paginating when a page returns no events', async () => {
+test('rejects incomplete paging when the server claims more events but returns none', async () => {
   const previous = globalThis.fetch;
   try {
     const controller = new AbortController();
-    const page1 = [{ id: 1, kind: 'step', message: 'Started' }];
+    const page1 = [event(1, 'run-one', 'Started')];
     let call = 0;
     globalThis.fetch = async (_path) => {
       call += 1;
@@ -78,9 +86,9 @@ test('stops paginating when a page returns no events', async () => {
         json: async () => (call === 1 ? page1 : []),
       };
     };
-    expect(await fetchGrowthRunJournal('run-one', controller.signal)).toEqual(
-      page1,
-    );
+    await expect(
+      fetchGrowthRunJournal('run-one', controller.signal),
+    ).rejects.toThrow(/cursor made no progress/i);
     expect(call).toBe(2);
   } finally {
     globalThis.fetch = previous;

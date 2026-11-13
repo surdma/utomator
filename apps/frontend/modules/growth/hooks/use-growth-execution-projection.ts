@@ -14,15 +14,31 @@ type Snapshot = {
   error: string;
 };
 
-export function useGrowthExecutionProjection(run: Run | null): {
+export type GrowthExecutionView = {
   projection: GrowthExecutionProjection | null;
   error: string;
-} {
+};
+
+export function useGrowthExecutionProjection(
+  run: Run | null,
+): GrowthExecutionView {
   const childIds =
     run?.stages?.flatMap((stage) =>
       stage.childRunId ? [stage.childRunId] : [],
     ) ?? [];
-  const key = (run?.id ?? '') + ':' + childIds.join(',');
+  const key = JSON.stringify([
+    run?.id,
+    run?.programId,
+    run?.programVersion,
+    run?.sourceDigest,
+    run?.stages?.map((stage) => [
+      stage.id,
+      stage.childRunId,
+      stage.attempt,
+      stage.planDigest,
+    ]),
+  ]);
+  const childKey = JSON.stringify(childIds);
   const [snapshot, setSnapshot] = useState<Snapshot>({
     key: '',
     journals: {},
@@ -30,7 +46,8 @@ export function useGrowthExecutionProjection(run: Run | null): {
   });
 
   useEffect(() => {
-    if (childIds.length === 0) return;
+    const runIds = JSON.parse(childKey) as string[];
+    if (runIds.length === 0) return;
     const controller = new AbortController();
     let busy = false;
     const refresh = async () => {
@@ -39,7 +56,7 @@ export function useGrowthExecutionProjection(run: Run | null): {
       const journals: Record<string, GrowthJournalSnapshot> = {};
       const errors: string[] = [];
       await Promise.all(
-        childIds.map(async (runId) => {
+        runIds.map(async (runId) => {
           try {
             const events = await fetchGrowthRunJournal(
               runId,
@@ -50,9 +67,13 @@ export function useGrowthExecutionProjection(run: Run | null): {
               events,
               complete: true,
             };
-          } catch {
+          } catch (reason) {
             journals[runId] = { runId, events: [], complete: false };
-            errors.push('Journal unavailable for a pipeline');
+            errors.push(
+              reason instanceof Error
+                ? reason.message
+                : 'Journal unavailable for a pipeline',
+            );
           }
         }),
       );
@@ -66,28 +87,42 @@ export function useGrowthExecutionProjection(run: Run | null): {
       clearInterval(timer);
       controller.abort();
     };
-  }, [key]);
+  }, [key, childKey]);
 
-  const projection = useMemo(() => {
+  const projected = useMemo<GrowthExecutionView>(() => {
+    if (!run) return { projection: null, error: '' };
     if (
       !run?.stages?.length ||
       !run.programId ||
       !Number.isSafeInteger(run.programVersion) ||
       !run.sourceDigest
     )
-      return null;
+      return {
+        projection: null,
+        error:
+          'Pinned execution identity is unavailable for this historical run.',
+      };
     try {
-      return projectGrowthExecution(
-        run as GrowthExecutionRun,
-        snapshot.key === key ? snapshot.journals : {},
-      );
-    } catch {
-      return null;
+      return {
+        projection: projectGrowthExecution(
+          run as GrowthExecutionRun,
+          snapshot.key === key ? snapshot.journals : {},
+        ),
+        error: '',
+      };
+    } catch (reason) {
+      return {
+        projection: null,
+        error:
+          reason instanceof Error
+            ? reason.message
+            : 'Pinned execution is unavailable',
+      };
     }
   }, [run, key, snapshot]);
 
   return {
-    projection,
-    error: snapshot.key === key ? snapshot.error : '',
+    projection: projected.projection,
+    error: projected.error || (snapshot.key === key ? snapshot.error : ''),
   };
 }

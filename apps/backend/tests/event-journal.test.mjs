@@ -16,7 +16,7 @@ test('allocate assigns id and time but does not broadcast to subscribers', () =>
   expect(event.id).toBe(1);
   expect(Number.isFinite(Date.parse(event.time))).toBe(true);
   expect(received).toHaveLength(0);
-  expect(journal.getSince(0, 'r1')).toHaveLength(1);
+  expect(journal.getSince(0, 'r1')).toHaveLength(0);
 });
 
 test('publish allocates and broadcasts to subscribers', () => {
@@ -29,13 +29,13 @@ test('publish allocates and broadcasts to subscribers', () => {
   expect(received[0]).toBe(event);
 });
 
-test('retract removes an allocated event from history without allocating a new id', () => {
+test('retract discards an unwritten reservation and restores the next identity', () => {
   const journal = new EventJournal();
   const first = journal.allocate(input('r1'));
   journal.retract(first.id);
   expect(journal.getSince(0, 'r1')).toHaveLength(0);
   const next = journal.publish(input('r1'));
-  expect(next.id).toBe(2); // seq advanced despite retract; no id reuse
+  expect(next.id).toBe(1);
   expect(journal.getSince(0, 'r1')).toHaveLength(1);
 });
 

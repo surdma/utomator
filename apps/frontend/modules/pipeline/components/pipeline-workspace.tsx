@@ -3,6 +3,10 @@
 import { useReducedMotion } from 'framer-motion';
 import type { ComponentType, Dispatch, SetStateAction } from 'react';
 import type { Connector } from '@/modules/connections';
+import type {
+  GrowthExecutionView,
+  GrowthWorkflowState,
+} from '@/modules/growth';
 import {
   WorkflowEmptyState,
   type WorkflowPlan,
@@ -21,6 +25,8 @@ type Props = {
   workflowPlan: WorkflowPlan;
   templatePlans: WorkflowPlan[];
   selectedGrowthTemplateId: string | null;
+  growthState?: GrowthWorkflowState;
+  growthExecution?: GrowthExecutionView;
   workspaceOpen: boolean;
   savedWorkflows: WorkflowRecord[];
   beginNewWorkflow: () => void;
@@ -71,6 +77,8 @@ export default function PipelineWorkspace({
   workflowPlan,
   templatePlans,
   selectedGrowthTemplateId,
+  growthState,
+  growthExecution,
   workspaceOpen,
   savedWorkflows,
   beginNewWorkflow,
@@ -138,6 +146,8 @@ export default function PipelineWorkspace({
             templates={templatePlans}
             growthTemplateId={selectedGrowthTemplateId}
             growthAccountId={connectorReady ? activeConnector?.id : undefined}
+            growthState={growthState}
+            growthExecution={growthExecution}
             onGrowthTemplateApply={applyGrowthTemplate}
             onClearGrowth={closeWorkspace}
             onGrowthActionSelect={chooseAction}
